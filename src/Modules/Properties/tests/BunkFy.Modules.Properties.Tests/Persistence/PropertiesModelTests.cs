@@ -98,7 +98,7 @@ public sealed class PropertiesModelTests
             operation.GetCheckConstraints(),
             constraint => constraint.Name ==
                 "CK_properties_property_mutation_operations_kind" &&
-                constraint.Sql == "\"Kind\" IN (1, 2, 3, 4, 5, 6)");
+                constraint.Sql == "\"Kind\" IN (1, 2, 3, 4, 5, 6, 7, 8, 9)");
         Assert.Contains(
             operation.GetCheckConstraints(),
             constraint => constraint.Name ==
@@ -109,8 +109,29 @@ public sealed class PropertiesModelTests
                 "CK_properties_property_mutation_operations_status");
         Assert.True(operation.FindProperty("ResultStatus")!.IsNullable);
         Assert.True(operation.FindProperty("ResultRoomId")!.IsNullable);
+        Assert.True(operation.FindProperty("ResultBedId")!.IsNullable);
+        Assert.True(operation.FindProperty("ResultBedStatus")!.IsNullable);
+        Assert.True(operation.FindProperty("ResultAffectedBedCount")!.IsNullable);
         Assert.False(
             operation.FindProperty("ResultResourceVersion")!.IsNullable);
+        Assert.Contains(
+            operation.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_properties_property_mutation_operations_status" &&
+                constraint.Sql!.Contains(
+                    "\"Kind\" IN (7, 9)",
+                    StringComparison.Ordinal) &&
+                constraint.Sql.Contains(
+                    "\"ResultAffectedBedCount\" BETWEEN 1 AND 100",
+                    StringComparison.Ordinal));
+        Assert.Contains(
+            operation.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_properties_property_mutation_operations_versions" &&
+                constraint.Sql!.Contains(
+                    "\"ResultResourceVersion\" = \"ExpectedVersion\" + " +
+                    "\"ResultAffectedBedCount\"",
+                    StringComparison.Ordinal));
     }
 
     [Fact]

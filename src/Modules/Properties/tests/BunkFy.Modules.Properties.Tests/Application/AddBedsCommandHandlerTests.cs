@@ -24,7 +24,12 @@ public sealed class AddBedsCommandHandlerTests
         ICommandHandler<AddBedsCommand, BedBatchMutationReceiptDto> handler = CreateHandler(repository);
 
         Result<BedBatchMutationReceiptDto> result = await handler.HandleAsync(
-            new AddBedsCommand(room.PropertyId, room.Id, room.Version, ["1", "2", "3"]),
+            new AddBedsCommand(
+                Guid.NewGuid(),
+                room.PropertyId,
+                room.Id,
+                room.Version,
+                ["1", "2", "3"]),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -43,6 +48,7 @@ public sealed class AddBedsCommandHandlerTests
 
         Result<BedBatchMutationReceiptDto> result = await handler.HandleAsync(
             new AddBedsCommand(
+                Guid.NewGuid(),
                 room.PropertyId,
                 room.Id,
                 room.Version,

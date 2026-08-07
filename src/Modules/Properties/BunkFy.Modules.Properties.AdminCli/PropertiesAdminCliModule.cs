@@ -511,12 +511,14 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
 
     private static Command CreateAddBedCommand(IServiceProvider services, AdminCliGlobalOptions globalOptions)
     {
+        Option<Guid> operationIdOption = new("--operation-id") { Required = true };
         Option<Guid> propertyIdOption = CreatePropertyIdOption();
         Option<Guid> roomIdOption = CreateRoomIdOption();
         Option<long> expectedRoomVersionOption = CreateRequiredVersionOption("--expected-room-version");
         Option<string> labelOption = CreateBedLabelOption();
         Command command = new("add", "Add a bed.")
         {
+            operationIdOption,
             propertyIdOption,
             roomIdOption,
             expectedRoomVersionOption,
@@ -531,6 +533,7 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
                 PropertiesAdminPermissions.BedsManage,
                 provider => provider.GetRequiredService<IRequestDispatcher>().SendAsync(
                     new AddBedCommand(
+                        parseResult.GetRequiredValue(operationIdOption),
                         parseResult.GetRequiredValue(propertyIdOption),
                         parseResult.GetRequiredValue(roomIdOption),
                         parseResult.GetRequiredValue(expectedRoomVersionOption),
@@ -542,6 +545,7 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
 
     private static Command CreateAddBedsCommand(IServiceProvider services, AdminCliGlobalOptions globalOptions)
     {
+        Option<Guid> operationIdOption = new("--operation-id") { Required = true };
         Option<Guid> propertyIdOption = CreatePropertyIdOption();
         Option<Guid> roomIdOption = CreateRoomIdOption();
         Option<long> expectedRoomVersionOption = CreateRequiredVersionOption("--expected-room-version");
@@ -552,6 +556,7 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
         };
         Command command = new("add-many", "Add multiple beds atomically.")
         {
+            operationIdOption,
             propertyIdOption,
             roomIdOption,
             expectedRoomVersionOption,
@@ -571,6 +576,7 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
                         .GetRequiredService<IRequestDispatcher>()
                         .SendAsync(
                             new AddBedsCommand(
+                                parseResult.GetRequiredValue(operationIdOption),
                                 parseResult.GetRequiredValue(propertyIdOption),
                                 parseResult.GetRequiredValue(roomIdOption),
                                 parseResult.GetRequiredValue(expectedRoomVersionOption),
@@ -593,6 +599,7 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
 
     private static Command CreateUpdateBedCommand(IServiceProvider services, AdminCliGlobalOptions globalOptions)
     {
+        Option<Guid> operationIdOption = new("--operation-id") { Required = true };
         Option<Guid> propertyIdOption = CreatePropertyIdOption();
         Option<Guid> roomIdOption = CreateRoomIdOption();
         Option<Guid> bedIdOption = CreateBedIdOption();
@@ -600,6 +607,7 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
         Option<string> labelOption = CreateBedLabelOption();
         Command command = new("update", "Update a bed.")
         {
+            operationIdOption,
             propertyIdOption,
             roomIdOption,
             bedIdOption,
@@ -615,6 +623,7 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
                 PropertiesAdminPermissions.BedsManage,
                 provider => provider.GetRequiredService<IRequestDispatcher>().SendAsync(
                     new UpdateBedCommand(
+                        parseResult.GetRequiredValue(operationIdOption),
                         parseResult.GetRequiredValue(propertyIdOption),
                         parseResult.GetRequiredValue(roomIdOption),
                         parseResult.GetRequiredValue(bedIdOption),

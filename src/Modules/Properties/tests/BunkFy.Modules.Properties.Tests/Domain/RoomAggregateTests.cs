@@ -75,6 +75,38 @@ public sealed class RoomAggregateTests
     }
 
     [Fact]
+    public void Normalized_unchanged_bed_update_does_not_advance_the_room_or_bed()
+    {
+        Room room = CreateRoom().Value;
+        Bed bed = room.AddBed(
+            Guid.NewGuid(),
+            "A",
+            room.Version,
+            Guid.NewGuid(),
+            DateTimeOffset.UtcNow).Value;
+        room.ClearDomainEvents();
+        long roomVersion = room.Version;
+        long bedVersion = bed.Version;
+
+        Result<BedDetailsUpdateOutcome> evaluation = room.EvaluateBedUpdate(
+            bed.Id,
+            BedLabel.Create(" A ").Value,
+            roomVersion);
+        Result<Bed> result = room.UpdateBed(
+            bed.Id,
+            " A ",
+            roomVersion,
+            Guid.Empty,
+            DateTimeOffset.UtcNow.AddMinutes(1));
+
+        Assert.Equal(BedDetailsUpdateOutcome.Unchanged, evaluation.Value);
+        Assert.True(result.IsSuccess);
+        Assert.Equal(roomVersion, room.Version);
+        Assert.Equal(bedVersion, bed.Version);
+        Assert.Empty(room.DomainEvents);
+    }
+
+    [Fact]
     public void Retired_room_rejects_mutations()
     {
         Room room = CreateRoom().Value;

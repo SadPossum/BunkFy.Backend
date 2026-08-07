@@ -28,6 +28,9 @@ public sealed record PropertyMutationOperationRecord(
     PropertyProcessingStatus? ResultProcessingStatus,
     Guid? ResultRoomId,
     RoomStatus? ResultRoomStatus,
+    Guid? ResultBedId,
+    BedStatus? ResultBedStatus,
+    int? ResultAffectedBedCount,
     long ResultVersion,
     long ResultResourceVersion,
     DateTimeOffset CompletedAtUtc)
@@ -81,6 +84,41 @@ public sealed record PropertyMutationOperationRecord(
             this.ResultVersion);
     }
 
+    public BedMutationReceiptDto ToBedReceipt()
+    {
+        if (this.ResultRoomId is null ||
+            this.ResultBedId is null ||
+            this.ResultBedStatus is null)
+        {
+            throw new InvalidDataException(
+                "The property mutation operation has no bed receipt.");
+        }
+
+        return new(
+            this.PropertyId,
+            this.ResultRoomId.Value,
+            this.ResultBedId.Value,
+            this.ResultBedStatus.Value,
+            this.ResultVersion,
+            this.ResultResourceVersion);
+    }
+
+    public BedBatchMutationReceiptDto ToBedBatchReceipt()
+    {
+        if (this.ResultRoomId is null ||
+            this.ResultAffectedBedCount is null)
+        {
+            throw new InvalidDataException(
+                "The property mutation operation has no bed batch receipt.");
+        }
+
+        return new(
+            this.PropertyId,
+            this.ResultRoomId.Value,
+            this.ResultAffectedBedCount.Value,
+            this.ResultResourceVersion);
+    }
+
     public static PropertyMutationOperationRecord ForProperty(
         Guid operationId,
         string scopeId,
@@ -100,6 +138,9 @@ public sealed record PropertyMutationOperationRecord(
             requestFingerprint,
             receipt.Status,
             receipt.ProcessingStatus,
+            null,
+            null,
+            null,
             null,
             null,
             receipt.Version,
@@ -130,8 +171,69 @@ public sealed record PropertyMutationOperationRecord(
             null,
             receipt.RoomId,
             receipt.Status,
+            null,
+            null,
+            null,
             receipt.Version,
             resultResourceVersion,
+            completedAtUtc);
+
+    public static PropertyMutationOperationRecord ForBed(
+        Guid operationId,
+        string scopeId,
+        Guid propertyId,
+        Guid roomId,
+        PropertyMutationKind kind,
+        long expectedVersion,
+        string requestFingerprint,
+        BedMutationReceiptDto receipt,
+        DateTimeOffset completedAtUtc) => new(
+            operationId,
+            scopeId,
+            propertyId,
+            PropertyMutationResourceKind.Room,
+            roomId,
+            kind,
+            expectedVersion,
+            requestFingerprint,
+            null,
+            null,
+            receipt.RoomId,
+            null,
+            receipt.BedId,
+            receipt.Status,
+            null,
+            receipt.Version,
+            receipt.RoomVersion,
+            completedAtUtc);
+
+    public static PropertyMutationOperationRecord ForBedBatch(
+        Guid operationId,
+        string scopeId,
+        Guid propertyId,
+        Guid roomId,
+        PropertyMutationKind kind,
+        long expectedVersion,
+        string requestFingerprint,
+        BedBatchMutationReceiptDto receipt,
+        DateTimeOffset completedAtUtc) => new(
+            operationId,
+            scopeId,
+            propertyId,
+            PropertyMutationResourceKind.Room,
+            roomId,
+            kind,
+            expectedVersion,
+            requestFingerprint,
+            null,
+            null,
+            receipt.RoomId,
+            null,
+            null,
+            null,
+            receipt.AffectedBedCount,
+            receipt.RoomVersion,
+            receipt.RoomVersion,
             completedAtUtc);
 }
 
@@ -148,5 +250,8 @@ public enum PropertyMutationKind
     ProcessingSuspension = 3,
     Retirement = 4,
     RoomCreate = 5,
-    RoomUpdate = 6
+    RoomUpdate = 6,
+    BedAdd = 7,
+    BedBatchAdd = 8,
+    BedUpdate = 9
 }

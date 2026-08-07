@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Properties.Persistence.Configurations;
 
+using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Properties.Domain.Aggregates;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -16,8 +17,17 @@ internal sealed class PropertyMutationOperationConfiguration
                 "CK_properties_property_mutation_operations_versions",
                 "\"ExpectedVersion\" > 0 AND " +
                 "\"ResultVersion\" > 0 AND " +
+                "((\"Kind\" IN (1, 2, 3, 4, 6, 9) AND " +
                 "\"ResultResourceVersion\" >= \"ExpectedVersion\" AND " +
-                "\"ResultResourceVersion\" <= \"ExpectedVersion\" + 1");
+                "\"ResultResourceVersion\" <= \"ExpectedVersion\" + 1) OR " +
+                "(\"Kind\" IN (5, 7) AND " +
+                "\"ResultResourceVersion\" = \"ExpectedVersion\" + 1) OR " +
+                "(\"Kind\" = 8 AND " +
+                "\"ResultAffectedBedCount\" BETWEEN 1 AND " +
+                $"{PropertiesContractLimits.MaximumBedsPerBatch} AND " +
+                "\"ResultResourceVersion\" = \"ExpectedVersion\" + " +
+                "\"ResultAffectedBedCount\" AND " +
+                "\"ResultVersion\" = \"ResultResourceVersion\"))");
             table.HasCheckConstraint(
                 "CK_properties_property_mutation_operations_fingerprint",
                 "char_length(\"RequestFingerprint\") = 64 AND " +
@@ -28,21 +38,44 @@ internal sealed class PropertyMutationOperationConfiguration
                 "\"ResultStatus\" IN (1, 2) AND " +
                 "\"ResultProcessingStatus\" IN (1, 2, 3) AND " +
                 "\"ResultRoomId\" IS NULL AND " +
-                "\"ResultRoomStatus\" IS NULL) OR " +
+                "\"ResultRoomStatus\" IS NULL AND " +
+                "\"ResultBedId\" IS NULL AND " +
+                "\"ResultBedStatus\" IS NULL AND " +
+                "\"ResultAffectedBedCount\" IS NULL) OR " +
                 "(\"Kind\" IN (5, 6) AND " +
                 "\"ResultStatus\" IS NULL AND " +
                 "\"ResultProcessingStatus\" IS NULL AND " +
                 "\"ResultRoomId\" IS NOT NULL AND " +
-                "\"ResultRoomStatus\" IN (1, 2))");
+                "\"ResultRoomStatus\" IN (1, 2) AND " +
+                "\"ResultBedId\" IS NULL AND " +
+                "\"ResultBedStatus\" IS NULL AND " +
+                "\"ResultAffectedBedCount\" IS NULL) OR " +
+                "(\"Kind\" IN (7, 9) AND " +
+                "\"ResultStatus\" IS NULL AND " +
+                "\"ResultProcessingStatus\" IS NULL AND " +
+                "\"ResultRoomId\" IS NOT NULL AND " +
+                "\"ResultRoomStatus\" IS NULL AND " +
+                "\"ResultBedId\" IS NOT NULL AND " +
+                "\"ResultBedStatus\" = 1 AND " +
+                "\"ResultAffectedBedCount\" IS NULL) OR " +
+                "(\"Kind\" = 8 AND " +
+                "\"ResultStatus\" IS NULL AND " +
+                "\"ResultProcessingStatus\" IS NULL AND " +
+                "\"ResultRoomId\" IS NOT NULL AND " +
+                "\"ResultRoomStatus\" IS NULL AND " +
+                "\"ResultBedId\" IS NULL AND " +
+                "\"ResultBedStatus\" IS NULL AND " +
+                "\"ResultAffectedBedCount\" BETWEEN 1 AND " +
+                $"{PropertiesContractLimits.MaximumBedsPerBatch})");
             table.HasCheckConstraint(
                 "CK_properties_property_mutation_operations_kind",
-                "\"Kind\" IN (1, 2, 3, 4, 5, 6)");
+                "\"Kind\" IN (1, 2, 3, 4, 5, 6, 7, 8, 9)");
             table.HasCheckConstraint(
                 "CK_properties_property_mutation_operations_resource",
                 "(\"Kind\" IN (1, 2, 3, 4, 5) AND " +
                 "\"ResourceKind\" = 1 AND " +
                 "\"ResourceId\" = \"PropertyId\") OR " +
-                "(\"Kind\" = 6 AND " +
+                "(\"Kind\" IN (6, 7, 8, 9) AND " +
                 "\"ResourceKind\" = 2 AND " +
                 "\"ResourceId\" = \"ResultRoomId\")");
         });
@@ -71,6 +104,8 @@ internal sealed class PropertyMutationOperationConfiguration
         builder.Property(operation => operation.ResultProcessingStatus)
             .HasConversion<int?>();
         builder.Property(operation => operation.ResultRoomStatus)
+            .HasConversion<int?>();
+        builder.Property(operation => operation.ResultBedStatus)
             .HasConversion<int?>();
         builder.HasOne<Property>()
             .WithMany()

@@ -150,6 +150,9 @@ internal sealed partial class PropertiesTenantTerminationContributor
                     operation.ResultProcessingStatus,
                     operation.ResultRoomId,
                     operation.ResultRoomStatus,
+                    operation.ResultBedId,
+                    operation.ResultBedStatus,
+                    operation.ResultAffectedBedCount,
                     operation.ResultVersion,
                     operation.ResultResourceVersion,
                     operation.CompletedAtUtc));

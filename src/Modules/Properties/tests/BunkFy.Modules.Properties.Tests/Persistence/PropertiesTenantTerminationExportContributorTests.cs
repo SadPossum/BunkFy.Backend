@@ -5,6 +5,7 @@ using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Properties.Application.Ports;
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Properties.Domain.Aggregates;
+using BunkFy.Modules.Properties.Domain.Entities;
 using BunkFy.Modules.Properties.Domain.ValueObjects;
 using BunkFy.Modules.Properties.Persistence;
 using BunkFy.Modules.Properties.Persistence.Repositories;
@@ -36,10 +37,18 @@ public sealed partial class PropertiesTenantTerminationExportContributorTests
         Guid.Parse("51000000-0000-0000-0000-000000000001");
     private static readonly Guid RoomMutationOperationId =
         Guid.Parse("52000000-0000-0000-0000-000000000001");
+    private static readonly Guid BedMutationOperationId =
+        Guid.Parse("53000000-0000-0000-0000-000000000001");
+    private static readonly Guid BedBatchMutationOperationId =
+        Guid.Parse("54000000-0000-0000-0000-000000000001");
     private static readonly Guid RoomId =
         Guid.Parse("60000000-0000-0000-0000-000000000001");
     private static readonly Guid BedId =
         Guid.Parse("70000000-0000-0000-0000-000000000001");
+    private static readonly Guid SecondBedId =
+        Guid.Parse("70000000-0000-0000-0000-000000000002");
+    private static readonly Guid ThirdBedId =
+        Guid.Parse("70000000-0000-0000-0000-000000000003");
     private static readonly DateTimeOffset FrozenAtUtc =
         new(2026, 7, 31, 12, 0, 0, TimeSpan.Zero);
     private static readonly DateTimeOffset Now =
@@ -105,7 +114,7 @@ public sealed partial class PropertiesTenantTerminationExportContributorTests
             TenantTerminationContributionStatus.Completed,
             result.Status);
         Assert.Equal("properties.termination.exported", result.ResultCode);
-        Assert.Equal(7, result.AffectedCount);
+        Assert.Equal(11, result.AffectedCount);
         Assert.Equal(1, result.SelectedProofRevision);
         Assert.Equal(1, result.ResultingProofRevision);
         Assert.Equal(
@@ -116,8 +125,14 @@ public sealed partial class PropertiesTenantTerminationExportContributorTests
                 PropertiesTenantTerminationMetadata
                     .PropertyMutationOperationRecordType,
                 PropertiesTenantTerminationMetadata
+                    .PropertyMutationOperationRecordType,
+                PropertiesTenantTerminationMetadata
+                    .PropertyMutationOperationRecordType,
+                PropertiesTenantTerminationMetadata
                     .GovernanceAcknowledgementRecordType,
                 PropertiesTenantTerminationMetadata.RoomRecordType,
+                PropertiesTenantTerminationMetadata.BedRecordType,
+                PropertiesTenantTerminationMetadata.BedRecordType,
                 PropertiesTenantTerminationMetadata.BedRecordType,
                 PropertiesTenantTerminationMetadata
                     .GovernanceRevisionRecordType
@@ -148,6 +163,27 @@ public sealed partial class PropertiesTenantTerminationExportContributorTests
         Assert.Equal(
             "room-update",
             roomOperation.GetProperty("kind").GetString());
+        JsonElement bedOperation = Field(
+            first.Records[3],
+            "properties.property-mutation-operation");
+        Assert.Equal(
+            "bed-add",
+            bedOperation.GetProperty("kind").GetString());
+        Assert.Equal(
+            BedId,
+            bedOperation.GetProperty("resultBedId").GetGuid());
+        Assert.Equal(
+            "active",
+            bedOperation.GetProperty("resultBedStatus").GetString());
+        JsonElement batchOperation = Field(
+            first.Records[4],
+            "properties.property-mutation-operation");
+        Assert.Equal(
+            "bed-batch-add",
+            batchOperation.GetProperty("kind").GetString());
+        Assert.Equal(
+            2,
+            batchOperation.GetProperty("resultAffectedBedCount").GetInt32());
         Assert.Equal(
             PropertiesTenantTerminationMetadata.ExportSchemaId,
             contributor.ExportDescriptor.ExportSchemaId);
@@ -356,11 +392,31 @@ public sealed partial class PropertiesTenantTerminationExportContributorTests
             "4",
             Guid.NewGuid(),
             FrozenAtUtc.AddDays(-5)).Value;
+        Assert.True(room.Update(
+            "4A",
+            "Main House",
+            "5",
+            room.Version,
+            Guid.NewGuid(),
+            FrozenAtUtc.AddDays(-5)).IsSuccess);
         Assert.True(room.AddBed(
             BedId,
             "1",
             room.Version,
             Guid.NewGuid(),
+            FrozenAtUtc.AddDays(-5)).IsSuccess);
+        Assert.True(room.AddBeds(
+            [
+                new BedAdditionDefinition(
+                    SecondBedId,
+                    "2",
+                    Guid.NewGuid()),
+                new BedAdditionDefinition(
+                    ThirdBedId,
+                    "3",
+                    Guid.NewGuid())
+            ],
+            room.Version,
             FrozenAtUtc.AddDays(-5)).IsSuccess);
 
         PropertyGovernanceRevisionCoordinates current = new(
@@ -418,6 +474,40 @@ public sealed partial class PropertiesTenantTerminationExportContributorTests
                         RoomStatus.Active,
                         Version: 2),
                     resultResourceVersion: 2,
+                    FrozenAtUtc.AddDays(-3))));
+        context.PropertyMutationOperations.Add(
+            new PropertyMutationOperation(
+                PropertyMutationOperationRecord.ForBed(
+                    BedMutationOperationId,
+                    TenantId,
+                    PropertyId,
+                    RoomId,
+                    PropertyMutationKind.BedAdd,
+                    expectedVersion: 2,
+                    Digest,
+                    new BedMutationReceiptDto(
+                        PropertyId,
+                        RoomId,
+                        BedId,
+                        BedStatus.Active,
+                        Version: 1,
+                        RoomVersion: 3),
+                    FrozenAtUtc.AddDays(-3))));
+        context.PropertyMutationOperations.Add(
+            new PropertyMutationOperation(
+                PropertyMutationOperationRecord.ForBedBatch(
+                    BedBatchMutationOperationId,
+                    TenantId,
+                    PropertyId,
+                    RoomId,
+                    PropertyMutationKind.BedBatchAdd,
+                    expectedVersion: 3,
+                    Digest,
+                    new BedBatchMutationReceiptDto(
+                        PropertyId,
+                        RoomId,
+                        AffectedBedCount: 2,
+                        RoomVersion: 5),
                     FrozenAtUtc.AddDays(-3))));
         context.Rooms.Add(room);
         context.PropertyOperationLocks.Add(

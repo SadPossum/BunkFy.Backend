@@ -1,11 +1,14 @@
 namespace BunkFy.Modules.Properties.Tests.Api;
 
+using System.CommandLine;
 using System.Reflection;
 using BunkFy.Modules.Properties.AdminApi;
+using BunkFy.Modules.Properties.AdminCli;
 using BunkFy.Modules.Properties.Api;
 using BunkFy.Modules.Properties.Contracts;
 using Gma.Framework.AccessControl.AspNetCore;
 using Gma.Framework.Administration.Api;
+using Gma.Framework.Administration.Cli;
 using Gma.Framework.Cqrs;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -18,14 +21,18 @@ using Xunit;
 public sealed class PropertiesApiSecurityTests
 {
     [Fact]
-    public void Room_write_contracts_require_operation_ids()
+    public void Topology_write_contracts_require_operation_ids()
     {
         Type[] requestTypes =
         [
             typeof(PropertiesModule.RoomCreateRequest),
             typeof(PropertiesModule.RoomUpdateRequest),
+            typeof(PropertiesModule.BedWriteRequest),
+            typeof(PropertiesModule.BedBatchWriteRequest),
             typeof(PropertiesAdminApiModule.RoomCreateRequest),
-            typeof(PropertiesAdminApiModule.RoomUpdateRequest)
+            typeof(PropertiesAdminApiModule.RoomUpdateRequest),
+            typeof(PropertiesAdminApiModule.BedWriteRequest),
+            typeof(PropertiesAdminApiModule.BedBatchWriteRequest)
         ];
 
         Assert.All(
@@ -33,6 +40,68 @@ public sealed class PropertiesApiSecurityTests
             requestType => Assert.Equal(
                 typeof(Guid),
                 requestType.GetProperty("OperationId")?.PropertyType));
+    }
+
+    [Fact]
+    public void Admin_cli_requires_operation_identity_for_bed_mutations()
+    {
+        ServiceCollection services = new();
+        services.AddSingleton<AdminCliGlobalOptions>();
+        using ServiceProvider provider = services.BuildServiceProvider();
+        AdminCliGlobalOptions options = provider
+            .GetRequiredService<AdminCliGlobalOptions>();
+        RootCommand root = new("admin")
+        {
+            options.ActorOption,
+            options.TenantOption,
+            options.OutputOption
+        };
+        AdminCliCommandRegistry registry = new(root, provider);
+        new PropertiesAdminCliModule().MapCommands(registry);
+
+        const string propertyId =
+            "71000000-0000-0000-0000-000000000001";
+        const string roomId =
+            "72000000-0000-0000-0000-000000000001";
+        const string bedId =
+            "73000000-0000-0000-0000-000000000001";
+        const string operationId =
+            "74000000-0000-0000-0000-000000000001";
+        string[][] commands =
+        [
+            [
+                "properties", "beds", "add",
+                "--property-id", propertyId,
+                "--room-id", roomId,
+                "--expected-room-version", "3",
+                "--label", "A"
+            ],
+            [
+                "properties", "beds", "add-many",
+                "--property-id", propertyId,
+                "--room-id", roomId,
+                "--expected-room-version", "3",
+                "--label", "A", "B"
+            ],
+            [
+                "properties", "beds", "update",
+                "--property-id", propertyId,
+                "--room-id", roomId,
+                "--bed-id", bedId,
+                "--expected-room-version", "3",
+                "--label", "A"
+            ]
+        ];
+
+        foreach (string[] command in commands)
+        {
+            Assert.NotEmpty(root.Parse(command).Errors);
+            Assert.Empty(root.Parse([
+                .. command,
+                "--operation-id",
+                operationId
+            ]).Errors);
+        }
     }
 
     [Fact]

@@ -74,6 +74,9 @@ internal sealed record PropertiesPropertyMutationOperationStateTenantExport(
         ResultProcessingStatus,
     Guid? ResultRoomId,
     BunkFy.Modules.Properties.Contracts.RoomStatus? ResultRoomStatus,
+    Guid? ResultBedId,
+    BunkFy.Modules.Properties.Contracts.BedStatus? ResultBedStatus,
+    int? ResultAffectedBedCount,
     long ResultVersion,
     long ResultResourceVersion,
     DateTimeOffset CompletedAtUtc);

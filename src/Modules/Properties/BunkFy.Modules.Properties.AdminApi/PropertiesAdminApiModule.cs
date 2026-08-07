@@ -276,7 +276,12 @@ public sealed class PropertiesAdminApiModule : IAdminApiModule
                 AdminOperation.Create(PropertiesAdminOperationNames.BedsAdd, PropertiesAdminPermissions.BedsManage),
                 requireTenant: true,
                 token => dispatcher.SendAsync(
-                    new AddBedCommand(propertyId, roomId, request.ExpectedRoomVersion, request.Label),
+                    new AddBedCommand(
+                        request.OperationId,
+                        propertyId,
+                        roomId,
+                        request.ExpectedRoomVersion,
+                        request.Label),
                     token),
                 cancellationToken,
                 errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
@@ -295,7 +300,12 @@ public sealed class PropertiesAdminApiModule : IAdminApiModule
                 AdminOperation.Create(PropertiesAdminOperationNames.BedsAddBatch, PropertiesAdminPermissions.BedsManage),
                 requireTenant: true,
                 token => dispatcher.SendAsync(
-                    new AddBedsCommand(propertyId, roomId, request.ExpectedRoomVersion, request.Labels),
+                    new AddBedsCommand(
+                        request.OperationId,
+                        propertyId,
+                        roomId,
+                        request.ExpectedRoomVersion,
+                        request.Labels),
                     token),
                 cancellationToken,
                 errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
@@ -315,7 +325,13 @@ public sealed class PropertiesAdminApiModule : IAdminApiModule
                 AdminOperation.Create(PropertiesAdminOperationNames.BedsUpdate, PropertiesAdminPermissions.BedsManage),
                 requireTenant: true,
                 token => dispatcher.SendAsync(
-                    new UpdateBedCommand(propertyId, roomId, bedId, request.ExpectedRoomVersion, request.Label),
+                    new UpdateBedCommand(
+                        request.OperationId,
+                        propertyId,
+                        roomId,
+                        bedId,
+                        request.ExpectedRoomVersion,
+                        request.Label),
                     token),
                 cancellationToken,
                 errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
@@ -372,8 +388,11 @@ public sealed class PropertiesAdminApiModule : IAdminApiModule
         string? BuildingLabel = null,
         string? FloorLabel = null);
     public sealed record RetireRoomRequest(bool Confirmed, long ExpectedVersion, bool CascadeBeds = false);
-    public sealed record BedWriteRequest(string Label, long ExpectedRoomVersion);
-    public sealed record BedBatchWriteRequest(IReadOnlyCollection<string> Labels, long ExpectedRoomVersion);
+    public sealed record BedWriteRequest(Guid OperationId, string Label, long ExpectedRoomVersion);
+    public sealed record BedBatchWriteRequest(
+        Guid OperationId,
+        IReadOnlyCollection<string> Labels,
+        long ExpectedRoomVersion);
     public sealed record RetireBedRequest(bool Confirmed, long ExpectedRoomVersion);
 
     private static async ValueTask<object?> SensitiveResponseFilter(

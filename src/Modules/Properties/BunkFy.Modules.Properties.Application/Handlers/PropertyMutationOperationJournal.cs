@@ -4,6 +4,7 @@ using BunkFy.Modules.Properties.Application.Mapping;
 using BunkFy.Modules.Properties.Application.Ports;
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Properties.Domain.Aggregates;
+using BunkFy.Modules.Properties.Domain.Entities;
 using Gma.Framework.Results;
 
 internal sealed class PropertyMutationOperationJournal(
@@ -49,6 +50,44 @@ internal sealed class PropertyMutationOperationJournal(
             expectedVersion,
             fingerprint,
             static operation => operation.ToRoomReceipt(),
+            cancellationToken);
+
+    public Task<PropertyMutationReplayDecision<BedMutationReceiptDto>>
+        InspectBedAsync(
+        Guid propertyId,
+        Guid roomId,
+        Guid operationId,
+        PropertyMutationKind kind,
+        long expectedVersion,
+        string fingerprint,
+        CancellationToken cancellationToken) => this.InspectAsync(
+            propertyId,
+            PropertyMutationResourceKind.Room,
+            roomId,
+            operationId,
+            kind,
+            expectedVersion,
+            fingerprint,
+            static operation => operation.ToBedReceipt(),
+            cancellationToken);
+
+    public Task<PropertyMutationReplayDecision<BedBatchMutationReceiptDto>>
+        InspectBedBatchAsync(
+        Guid propertyId,
+        Guid roomId,
+        Guid operationId,
+        PropertyMutationKind kind,
+        long expectedVersion,
+        string fingerprint,
+        CancellationToken cancellationToken) => this.InspectAsync(
+            propertyId,
+            PropertyMutationResourceKind.Room,
+            roomId,
+            operationId,
+            kind,
+            expectedVersion,
+            fingerprint,
+            static operation => operation.ToBedBatchReceipt(),
             cancellationToken);
 
     private async Task<PropertyMutationReplayDecision<TReceipt>> InspectAsync<TReceipt>(
@@ -138,6 +177,64 @@ internal sealed class PropertyMutationOperationJournal(
                 fingerprint,
                 receipt,
                 resultResourceVersion,
+                completedAtUtc),
+            cancellationToken).ConfigureAwait(false);
+        return receipt;
+    }
+
+    public async Task<BedMutationReceiptDto> RecordBedAsync(
+        Room room,
+        Bed bed,
+        Guid operationId,
+        PropertyMutationKind kind,
+        long expectedVersion,
+        string fingerprint,
+        DateTimeOffset completedAtUtc,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(room);
+        ArgumentNullException.ThrowIfNull(bed);
+        BedMutationReceiptDto receipt = PropertiesMapper.ToReceipt(
+            bed,
+            room.Version);
+        await operations.AddAsync(
+            PropertyMutationOperationRecord.ForBed(
+                operationId,
+                room.ScopeId,
+                room.PropertyId,
+                room.Id,
+                kind,
+                expectedVersion,
+                fingerprint,
+                receipt,
+                completedAtUtc),
+            cancellationToken).ConfigureAwait(false);
+        return receipt;
+    }
+
+    public async Task<BedBatchMutationReceiptDto> RecordBedBatchAsync(
+        Room room,
+        int affectedBedCount,
+        Guid operationId,
+        long expectedVersion,
+        string fingerprint,
+        DateTimeOffset completedAtUtc,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(room);
+        BedBatchMutationReceiptDto receipt = PropertiesMapper.ToBatchReceipt(
+            room,
+            affectedBedCount);
+        await operations.AddAsync(
+            PropertyMutationOperationRecord.ForBedBatch(
+                operationId,
+                room.ScopeId,
+                room.PropertyId,
+                room.Id,
+                PropertyMutationKind.BedBatchAdd,
+                expectedVersion,
+                fingerprint,
+                receipt,
                 completedAtUtc),
             cancellationToken).ConfigureAwait(false);
         return receipt;

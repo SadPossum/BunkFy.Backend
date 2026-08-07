@@ -23,6 +23,9 @@ internal sealed class PropertyMutationOperation : IScopedEntity
         this.ResultProcessingStatus = record.ResultProcessingStatus;
         this.ResultRoomId = record.ResultRoomId;
         this.ResultRoomStatus = record.ResultRoomStatus;
+        this.ResultBedId = record.ResultBedId;
+        this.ResultBedStatus = record.ResultBedStatus;
+        this.ResultAffectedBedCount = record.ResultAffectedBedCount;
         this.ResultVersion = record.ResultVersion;
         this.ResultResourceVersion = record.ResultResourceVersion;
         this.CompletedAtUtc = record.CompletedAtUtc;
@@ -40,6 +43,9 @@ internal sealed class PropertyMutationOperation : IScopedEntity
     public PropertyProcessingStatus? ResultProcessingStatus { get; private set; }
     public Guid? ResultRoomId { get; private set; }
     public RoomStatus? ResultRoomStatus { get; private set; }
+    public Guid? ResultBedId { get; private set; }
+    public BedStatus? ResultBedStatus { get; private set; }
+    public int? ResultAffectedBedCount { get; private set; }
     public long ResultVersion { get; private set; }
     public long ResultResourceVersion { get; private set; }
     public DateTimeOffset CompletedAtUtc { get; private set; }
@@ -57,6 +63,9 @@ internal sealed class PropertyMutationOperation : IScopedEntity
         this.ResultProcessingStatus,
         this.ResultRoomId,
         this.ResultRoomStatus,
+        this.ResultBedId,
+        this.ResultBedStatus,
+        this.ResultAffectedBedCount,
         this.ResultVersion,
         this.ResultResourceVersion,
         this.CompletedAtUtc);

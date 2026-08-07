@@ -67,10 +67,11 @@ public sealed partial class Room
             labels.Add(labelResult.Value);
         }
 
-        if (labels.Distinct().Count() != labels.Count ||
-            labels.Any(label => this.HasBedLabel(label, excludingBedId: null)))
+        Result labelsResult = this.ValidateBedAdditions(labels);
+        if (labelsResult.IsFailure)
         {
-            return Result.Failure<IReadOnlyCollection<Bed>>(PropertiesDomainErrors.BedAlreadyExists);
+            return Result.Failure<IReadOnlyCollection<Bed>>(
+                labelsResult.Error);
         }
 
         Bed[] created = requested
@@ -107,6 +108,22 @@ public sealed partial class Room
         return Result.Success<IReadOnlyCollection<Bed>>(created);
     }
 
+    public Result EvaluateBedAdditions(
+        IReadOnlyCollection<BedLabel> labels,
+        long expectedVersion)
+    {
+        Result statusResult = this.EnsureActive();
+        if (statusResult.IsFailure)
+        {
+            return statusResult;
+        }
+
+        Result versionResult = this.EnsureExpectedVersion(expectedVersion);
+        return versionResult.IsSuccess
+            ? this.ValidateBedAdditions(labels)
+            : versionResult;
+    }
+
     public Result<Bed> UpdateBed(
         Guid bedId,
         string label,
@@ -114,44 +131,31 @@ public sealed partial class Room
         Guid eventId,
         DateTimeOffset nowUtc)
     {
-        Result statusResult = this.EnsureActive();
-        if (statusResult.IsFailure)
-        {
-            return Result.Failure<Bed>(statusResult.Error);
-        }
-
-        Result versionResult = this.EnsureExpectedVersion(expectedVersion);
-        if (versionResult.IsFailure)
-        {
-            return Result.Failure<Bed>(versionResult.Error);
-        }
-
-        if (eventId == Guid.Empty)
-        {
-            return Result.Failure<Bed>(PropertiesDomainErrors.DomainEventIdRequired);
-        }
-
-        Bed? bed = this.beds.FirstOrDefault(candidate => candidate.Id == bedId);
-        if (bed is null)
-        {
-            return Result.Failure<Bed>(PropertiesDomainErrors.BedNotFound);
-        }
-
-        Result bedStatusResult = EnsureBedActive(bed);
-        if (bedStatusResult.IsFailure)
-        {
-            return Result.Failure<Bed>(bedStatusResult.Error);
-        }
-
         Result<BedLabel> labelResult = BedLabel.Create(label);
         if (labelResult.IsFailure)
         {
             return Result.Failure<Bed>(labelResult.Error);
         }
 
-        if (this.HasBedLabel(labelResult.Value, excludingBedId: bed.Id))
+        Result<BedDetailsUpdateOutcome> evaluation = this.EvaluateBedUpdate(
+            bedId,
+            labelResult.Value,
+            expectedVersion);
+        if (evaluation.IsFailure)
         {
-            return Result.Failure<Bed>(PropertiesDomainErrors.BedAlreadyExists);
+            return Result.Failure<Bed>(evaluation.Error);
+        }
+
+        Bed bed = this.beds.Single(candidate => candidate.Id == bedId);
+        if (evaluation.Value == BedDetailsUpdateOutcome.Unchanged)
+        {
+            return Result.Success(bed);
+        }
+
+        if (eventId == Guid.Empty)
+        {
+            return Result.Failure<Bed>(
+                PropertiesDomainErrors.DomainEventIdRequired);
         }
 
         bed.Update(labelResult.Value, nowUtc);
@@ -171,6 +175,56 @@ public sealed partial class Room
             bed.Version));
 
         return Result.Success(bed);
+    }
+
+    public Result<BedDetailsUpdateOutcome> EvaluateBedUpdate(
+        Guid bedId,
+        BedLabel label,
+        long expectedVersion)
+    {
+        Result statusResult = this.EnsureActive();
+        if (statusResult.IsFailure)
+        {
+            return Result.Failure<BedDetailsUpdateOutcome>(
+                statusResult.Error);
+        }
+
+        Result versionResult = this.EnsureExpectedVersion(expectedVersion);
+        if (versionResult.IsFailure)
+        {
+            return Result.Failure<BedDetailsUpdateOutcome>(
+                versionResult.Error);
+        }
+
+        Bed? bed = this.beds.FirstOrDefault(candidate => candidate.Id == bedId);
+        if (bed is null)
+        {
+            return Result.Failure<BedDetailsUpdateOutcome>(
+                PropertiesDomainErrors.BedNotFound);
+        }
+
+        Result bedStatusResult = EnsureBedActive(bed);
+        if (bedStatusResult.IsFailure)
+        {
+            return Result.Failure<BedDetailsUpdateOutcome>(
+                bedStatusResult.Error);
+        }
+
+        if (string.IsNullOrWhiteSpace(label.Value))
+        {
+            return Result.Failure<BedDetailsUpdateOutcome>(
+                PropertiesDomainErrors.BedLabelRequired);
+        }
+
+        if (this.HasBedLabel(label, excludingBedId: bed.Id))
+        {
+            return Result.Failure<BedDetailsUpdateOutcome>(
+                PropertiesDomainErrors.BedAlreadyExists);
+        }
+
+        return Result.Success(bed.Label == label
+            ? BedDetailsUpdateOutcome.Unchanged
+            : BedDetailsUpdateOutcome.Changed);
     }
 
     public Result RetireBed(Guid bedId, long expectedVersion, Guid eventId, DateTimeOffset nowUtc)
@@ -221,4 +275,25 @@ public sealed partial class Room
         return Result.Success();
     }
 
+    private Result ValidateBedAdditions(
+        IReadOnlyCollection<BedLabel> labels)
+    {
+        if (labels is null || labels.Count == 0)
+        {
+            return Result.Failure(PropertiesDomainErrors.BedBatchRequired);
+        }
+
+        BedLabel[] requested = [.. labels];
+        if (requested.Any(label =>
+                string.IsNullOrWhiteSpace(label.Value)))
+        {
+            return Result.Failure(PropertiesDomainErrors.BedLabelRequired);
+        }
+
+        return requested.Distinct().Count() != requested.Length ||
+            requested.Any(label =>
+                this.HasBedLabel(label, excludingBedId: null))
+            ? Result.Failure(PropertiesDomainErrors.BedAlreadyExists)
+            : Result.Success();
+    }
 }

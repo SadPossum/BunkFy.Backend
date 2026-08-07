@@ -331,7 +331,12 @@ public sealed class PropertiesModule : IModule
             IRequestDispatcher dispatcher,
             CancellationToken cancellationToken) =>
             (await dispatcher.SendAsync(
-                new AddBedCommand(propertyId, roomId, request.ExpectedRoomVersion, request.Label),
+                new AddBedCommand(
+                    request.OperationId,
+                    propertyId,
+                    roomId,
+                    request.ExpectedRoomVersion,
+                    request.Label),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
             .Produces<BedMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
@@ -344,7 +349,12 @@ public sealed class PropertiesModule : IModule
             IRequestDispatcher dispatcher,
             CancellationToken cancellationToken) =>
             (await dispatcher.SendAsync(
-                new AddBedsCommand(propertyId, roomId, request.ExpectedRoomVersion, request.Labels),
+                new AddBedsCommand(
+                    request.OperationId,
+                    propertyId,
+                    roomId,
+                    request.ExpectedRoomVersion,
+                    request.Labels),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
             .Produces<BedBatchMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
@@ -358,7 +368,13 @@ public sealed class PropertiesModule : IModule
             IRequestDispatcher dispatcher,
             CancellationToken cancellationToken) =>
             (await dispatcher.SendAsync(
-                new UpdateBedCommand(propertyId, roomId, bedId, request.ExpectedRoomVersion, request.Label),
+                new UpdateBedCommand(
+                    request.OperationId,
+                    propertyId,
+                    roomId,
+                    bedId,
+                    request.ExpectedRoomVersion,
+                    request.Label),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
             .Produces<BedMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
@@ -429,8 +445,14 @@ public sealed class PropertiesModule : IModule
         string? BuildingLabel = null,
         string? FloorLabel = null);
     public sealed record RetireRoomRequest(bool Confirmed, long ExpectedVersion, bool CascadeBeds = false);
-    public sealed record BedWriteRequest(string Label, long ExpectedRoomVersion);
-    public sealed record BedBatchWriteRequest(IReadOnlyCollection<string> Labels, long ExpectedRoomVersion);
+    public sealed record BedWriteRequest(
+        Guid OperationId,
+        string Label,
+        long ExpectedRoomVersion);
+    public sealed record BedBatchWriteRequest(
+        Guid OperationId,
+        IReadOnlyCollection<string> Labels,
+        long ExpectedRoomVersion);
     public sealed record RetireBedRequest(bool Confirmed, long ExpectedRoomVersion);
 
     private static async ValueTask<object?> SensitiveResponseFilter(

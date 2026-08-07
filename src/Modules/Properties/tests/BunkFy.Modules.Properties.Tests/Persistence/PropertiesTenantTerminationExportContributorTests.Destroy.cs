@@ -33,7 +33,7 @@ public sealed partial class PropertiesTenantTerminationExportContributorTests
             TenantTerminationContributionStatus.Completed,
             result.Status);
         Assert.Equal("properties.termination.destroyed", result.ResultCode);
-        Assert.Equal(9, result.AffectedCount);
+        Assert.Equal(13, result.AffectedCount);
         Assert.Equal(1, result.SelectedProofRevision);
         Assert.Equal(2, result.ResultingProofRevision);
         Assert.Empty(await context.TenantDestroyOperations.ToListAsync());

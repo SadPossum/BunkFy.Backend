@@ -7,6 +7,11 @@ internal sealed class UpdateBedCommandValidator : ICommandValidator<UpdateBedCom
 {
     public IEnumerable<string> Validate(UpdateBedCommand command)
     {
+        if (command.OperationId == Guid.Empty)
+        {
+            yield return "OperationId is required.";
+        }
+
         if (command.PropertyId == Guid.Empty)
         {
             yield return "Property id is required.";
