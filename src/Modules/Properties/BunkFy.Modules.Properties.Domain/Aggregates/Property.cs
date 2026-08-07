@@ -4,7 +4,6 @@ using BunkFy.Modules.Properties.Domain.Errors;
 using BunkFy.Modules.Properties.Domain.Events;
 using BunkFy.Modules.Properties.Domain.ValueObjects;
 using Gma.Framework.Domain.Models;
-using Gma.Framework.Naming;
 using Gma.Framework.Results;
 
 public sealed partial class Property : ScopedAggregateRoot<Guid>
@@ -36,53 +35,6 @@ public sealed partial class Property : ScopedAggregateRoot<Guid>
     public DateTimeOffset? UpdatedAtUtc { get; private set; }
     public DateTimeOffset? RetiredAtUtc { get; private set; }
 
-    public static Result<Property> Create(
-        Guid id,
-        string tenantId,
-        string name,
-        string code,
-        string timeZoneId,
-        Guid eventId,
-        DateTimeOffset nowUtc)
-    {
-        if (id == Guid.Empty)
-        {
-            return Result.Failure<Property>(PropertiesDomainErrors.PropertyIdRequired);
-        }
-
-        if (eventId == Guid.Empty)
-        {
-            return Result.Failure<Property>(PropertiesDomainErrors.DomainEventIdRequired);
-        }
-
-        Result<PropertyValues> values = PropertyValues.Create(tenantId, name, code, timeZoneId);
-        if (values.IsFailure)
-        {
-            return Result.Failure<Property>(values.Error);
-        }
-
-        Property property = new(id, values.Value.ScopeId)
-        {
-            Name = values.Value.Name,
-            Code = values.Value.Code,
-            TimeZoneId = values.Value.TimeZoneId,
-            CreatedAtUtc = nowUtc
-        };
-
-        property.RaiseDomainEvent(new PropertyCreatedDomainEvent(
-            eventId,
-            nowUtc,
-            property.Id,
-            property.ScopeId,
-            property.Name.Value,
-            property.Code.Value,
-            property.TimeZoneId.Value,
-            property.Status,
-            property.Version));
-
-        return Result.Success(property);
-    }
-
     public Result Update(
         string name,
         string code,
@@ -108,15 +60,18 @@ public sealed partial class Property : ScopedAggregateRoot<Guid>
             return Result.Failure(PropertiesDomainErrors.DomainEventIdRequired);
         }
 
-        Result<PropertyValues> values = PropertyValues.Create(this.ScopeId, name, code, timeZoneId);
-        if (values.IsFailure)
+        Result<PropertyDetails> details = PropertyDetails.Create(
+            name,
+            code,
+            timeZoneId);
+        if (details.IsFailure)
         {
-            return Result.Failure(values.Error);
+            return Result.Failure(details.Error);
         }
 
-        this.Name = values.Value.Name;
-        this.Code = values.Value.Code;
-        this.TimeZoneId = values.Value.TimeZoneId;
+        this.Name = details.Value.Name;
+        this.Code = details.Value.Code;
+        this.TimeZoneId = details.Value.TimeZoneId;
         this.UpdatedAtUtc = nowUtc;
         this.Version++;
 
@@ -219,51 +174,4 @@ public sealed partial class Property : ScopedAggregateRoot<Guid>
             ? Result.Success()
             : Result.Failure(PropertiesDomainErrors.VersionConflict);
 
-    private sealed record PropertyValues(
-        string ScopeId,
-        PropertyName Name,
-        PropertyCode Code,
-        PropertyTimeZoneId TimeZoneId)
-    {
-        public static Result<PropertyValues> Create(
-            string tenantId,
-            string? name,
-            string? code,
-            string? timeZoneId)
-        {
-            if (string.IsNullOrWhiteSpace(tenantId))
-            {
-                return Result.Failure<PropertyValues>(PropertiesDomainErrors.TenantRequired);
-            }
-
-            if (!TenantIds.TryNormalize(tenantId, out string? normalizedTenantId))
-            {
-                return Result.Failure<PropertyValues>(PropertiesDomainErrors.TenantInvalid);
-            }
-
-            Result<PropertyName> nameResult = PropertyName.Create(name);
-            if (nameResult.IsFailure)
-            {
-                return Result.Failure<PropertyValues>(nameResult.Error);
-            }
-
-            Result<PropertyCode> codeResult = PropertyCode.Create(code);
-            if (codeResult.IsFailure)
-            {
-                return Result.Failure<PropertyValues>(codeResult.Error);
-            }
-
-            Result<PropertyTimeZoneId> timeZoneResult = PropertyTimeZoneId.Create(timeZoneId);
-            if (timeZoneResult.IsFailure)
-            {
-                return Result.Failure<PropertyValues>(timeZoneResult.Error);
-            }
-
-            return Result.Success(new PropertyValues(
-                normalizedTenantId,
-                nameResult.Value,
-                codeResult.Value,
-                timeZoneResult.Value));
-        }
-    }
 }

@@ -8,6 +8,11 @@ internal sealed class CreatePropertyCommandValidator : ICommandValidator<CreateP
 {
     public IEnumerable<string> Validate(CreatePropertyCommand command)
     {
+        if (command.OperationId == Guid.Empty)
+        {
+            yield return "OperationId is required.";
+        }
+
         foreach (string error in PropertiesValidation.ValidatePropertyWrite(command.Name, command.Code, command.TimeZoneId))
         {
             yield return error;

@@ -128,6 +128,7 @@ public sealed class PropertiesOperationLockRepositoryTests
     {
         await using PropertiesDbContext dbContext = CreateDbContext();
         PropertiesOperationLockRepository locks = new(dbContext);
+        PropertiesCreationOperationLock creationLock = new(dbContext);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             locks.TryAcquirePropertyAsync(
@@ -140,9 +141,31 @@ public sealed class PropertiesOperationLockRepositoryTests
                 Guid.NewGuid(),
                 "4A",
                 CancellationToken.None));
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            creationLock.AcquireAsync(
+                "tenant-b",
+                Guid.NewGuid(),
+                CancellationToken.None));
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            creationLock.AcquireAsync(
+                "tenant-a",
+                Guid.Empty,
+                CancellationToken.None));
 
         Assert.Empty(dbContext.PropertyOperationLocks);
         Assert.Empty(dbContext.RoomOperationLocks);
+    }
+
+    [Fact]
+    public async Task Valid_creation_coordinate_passes_in_memory_admission()
+    {
+        await using PropertiesDbContext dbContext = CreateDbContext();
+        PropertiesCreationOperationLock creationLock = new(dbContext);
+
+        await creationLock.AcquireAsync(
+            "tenant-a",
+            Guid.NewGuid(),
+            CancellationToken.None);
     }
 
     private static PropertiesDbContext CreateDbContext() => new(

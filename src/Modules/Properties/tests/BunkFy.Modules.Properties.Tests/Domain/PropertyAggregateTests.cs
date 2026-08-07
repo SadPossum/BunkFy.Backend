@@ -26,6 +26,23 @@ public sealed class PropertyAggregateTests
     }
 
     [Fact]
+    public void Creation_matching_uses_normalized_property_details()
+    {
+        Property property = CreateProperty("tenant-a").Value;
+        PropertyDetails same = PropertyDetails.Create(
+            "  Hostel One  ",
+            " HOSTEL-ONE ",
+            " UTC ").Value;
+        PropertyDetails changed = PropertyDetails.Create(
+            "Hostel Two",
+            "hostel-one",
+            "UTC").Value;
+
+        Assert.True(property.MatchesCreation(same));
+        Assert.False(property.MatchesCreation(changed));
+    }
+
+    [Fact]
     public void Create_rejects_invalid_required_values()
     {
         Assert.Equal(PropertiesDomainErrors.TenantRequired, CreateProperty(" ").Error);

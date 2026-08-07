@@ -54,6 +54,14 @@ affected identifiers, status, and concurrency versions. Clients must invalidate
 and refetch the reads they display. Public and Admin HTTP routes emit no-store
 headers, and Admin endpoints declare their success response shape explicitly.
 
+Property creation is keyed by a caller-supplied operation id that becomes the
+property id. Each attempt rechecks workspace admission and serializes that
+tenant-scoped coordinate before reading or creating topology. An exact
+normalized retry returns the current minimal receipt without another event;
+reusing the id for different property details is a conflict. Property-code
+uniqueness remains independently serialized, and no request payload is retained
+for replay.
+
 Multi-bed creation is one atomic room command. The complete label set is
 validated before mutation, is limited to 100 beds, and publishes the existing
 bed-added fact once per created bed. The single-bed command remains available

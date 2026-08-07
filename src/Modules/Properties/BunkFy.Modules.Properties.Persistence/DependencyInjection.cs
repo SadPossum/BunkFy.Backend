@@ -33,6 +33,9 @@ public static class DependencyInjection
         builder.Services.TryAddScoped<IPropertyRepository, PropertyRepository>();
         builder.Services.TryAddScoped<IRoomRepository, RoomRepository>();
         builder.Services.TryAddScoped<
+            IPropertiesCreationOperationLock,
+            PropertiesCreationOperationLock>();
+        builder.Services.TryAddScoped<
             IPropertiesOperationLock,
             PropertiesOperationLockRepository>();
         builder.Services.TryAddScoped<

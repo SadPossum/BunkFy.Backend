@@ -107,7 +107,11 @@ public sealed class PropertiesModule : IModule
             IRequestDispatcher dispatcher,
             CancellationToken cancellationToken) =>
             (await dispatcher.SendAsync(
-                new CreatePropertyCommand(request.Name, request.Code, request.TimeZoneId),
+                new CreatePropertyCommand(
+                    request.OperationId,
+                    request.Name,
+                    request.Code,
+                    request.TimeZoneId),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
             .Produces<PropertyMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
@@ -362,7 +366,11 @@ public sealed class PropertiesModule : IModule
             .RequireResolvedScopePermission(PropertiesAdminPermissionCodes.BedsManage, PropertyAccessScopeResolver.ResolverName);
     }
 
-    public sealed record PropertyCreateRequest(string Name, string Code, string TimeZoneId);
+    public sealed record PropertyCreateRequest(
+        Guid OperationId,
+        string Name,
+        string Code,
+        string TimeZoneId);
     public sealed record PropertyUpdateRequest(string Name, string Code, string TimeZoneId, long ExpectedVersion);
     public sealed record RetirePropertyRequest(bool Confirmed, long ExpectedVersion);
     public sealed record ActivatePropertyProcessingRequest(
@@ -418,12 +426,14 @@ public sealed class PropertiesModule : IModule
     private static readonly ApiErrorStatusCodeMap PublicErrorStatusCodes = CreateErrorStatusCodes(
         new(PropertiesApplicationErrors.AccessDenied.Code, StatusCodes.Status403Forbidden),
         new(PropertiesApplicationErrors.ConfirmationRequired.Code, StatusCodes.Status400BadRequest),
+        new(PropertiesApplicationErrors.CreationOperationInvalid.Code, StatusCodes.Status400BadRequest),
         new(PropertiesApplicationErrors.BedBatchRequired.Code, StatusCodes.Status400BadRequest),
         new(PropertiesApplicationErrors.BedBatchTooLarge.Code, StatusCodes.Status400BadRequest),
         new(PropertiesApplicationErrors.PropertyNotFound.Code, StatusCodes.Status404NotFound),
         new(PropertiesApplicationErrors.RoomNotFound.Code, StatusCodes.Status404NotFound),
         new(PropertiesApplicationErrors.BedNotFound.Code, StatusCodes.Status404NotFound),
         new(PropertiesApplicationErrors.PropertyCodeAlreadyExists.Code, StatusCodes.Status409Conflict),
+        new(PropertiesApplicationErrors.CreationOperationConflict.Code, StatusCodes.Status409Conflict),
         new(PropertiesApplicationErrors.RoomAlreadyExists.Code, StatusCodes.Status409Conflict),
         new(PropertiesApplicationErrors.BedAlreadyExists.Code, StatusCodes.Status409Conflict),
         new(PropertiesApplicationErrors.PropertyStatusUnknown.Code, StatusCodes.Status409Conflict),

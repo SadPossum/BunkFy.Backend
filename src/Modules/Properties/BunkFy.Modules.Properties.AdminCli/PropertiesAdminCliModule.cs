@@ -147,10 +147,17 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
 
     private static Command CreateCreatePropertyCommand(IServiceProvider services, AdminCliGlobalOptions globalOptions)
     {
+        Option<Guid> operationIdOption = new("--operation-id") { Required = true };
         Option<string> nameOption = new("--name") { Required = true };
         Option<string> codeOption = new("--code") { Required = true };
         Option<string> timeZoneOption = new("--time-zone") { DefaultValueFactory = _ => "UTC" };
-        Command command = new("create", "Create a property.") { nameOption, codeOption, timeZoneOption };
+        Command command = new("create", "Create a property.")
+        {
+            operationIdOption,
+            nameOption,
+            codeOption,
+            timeZoneOption
+        };
         command.SetAction((parseResult, cancellationToken) =>
         {
             AdminCliExecutor executor = services.GetRequiredService<AdminCliExecutor>();
@@ -164,6 +171,7 @@ public sealed class PropertiesAdminCliModule : IAdminCliModule
                     IRequestDispatcher dispatcher = provider.GetRequiredService<IRequestDispatcher>();
                     Result<PropertyMutationReceiptDto> result = await dispatcher.SendAsync(
                         new CreatePropertyCommand(
+                            parseResult.GetRequiredValue(operationIdOption),
                             parseResult.GetRequiredValue(nameOption),
                             parseResult.GetRequiredValue(codeOption),
                             parseResult.GetValue(timeZoneOption) ?? "UTC"),

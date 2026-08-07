@@ -14,6 +14,8 @@ internal static class PropertiesMutationTestSupport
         services.TryAddSingleton<IPropertyRepository>(
             new EmptyPropertyRepository());
         services.TryAddSingleton<IRoomRepository>(new EmptyRoomRepository());
+        services.TryAddSingleton<IPropertiesCreationOperationLock>(
+            new PassingCreationOperationLock());
         services.TryAddSingleton<IPropertiesOperationLock>(
             new PassingOperationLock());
         services.TryAddSingleton<IPropertiesUniqueCoordinateLock>(
@@ -88,6 +90,15 @@ internal static class PropertiesMutationTestSupport
             string tenantId,
             Guid roomId,
             CancellationToken cancellationToken) => Task.FromResult(true);
+    }
+
+    private sealed class PassingCreationOperationLock
+        : IPropertiesCreationOperationLock
+    {
+        public Task AcquireAsync(
+            string tenantId,
+            Guid operationId,
+            CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
     private sealed class PassingUniqueCoordinateLock

@@ -94,23 +94,17 @@ public sealed class PropertiesDbContext(
 
         try
         {
-            if (this.Database.IsRelational())
+            await this.AcquireOperationalMutationAdmissionAsync(
+                    cancellationToken)
+                .ConfigureAwait(false);
+            if (this.Database.IsRelational() && hasOperationalMutation)
             {
-                await PropertiesTenantMutationLock.AcquireAdmissionAsync(
-                    this,
-                    tenantId,
-                    cancellationToken).ConfigureAwait(false);
-                if (hasOperationalMutation)
-                {
-                    await PropertiesTenantMutationLock.AcquireRevisionAdvanceAsync(
+                await PropertiesTenantMutationLock.AcquireRevisionAdvanceAsync(
                         this,
                         tenantId,
-                        cancellationToken).ConfigureAwait(false);
-                }
+                        cancellationToken)
+                    .ConfigureAwait(false);
             }
-
-            await this.EnsureOperationalAdmissionAsync(cancellationToken)
-                .ConfigureAwait(false);
             if (hasOperationalMutation)
             {
                 await this.AdvanceTenantRevisionAsync(
@@ -146,6 +140,31 @@ public sealed class PropertiesDbContext(
                 await ownedTransaction.DisposeAsync().ConfigureAwait(false);
             }
         }
+    }
+
+    internal async Task AcquireOperationalMutationAdmissionAsync(
+        CancellationToken cancellationToken)
+    {
+        if (!this.scopeContext.IsEnabled ||
+            string.IsNullOrWhiteSpace(this.scopeContext.ScopeId) ||
+            (this.Database.IsRelational() &&
+             this.Database.CurrentTransaction is null))
+        {
+            throw new PropertiesOperationalAdmissionException(
+                PropertiesOperationalAdmissionFailure.Unavailable);
+        }
+
+        if (this.Database.IsRelational())
+        {
+            await PropertiesTenantMutationLock.AcquireAdmissionAsync(
+                    this,
+                    this.scopeContext.ScopeId,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        await this.EnsureOperationalAdmissionAsync(cancellationToken)
+            .ConfigureAwait(false);
     }
 
     private async Task EnsureOperationalAdmissionAsync(

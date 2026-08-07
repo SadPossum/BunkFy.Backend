@@ -11,6 +11,12 @@ public static class PropertiesApplicationErrors
     public static readonly Error ConfirmationRequired = new(
         "Properties.ConfirmationRequired",
         "Confirmation is required.");
+    public static readonly Error CreationOperationInvalid = new(
+        "Properties.CreationOperationInvalid",
+        "A valid property creation operation id is required.");
+    public static readonly Error CreationOperationConflict = new(
+        "Properties.CreationOperationConflict",
+        "The property creation operation was already used for different details.");
     public static readonly Error TenantRequired = PropertiesDomainErrors.TenantRequired;
     public static readonly Error PropertyNotFound = PropertiesDomainErrors.PropertyNotFound;
     public static readonly Error PropertyCodeAlreadyExists = PropertiesDomainErrors.PropertyCodeAlreadyExists;
