@@ -34,7 +34,7 @@ public sealed partial class InventoryTenantTerminationExportContributorTests
             TenantTerminationContributionStatus.Completed,
             result.Status);
         Assert.Equal("inventory.termination.destroyed", result.ResultCode);
-        Assert.Equal(11, result.AffectedCount);
+        Assert.Equal(12, result.AffectedCount);
         Assert.Equal(1, result.SelectedProofRevision);
         Assert.Equal(2, result.ResultingProofRevision);
         Assert.Empty(await context.TenantDestroyOperations.ToListAsync());
@@ -219,6 +219,7 @@ public sealed partial class InventoryTenantTerminationExportContributorTests
         await context.AllocationOperationLocks.AnyAsync() ||
         await context.BedRetirements.AnyAsync() ||
         await context.RoomRetirements.AnyAsync() ||
+        await context.ManagementOperations.AnyAsync() ||
         await context.RoomConfigurations.AnyAsync() ||
         await context.InventoryUnits.AnyAsync() ||
         await context.BedTopology.AnyAsync() ||

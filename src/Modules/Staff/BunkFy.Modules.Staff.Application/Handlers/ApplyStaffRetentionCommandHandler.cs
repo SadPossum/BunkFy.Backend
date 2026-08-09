@@ -173,7 +173,7 @@ internal sealed class ApplyStaffRetentionCommandHandler(
         }
 
         StaffRetentionPrerequisiteEvaluation prerequisite =
-            await prerequisites.EvaluateAsync(
+            await prerequisites.VerifyAsync(
                 new(
                     StaffRetentionAnonymisationPrerequisiteContract
                         .CurrentVersion,

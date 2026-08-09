@@ -561,7 +561,12 @@ public sealed class ReservationsSagaIntegrationTests
         Result<RoomInventoryMutationReceiptDto> configured = await configurationScope.ServiceProvider
             .GetRequiredService<IRequestDispatcher>()
             .SendAsync(
-                new ConfigureRoomSalesModeCommand(PropertyId, RoomId, InventorySalesMode.RoomLevel, 1),
+                new ConfigureRoomSalesModeCommand(
+                    Guid.NewGuid(),
+                    PropertyId,
+                    RoomId,
+                    InventorySalesMode.RoomLevel,
+                    1),
                 CancellationToken.None)
             .ConfigureAwait(false);
         Assert.True(configured.IsSuccess, configured.Error.Code);

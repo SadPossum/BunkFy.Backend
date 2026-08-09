@@ -12,8 +12,19 @@ internal sealed class StaffRetentionPrerequisiteEvaluator(
                 StringComparer.Ordinal)
             .ToArray();
 
-    public async Task<StaffRetentionPrerequisiteEvaluation> EvaluateAsync(
+    public Task<StaffRetentionPrerequisiteEvaluation> PrepareAsync(
         StaffRetentionAnonymisationPrerequisiteRequest request,
+        CancellationToken cancellationToken) =>
+        this.EvaluateAsync(request, prepare: true, cancellationToken);
+
+    public Task<StaffRetentionPrerequisiteEvaluation> VerifyAsync(
+        StaffRetentionAnonymisationPrerequisiteRequest request,
+        CancellationToken cancellationToken) =>
+        this.EvaluateAsync(request, prepare: false, cancellationToken);
+
+    private async Task<StaffRetentionPrerequisiteEvaluation> EvaluateAsync(
+        StaffRetentionAnonymisationPrerequisiteRequest request,
+        bool prepare,
         CancellationToken cancellationToken)
     {
         if (this.ordered.Length == 0 ||
@@ -37,9 +48,13 @@ internal sealed class StaffRetentionPrerequisiteEvaluator(
             StaffRetentionAnonymisationPrerequisiteResult result;
             try
             {
-                result = await contributor.ExecuteAsync(
-                    request,
-                    cancellationToken).ConfigureAwait(false);
+                result = prepare
+                    ? await contributor.PrepareAsync(
+                            request,
+                            cancellationToken).ConfigureAwait(false)
+                    : await contributor.VerifyAsync(
+                            request,
+                            cancellationToken).ConfigureAwait(false);
             }
             catch (Exception exception)
                 when (exception is not OperationCanceledException)

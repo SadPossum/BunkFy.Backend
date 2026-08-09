@@ -5,6 +5,8 @@ using BunkFy.Modules.Workspaces.Application.Handlers;
 using BunkFy.Modules.Workspaces.Application.Ports;
 using BunkFy.Modules.Workspaces.Domain;
 using Gma.Framework.Results;
+using Gma.Framework.Runtime.Identity;
+using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
 using Xunit;
 
@@ -27,13 +29,9 @@ public sealed class WorkspaceStaffRetentionCorrelationHandlerTests
         FakeRepository repository = new(calls);
         RecordingWorkspaceCrossGraphMutationLock crossGraphLock =
             new(calls);
-        ScrubWorkspaceStaffRetentionCorrelationCommandHandler handler =
-            new(
-                repository,
-                crossGraphLock,
-                WorkspaceStaffAccessMutationTestSupport.Create(
-                    calls: calls),
-                new TestScopeContext(TenantId));
+        RecordingAccessClosure accessClosure = new(
+            calls,
+            WorkspaceStaffAccessClosureResult.Complete("subject-a"));
         DateTimeOffset completedAt =
             new DateTimeOffset(
                 2026,
@@ -44,23 +42,35 @@ public sealed class WorkspaceStaffRetentionCorrelationHandlerTests
                 0,
                 TimeSpan.FromHours(3))
                 .AddTicks(7);
+        ScrubWorkspaceStaffRetentionCorrelationCommandHandler handler =
+            new(
+                repository,
+                crossGraphLock,
+                WorkspaceStaffAccessMutationTestSupport.Create(
+                    calls: calls),
+                accessClosure,
+                new TestClock(completedAt),
+                new TestIdGenerator(ReceiptId),
+                new TestScopeContext(TenantId));
 
         Result<WorkspaceStaffRetentionCorrelationReceipt> result =
             await handler.HandleAsync(
                 new ScrubWorkspaceStaffRetentionCorrelationCommand(
-                    ReceiptId,
                     ExecutionId,
                     $" {TenantId} ",
                     StaffMemberId,
-                    SelectedStaffVersion: 7,
-                    SubjectId: " subject-a ",
-                    completedAt),
+                    SelectedStaffVersion: 7),
                 CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Error.Code);
         Assert.Equal(1, crossGraphLock.AcquireCount);
         Assert.Equal(
-            ["tenant-exclusive", "staff-coordinate", "repository"],
+            [
+                "tenant-exclusive",
+                "staff-coordinate",
+                "access-closure",
+                "repository"
+            ],
             calls);
         Assert.NotNull(repository.Request);
         Assert.Equal(TenantId, repository.Request.TenantId);
@@ -80,19 +90,22 @@ public sealed class WorkspaceStaffRetentionCorrelationHandlerTests
                 repository,
                 crossGraphLock,
                 WorkspaceStaffAccessMutationTestSupport.Create(),
+                new RecordingAccessClosure(
+                    result:
+                        WorkspaceStaffAccessClosureResult.Complete(
+                            "subject-a")),
+                new TestClock(DateTimeOffset.UtcNow),
+                new TestIdGenerator(ReceiptId),
                 new TestScopeContext(
                     "50000000-0000-0000-0000-000000000001"));
 
         Result<WorkspaceStaffRetentionCorrelationReceipt> result =
             await handler.HandleAsync(
                 new ScrubWorkspaceStaffRetentionCorrelationCommand(
-                    ReceiptId,
                     ExecutionId,
                     TenantId,
                     StaffMemberId,
-                    SelectedStaffVersion: 7,
-                    SubjectId: "subject-a",
-                    DateTimeOffset.UtcNow),
+                    SelectedStaffVersion: 7),
                 CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -114,21 +127,21 @@ public sealed class WorkspaceStaffRetentionCorrelationHandlerTests
                 repository,
                 crossGraphLock,
                 WorkspaceStaffAccessMutationTestSupport.Create(),
+                new RecordingAccessClosure(
+                    result:
+                        WorkspaceStaffAccessClosureResult.Complete(
+                            "subject-a")),
+                new TestClock(DateTimeOffset.UtcNow),
+                new TestIdGenerator(ReceiptId),
                 new TestScopeContext(TenantId));
 
         Result<WorkspaceStaffRetentionCorrelationReceipt> result =
             await handler.HandleAsync(
                 new ScrubWorkspaceStaffRetentionCorrelationCommand(
-                    Guid.Empty,
-                    ExecutionId,
+                    ExecutionId: Guid.Empty,
                     TenantId,
                     StaffMemberId,
-                    SelectedStaffVersion: 0,
-                    SubjectId: new string(
-                        'x',
-                        WorkspaceStaffAccessProcess.SubjectIdMaxLength +
-                        1),
-                    CompletedAtUtc: default),
+                    SelectedStaffVersion: 0),
                 CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -137,6 +150,25 @@ public sealed class WorkspaceStaffRetentionCorrelationHandlerTests
             result.Error);
         Assert.Equal(0, crossGraphLock.AcquireCount);
         Assert.Null(repository.Request);
+    }
+
+    private sealed class RecordingAccessClosure(
+        List<string>? calls = null,
+        WorkspaceStaffAccessClosureResult? result = null)
+        : IWorkspaceStaffRetentionAccessClosure
+    {
+        public Task<WorkspaceStaffAccessClosureResult> EnsureClosedAsync(
+            string tenantId,
+            Guid staffMemberId,
+            long selectedStaffVersion,
+            CancellationToken cancellationToken)
+        {
+            calls?.Add("access-closure");
+            return Task.FromResult(
+                result ??
+                WorkspaceStaffAccessClosureResult.Complete(
+                    subjectId: null));
+        }
     }
 
     private sealed class FakeRepository(List<string>? calls = null)
@@ -181,5 +213,15 @@ public sealed class WorkspaceStaffRetentionCorrelationHandlerTests
     {
         public bool IsEnabled => true;
         public string ScopeId => scopeId;
+    }
+
+    private sealed class TestClock(DateTimeOffset utcNow) : ISystemClock
+    {
+        public DateTimeOffset UtcNow => utcNow;
+    }
+
+    private sealed class TestIdGenerator(Guid value) : IIdGenerator
+    {
+        public Guid NewId() => value;
     }
 }

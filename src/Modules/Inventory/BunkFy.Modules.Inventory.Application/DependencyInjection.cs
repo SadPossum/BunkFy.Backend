@@ -1,18 +1,18 @@
 namespace BunkFy.Modules.Inventory.Application;
 
 using BunkFy.Modules.DataRights.Contracts;
+using BunkFy.Modules.Inventory.Application.Contributors;
+using BunkFy.Modules.Inventory.Application.Handlers;
+using BunkFy.Modules.Inventory.Application.Tasks;
+using BunkFy.Modules.Inventory.Contracts;
+using BunkFy.Modules.Properties.Contracts;
 using Gma.Framework.AccessControl;
 using Gma.Framework.Application.Composition;
 using Gma.Framework.Messaging;
 using Gma.Framework.ProjectionRebuild.Tasks;
 using Gma.Framework.Tasks;
-using BunkFy.Modules.Inventory.Application.Handlers;
-using BunkFy.Modules.Inventory.Application.Contributors;
-using BunkFy.Modules.Inventory.Application.Tasks;
-using BunkFy.Modules.Inventory.Contracts;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using BunkFy.Modules.Properties.Contracts;
 
 public static class DependencyInjection
 {
@@ -27,6 +27,8 @@ public static class DependencyInjection
         services.AddScoped<RoomRetirementCoordinator>();
         services.AddScoped<InventoryRetirementCoordinator>();
         services.AddScoped<InventoryAllocationMutationCoordinator>();
+        services.AddScoped<InventoryManagementMutationCoordinator>();
+        services.AddScoped<InventoryManagementOperationJournal>();
         services.TryAddEnumerable(
             ServiceDescriptor.Scoped<
                 IDataRightsAnonymisationContributor,

@@ -6,6 +6,7 @@ using BunkFy.Modules.Staff.Application.Commands;
 using BunkFy.Modules.Staff.Application.Contributors;
 using BunkFy.Modules.Staff.Application.Policies;
 using BunkFy.Modules.Staff.Application.Ports;
+using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Staff.Domain.Retention;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
@@ -183,12 +184,7 @@ public sealed class StaffRetentionContributorTests
         StaffRetentionPolicyFixture policy =
             StaffRetentionTestData.CreatePolicy();
         FakeDispatcher dispatcher = new(
-            initialAffectedCount: 0,
-            new StaffRetentionMutationResult(
-                StaffRetentionMutationStatus.Failed,
-                Failure:
-                    StaffRetentionMutationFailure
-                        .PrerequisiteUnavailable));
+            initialAffectedCount: 0);
         StaffRetentionContributor contributor =
             CreateContributor(
                 dispatcher,
@@ -196,7 +192,9 @@ public sealed class StaffRetentionContributorTests
                     [StaffRetentionTestData.Snapshot(policy.Governance)],
                     ReachedEnd: true)),
                 new(),
-                policy);
+                policy,
+                StaffRetentionAnonymisationPrerequisiteResult
+                    .RetryRequired("workspace-access-unavailable"));
 
         RetentionContributionResult result =
             await contributor.ExecuteAsync(
@@ -209,17 +207,27 @@ public sealed class StaffRetentionContributorTests
         Assert.Equal(
             StaffRetentionCoordinates.PrerequisiteUnavailableOutcome,
             result.OutcomeCode);
+        Assert.Equal(0, dispatcher.ApplyCount);
     }
 
     private static StaffRetentionContributor CreateContributor(
         FakeDispatcher dispatcher,
         FakeCandidateRepository repository,
         StaffRetentionOptions options,
-        StaffRetentionPolicyFixture policy) =>
+        StaffRetentionPolicyFixture policy,
+        StaffRetentionAnonymisationPrerequisiteResult?
+            prerequisiteResult = null) =>
         new(
             dispatcher,
             repository,
             new StaffRetentionEligibilityEvaluator(policy.Registry),
+            new StaffRetentionPrerequisiteEvaluator(
+                [
+                    new StubPrerequisite(
+                        prerequisiteResult ??
+                        StaffRetentionAnonymisationPrerequisiteResult
+                            .Completed())
+                ]),
             Options.Create(options),
             new FakeClock());
 
@@ -240,6 +248,25 @@ public sealed class StaffRetentionContributorTests
     private sealed class FakeClock : ISystemClock
     {
         public DateTimeOffset UtcNow => StaffRetentionTestData.Now;
+    }
+
+    private sealed class StubPrerequisite(
+        StaffRetentionAnonymisationPrerequisiteResult result)
+        : IStaffRetentionAnonymisationPrerequisite
+    {
+        public string ContributorKey => "workspace-access";
+
+        public Task<StaffRetentionAnonymisationPrerequisiteResult>
+            PrepareAsync(
+                StaffRetentionAnonymisationPrerequisiteRequest request,
+                CancellationToken cancellationToken) =>
+            Task.FromResult(result);
+
+        public Task<StaffRetentionAnonymisationPrerequisiteResult>
+            VerifyAsync(
+                StaffRetentionAnonymisationPrerequisiteRequest request,
+                CancellationToken cancellationToken) =>
+            Task.FromResult(result);
     }
 
     private sealed class FakeCandidateRepository(

@@ -36,6 +36,8 @@ public sealed partial class InventoryTenantTerminationExportContributorTests
         Guid.Parse("70000000-0000-0000-0000-000000000001");
     private static readonly Guid AllocationId =
         Guid.Parse("80000000-0000-0000-0000-000000000001");
+    private static readonly Guid ManagementOperationId =
+        Guid.Parse("80500000-0000-0000-0000-000000000001");
     private static readonly DateTimeOffset FrozenAtUtc =
         new(2026, 7, 31, 12, 0, 0, TimeSpan.Zero);
     private static readonly DateTimeOffset Now =
@@ -67,7 +69,7 @@ public sealed partial class InventoryTenantTerminationExportContributorTests
             TenantTerminationContributionStatus.Completed,
             result.Status);
         Assert.Equal("inventory.termination.exported", result.ResultCode);
-        Assert.Equal(11, result.AffectedCount);
+        Assert.Equal(12, result.AffectedCount);
         Assert.Equal(1, result.SelectedProofRevision);
         Assert.Equal(1, result.ResultingProofRevision);
         Assert.Equal(
@@ -76,13 +78,17 @@ public sealed partial class InventoryTenantTerminationExportContributorTests
         Assert.Equal(
             "user:owner",
             Field(
-                    first.Records[6],
+                    first.Records[7],
                     "inventory.staff-actor-reference")
                 .GetString());
         Assert.Equal(
             "maintenance",
-            Field(first.Records[2], "inventory.operational-reason")
+            Field(first.Records[3], "inventory.operational-reason")
                 .GetString());
+        Assert.Equal(
+            ManagementOperationId,
+            first.Records[2].Fields.Single(field =>
+                field.FieldId == "inventory.operation-id").Value.GetGuid());
         Assert.Equal(
             InventoryTenantTerminationMetadata.ExportSchemaId,
             contributor.ExportDescriptor.ExportSchemaId);
@@ -390,9 +396,23 @@ public sealed partial class InventoryTenantTerminationExportContributorTests
                 "renovation",
                 "user:owner",
                 FrozenAtUtc.AddDays(-1)).Value;
+        InventoryManagementOperation managementOperation = new(
+            new InventoryManagementOperationRecord(
+                ManagementOperationId,
+                TenantId,
+                PropertyId,
+                InventoryManagementResourceKind.Room,
+                RoomId,
+                InventoryManagementMutationKind.RoomSalesModeConfiguration,
+                1,
+                Digest,
+                InventorySalesMode.BedLevel,
+                2,
+                FrozenAtUtc.AddDays(-4)));
 
         context.InventoryUnits.Add(unit);
         context.RoomConfigurations.Add(configuration);
+        context.ManagementOperations.Add(managementOperation);
         context.ManualBlocks.Add(block);
         context.Allocations.Add(allocation);
         context.AllocationAmendmentDecisions.Add(decision);

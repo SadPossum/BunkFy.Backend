@@ -156,6 +156,7 @@ public sealed class StaffProcessingRestrictionIntegrationTests
                    tokens.AccessToken,
                    new
                    {
+                       operationId = Guid.NewGuid(),
                        reason = "Privacy-safe access reduction",
                        expectedVersion = legacyMember.Version
                    }).ConfigureAwait(false))
@@ -172,6 +173,7 @@ public sealed class StaffProcessingRestrictionIntegrationTests
                    tokens.AccessToken,
                    new
                    {
+                       operationId = Guid.NewGuid(),
                        reason = "Must remain blocked while restricted",
                        expectedVersion = suspended.Version
                    }).ConfigureAwait(false))
@@ -220,6 +222,7 @@ public sealed class StaffProcessingRestrictionIntegrationTests
                    tokens.AccessToken,
                    new
                    {
+                       operationId = Guid.NewGuid(),
                        reason = "Restriction released",
                        expectedVersion = suspended.Version
                    }).ConfigureAwait(false))

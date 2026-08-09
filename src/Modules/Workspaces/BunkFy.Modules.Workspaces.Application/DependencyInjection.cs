@@ -79,6 +79,9 @@ public static class DependencyInjection
         services.TryAddScoped<WorkspaceStaffAccessMutationCoordinator>();
         services.TryAddScoped<WorkspaceStaffAccessDenier>();
         services.TryAddScoped<WorkspaceStaffAccessRestorer>();
+        services.TryAddScoped<
+            IWorkspaceStaffRetentionAccessClosure,
+            WorkspaceStaffRetentionAccessClosure>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<
             IStaffLifecyclePolicy,
             WorkspaceStaffLifecyclePolicy>());

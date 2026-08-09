@@ -333,7 +333,12 @@ public sealed class IngestionReservationFlowIntegrationTests(ITestOutputHelper o
         await inventory.SaveChangesAsync().ConfigureAwait(false);
         Result<RoomInventoryMutationReceiptDto> configured = await scope.ServiceProvider.GetRequiredService<IRequestDispatcher>()
             .SendAsync(
-                new ConfigureRoomSalesModeCommand(PropertyId, RoomId, InventorySalesMode.RoomLevel, 1),
+                new ConfigureRoomSalesModeCommand(
+                    Guid.NewGuid(),
+                    PropertyId,
+                    RoomId,
+                    InventorySalesMode.RoomLevel,
+                    1),
                 CancellationToken.None)
             .ConfigureAwait(false);
         Assert.True(configured.IsSuccess, configured.Error.Code);

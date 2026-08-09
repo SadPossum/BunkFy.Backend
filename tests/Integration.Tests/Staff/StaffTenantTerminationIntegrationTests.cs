@@ -1,6 +1,7 @@
 namespace Integration.Tests;
 
 using BunkFy.Modules.DataRights.Contracts;
+using BunkFy.Modules.Staff.Application.Ports;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Staff.Domain.Aggregates;
 using BunkFy.Modules.Staff.Domain.DataRights;
@@ -67,6 +68,8 @@ public sealed class StaffTenantTerminationIntegrationTests
             await workspaces.Database.MigrateAsync();
             (tenantAStaffId, proofIds) = await SeedGraphAsync(
                 staff,
+                seedScope.ServiceProvider.GetRequiredService<
+                    IStaffMemberMutationOperationRepository>(),
                 TenantA);
         }
 
@@ -168,7 +171,11 @@ public sealed class StaffTenantTerminationIntegrationTests
                 .GetRequiredService<WorkspacesDbContext>();
             await staff.Database.MigrateAsync();
             await workspaces.Database.MigrateAsync();
-            await SeedGraphAsync(staff, TenantA);
+            await SeedGraphAsync(
+                staff,
+                seedScope.ServiceProvider.GetRequiredService<
+                    IStaffMemberMutationOperationRepository>(),
+                TenantA);
         }
 
         WorkspaceTerminationFence tenantAFence =
@@ -211,7 +218,11 @@ public sealed class StaffTenantTerminationIntegrationTests
         {
             StaffDbContext staff = seedScope.ServiceProvider
                 .GetRequiredService<StaffDbContext>();
-            await SeedGraphAsync(staff, TenantB);
+            await SeedGraphAsync(
+                staff,
+                seedScope.ServiceProvider.GetRequiredService<
+                    IStaffMemberMutationOperationRepository>(),
+                TenantB);
             StaffDataHold hold = await staff.DataHolds
                 .SingleAsync(candidate =>
                     candidate.State == StaffDataHoldState.Active);
@@ -435,6 +446,7 @@ public sealed class StaffTenantTerminationIntegrationTests
     private static async Task<(Guid StaffId, ProofIds ProofIds)>
         SeedGraphAsync(
             StaffDbContext context,
+            IStaffMemberMutationOperationRepository mutationOperations,
             string tenantId)
     {
         StaffMember member = CreateMember(tenantId, "Maya Chen");
@@ -457,6 +469,18 @@ public sealed class StaffTenantTerminationIntegrationTests
             Guid.NewGuid(),
             SeedNowUtc.AddMinutes(2)).IsSuccess);
         context.StaffMembers.Add(member);
+        await mutationOperations.AddAsync(
+            new StaffMemberMutationOperationRecord(
+                Guid.NewGuid(),
+                tenantId,
+                member.Id,
+                StaffMemberMutationKind.ProfileUpdate,
+                member.Version,
+                Digest,
+                StaffStatus.Active,
+                member.Version,
+                SeedNowUtc.AddMinutes(3)),
+            CancellationToken.None);
 
         StaffDataRightsCorrectionReceipt correction =
             StaffDataRightsCorrectionReceipt.Create(

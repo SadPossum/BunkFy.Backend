@@ -5,14 +5,14 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Claims;
-using DotNet.Testcontainers.Containers;
+using BunkFy.Host.Api;
 using BunkFy.Modules.Properties.Application;
+using BunkFy.Modules.Properties.Contracts;
+using DotNet.Testcontainers.Containers;
 using Gma.Framework.Administration;
 using Gma.Framework.Administration.Cli;
 using Gma.Modules.Auth.Contracts;
 using Integration.Tests.Support;
-using BunkFy.Modules.Properties.Contracts;
-using BunkFy.Host.Api;
 using Testcontainers.PostgreSql;
 using Xunit;
 
@@ -245,7 +245,13 @@ public sealed class PropertiesAuthorizationIntegrationTests
                    TenantA,
                    "/api/properties",
                    localOperator.AccessToken,
-                   new { name = "Denied House", code = "DENIED", timeZoneId = "UTC" }).ConfigureAwait(false))
+                   new
+                   {
+                       operationId = Guid.NewGuid(),
+                       name = "Denied House",
+                       code = "DENIED",
+                       timeZoneId = "UTC"
+                   }).ConfigureAwait(false))
         {
             await AssertStatusAsync(HttpStatusCode.Forbidden, rootCreateDenied).ConfigureAwait(false);
         }
@@ -257,7 +263,14 @@ public sealed class PropertiesAuthorizationIntegrationTests
                    TenantA,
                    $"/api/properties/{propertyA1.PropertyId:D}",
                    localOperator.AccessToken,
-                   new { name = "Alpha House Updated", code = "ALPHA", timeZoneId = "UTC", expectedVersion = 1 }).ConfigureAwait(false))
+                   new
+                   {
+                       operationId = Guid.NewGuid(),
+                       name = "Alpha House Updated",
+                       code = "ALPHA",
+                       timeZoneId = "UTC",
+                       expectedVersion = 1
+                   }).ConfigureAwait(false))
         {
             updatedProperty = await ReadSuccessAsync<PropertyMutationReceiptDto>(updateProperty).ConfigureAwait(false);
             Assert.Equal(2, updatedProperty.Version);
@@ -268,6 +281,7 @@ public sealed class PropertiesAuthorizationIntegrationTests
             policy => policy.RetentionPolicyId == "integration-guest-operational");
         object activationRequest = new
         {
+            operationId = Guid.NewGuid(),
             operatingCountryCode = countryPolicy.OperatingCountryCode,
             policyId = countryPolicy.PolicyId,
             policyVersion = countryPolicy.PolicyVersion,
@@ -305,6 +319,7 @@ public sealed class PropertiesAuthorizationIntegrationTests
                    localOperator.AccessToken,
                    new
                    {
+                       operationId = Guid.NewGuid(),
                        operatingCountryCode = countryPolicy.OperatingCountryCode,
                        policyId = countryPolicy.PolicyId,
                        policyVersion = countryPolicy.PolicyVersion,
@@ -346,7 +361,14 @@ public sealed class PropertiesAuthorizationIntegrationTests
                    TenantA,
                    $"/api/properties/{propertyA1.PropertyId:D}/rooms",
                    localOperator.AccessToken,
-                   new { name = "Room 101", expectedPropertyVersion = processingEnabledProperty.Version, buildingLabel = "Main", floorLabel = "1" }).ConfigureAwait(false))
+                   new
+                   {
+                       operationId = Guid.NewGuid(),
+                       name = "Room 101",
+                       expectedPropertyVersion = processingEnabledProperty.Version,
+                       buildingLabel = "Main",
+                       floorLabel = "1"
+                   }).ConfigureAwait(false))
         {
             room = await ReadSuccessAsync<RoomMutationReceiptDto>(createRoom).ConfigureAwait(false);
         }
@@ -358,7 +380,12 @@ public sealed class PropertiesAuthorizationIntegrationTests
                    TenantA,
                    $"/api/properties/{propertyA1.PropertyId:D}/rooms/{room.RoomId:D}/beds",
                    localOperator.AccessToken,
-                   new { label = "A", expectedRoomVersion = room.Version }).ConfigureAwait(false))
+                   new
+                   {
+                       operationId = Guid.NewGuid(),
+                       label = "A",
+                       expectedRoomVersion = room.Version
+                   }).ConfigureAwait(false))
         {
             bed = await ReadSuccessAsync<BedMutationReceiptDto>(addBed).ConfigureAwait(false);
             Assert.Equal(room.RoomId, bed.RoomId);
@@ -370,7 +397,12 @@ public sealed class PropertiesAuthorizationIntegrationTests
                    TenantA,
                    $"/api/properties/{propertyA1.PropertyId:D}/rooms/{room.RoomId:D}/beds/{bed.BedId:D}/retire",
                    localOperator.AccessToken,
-                   new { confirmed = true, expectedRoomVersion = bed.RoomVersion }).ConfigureAwait(false))
+                   new
+                   {
+                       operationId = Guid.NewGuid(),
+                       confirmed = true,
+                       expectedRoomVersion = bed.RoomVersion
+                   }).ConfigureAwait(false))
         {
             string body = await retireBed.Content.ReadAsStringAsync().ConfigureAwait(false);
             Assert.Equal(HttpStatusCode.Conflict, retireBed.StatusCode);
@@ -383,7 +415,13 @@ public sealed class PropertiesAuthorizationIntegrationTests
                    TenantA,
                    $"/api/properties/{propertyA1.PropertyId:D}/rooms/{room.RoomId:D}/retire",
                    localOperator.AccessToken,
-                   new { confirmed = true, expectedVersion = bed.RoomVersion, cascadeBeds = true }).ConfigureAwait(false))
+                   new
+                   {
+                       operationId = Guid.NewGuid(),
+                       confirmed = true,
+                       expectedVersion = bed.RoomVersion,
+                       cascadeBeds = true
+                   }).ConfigureAwait(false))
         {
             string body = await retireRoom.Content.ReadAsStringAsync().ConfigureAwait(false);
             Assert.Equal(HttpStatusCode.Conflict, retireRoom.StatusCode);
@@ -502,7 +540,13 @@ public sealed class PropertiesAuthorizationIntegrationTests
             tenantId,
             "/api/properties",
             accessToken,
-            new { name, code, timeZoneId = "UTC" }).ConfigureAwait(false);
+            new
+            {
+                operationId = Guid.NewGuid(),
+                name,
+                code,
+                timeZoneId = "UTC"
+            }).ConfigureAwait(false);
 
         return await ReadSuccessAsync<PropertyMutationReceiptDto>(response).ConfigureAwait(false);
     }

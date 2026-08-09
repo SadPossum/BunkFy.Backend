@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "workspaces.personal-data",
-  "catalogVersion": 9,
+  "catalogVersion": 10,
   "module": "workspaces",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -1483,13 +1483,6 @@
         {
           "assembly": "BunkFy.Modules.Workspaces.Application",
           "type": "BunkFy.Modules.Workspaces.Application.Commands.SubmitWorkspaceStaffOnboardingCommand",
-          "member": "SubjectId",
-          "surface": "application-command",
-          "retentionPolicy": "transient-request"
-        },
-        {
-          "assembly": "BunkFy.Modules.Workspaces.Application",
-          "type": "BunkFy.Modules.Workspaces.Application.Commands.ScrubWorkspaceStaffRetentionCorrelationCommand",
           "member": "SubjectId",
           "surface": "application-command",
           "retentionPolicy": "transient-request"
@@ -4243,21 +4236,7 @@
         {
           "assembly": "BunkFy.Modules.Workspaces.Application",
           "type": "BunkFy.Modules.Workspaces.Application.Commands.ScrubWorkspaceStaffRetentionCorrelationCommand",
-          "member": "ReceiptId",
-          "surface": "application-command",
-          "retentionPolicy": "transient-request"
-        },
-        {
-          "assembly": "BunkFy.Modules.Workspaces.Application",
-          "type": "BunkFy.Modules.Workspaces.Application.Commands.ScrubWorkspaceStaffRetentionCorrelationCommand",
           "member": "ExecutionId",
-          "surface": "application-command",
-          "retentionPolicy": "transient-request"
-        },
-        {
-          "assembly": "BunkFy.Modules.Workspaces.Application",
-          "type": "BunkFy.Modules.Workspaces.Application.Commands.ScrubWorkspaceStaffRetentionCorrelationCommand",
-          "member": "CompletedAtUtc",
           "surface": "application-command",
           "retentionPolicy": "transient-request"
         },

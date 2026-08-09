@@ -426,7 +426,13 @@ public sealed class WorkspaceStaffOnboardingEndToEndTests
             "/api/properties",
             workspaceId,
             accessToken,
-            new { name, code, timeZoneId = "UTC" }).ConfigureAwait(false);
+            new
+            {
+                operationId = Guid.NewGuid(),
+                name,
+                code,
+                timeZoneId = "UTC"
+            }).ConfigureAwait(false);
         return await ReadSuccessAsync<PropertyMutationReceiptDto>(response).ConfigureAwait(false);
     }
 

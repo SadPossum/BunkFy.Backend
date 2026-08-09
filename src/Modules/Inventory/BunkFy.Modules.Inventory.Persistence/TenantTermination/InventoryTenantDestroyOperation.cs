@@ -141,13 +141,23 @@ internal sealed class InventoryTenantDestroyOperation : IScopedEntity
         InventoryTenantDestroyStage stage)
     {
         if (stage is < InventoryTenantDestroyStage.OutboxMessages or
-            >= InventoryTenantDestroyStage.Completed)
+            > InventoryTenantDestroyStage.ManagementOperations or
+            InventoryTenantDestroyStage.Completed)
         {
             throw new InvalidOperationException(
                 "The Inventory tenant destruction stage is invalid.");
         }
 
-        return (InventoryTenantDestroyStage)((int)stage + 1);
+        return stage switch
+        {
+            InventoryTenantDestroyStage.RoomRetirements =>
+                InventoryTenantDestroyStage.ManagementOperations,
+            InventoryTenantDestroyStage.ManagementOperations =>
+                InventoryTenantDestroyStage.RoomConfigurations,
+            InventoryTenantDestroyStage.ProjectionRebuildCheckpoints =>
+                InventoryTenantDestroyStage.Completed,
+            _ => (InventoryTenantDestroyStage)((int)stage + 1)
+        };
     }
 }
 
@@ -172,5 +182,6 @@ internal enum InventoryTenantDestroyStage
     RoomTopology = 16,
     PropertyTopology = 17,
     ProjectionRebuildCheckpoints = 18,
-    Completed = 19
+    Completed = 19,
+    ManagementOperations = 20
 }

@@ -1,9 +1,10 @@
 namespace BunkFy.Modules.Inventory.Application.Commands;
 
-using Gma.Framework.Cqrs;
 using BunkFy.Modules.Inventory.Contracts;
+using Gma.Framework.Cqrs;
 
 public sealed record ConfigureRoomSalesModeCommand(
+    Guid OperationId,
     Guid PropertyId,
     Guid RoomId,
     InventorySalesMode SalesMode,

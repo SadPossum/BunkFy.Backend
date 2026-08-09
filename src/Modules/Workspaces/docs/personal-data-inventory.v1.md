@@ -1,4 +1,4 @@
-# workspaces Personal-Data Inventory v9
+# workspaces Personal-Data Inventory v10
 
 Generated from `workspaces.personal-data` schema v1.
 Catalogue approval: `engineering-default`.
@@ -279,7 +279,6 @@ Engineering metadata is not legal or country-launch approval.
 | workspaces.actor-subject-id | BunkFy.Modules.Workspaces.Persistence | BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffAccessProcessDataRightsExport | RequestedBy | data-rights-export | workspaces-data-rights-export-fragment |
 | workspaces.assignment-scope | BunkFy.Modules.Workspaces.Domain | BunkFy.Modules.Workspaces.Domain.WorkspaceStaffAccessProfileSnapshot | AssignmentScope | persistence | workspace-access-history |
 | workspaces.assignment-scope | BunkFy.Modules.Workspaces.Persistence | BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffAccessProfileDataRightsExport | AssignmentScope | data-rights-export | workspaces-data-rights-export-fragment |
-| workspaces.auth-subject-id | BunkFy.Modules.Workspaces.Application | BunkFy.Modules.Workspaces.Application.Commands.ScrubWorkspaceStaffRetentionCorrelationCommand | SubjectId | application-command | transient-request |
 | workspaces.auth-subject-id | BunkFy.Modules.Workspaces.Application | BunkFy.Modules.Workspaces.Application.Commands.SubmitWorkspaceStaffOnboardingCommand | SubjectId | application-command | transient-request |
 | workspaces.auth-subject-id | BunkFy.Modules.Workspaces.Application | BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffRetentionCorrelationScrubRequest | SubjectId | application-command | transient-request |
 | workspaces.auth-subject-id | BunkFy.Modules.Workspaces.Application | BunkFy.Modules.Workspaces.Application.Queries.GetOwnWorkspaceStaffOnboardingQuery | SubjectId | application-query | transient-request |
@@ -669,9 +668,7 @@ Engineering metadata is not legal or country-launch approval.
 | workspaces.response-items | BunkFy.Modules.Workspaces.Contracts | BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffAccessProcessListResponse | Items | admin-output | transient-response |
 | workspaces.response-items | BunkFy.Modules.Workspaces.Contracts | BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffJoinSourceListResponse | Items | api-response | transient-response |
 | workspaces.response-items | BunkFy.Modules.Workspaces.Contracts | BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffOnboardingListResponse | Items | api-response | transient-response |
-| workspaces.retention-correlation-proof | BunkFy.Modules.Workspaces.Application | BunkFy.Modules.Workspaces.Application.Commands.ScrubWorkspaceStaffRetentionCorrelationCommand | CompletedAtUtc | application-command | transient-request |
 | workspaces.retention-correlation-proof | BunkFy.Modules.Workspaces.Application | BunkFy.Modules.Workspaces.Application.Commands.ScrubWorkspaceStaffRetentionCorrelationCommand | ExecutionId | application-command | transient-request |
-| workspaces.retention-correlation-proof | BunkFy.Modules.Workspaces.Application | BunkFy.Modules.Workspaces.Application.Commands.ScrubWorkspaceStaffRetentionCorrelationCommand | ReceiptId | application-command | transient-request |
 | workspaces.retention-correlation-proof | BunkFy.Modules.Workspaces.Application | BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffRetentionCorrelationScrubRequest | CompletedAtUtc | application-command | transient-request |
 | workspaces.retention-correlation-proof | BunkFy.Modules.Workspaces.Application | BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffRetentionCorrelationScrubRequest | ExecutionId | application-command | transient-request |
 | workspaces.retention-correlation-proof | BunkFy.Modules.Workspaces.Application | BunkFy.Modules.Workspaces.Application.Ports.WorkspaceStaffRetentionCorrelationScrubRequest | ReceiptId | application-command | transient-request |

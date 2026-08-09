@@ -1,11 +1,14 @@
 namespace BunkFy.Modules.Inventory.Tests.Api;
 
+using System.CommandLine;
 using System.Reflection;
 using BunkFy.Modules.Inventory.AdminApi;
+using BunkFy.Modules.Inventory.AdminCli;
 using BunkFy.Modules.Inventory.Api;
 using BunkFy.Modules.Inventory.Contracts;
 using Gma.Framework.AccessControl.AspNetCore;
 using Gma.Framework.Administration.Api;
+using Gma.Framework.Administration.Cli;
 using Gma.Framework.Cqrs;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -17,6 +20,59 @@ using Xunit;
 [Trait("Category", "Unit")]
 public sealed class InventoryApiSecurityTests
 {
+    [Theory]
+    [InlineData(typeof(InventoryModule.ConfigureSalesModeRequest))]
+    [InlineData(typeof(InventoryAdminApiModule.ConfigureSalesModeRequest))]
+    public void Sales_mode_requests_require_caller_owned_operation_identity(
+        Type requestType)
+    {
+        PropertyInfo operationId = requestType.GetProperty("OperationId")!;
+        ConstructorInfo constructor = Assert.Single(
+            requestType.GetConstructors());
+        ParameterInfo parameter = Assert.Single(
+            constructor.GetParameters(),
+            candidate => string.Equals(
+                candidate.Name,
+                "operationId",
+                StringComparison.OrdinalIgnoreCase));
+
+        Assert.Equal(typeof(Guid), operationId.PropertyType);
+        Assert.Equal(typeof(Guid), parameter.ParameterType);
+        Assert.False(parameter.HasDefaultValue);
+    }
+
+    [Fact]
+    public void Admin_cli_requires_operation_identity_for_room_configuration()
+    {
+        ServiceCollection services = new();
+        services.AddSingleton<AdminCliGlobalOptions>();
+        using ServiceProvider provider = services.BuildServiceProvider();
+        AdminCliGlobalOptions options = provider
+            .GetRequiredService<AdminCliGlobalOptions>();
+        RootCommand root = new("admin")
+        {
+            options.ActorOption,
+            options.TenantOption,
+            options.OutputOption
+        };
+        AdminCliCommandRegistry registry = new(root, provider);
+        new InventoryAdminCliModule().MapCommands(registry);
+        string[] command =
+        [
+            "inventory", "rooms", "configure",
+            "--property-id", "71000000-0000-0000-0000-000000000001",
+            "--room-id", "72000000-0000-0000-0000-000000000001",
+            "--sales-mode", "room",
+            "--expected-version", "1"
+        ];
+
+        Assert.NotEmpty(root.Parse(command).Errors);
+        Assert.Empty(root.Parse([
+            .. command,
+            "--operation-id", "73000000-0000-0000-0000-000000000001"
+        ]).Errors);
+    }
+
     [Fact]
     public void Sensitive_response_policies_disable_storage()
     {

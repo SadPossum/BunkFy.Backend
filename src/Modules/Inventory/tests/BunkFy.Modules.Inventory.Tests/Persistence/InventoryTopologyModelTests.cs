@@ -1,18 +1,84 @@
 namespace BunkFy.Modules.Inventory.Tests;
 
-using Gma.Framework.Scoping;
+using BunkFy.Modules.Inventory.Application.Ports;
+using BunkFy.Modules.Inventory.Contracts;
 using BunkFy.Modules.Inventory.Domain.Aggregates;
 using BunkFy.Modules.Inventory.Persistence;
 using BunkFy.Modules.Inventory.Persistence.TenantTermination;
+using BunkFy.Modules.Properties.Contracts;
+using Gma.Framework.Scoping;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
-using BunkFy.Modules.Properties.Contracts;
 using Xunit;
 
 [Trait("Category", "Unit")]
 public sealed class InventoryTopologyModelTests
 {
+    [Fact]
+    public void Management_operations_are_scoped_composite_receipts_with_constraints()
+    {
+        using InventoryDbContext dbContext = CreateDbContext();
+        IModel designModel = dbContext.GetService<IDesignTimeModel>().Model;
+        IEntityType operation = designModel.FindEntityType(
+            typeof(InventoryManagementOperation))!;
+
+        Assert.Equal(
+            [
+                nameof(InventoryManagementOperation.ScopeId),
+                nameof(InventoryManagementOperation.ResourceKind),
+                nameof(InventoryManagementOperation.ResourceId),
+                nameof(InventoryManagementOperation.Id)
+            ],
+            operation.FindPrimaryKey()!.Properties.Select(
+                property => property.Name));
+        Assert.NotEmpty(operation.GetDeclaredQueryFilters());
+        Assert.True(operation.FindProperty(
+            nameof(InventoryManagementOperation.RequestFingerprint))!
+            .IsFixedLength());
+        Assert.Contains(
+            operation.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_inventory_management_operations_coordinates");
+        Assert.Contains(
+            operation.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_inventory_management_operations_fingerprint");
+        Assert.Contains(
+            operation.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_inventory_management_operations_result");
+    }
+
+    [Fact]
+    public async Task Management_operation_receipts_are_append_only()
+    {
+        await using InventoryDbContext dbContext = CreateDbContext();
+        InventoryManagementOperation operation = new(
+            new InventoryManagementOperationRecord(
+                Guid.NewGuid(),
+                "tenant-a",
+                Guid.NewGuid(),
+                InventoryManagementResourceKind.Room,
+                Guid.NewGuid(),
+                InventoryManagementMutationKind.RoomSalesModeConfiguration,
+                1,
+                new string('a', 64),
+                InventorySalesMode.RoomLevel,
+                2,
+                DateTimeOffset.UtcNow));
+        dbContext.ManagementOperations.Add(operation);
+        await dbContext.SaveChangesAsync();
+        dbContext.Entry(operation).Property(
+            nameof(InventoryManagementOperation.ResultVersion))
+            .CurrentValue = 3L;
+
+        InvalidOperationException exception = await Assert.ThrowsAsync<
+            InvalidOperationException>(() => dbContext.SaveChangesAsync());
+
+        Assert.Contains("append-only", exception.Message);
+    }
+
     [Fact]
     public void Tenant_revision_is_scope_filtered()
     {
@@ -158,7 +224,7 @@ public sealed class InventoryTopologyModelTests
         using InventoryDbContext dbContext = CreateDbContext();
 
         IEntityType allocationEntity = dbContext.Model.FindEntityType(typeof(InventoryAllocation))!;
-        IEntityType allocationUnitEntity = dbContext.Model.FindEntityType(typeof(BunkFy.Modules.Inventory.Domain.Entities.InventoryAllocationUnit))!;
+        IEntityType allocationUnitEntity = dbContext.Model.FindEntityType(typeof(Domain.Entities.InventoryAllocationUnit))!;
         IForeignKey parent = Assert.Single(
             allocationUnitEntity.GetForeignKeys(),
             candidate => candidate.PrincipalEntityType == allocationEntity);

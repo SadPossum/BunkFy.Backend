@@ -61,7 +61,8 @@ public sealed class ApplyStaffRetentionCommandHandlerTests
         Assert.Equal(1, fixture.MemberMutationOperations.DeleteCount);
         Assert.Equal(1, fixture.Candidates.LoadCount);
         Assert.Equal(1, fixture.Lock.AcquireCount);
-        Assert.Equal(1, fixture.Prerequisite?.CallCount);
+        Assert.Equal(0, fixture.Prerequisite?.PrepareCount);
+        Assert.Equal(1, fixture.Prerequisite?.VerifyCount);
         Assert.NotNull(fixture.Executions.Receipt);
         Assert.NotNull(fixture.Executions.Tombstone);
         Assert.True(fixture.Executions.Tombstone.MatchesRetention(
@@ -94,7 +95,8 @@ public sealed class ApplyStaffRetentionCommandHandlerTests
         Assert.Equal("Casey Morgan", fixture.Member.DisplayName);
         Assert.Equal(0, fixture.Execution.AffectedCount);
         Assert.Equal(0, fixture.Executions.AddProofCount);
-        Assert.Equal(1, fixture.Prerequisite?.CallCount);
+        Assert.Equal(0, fixture.Prerequisite?.PrepareCount);
+        Assert.Equal(1, fixture.Prerequisite?.VerifyCount);
     }
 
     [Fact]
@@ -256,7 +258,7 @@ public sealed class ApplyStaffRetentionCommandHandlerTests
         public Task<StaffRetentionExecution?> GetExecutionAsync(
             Guid executionId,
             CancellationToken cancellationToken) =>
-            Task.FromResult<StaffRetentionExecution?>(
+            Task.FromResult(
                 execution.Id == executionId ? execution : null);
 
         public Task AddExecutionAsync(
@@ -320,7 +322,7 @@ public sealed class ApplyStaffRetentionCommandHandlerTests
             CancellationToken cancellationToken)
         {
             this.LoadCount++;
-            return Task.FromResult<StaffRetentionCandidateSnapshot?>(
+            return Task.FromResult(
                 snapshot.StaffMemberId == staffMemberId
                     ? snapshot
                     : null);
@@ -357,14 +359,25 @@ public sealed class ApplyStaffRetentionCommandHandlerTests
     {
         public string ContributorKey => "workspace-access";
 
-        public int CallCount { get; private set; }
+        public int PrepareCount { get; private set; }
+
+        public int VerifyCount { get; private set; }
 
         public Task<StaffRetentionAnonymisationPrerequisiteResult>
-            ExecuteAsync(
+            PrepareAsync(
                 StaffRetentionAnonymisationPrerequisiteRequest request,
                 CancellationToken cancellationToken)
         {
-            this.CallCount++;
+            this.PrepareCount++;
+            return Task.FromResult(result);
+        }
+
+        public Task<StaffRetentionAnonymisationPrerequisiteResult>
+            VerifyAsync(
+                StaffRetentionAnonymisationPrerequisiteRequest request,
+                CancellationToken cancellationToken)
+        {
+            this.VerifyCount++;
             return Task.FromResult(result);
         }
     }

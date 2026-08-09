@@ -93,6 +93,16 @@ internal sealed partial class InventoryTenantTerminationContributor
                     dbContext.RoomRetirements,
                     retirement => retirement.Id,
                     cancellationToken),
+            InventoryTenantDestroyStage.ManagementOperations =>
+                this.RemoveBatchAsync(
+                    operation,
+                    dbContext.ManagementOperations
+                        .OrderBy(item => item.ResourceKind)
+                        .ThenBy(item => item.ResourceId)
+                        .ThenBy(item => item.Id),
+                    item => $"{(int)item.ResourceKind}|" +
+                        $"{item.ResourceId:N}|{item.Id:N}",
+                    cancellationToken),
             InventoryTenantDestroyStage.RoomConfigurations =>
                 this.RemoveGuidBatchAsync(
                     operation,
@@ -208,6 +218,8 @@ internal sealed partial class InventoryTenantTerminationContributor
         await dbContext.BedRetirements.AnyAsync(cancellationToken)
             .ConfigureAwait(false) ||
         await dbContext.RoomRetirements.AnyAsync(cancellationToken)
+            .ConfigureAwait(false) ||
+        await dbContext.ManagementOperations.AnyAsync(cancellationToken)
             .ConfigureAwait(false) ||
         await dbContext.RoomConfigurations.AnyAsync(cancellationToken)
             .ConfigureAwait(false) ||

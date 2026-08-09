@@ -6,6 +6,8 @@ using BunkFy.Modules.Workspaces.Domain;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Naming;
 using Gma.Framework.Results;
+using Gma.Framework.Runtime.Identity;
+using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
 
 internal sealed class
@@ -13,6 +15,9 @@ internal sealed class
     IWorkspaceStaffRetentionCorrelationRepository repository,
     IWorkspaceCrossGraphMutationLock crossGraphLock,
     WorkspaceStaffAccessMutationCoordinator mutations,
+    IWorkspaceStaffRetentionAccessClosure accessClosure,
+    ISystemClock clock,
+    IIdGenerator ids,
     IScopeContext scopeContext)
     : ICommandHandler<
         ScrubWorkspaceStaffRetentionCorrelationCommand,
@@ -23,7 +28,6 @@ internal sealed class
             ScrubWorkspaceStaffRetentionCorrelationCommand command,
             CancellationToken cancellationToken)
     {
-        string? subjectId = NormalizeSubject(command.SubjectId);
         if (!scopeContext.IsEnabled ||
             !TenantIds.TryNormalize(
                 scopeContext.ScopeId,
@@ -35,13 +39,9 @@ internal sealed class
                 activeScopeId,
                 tenantId,
                 StringComparison.Ordinal) ||
-            command.ReceiptId == Guid.Empty ||
             command.ExecutionId == Guid.Empty ||
             command.StaffMemberId == Guid.Empty ||
-            command.SelectedStaffVersion <= 0 ||
-            command.CompletedAtUtc == default ||
-            subjectId?.Length >
-                WorkspaceStaffAccessProcess.SubjectIdMaxLength)
+            command.SelectedStaffVersion <= 0)
         {
             return Result.Failure<
                 WorkspaceStaffRetentionCorrelationReceipt>(
@@ -53,23 +53,35 @@ internal sealed class
         await mutations.AcquireStaffAsync(
                 command.StaffMemberId,
                 cancellationToken).ConfigureAwait(false);
+        WorkspaceStaffAccessClosureResult closure =
+            await accessClosure.EnsureClosedAsync(
+                tenantId,
+                command.StaffMemberId,
+                command.SelectedStaffVersion,
+                cancellationToken).ConfigureAwait(false);
+        if (closure.Status != WorkspaceStaffAccessClosureStatus.Completed)
+        {
+            return Result.Failure<
+                WorkspaceStaffRetentionCorrelationReceipt>(
+                new(
+                    closure.Code,
+                    closure.Status ==
+                        WorkspaceStaffAccessClosureStatus.Blocked
+                        ? "The workspace Staff retention prerequisite is blocked."
+                        : "The workspace Staff retention prerequisite is temporarily unavailable."));
+        }
+
         return await repository.ScrubAsync(
             new WorkspaceStaffRetentionCorrelationScrubRequest(
-                command.ReceiptId,
+                ids.NewId(),
                 command.ExecutionId,
                 tenantId,
                 command.StaffMemberId,
                 command.SelectedStaffVersion,
-                subjectId,
+                closure.SubjectId,
                 ToPersistencePrecision(
-                    command.CompletedAtUtc.ToUniversalTime())),
+                    clock.UtcNow.ToUniversalTime())),
             cancellationToken).ConfigureAwait(false);
-    }
-
-    private static string? NormalizeSubject(string? subjectId)
-    {
-        string value = subjectId?.Trim() ?? string.Empty;
-        return value.Length == 0 ? null : value;
     }
 
     private static DateTimeOffset ToPersistencePrecision(

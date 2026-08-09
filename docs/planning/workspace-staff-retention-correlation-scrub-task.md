@@ -58,9 +58,13 @@ Workspaces may scrub only when all of the following are true:
    and
 7. no valid receipt already proves the same Staff/version scrub.
 
-Staff evaluates employment policy, deadline, restriction, legal hold, and its
-operation lock before invoking the prerequisite. A Workspaces conflict returns
-a stable blocked or retry-required result and prevents Staff mutation.
+Staff evaluates the bounded candidate snapshot before invoking preparation.
+Workspaces then takes the common tenant coordinate exclusively, revalidates the
+exact departed Staff version and its own departure mapping, closes access, and
+writes the receipt. The following Staff transaction re-evaluates employment
+policy, deadline, restriction, legal hold, and operation-lock state and performs
+only read-only receipt verification. A Workspaces conflict returns a stable
+blocked or retry-required result and prevents Staff mutation.
 
 Access denial commits before the Workspaces scrub transaction. A failure in
 the later transaction therefore leaves authority narrower, never broader, and

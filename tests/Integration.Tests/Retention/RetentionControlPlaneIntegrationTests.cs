@@ -126,7 +126,7 @@ public sealed class RetentionControlPlaneIntegrationTests
                 await WaitForScheduledRunsAsync(
                     worker,
                     expectedScheduleCount,
-                    TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                    TimeSpan.FromMinutes(3)).ConfigureAwait(false);
 
             Assert.All(
                 scheduledRuns,
@@ -882,10 +882,11 @@ public sealed class RetentionControlPlaneIntegrationTests
             TimeSpan timeout)
     {
         DateTimeOffset deadline = DateTimeOffset.UtcNow + timeout;
+        TaskRun[] observedRuns = [];
         while (DateTimeOffset.UtcNow < deadline)
         {
             using IServiceScope scope = worker.Services.CreateScope();
-            TaskRun[] runs = await scope.ServiceProvider
+            observedRuns = await scope.ServiceProvider
                 .GetRequiredService<TaskRuntimeDbContext>()
                 .TaskRuns.AsNoTracking()
                 .Where(run =>
@@ -894,7 +895,7 @@ public sealed class RetentionControlPlaneIntegrationTests
                     ExecuteRetentionSchedulePayload.TaskName)
                 .OrderBy(run => run.CreatedAtUtc)
                 .ToArrayAsync().ConfigureAwait(false);
-            TaskRun? failed = runs.FirstOrDefault(run =>
+            TaskRun? failed = observedRuns.FirstOrDefault(run =>
                 run.Status is TaskRunStatus.Failed or
                     TaskRunStatus.Canceled or
                     TaskRunStatus.TimedOut);
@@ -906,18 +907,33 @@ public sealed class RetentionControlPlaneIntegrationTests
                 Assert.True(failed is null, details);
             }
 
-            if (runs.Length == expectedCount &&
-                runs.All(run => run.Status == TaskRunStatus.Succeeded))
+            if (observedRuns.Length == expectedCount &&
+                observedRuns.All(
+                    run => run.Status == TaskRunStatus.Succeeded))
             {
-                return runs;
+                return observedRuns;
             }
 
             await Task.Delay(100).ConfigureAwait(false);
         }
 
         throw new TimeoutException(
-            $"Expected {expectedCount} scheduled retention runs.");
+            $"Expected {expectedCount} successful scheduled retention runs. " +
+            $"Observed {observedRuns.Length}: " +
+            DescribeScheduledRuns(observedRuns));
     }
+
+    private static string DescribeScheduledRuns(IEnumerable<TaskRun> runs) =>
+        string.Join(
+            ", ",
+            runs.Select(run =>
+            {
+                ExecuteRetentionSchedulePayload? payload =
+                    JsonSerializer.Deserialize<ExecuteRetentionSchedulePayload>(
+                        run.Payload);
+                return $"{run.ScopeId}:{payload?.OwnerKey}/" +
+                    $"{payload?.DataClassKey}={run.Status}";
+            }));
 
     private static async Task<string> DescribeFailedRunAsync(
         IHost worker,

@@ -47,7 +47,9 @@ public sealed class WorkspacesPersonalDataCatalogTests
                 $"Unknown assembly '{binding.Assembly}'.");
             Type? type = assembly.GetType(binding.Type, throwOnError: false, ignoreCase: false);
             Assert.NotNull(type);
-            Assert.NotNull(type.GetProperty(binding.Member, BindingFlags.Instance | BindingFlags.Public));
+            Assert.True(
+                type.GetProperty(binding.Member, BindingFlags.Instance | BindingFlags.Public) is not null,
+                $"Unknown member '{binding.Member}' on '{binding.Type}' in assembly '{binding.Assembly}'.");
         }
     }
 

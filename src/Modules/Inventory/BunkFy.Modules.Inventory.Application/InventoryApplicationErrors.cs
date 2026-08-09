@@ -1,7 +1,7 @@
 namespace BunkFy.Modules.Inventory.Application;
 
-using Gma.Framework.Results;
 using BunkFy.Modules.Inventory.Domain.Errors;
+using Gma.Framework.Results;
 
 public static class InventoryApplicationErrors
 {
@@ -42,6 +42,12 @@ public static class InventoryApplicationErrors
     public static readonly Error WorkspaceProcessingAdmissionUnavailable = new(
         "Inventory.WorkspaceProcessingAdmissionUnavailable",
         "Workspace processing admission is temporarily unavailable.");
+    public static readonly Error ManagementOperationInvalid = new(
+        "Inventory.ManagementOperationInvalid",
+        "A valid Inventory management operation id is required.");
+    public static readonly Error ManagementOperationConflict = new(
+        "Inventory.ManagementOperationConflict",
+        "The Inventory management operation id is already bound to a different request.");
     public static readonly Error AnonymisationRequestInvalid = new(
         "Inventory.AnonymisationRequestInvalid",
         "The inventory allocation anonymisation request is invalid.");

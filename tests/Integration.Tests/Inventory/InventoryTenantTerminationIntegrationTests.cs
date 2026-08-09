@@ -34,6 +34,8 @@ public sealed partial class InventoryTenantTerminationIntegrationTests
         Guid.Parse("30000000-0000-0000-0000-000000000001");
     private static readonly Guid AllocationId =
         Guid.Parse("40000000-0000-0000-0000-000000000001");
+    private static readonly Guid ManagementOperationId =
+        Guid.Parse("40000000-0000-0000-0000-000000000002");
     private static readonly DateTimeOffset ExportNowUtc =
         new(2026, 7, 31, 12, 1, 0, TimeSpan.Zero);
     private static readonly DateTimeOffset FrozenAtUtc =
@@ -105,7 +107,7 @@ public sealed partial class InventoryTenantTerminationIntegrationTests
             TenantTerminationContributionStatus.Completed,
             result.Status);
         Assert.Equal("inventory.termination.exported", result.ResultCode);
-        Assert.Equal(11, result.AffectedCount);
+        Assert.Equal(12, result.AffectedCount);
         Assert.Equal(
             InventoryTenantTerminationMetadata.RecordTypes,
             first.Records.Select(record => record.RecordType).ToArray());
@@ -115,7 +117,7 @@ public sealed partial class InventoryTenantTerminationIntegrationTests
         Assert.Equal(
             "user:owner",
             Field(
-                    first.Records[6],
+                    first.Records[7],
                     "inventory.staff-actor-reference")
                 .GetString());
 
@@ -148,6 +150,9 @@ public sealed partial class InventoryTenantTerminationIntegrationTests
         IInventoryAllocationAmendmentDecisionRepository decisions = services
             .GetRequiredService<
                 IInventoryAllocationAmendmentDecisionRepository>();
+        IInventoryManagementOperationRepository managementOperations =
+            services.GetRequiredService<
+                IInventoryManagementOperationRepository>();
         InventoryUnit unit = CreateUnit(TenantA, BedId);
         RoomInventoryConfiguration configuration =
             RoomInventoryConfiguration.Create(
@@ -261,6 +266,21 @@ public sealed partial class InventoryTenantTerminationIntegrationTests
 
         context.InventoryUnits.Add(unit);
         context.RoomConfigurations.Add(configuration);
+        await managementOperations.AddAsync(
+            new InventoryManagementOperationRecord(
+                ManagementOperationId,
+                TenantA,
+                PropertyId,
+                InventoryManagementResourceKind.Room,
+                RoomId,
+                InventoryManagementMutationKind
+                    .RoomSalesModeConfiguration,
+                ExpectedVersion: 1,
+                Digest,
+                InventorySalesMode.BedLevel,
+                ResultVersion: 2,
+                FrozenAtUtc.AddDays(-4)),
+            CancellationToken.None);
         context.ManualBlocks.Add(block);
         context.Allocations.Add(allocation);
         context.AllocationAnonymisationReceipts.Add(receipt);

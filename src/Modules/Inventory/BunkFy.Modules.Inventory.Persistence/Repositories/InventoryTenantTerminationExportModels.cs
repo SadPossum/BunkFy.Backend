@@ -56,6 +56,29 @@ internal sealed record InventoryRoomConfigurationTenantExport(
     [property: InventoryTenantExportField("inventory.updated-at")]
     DateTimeOffset? UpdatedAtUtc);
 
+internal sealed record InventoryManagementOperationTenantExport(
+    [property: InventoryTenantExportField("inventory.scope-id")]
+    string ScopeId,
+    [property: InventoryTenantExportField("inventory.property-id")]
+    Guid PropertyId,
+    [property: InventoryTenantExportField("inventory.operation-id")]
+    Guid OperationId,
+    [property: InventoryTenantExportField(
+        "inventory.management-operation")]
+    InventoryManagementOperationStateTenantExport State);
+
+internal sealed record InventoryManagementOperationStateTenantExport(
+    Application.Ports
+        .InventoryManagementResourceKind ResourceKind,
+    Guid ResourceId,
+    Application.Ports
+        .InventoryManagementMutationKind Kind,
+    long ExpectedVersion,
+    string RequestFingerprint,
+    InventorySalesMode ResultSalesMode,
+    long ResultVersion,
+    DateTimeOffset CompletedAtUtc);
+
 internal sealed record InventoryManualBlockTenantExport(
     [property: InventoryTenantExportField("inventory.scope-id")]
     string ScopeId,
@@ -164,9 +187,9 @@ internal sealed record InventoryAnonymisationReceiptProofTenantExport(
     long SelectedAllocationVersion,
     long ResultingAllocationVersion,
     Guid ResultingReservationPseudonym,
-    BunkFy.Modules.Inventory.Domain.DataRights
+    Domain.DataRights
         .InventoryAllocationAnonymisationDisposition Disposition,
-    BunkFy.Modules.Inventory.Domain.DataRights
+    Domain.DataRights
         .InventoryAllocationAnonymisationReason Reason,
     int RemovedAmendmentDecisionCount,
     string ApprovalEvidenceSha256,

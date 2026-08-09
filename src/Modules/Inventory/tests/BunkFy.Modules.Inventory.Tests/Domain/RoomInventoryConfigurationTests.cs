@@ -1,9 +1,9 @@
 namespace BunkFy.Modules.Inventory.Tests;
 
-using Gma.Framework.Results;
 using BunkFy.Modules.Inventory.Domain.Aggregates;
 using BunkFy.Modules.Inventory.Domain.Errors;
 using BunkFy.Modules.Inventory.Domain.Events;
+using Gma.Framework.Results;
 using Xunit;
 
 [Trait("Category", "Unit")]
@@ -67,6 +67,32 @@ public sealed class RoomInventoryConfigurationTests
         Assert.Equal(2, configuration.Version);
         Assert.Equal(2, configuration.AvailabilityMutationVersion);
         Assert.Empty(configuration.DomainEvents);
+    }
+
+    [Fact]
+    public void Material_change_requires_an_event_id_but_no_op_does_not()
+    {
+        RoomInventoryConfiguration configuration = CreateConfiguration();
+
+        Assert.Equal(
+            InventoryDomainErrors.EventIdRequired,
+            configuration.Configure(
+                RoomSalesMode.RoomLevel,
+                1,
+                Guid.Empty,
+                Now).Error);
+        Assert.Equal(1, configuration.Version);
+        Assert.True(configuration.Configure(
+            RoomSalesMode.RoomLevel,
+            1,
+            Guid.NewGuid(),
+            Now).IsSuccess);
+        Assert.True(configuration.Configure(
+            RoomSalesMode.RoomLevel,
+            2,
+            Guid.Empty,
+            Now.AddMinutes(1)).IsSuccess);
+        Assert.Equal(2, configuration.Version);
     }
 
     [Fact]

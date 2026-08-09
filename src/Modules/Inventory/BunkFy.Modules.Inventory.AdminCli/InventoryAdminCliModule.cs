@@ -3,18 +3,18 @@ namespace BunkFy.Modules.Inventory.AdminCli;
 using System.CommandLine;
 using System.CommandLine.Parsing;
 using System.Globalization;
-using Gma.Framework.Administration;
-using Gma.Framework.Administration.Cli;
-using Gma.Framework.Cqrs;
-using Gma.Framework.ModuleComposition;
-using Gma.Framework.Pagination;
-using Gma.Framework.Results;
 using BunkFy.Modules.Inventory.Admin.Contracts;
 using BunkFy.Modules.Inventory.Application;
 using BunkFy.Modules.Inventory.Application.Commands;
 using BunkFy.Modules.Inventory.Application.Queries;
 using BunkFy.Modules.Inventory.Contracts;
 using BunkFy.Modules.Inventory.Persistence;
+using Gma.Framework.Administration;
+using Gma.Framework.Administration.Cli;
+using Gma.Framework.Cqrs;
+using Gma.Framework.ModuleComposition;
+using Gma.Framework.Pagination;
+using Gma.Framework.Results;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -313,12 +313,14 @@ public sealed class InventoryAdminCliModule : IAdminCliModule
     {
         Option<Guid> propertyOption = new("--property-id") { Required = true };
         Option<Guid> roomOption = new("--room-id") { Required = true };
+        Option<Guid> operationOption = new("--operation-id") { Required = true };
         Option<string> salesModeOption = new("--sales-mode") { Required = true };
         Option<long> expectedVersionOption = new("--expected-version") { Required = true };
         Command command = new("configure", "Configure a room for room-level or bed-level sales.")
         {
             propertyOption,
             roomOption,
+            operationOption,
             salesModeOption,
             expectedVersionOption
         };
@@ -341,6 +343,7 @@ public sealed class InventoryAdminCliModule : IAdminCliModule
                     IRequestDispatcher dispatcher = provider.GetRequiredService<IRequestDispatcher>();
                     Result<RoomInventoryMutationReceiptDto> result = await dispatcher.SendAsync(
                         new ConfigureRoomSalesModeCommand(
+                            parseResult.GetValue(operationOption),
                             parseResult.GetValue(propertyOption),
                             parseResult.GetValue(roomOption),
                             salesMode,

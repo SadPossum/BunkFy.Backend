@@ -12,7 +12,7 @@ public sealed class StaffRetentionPrerequisiteEvaluatorTests
     {
         StaffRetentionPrerequisiteEvaluation result =
             await new StaffRetentionPrerequisiteEvaluator([])
-                .EvaluateAsync(Request(), CancellationToken.None);
+                .PrepareAsync(Request(), CancellationToken.None);
 
         Assert.Equal(
             StaffRetentionPrerequisiteEvaluation.Unavailable,
@@ -28,7 +28,7 @@ public sealed class StaffRetentionPrerequisiteEvaluatorTests
                     new StubPrerequisite("workspace-access"),
                     new StubPrerequisite("workspace-access")
                 ])
-                .EvaluateAsync(Request(), CancellationToken.None);
+                .PrepareAsync(Request(), CancellationToken.None);
 
         Assert.Equal(
             StaffRetentionPrerequisiteEvaluation.Unavailable,
@@ -41,7 +41,7 @@ public sealed class StaffRetentionPrerequisiteEvaluatorTests
         StaffRetentionPrerequisiteEvaluation result =
             await new StaffRetentionPrerequisiteEvaluator(
                     [new StubPrerequisite("workspace-access")])
-                .EvaluateAsync(Request(), CancellationToken.None);
+                .PrepareAsync(Request(), CancellationToken.None);
 
         Assert.Equal(
             StaffRetentionPrerequisiteEvaluation.Unavailable,
@@ -64,7 +64,14 @@ public sealed class StaffRetentionPrerequisiteEvaluatorTests
         public string ContributorKey { get; } = contributorKey;
 
         public Task<StaffRetentionAnonymisationPrerequisiteResult>
-            ExecuteAsync(
+            PrepareAsync(
+                StaffRetentionAnonymisationPrerequisiteRequest request,
+                CancellationToken cancellationToken) =>
+            Task.FromResult<StaffRetentionAnonymisationPrerequisiteResult>(
+                null!);
+
+        public Task<StaffRetentionAnonymisationPrerequisiteResult>
+            VerifyAsync(
                 StaffRetentionAnonymisationPrerequisiteRequest request,
                 CancellationToken cancellationToken) =>
             Task.FromResult<StaffRetentionAnonymisationPrerequisiteResult>(

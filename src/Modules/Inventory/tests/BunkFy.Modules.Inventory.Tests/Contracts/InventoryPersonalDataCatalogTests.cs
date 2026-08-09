@@ -27,6 +27,9 @@ public sealed class InventoryPersonalDataCatalogTests
     private static readonly Dictionary<string, Assembly> Assemblies = CreateAssemblyIndex();
     private static readonly Dictionary<Type, HashSet<string>> NonPersonalMembers = new()
     {
+        [typeof(ConfigureRoomSalesModeCommand)] = new(
+            [nameof(ConfigureRoomSalesModeCommand.OperationId)],
+            StringComparer.Ordinal),
         [typeof(ManualInventoryBlockListResponse)] = PaginationMembers(),
         [typeof(RoomInventoryListResponse)] = PaginationMembers(),
         [typeof(BedRetirementImpactSnapshot)] = new([nameof(BedRetirementImpactSnapshot.HasActiveClaims)], StringComparer.Ordinal),
@@ -119,6 +122,7 @@ public sealed class InventoryPersonalDataCatalogTests
             typeof(InventoryBedTopology),
             typeof(InventoryUnit),
             typeof(RoomInventoryConfiguration),
+            typeof(InventoryManagementOperation),
             typeof(InventoryProjectionRebuildCheckpoint)
         ];
 

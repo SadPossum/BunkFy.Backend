@@ -2,7 +2,7 @@ namespace BunkFy.Modules.Staff.Contracts;
 
 public static class StaffRetentionAnonymisationPrerequisiteContract
 {
-    public const int CurrentVersion = 1;
+    public const int CurrentVersion = 2;
     public const int ContributorKeyMaxLength = 64;
     public const int OutcomeCodeMaxLength = 100;
 }
@@ -52,7 +52,11 @@ public interface IStaffRetentionAnonymisationPrerequisite
 {
     string ContributorKey { get; }
 
-    Task<StaffRetentionAnonymisationPrerequisiteResult> ExecuteAsync(
+    Task<StaffRetentionAnonymisationPrerequisiteResult> PrepareAsync(
+        StaffRetentionAnonymisationPrerequisiteRequest request,
+        CancellationToken cancellationToken);
+
+    Task<StaffRetentionAnonymisationPrerequisiteResult> VerifyAsync(
         StaffRetentionAnonymisationPrerequisiteRequest request,
         CancellationToken cancellationToken);
 }

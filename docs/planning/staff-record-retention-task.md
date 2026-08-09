@@ -37,8 +37,8 @@ Application, Domain, or Persistence.
 
 ## Eligibility
 
-A profile is eligible only when one fresh Staff transaction proves all of the
-following:
+A profile is eligible only when prerequisite preparation has committed and one
+fresh Staff transaction proves all of the following:
 
 - contributor and tenant coordinates match contract version 1;
 - the Staff member is `Departed`, has `DepartedAtUtc` and
@@ -52,7 +52,8 @@ following:
   `staff-profile-retention`, provenance `retention-worker`, data class
   `staff-employment`, and trigger `employment-ended`;
 - the retention deadline derived from `DepartedAtUtc` has elapsed; and
-- every registered Staff retention prerequisite completes successfully.
+- every registered Staff retention prerequisite has prepared durable proof and
+  verifies that proof without performing another mutation.
 
 Restriction suppresses ordinary Staff processing but does not defeat
 mandatory retention. Missing, stale, expired, unsupported, inconsistent, or
@@ -64,9 +65,10 @@ review interval.
 
 ## Access Closure
 
-The Staff contracts assembly exposes a bounded, direct-identifier-free
-prerequisite request and result. Contributors have unique stable keys and return `Completed`,
-`Blocked`, or `RetryRequired` with a bounded stable code.
+The Staff contracts assembly exposes a bounded, direct-identifier-free version
+2 prerequisite request and result. Contributors have unique stable keys and
+separate `PrepareAsync` and `VerifyAsync` phases. Both phases return
+`Completed`, `Blocked`, or `RetryRequired` with a bounded stable code.
 
 The Workspaces contributor:
 
@@ -107,8 +109,9 @@ workspace subject identifiers.
   persisted cursor.
 - Load every bounded page with set-based Staff, governance, restriction, hold,
   and operation-lock queries; do not perform discovery queries per profile.
-- Re-evaluate each selected profile after acquiring the existing Staff
-  operation lock in its transactional mutation command.
+- Prepare every owner prerequisite before entering the Staff transaction, then
+  re-evaluate each selected profile and verify durable prerequisite proof after
+  acquiring the existing Staff operation lock.
 - Persist a Staff-owned execution so a Retention retry returns exact
   accumulated affected counts after a mid-batch process failure.
 - Advance the cursor only with a durable terminal owner result, wrap at the
@@ -122,7 +125,7 @@ operational settings. Retention periods never come from application settings.
 One Staff transaction:
 
 - revalidates lifecycle, version, governance, policy, deadline, restriction,
-  holds, operation lock, and Workspaces access closure;
+  holds, operation lock, and the immutable Workspaces access-closure proof;
 - reuses the existing irreversible Staff aggregate scrub;
 - writes an immutable retention receipt containing execution id, random Staff
   id, selected/resulting Staff and lock revisions, trigger/deadline, policy
@@ -162,8 +165,8 @@ Application, Contracts, and Persistence remain provider agnostic.
    prerequisite contracts, and the tenant-scoped contributor.
 2. [x] Add bounded set-based discovery, fair sweep checkpoint, exact owner
    execution, receipt, and retention-authority tombstone support.
-3. [x] Add transactional eligibility revalidation, access closure, and
-   existing aggregate scrub reuse.
+3. [x] Add prerequisite preparation followed by transactional eligibility and
+   proof revalidation, plus existing aggregate scrub reuse.
 4. [x] Register the Workspaces prerequisite without introducing a direct
    Staff-to-Workspaces implementation dependency.
 5. [x] Add the PostgreSQL migration, downgrade guard, module documentation,

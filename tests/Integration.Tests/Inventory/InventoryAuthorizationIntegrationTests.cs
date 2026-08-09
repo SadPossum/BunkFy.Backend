@@ -6,6 +6,19 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Claims;
+using BunkFy.Modules.Inventory.Application;
+using BunkFy.Modules.Inventory.Application.Commands;
+using BunkFy.Modules.Inventory.Application.Ports;
+using BunkFy.Modules.Inventory.Contracts;
+using BunkFy.Modules.Inventory.Domain.Aggregates;
+using BunkFy.Modules.Inventory.Persistence;
+using BunkFy.Modules.Properties.Application;
+using BunkFy.Modules.Properties.Application.Commands;
+using BunkFy.Modules.Properties.Application.Ports;
+using BunkFy.Modules.Properties.Contracts;
+using BunkFy.Modules.Properties.Domain.Aggregates;
+using BunkFy.Modules.Properties.Domain.Entities;
+using BunkFy.Modules.Properties.Persistence;
 using DotNet.Testcontainers.Containers;
 using Gma.Framework.Administration;
 using Gma.Framework.Administration.Cli;
@@ -16,22 +29,9 @@ using Gma.Framework.Results;
 using Gma.Framework.Tenancy;
 using Gma.Modules.Auth.Contracts;
 using Integration.Tests.Support;
-using BunkFy.Modules.Inventory.Contracts;
-using BunkFy.Modules.Inventory.Application;
-using BunkFy.Modules.Inventory.Application.Commands;
-using BunkFy.Modules.Inventory.Application.Ports;
-using BunkFy.Modules.Inventory.Domain.Aggregates;
-using BunkFy.Modules.Inventory.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
-using BunkFy.Modules.Properties.Contracts;
-using BunkFy.Modules.Properties.Application;
-using BunkFy.Modules.Properties.Application.Commands;
-using BunkFy.Modules.Properties.Application.Ports;
-using BunkFy.Modules.Properties.Domain.Aggregates;
-using BunkFy.Modules.Properties.Domain.Entities;
-using BunkFy.Modules.Properties.Persistence;
 using Testcontainers.PostgreSql;
 using Xunit;
 
@@ -148,7 +148,12 @@ public sealed class InventoryAuthorizationIntegrationTests
                    HttpMethod.Put,
                    $"/api/inventory/properties/{PropertyA:D}/rooms/{RoomA:D}/sales-mode",
                    operatorTokens.AccessToken,
-                   new { salesMode = InventorySalesMode.BedLevel, expectedVersion = 1 }).ConfigureAwait(false))
+                   new
+                   {
+                       operationId = Guid.NewGuid(),
+                       salesMode = InventorySalesMode.BedLevel,
+                       expectedVersion = 1
+                   }).ConfigureAwait(false))
         {
             await AssertStatusAsync(HttpStatusCode.Conflict, configureBedWithoutBeds).ConfigureAwait(false);
         }
@@ -158,7 +163,12 @@ public sealed class InventoryAuthorizationIntegrationTests
                    HttpMethod.Put,
                    $"/api/inventory/properties/{PropertyA:D}/rooms/{RoomA:D}/sales-mode",
                    operatorTokens.AccessToken,
-                   new { salesMode = InventorySalesMode.RoomLevel, expectedVersion = 1 }).ConfigureAwait(false))
+                   new
+                   {
+                       operationId = Guid.NewGuid(),
+                       salesMode = InventorySalesMode.RoomLevel,
+                       expectedVersion = 1
+                   }).ConfigureAwait(false))
         {
             RoomInventoryMutationReceiptDto receipt =
                 await ReadSuccessAsync<RoomInventoryMutationReceiptDto>(configureRoom).ConfigureAwait(false);
@@ -443,10 +453,15 @@ public sealed class InventoryAuthorizationIntegrationTests
         using (IServiceScope setupScope = api.Services.CreateScope())
         {
             setupScope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantA);
-            ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryMutationReceiptDto> configure = setupScope.ServiceProvider
-                .GetRequiredService<ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryMutationReceiptDto>>();
-            Result<RoomInventoryMutationReceiptDto> configured = await configure.HandleAsync(
-                new(PropertyB, RoomB, InventorySalesMode.BedLevel, ExpectedVersion: 1),
+            IRequestDispatcher dispatcher = setupScope.ServiceProvider
+                .GetRequiredService<IRequestDispatcher>();
+            Result<RoomInventoryMutationReceiptDto> configured = await dispatcher.SendAsync(
+                new ConfigureRoomSalesModeCommand(
+                    Guid.NewGuid(),
+                    PropertyB,
+                    RoomB,
+                    InventorySalesMode.BedLevel,
+                    ExpectedVersion: 1),
                 CancellationToken.None).ConfigureAwait(false);
             Assert.True(configured.IsSuccess);
 
@@ -498,8 +513,13 @@ public sealed class InventoryAuthorizationIntegrationTests
                 PropertyB, otherBedContext.ConflictUnitIds, new(2026, 11, 2), new(2026, 11, 4), null, [], CancellationToken.None))
                 .HasActiveAllocationConflict);
 
-            Result<RoomInventoryMutationReceiptDto> blockedModeChange = await configure.HandleAsync(
-                new(PropertyB, RoomB, InventorySalesMode.RoomLevel, ExpectedVersion: 2),
+            Result<RoomInventoryMutationReceiptDto> blockedModeChange = await dispatcher.SendAsync(
+                new ConfigureRoomSalesModeCommand(
+                    Guid.NewGuid(),
+                    PropertyB,
+                    RoomB,
+                    InventorySalesMode.RoomLevel,
+                    ExpectedVersion: 2),
                 CancellationToken.None).ConfigureAwait(false);
             Assert.True(blockedModeChange.IsFailure);
             Assert.Equal(InventoryApplicationErrors.RoomHasActiveClaims.Code, blockedModeChange.Error.Code);
@@ -514,7 +534,12 @@ public sealed class InventoryAuthorizationIntegrationTests
         modeScope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantA);
         InventoryDbContext allocationDb = allocationScope.ServiceProvider
             .GetRequiredService<InventoryDbContext>();
+        InventoryDbContext modeDb = modeScope.ServiceProvider
+            .GetRequiredService<InventoryDbContext>();
         await using var allocationTransaction = await allocationDb.Database
+            .BeginTransactionAsync()
+            .ConfigureAwait(false);
+        await using var modeTransaction = await modeDb.Database
             .BeginTransactionAsync()
             .ConfigureAwait(false);
 
@@ -536,14 +561,20 @@ public sealed class InventoryAuthorizationIntegrationTests
         ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryMutationReceiptDto> raceConfigure = modeScope.ServiceProvider
             .GetRequiredService<ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryMutationReceiptDto>>();
         Result<RoomInventoryMutationReceiptDto> concurrentModeChange = await raceConfigure.HandleAsync(
-            new(PropertyB, RoomB, InventorySalesMode.RoomLevel, ExpectedVersion: 2),
+            new(
+                Guid.NewGuid(),
+                PropertyB,
+                RoomB,
+                InventorySalesMode.RoomLevel,
+                ExpectedVersion: 2),
             CancellationToken.None).ConfigureAwait(false);
         Assert.True(concurrentModeChange.IsSuccess);
 
         await allocationDb.SaveChangesAsync().ConfigureAwait(false);
         await allocationTransaction.CommitAsync().ConfigureAwait(false);
         await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() =>
-            modeScope.ServiceProvider.GetRequiredService<InventoryDbContext>().SaveChangesAsync());
+            modeDb.SaveChangesAsync());
+        await modeTransaction.RollbackAsync().ConfigureAwait(false);
 
         using IServiceScope verificationScope = api.Services.CreateScope();
         verificationScope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantA);

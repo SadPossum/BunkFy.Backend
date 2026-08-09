@@ -1,6 +1,12 @@
 namespace BunkFy.Modules.Inventory.AdminApi;
 
 using System.Security.Claims;
+using BunkFy.Modules.Inventory.Admin.Contracts;
+using BunkFy.Modules.Inventory.Application;
+using BunkFy.Modules.Inventory.Application.Commands;
+using BunkFy.Modules.Inventory.Application.Queries;
+using BunkFy.Modules.Inventory.Contracts;
+using BunkFy.Modules.Inventory.Persistence;
 using Gma.Framework.Administration;
 using Gma.Framework.Administration.Api;
 using Gma.Framework.Api.Observability;
@@ -8,12 +14,6 @@ using Gma.Framework.Api.Results;
 using Gma.Framework.Cqrs;
 using Gma.Framework.ModuleComposition;
 using Gma.Framework.Pagination;
-using BunkFy.Modules.Inventory.Admin.Contracts;
-using BunkFy.Modules.Inventory.Application;
-using BunkFy.Modules.Inventory.Application.Commands;
-using BunkFy.Modules.Inventory.Application.Queries;
-using BunkFy.Modules.Inventory.Contracts;
-using BunkFy.Modules.Inventory.Persistence;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -74,6 +74,7 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
                 requireTenant: true,
                 token => dispatcher.SendAsync(
                     new ConfigureRoomSalesModeCommand(
+                        request.OperationId,
                         propertyId,
                         roomId,
                         request.SalesMode,
@@ -338,7 +339,10 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
             .Produces<RoomRetirementDto>(StatusCodes.Status200OK);
     }
 
-    public sealed record ConfigureSalesModeRequest(InventorySalesMode SalesMode, long ExpectedVersion);
+    public sealed record ConfigureSalesModeRequest(
+        Guid OperationId,
+        InventorySalesMode SalesMode,
+        long ExpectedVersion);
     public sealed record CreateManualBlockRequest(
         Guid InventoryUnitId,
         DateOnly Arrival,
@@ -369,6 +373,8 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
     }
 
     private static readonly ApiErrorStatusCodeMap AdminErrorStatusCodes = ApiErrorStatusCodeMap.Create(
+        new(InventoryApplicationErrors.ManagementOperationInvalid.Code, StatusCodes.Status400BadRequest),
+        new(InventoryApplicationErrors.ManagementOperationConflict.Code, StatusCodes.Status409Conflict),
         new(InventoryApplicationErrors.WorkspaceProcessingRestricted.Code, StatusCodes.Status423Locked),
         new(InventoryApplicationErrors.WorkspaceProcessingAdmissionUnavailable.Code, StatusCodes.Status503ServiceUnavailable),
         new(InventoryApplicationErrors.PropertyNotFound.Code, StatusCodes.Status404NotFound),
@@ -398,10 +404,10 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
         new(InventoryApplicationErrors.RoomRetirementRetryInvalid.Code, StatusCodes.Status409Conflict),
         new(InventoryApplicationErrors.RoomRetirementStillDraining.Code, StatusCodes.Status409Conflict),
         new(InventoryApplicationErrors.RoomRetirementInProgress.Code, StatusCodes.Status409Conflict),
-        new(BunkFy.Modules.Inventory.Domain.Errors.InventoryDomainErrors.BedRetirementRequestInvalid.Code, StatusCodes.Status400BadRequest),
-        new(BunkFy.Modules.Inventory.Domain.Errors.InventoryDomainErrors.BedRetirementTransitionInvalid.Code, StatusCodes.Status409Conflict),
-        new(BunkFy.Modules.Inventory.Domain.Errors.InventoryDomainErrors.RoomRetirementRequestInvalid.Code, StatusCodes.Status400BadRequest),
-        new(BunkFy.Modules.Inventory.Domain.Errors.InventoryDomainErrors.RoomRetirementTransitionInvalid.Code, StatusCodes.Status409Conflict));
+        new(Domain.Errors.InventoryDomainErrors.BedRetirementRequestInvalid.Code, StatusCodes.Status400BadRequest),
+        new(Domain.Errors.InventoryDomainErrors.BedRetirementTransitionInvalid.Code, StatusCodes.Status409Conflict),
+        new(Domain.Errors.InventoryDomainErrors.RoomRetirementRequestInvalid.Code, StatusCodes.Status400BadRequest),
+        new(Domain.Errors.InventoryDomainErrors.RoomRetirementTransitionInvalid.Code, StatusCodes.Status409Conflict));
 
     private static string Actor(HttpContext context)
     {

@@ -25,6 +25,8 @@ public sealed class InventoryDbContext(
     public DbSet<InventoryBedTopology> BedTopology => this.Set<InventoryBedTopology>();
     public DbSet<InventoryUnit> InventoryUnits => this.Set<InventoryUnit>();
     public DbSet<RoomInventoryConfiguration> RoomConfigurations => this.Set<RoomInventoryConfiguration>();
+    internal DbSet<InventoryManagementOperation> ManagementOperations =>
+        this.Set<InventoryManagementOperation>();
     public DbSet<ManualInventoryBlock> ManualBlocks => this.Set<ManualInventoryBlock>();
     public DbSet<InventoryAllocation> Allocations => this.Set<InventoryAllocation>();
     public DbSet<InventoryAllocationUnit> AllocationUnits => this.Set<InventoryAllocationUnit>();
@@ -103,23 +105,17 @@ public sealed class InventoryDbContext(
 
         try
         {
-            if (this.Database.IsRelational())
+            await this.AcquireOperationalMutationAdmissionAsync(
+                    cancellationToken)
+                .ConfigureAwait(false);
+            if (this.Database.IsRelational() && hasOperationalMutation)
             {
-                await InventoryTenantMutationLock.AcquireAdmissionAsync(
-                    this,
-                    tenantId,
-                    cancellationToken).ConfigureAwait(false);
-                if (hasOperationalMutation)
-                {
-                    await InventoryTenantMutationLock.AcquireRevisionAdvanceAsync(
+                await InventoryTenantMutationLock.AcquireRevisionAdvanceAsync(
                         this,
                         tenantId,
-                        cancellationToken).ConfigureAwait(false);
-                }
+                        cancellationToken)
+                    .ConfigureAwait(false);
             }
-
-            await this.EnsureOperationalAdmissionAsync(cancellationToken)
-                .ConfigureAwait(false);
             if (hasOperationalMutation)
             {
                 await this.AdvanceTenantRevisionAsync(
@@ -155,6 +151,31 @@ public sealed class InventoryDbContext(
                 await ownedTransaction.DisposeAsync().ConfigureAwait(false);
             }
         }
+    }
+
+    internal async Task AcquireOperationalMutationAdmissionAsync(
+        CancellationToken cancellationToken)
+    {
+        if (!this.scopeContext.IsEnabled ||
+            string.IsNullOrWhiteSpace(this.scopeContext.ScopeId) ||
+            (this.Database.IsRelational() &&
+             this.Database.CurrentTransaction is null))
+        {
+            throw new InventoryOperationalAdmissionException(
+                InventoryOperationalAdmissionFailure.Unavailable);
+        }
+
+        if (this.Database.IsRelational())
+        {
+            await InventoryTenantMutationLock.AcquireAdmissionAsync(
+                    this,
+                    this.scopeContext.ScopeId,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        await this.EnsureOperationalAdmissionAsync(cancellationToken)
+            .ConfigureAwait(false);
     }
 
     private async Task EnsureOperationalAdmissionAsync(
@@ -297,6 +318,16 @@ public sealed class InventoryDbContext(
         {
             throw new InvalidOperationException(
                 "Inventory tenant destruction receipts are append-only.");
+        }
+
+        bool managementOperationMutation = this.ChangeTracker
+            .Entries<InventoryManagementOperation>()
+            .Any(entry =>
+                entry.State is EntityState.Modified or EntityState.Deleted);
+        if (managementOperationMutation)
+        {
+            throw new InvalidOperationException(
+                "Inventory management operation receipts are append-only.");
         }
     }
 

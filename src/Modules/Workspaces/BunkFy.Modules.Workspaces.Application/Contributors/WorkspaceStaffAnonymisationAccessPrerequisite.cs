@@ -9,8 +9,6 @@ using BunkFy.Modules.Workspaces.Domain;
 using BunkFy.Modules.Workspaces.Domain.DataRights;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
-using Gma.Framework.Runtime.Identity;
-using Gma.Framework.Runtime.Time;
 using Microsoft.Extensions.Logging;
 
 internal sealed class WorkspaceStaffAnonymisationAccessPrerequisite(
@@ -21,8 +19,6 @@ internal sealed class WorkspaceStaffAnonymisationAccessPrerequisite(
         dataRightsCorrelations,
     IRequestDispatcher dispatcher,
     WorkspaceStaffAccessDenier accessDenier,
-    ISystemClock clock,
-    IIdGenerator ids,
     ILogger<WorkspaceStaffAnonymisationAccessPrerequisite> logger)
     : IDataRightsAnonymisationExecutionPrerequisiteV2,
       IDataRightsAnonymisationRestorePrerequisiteV3,
@@ -31,23 +27,24 @@ internal sealed class WorkspaceStaffAnonymisationAccessPrerequisite(
     private const string RetentionContributorKey =
         "workspace-access";
     private const string RequestInvalid =
-        "Workspaces.StaffAnonymisationRequestInvalid";
+        WorkspaceStaffAnonymisationAccessCodes.RequestInvalid;
     private const string StateUnavailable =
-        "Workspaces.StaffAnonymisationStateUnavailable";
+        WorkspaceStaffAnonymisationAccessCodes.StateUnavailable;
     private const string StateConflict =
-        "Workspaces.StaffAnonymisationStateConflict";
+        WorkspaceStaffAnonymisationAccessCodes.StateConflict;
     private const string AccessMappingUnavailable =
-        "Workspaces.StaffAnonymisationAccessMappingUnavailable";
+        WorkspaceStaffAnonymisationAccessCodes.AccessMappingUnavailable;
     private const string AccessMappingConflict =
-        "Workspaces.StaffAnonymisationAccessMappingConflict";
+        WorkspaceStaffAnonymisationAccessCodes.AccessMappingConflict;
     private const string OwnerProtected =
-        "Workspaces.StaffAnonymisationOwnerProtected";
+        WorkspaceStaffAnonymisationAccessCodes.OwnerProtected;
     private const string RetryRequired =
-        "Workspaces.StaffAnonymisationAccessRetryRequired";
+        WorkspaceStaffAnonymisationAccessCodes.RetryRequired;
     private const string CorrelationReceiptInvalid =
-        "Workspaces.StaffRetentionCorrelationReceiptInvalid";
+        WorkspaceStaffAnonymisationAccessCodes.CorrelationReceiptInvalid;
     private const string CorrelationScrubRetryRequired =
-        "Workspaces.StaffRetentionCorrelationScrubRetryRequired";
+        WorkspaceStaffAnonymisationAccessCodes
+            .CorrelationScrubRetryRequired;
 
     public string OwnerKey => StaffDataRightsCoordinates.Owner;
 
@@ -76,21 +73,22 @@ internal sealed class WorkspaceStaffAnonymisationAccessPrerequisite(
             return ExecutionBlocked(RequestInvalid);
         }
 
-        AccessClosureResult result = await this.EnsureClosedAsync(
+        WorkspaceStaffAccessClosureResult result =
+            await this.EnsureClosedAsync(
             request.TenantId,
             request.Coordinate.RecordId,
             request.Coordinate.RecordVersion,
             resultingRecordVersion: null,
-            correlationProofExists: false,
             acceptDataRightsCorrelationProof: true,
             cancellationToken).ConfigureAwait(false);
         return result.Status switch
         {
-            AccessClosureStatus.Completed =>
+            WorkspaceStaffAccessClosureStatus.Completed =>
                 DataRightsAnonymisationExecutionPrerequisiteResult.Completed(
                     DataRightsAnonymisationExecutionPrerequisiteContractV2
                         .CurrentVersion),
-            AccessClosureStatus.Blocked => ExecutionBlocked(result.Code),
+            WorkspaceStaffAccessClosureStatus.Blocked =>
+                ExecutionBlocked(result.Code),
             _ =>
                 DataRightsAnonymisationExecutionPrerequisiteResult
                     .RetryRequired(
@@ -110,20 +108,21 @@ internal sealed class WorkspaceStaffAnonymisationAccessPrerequisite(
             return RestoreBlocked(RequestInvalid);
         }
 
-        AccessClosureResult result = await this.EnsureClosedAsync(
+        WorkspaceStaffAccessClosureResult result =
+            await this.EnsureClosedAsync(
             request.TenantId,
             request.RecordId,
             request.ResultingRecordVersion - 1,
             request.ResultingRecordVersion,
-            correlationProofExists: false,
             acceptDataRightsCorrelationProof: true,
             cancellationToken).ConfigureAwait(false);
         return result.Status switch
         {
-            AccessClosureStatus.Completed =>
+            WorkspaceStaffAccessClosureStatus.Completed =>
                 DataRightsAnonymisationRestorePrerequisiteResult.Completed(
                     DataRightsAnonymisationRestoreContractV3.CurrentVersion),
-            AccessClosureStatus.Blocked => RestoreBlocked(result.Code),
+            WorkspaceStaffAccessClosureStatus.Blocked =>
+                RestoreBlocked(result.Code),
             _ =>
                 DataRightsAnonymisationRestorePrerequisiteResult
                     .RetryRequired(
@@ -134,7 +133,7 @@ internal sealed class WorkspaceStaffAnonymisationAccessPrerequisite(
     }
 
     public async Task<StaffRetentionAnonymisationPrerequisiteResult>
-        ExecuteAsync(
+        PrepareAsync(
             StaffRetentionAnonymisationPrerequisiteRequest request,
             CancellationToken cancellationToken)
     {
@@ -163,43 +162,13 @@ internal sealed class WorkspaceStaffAnonymisationAccessPrerequisite(
                 }
             }
 
-            AccessClosureResult closure =
-                await this.EnsureClosedAsync(
-                    request.TenantId,
-                    request.StaffMemberId,
-                    request.SelectedStaffVersion,
-                    resultingRecordVersion: null,
-                    correlationProofExists: existing is not null,
-                    acceptDataRightsCorrelationProof: false,
-                    cancellationToken).ConfigureAwait(false);
-            if (closure.Status == AccessClosureStatus.Blocked)
-            {
-                return StaffRetentionAnonymisationPrerequisiteResult
-                    .Blocked(closure.Code);
-            }
-
-            if (closure.Status != AccessClosureStatus.Completed)
-            {
-                return StaffRetentionAnonymisationPrerequisiteResult
-                    .RetryRequired(closure.Code);
-            }
-
-            if (existing is not null)
-            {
-                return StaffRetentionAnonymisationPrerequisiteResult
-                    .Completed();
-            }
-
             Result<WorkspaceStaffRetentionCorrelationReceipt> scrubbed =
                 await dispatcher.SendAsync(
                     new ScrubWorkspaceStaffRetentionCorrelationCommand(
-                        ids.NewId(),
                         request.ExecutionId,
                         request.TenantId,
                         request.StaffMemberId,
-                        request.SelectedStaffVersion,
-                        closure.SubjectId,
-                        clock.UtcNow),
+                        request.SelectedStaffVersion),
                     cancellationToken).ConfigureAwait(false);
             if (scrubbed.IsSuccess)
             {
@@ -225,12 +194,54 @@ internal sealed class WorkspaceStaffAnonymisationAccessPrerequisite(
         }
     }
 
-    private async Task<AccessClosureResult> EnsureClosedAsync(
+    public async Task<StaffRetentionAnonymisationPrerequisiteResult>
+        VerifyAsync(
+            StaffRetentionAnonymisationPrerequisiteRequest request,
+            CancellationToken cancellationToken)
+    {
+        if (!IsValid(request))
+        {
+            return StaffRetentionAnonymisationPrerequisiteResult.Blocked(
+                RequestInvalid);
+        }
+
+        try
+        {
+            WorkspaceStaffRetentionCorrelationReceipt? receipt =
+                await correlations.GetAsync(
+                    request.StaffMemberId,
+                    request.SelectedStaffVersion,
+                    cancellationToken).ConfigureAwait(false);
+            if (receipt is null)
+            {
+                return StaffRetentionAnonymisationPrerequisiteResult
+                    .RetryRequired(CorrelationScrubRetryRequired);
+            }
+
+            return receipt.Matches(
+                    request.TenantId,
+                    request.StaffMemberId,
+                    request.SelectedStaffVersion)
+                ? StaffRetentionAnonymisationPrerequisiteResult.Completed()
+                : StaffRetentionAnonymisationPrerequisiteResult.Blocked(
+                    CorrelationReceiptInvalid);
+        }
+        catch (Exception exception)
+            when (exception is not OperationCanceledException)
+        {
+            logger.LogWarning(
+                "Workspace Staff retention correlation proof verification failed because {ExceptionType} was raised.",
+                exception.GetType().Name);
+            return StaffRetentionAnonymisationPrerequisiteResult
+                .RetryRequired(CorrelationScrubRetryRequired);
+        }
+    }
+
+    private async Task<WorkspaceStaffAccessClosureResult> EnsureClosedAsync(
         string tenantId,
         Guid staffMemberId,
         long departureVersion,
         long? resultingRecordVersion,
-        bool correlationProofExists,
         bool acceptDataRightsCorrelationProof,
         CancellationToken cancellationToken)
     {
@@ -243,7 +254,8 @@ internal sealed class WorkspaceStaffAnonymisationAccessPrerequisite(
                     cancellationToken).ConfigureAwait(false);
             if (state is null)
             {
-                return AccessClosureResult.Blocked(StateUnavailable);
+                return WorkspaceStaffAccessClosureResult.Blocked(
+                    StateUnavailable);
             }
 
             string? subjectId;
@@ -254,7 +266,7 @@ internal sealed class WorkspaceStaffAnonymisationAccessPrerequisite(
                 subjectId = state.AuthSubjectId;
                 if (string.IsNullOrWhiteSpace(subjectId))
                 {
-                    return AccessClosureResult.Complete(
+                    return WorkspaceStaffAccessClosureResult.Complete(
                         subjectId: null);
                 }
             }
@@ -268,7 +280,8 @@ internal sealed class WorkspaceStaffAnonymisationAccessPrerequisite(
             }
             else
             {
-                return AccessClosureResult.Blocked(StateConflict);
+                return WorkspaceStaffAccessClosureResult.Blocked(
+                    StateConflict);
             }
 
             if (acceptDataRightsCorrelationProof)
@@ -285,7 +298,7 @@ internal sealed class WorkspaceStaffAnonymisationAccessPrerequisite(
                 {
                     if (!proof.HasValidProof())
                     {
-                        return AccessClosureResult.Blocked(
+                        return WorkspaceStaffAccessClosureResult.Blocked(
                             AccessMappingConflict);
                     }
 
@@ -309,37 +322,11 @@ internal sealed class WorkspaceStaffAnonymisationAccessPrerequisite(
                             anonymised.StateSha256,
                             proof.ResultingStateSha256,
                             StringComparison.Ordinal)
-                        ? AccessClosureResult.Complete(
+                        ? WorkspaceStaffAccessClosureResult.Complete(
                             subjectId: null)
-                        : AccessClosureResult.Blocked(
+                        : WorkspaceStaffAccessClosureResult.Blocked(
                             AccessMappingConflict);
                 }
-            }
-
-            if (correlationProofExists)
-            {
-                if (string.IsNullOrWhiteSpace(subjectId))
-                {
-                    return AccessClosureResult.Complete(
-                        subjectId: null);
-                }
-
-                string replaySubjectId = subjectId.Trim();
-                WorkspaceStaffAccessCoordinationOutcome replayDenied =
-                    await accessDenier.EnsureAccessDeniedAsync(
-                        tenantId,
-                        replaySubjectId,
-                        WorkspaceStaffAccessTargetState.Departed,
-                        cancellationToken).ConfigureAwait(false);
-                return replayDenied switch
-                {
-                    WorkspaceStaffAccessCoordinationOutcome.Allowed =>
-                        AccessClosureResult.Complete(
-                            replaySubjectId),
-                    WorkspaceStaffAccessCoordinationOutcome.OwnerProtected =>
-                        AccessClosureResult.Blocked(OwnerProtected),
-                    _ => AccessClosureResult.Retry(RetryRequired)
-                };
             }
 
             WorkspaceStaffAccessProcess? process =
@@ -349,7 +336,7 @@ internal sealed class WorkspaceStaffAnonymisationAccessPrerequisite(
                     cancellationToken).ConfigureAwait(false);
             if (process is null)
             {
-                return AccessClosureResult.Blocked(
+                return WorkspaceStaffAccessClosureResult.Blocked(
                     AccessMappingUnavailable);
             }
 
@@ -368,7 +355,8 @@ internal sealed class WorkspaceStaffAnonymisationAccessPrerequisite(
                      subjectId,
                      StringComparison.Ordinal)))
             {
-                return AccessClosureResult.Blocked(AccessMappingConflict);
+                return WorkspaceStaffAccessClosureResult.Blocked(
+                    AccessMappingConflict);
             }
 
             WorkspaceStaffAccessCoordinationOutcome denied =
@@ -380,11 +368,13 @@ internal sealed class WorkspaceStaffAnonymisationAccessPrerequisite(
             return denied switch
             {
                 WorkspaceStaffAccessCoordinationOutcome.Allowed =>
-                    AccessClosureResult.Complete(
+                    WorkspaceStaffAccessClosureResult.Complete(
                         process.SubjectId),
                 WorkspaceStaffAccessCoordinationOutcome.OwnerProtected =>
-                    AccessClosureResult.Blocked(OwnerProtected),
-                _ => AccessClosureResult.Retry(RetryRequired)
+                    WorkspaceStaffAccessClosureResult.Blocked(
+                        OwnerProtected),
+                _ => WorkspaceStaffAccessClosureResult.Retry(
+                    RetryRequired)
             };
         }
         catch (Exception exception)
@@ -393,7 +383,8 @@ internal sealed class WorkspaceStaffAnonymisationAccessPrerequisite(
             logger.LogWarning(
                 "Workspace Staff anonymisation access closure failed because {ExceptionType} was raised.",
                 exception.GetType().Name);
-            return AccessClosureResult.Retry(RetryRequired);
+            return WorkspaceStaffAccessClosureResult.Retry(
+                RetryRequired);
         }
     }
 
@@ -467,37 +458,11 @@ internal sealed class WorkspaceStaffAnonymisationAccessPrerequisite(
         error == WorkspaceStaffRetentionErrors.ReceiptInvalid ||
         error == WorkspaceStaffRetentionErrors.ActiveOnboarding ||
         error == WorkspaceStaffRetentionErrors.ActiveAccessProcess ||
-        error == WorkspaceStaffRetentionErrors.AccessMappingConflict;
+        error == WorkspaceStaffRetentionErrors.AccessMappingConflict ||
+        error.Code == StateUnavailable ||
+        error.Code == StateConflict ||
+        error.Code == AccessMappingUnavailable ||
+        error.Code == AccessMappingConflict ||
+        error.Code == OwnerProtected;
 
-    private enum AccessClosureStatus
-    {
-        Completed,
-        Blocked,
-        RetryRequired
-    }
-
-    private sealed record AccessClosureResult(
-        AccessClosureStatus Status,
-        string Code,
-        string? SubjectId)
-    {
-        public static AccessClosureResult Complete(
-            string? subjectId) =>
-            new(
-                AccessClosureStatus.Completed,
-                string.Empty,
-                subjectId);
-
-        public static AccessClosureResult Blocked(string code) =>
-            new(
-                AccessClosureStatus.Blocked,
-                code,
-                SubjectId: null);
-
-        public static AccessClosureResult Retry(string code) =>
-            new(
-                AccessClosureStatus.RetryRequired,
-                code,
-                SubjectId: null);
-    }
 }

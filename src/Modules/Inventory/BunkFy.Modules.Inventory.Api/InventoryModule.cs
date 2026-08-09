@@ -1,5 +1,10 @@
 namespace BunkFy.Modules.Inventory.Api;
 
+using BunkFy.Modules.Inventory.Application;
+using BunkFy.Modules.Inventory.Application.Commands;
+using BunkFy.Modules.Inventory.Application.Queries;
+using BunkFy.Modules.Inventory.Contracts;
+using BunkFy.Modules.Inventory.Persistence;
 using Gma.Framework.AccessControl.AspNetCore;
 using Gma.Framework.Api.Modules;
 using Gma.Framework.Api.Observability;
@@ -9,11 +14,6 @@ using Gma.Framework.Cqrs;
 using Gma.Framework.ModuleComposition;
 using Gma.Framework.Pagination;
 using Gma.Framework.Tenancy.AccessControl.AspNetCore;
-using BunkFy.Modules.Inventory.Application;
-using BunkFy.Modules.Inventory.Application.Commands;
-using BunkFy.Modules.Inventory.Application.Queries;
-using BunkFy.Modules.Inventory.Contracts;
-using BunkFy.Modules.Inventory.Persistence;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -70,6 +70,7 @@ public sealed class InventoryModule : IModule
             CancellationToken cancellationToken) =>
             (await dispatcher.SendAsync(
                 new ConfigureRoomSalesModeCommand(
+                    request.OperationId,
                     propertyId,
                     roomId,
                     request.SalesMode,
@@ -328,7 +329,10 @@ public sealed class InventoryModule : IModule
                 InventoryPropertyAccessScopeResolver.ResolverName);
     }
 
-    public sealed record ConfigureSalesModeRequest(InventorySalesMode SalesMode, long ExpectedVersion);
+    public sealed record ConfigureSalesModeRequest(
+        Guid OperationId,
+        InventorySalesMode SalesMode,
+        long ExpectedVersion);
     public sealed record CreateManualBlockRequest(
         Guid InventoryUnitId,
         DateOnly Arrival,
@@ -368,6 +372,8 @@ public sealed class InventoryModule : IModule
 
     private static readonly ApiErrorStatusCodeMap PublicErrorStatusCodes = ApiErrorStatusCodeMap.Create(
         new(InventoryApplicationErrors.AccessDenied.Code, StatusCodes.Status403Forbidden),
+        new(InventoryApplicationErrors.ManagementOperationInvalid.Code, StatusCodes.Status400BadRequest),
+        new(InventoryApplicationErrors.ManagementOperationConflict.Code, StatusCodes.Status409Conflict),
         new(InventoryApplicationErrors.WorkspaceProcessingRestricted.Code, StatusCodes.Status423Locked),
         new(InventoryApplicationErrors.WorkspaceProcessingAdmissionUnavailable.Code, StatusCodes.Status503ServiceUnavailable),
         new(InventoryApplicationErrors.PropertyNotFound.Code, StatusCodes.Status404NotFound),
@@ -397,8 +403,8 @@ public sealed class InventoryModule : IModule
         new(InventoryApplicationErrors.RoomRetirementRetryInvalid.Code, StatusCodes.Status409Conflict),
         new(InventoryApplicationErrors.RoomRetirementStillDraining.Code, StatusCodes.Status409Conflict),
         new(InventoryApplicationErrors.RoomRetirementInProgress.Code, StatusCodes.Status409Conflict),
-        new(BunkFy.Modules.Inventory.Domain.Errors.InventoryDomainErrors.BedRetirementRequestInvalid.Code, StatusCodes.Status400BadRequest),
-        new(BunkFy.Modules.Inventory.Domain.Errors.InventoryDomainErrors.BedRetirementTransitionInvalid.Code, StatusCodes.Status409Conflict),
-        new(BunkFy.Modules.Inventory.Domain.Errors.InventoryDomainErrors.RoomRetirementRequestInvalid.Code, StatusCodes.Status400BadRequest),
-        new(BunkFy.Modules.Inventory.Domain.Errors.InventoryDomainErrors.RoomRetirementTransitionInvalid.Code, StatusCodes.Status409Conflict));
+        new(Domain.Errors.InventoryDomainErrors.BedRetirementRequestInvalid.Code, StatusCodes.Status400BadRequest),
+        new(Domain.Errors.InventoryDomainErrors.BedRetirementTransitionInvalid.Code, StatusCodes.Status409Conflict),
+        new(Domain.Errors.InventoryDomainErrors.RoomRetirementRequestInvalid.Code, StatusCodes.Status400BadRequest),
+        new(Domain.Errors.InventoryDomainErrors.RoomRetirementTransitionInvalid.Code, StatusCodes.Status409Conflict));
 }

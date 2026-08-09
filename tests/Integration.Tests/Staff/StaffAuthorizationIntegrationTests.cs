@@ -6,6 +6,11 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Claims;
 using BunkFy.Host.Worker;
+using BunkFy.Modules.Properties.Contracts;
+using BunkFy.Modules.Staff.Contracts;
+using BunkFy.Modules.Staff.Persistence;
+using BunkFy.Modules.Workspaces.Domain;
+using BunkFy.Modules.Workspaces.Persistence;
 using DotNet.Testcontainers.Containers;
 using Gma.Framework.Administration;
 using Gma.Framework.Administration.Cli;
@@ -17,11 +22,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using BunkFy.Modules.Properties.Contracts;
-using BunkFy.Modules.Staff.Contracts;
-using BunkFy.Modules.Staff.Persistence;
-using BunkFy.Modules.Workspaces.Domain;
-using BunkFy.Modules.Workspaces.Persistence;
 using Testcontainers.PostgreSql;
 using Xunit;
 
@@ -344,7 +344,13 @@ public sealed class StaffAuthorizationIntegrationTests
         string name, string code)
     {
         using HttpResponseMessage response = await SendAsync(client, HttpMethod.Post, "/api/properties",
-            token, new { name, code, timeZoneId = "UTC" }).ConfigureAwait(false);
+            token, new
+            {
+                operationId = Guid.NewGuid(),
+                name,
+                code,
+                timeZoneId = "UTC"
+            }).ConfigureAwait(false);
         return await ReadSuccessAsync<PropertyMutationReceiptDto>(response).ConfigureAwait(false);
     }
 

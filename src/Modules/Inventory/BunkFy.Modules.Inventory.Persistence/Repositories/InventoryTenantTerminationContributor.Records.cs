@@ -24,6 +24,11 @@ internal sealed partial class InventoryTenantTerminationContributor
             sink,
             count,
             cancellationToken).ConfigureAwait(false);
+        count = await this.ExportManagementOperationsAsync(
+            tenantId,
+            sink,
+            count,
+            cancellationToken).ConfigureAwait(false);
         count = await this.ExportManualBlocksAsync(
             tenantId,
             sink,
@@ -143,6 +148,54 @@ internal sealed partial class InventoryTenantTerminationContributor
                     .RoomConfigurationRecordType,
                 configuration.Id,
                 configuration.Version,
+                record,
+                sink,
+                cancellationToken).ConfigureAwait(false);
+            count = checked(count + 1);
+        }
+
+        return count;
+    }
+
+    private async Task<long> ExportManagementOperationsAsync(
+        string tenantId,
+        IDataRightsExportSink sink,
+        long count,
+        CancellationToken cancellationToken)
+    {
+        await foreach (InventoryManagementOperation operation in
+            dbContext.ManagementOperations
+                .AsNoTracking()
+                .Where(item => item.ScopeId == tenantId)
+                .OrderBy(item => item.PropertyId)
+                .ThenBy(item => item.ResourceKind)
+                .ThenBy(item => item.ResourceId)
+                .ThenBy(item => item.Id)
+                .AsAsyncEnumerable()
+                .WithCancellation(cancellationToken)
+                .ConfigureAwait(false))
+        {
+            InventoryManagementOperationTenantExport record = new(
+                operation.ScopeId,
+                operation.PropertyId,
+                operation.Id,
+                new InventoryManagementOperationStateTenantExport(
+                    operation.ResourceKind,
+                    operation.ResourceId,
+                    operation.Kind,
+                    operation.ExpectedVersion,
+                    operation.RequestFingerprint,
+                    operation.ResultSalesMode,
+                    operation.ResultVersion,
+                    operation.CompletedAtUtc));
+            await WriteAsync(
+                InventoryTenantTerminationMetadata
+                    .ManagementOperationRecordType,
+                DataRightsExportRecordIds.CreateDeterministicChild(
+                    operation.PropertyId,
+                    $"{(int)operation.ResourceKind}:" +
+                    $"{operation.ResourceId:N}:{operation.Id:N}"),
+                operation.ResultVersion,
                 record,
                 sink,
                 cancellationToken).ConfigureAwait(false);

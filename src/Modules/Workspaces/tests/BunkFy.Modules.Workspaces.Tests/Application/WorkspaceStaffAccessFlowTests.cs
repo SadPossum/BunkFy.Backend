@@ -12,10 +12,9 @@ using BunkFy.Modules.Workspaces.Domain;
 using BunkFy.Modules.Workspaces.Domain.DataRights;
 using Gma.Framework.AccessControl;
 using Gma.Framework.Cqrs;
-using Gma.Framework.Results;
-using Gma.Framework.Runtime.Identity;
-using Gma.Framework.Runtime.Time;
 using Gma.Framework.Pagination;
+using Gma.Framework.Results;
+using Gma.Framework.Runtime.Time;
 using Gma.Modules.AccessControl.Contracts;
 using Gma.Modules.Organizations.Contracts;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -449,7 +448,7 @@ public sealed class WorkspaceStaffAccessFlowTests
             correlations);
 
         StaffRetentionAnonymisationPrerequisiteResult result =
-            await prerequisite.ExecuteAsync(
+            await prerequisite.PrepareAsync(
                 CreateRetentionRequest(),
                 CancellationToken.None);
 
@@ -464,6 +463,7 @@ public sealed class WorkspaceStaffAccessFlowTests
         Assert.True(
             operations.IndexOf("membership:Removed") <
             operations.IndexOf("profiles:reconcile"));
+        Assert.Equal(1, correlations.RequestCount);
         Assert.Equal(1, correlations.ScrubCount);
         Assert.NotNull(correlations.Receipt);
 
@@ -473,16 +473,38 @@ public sealed class WorkspaceStaffAccessFlowTests
             WorkspaceAccessRoles.MembershipMarker,
             scope);
         StaffRetentionAnonymisationPrerequisiteResult replay =
-            await prerequisite.ExecuteAsync(
+            await prerequisite.PrepareAsync(
                 CreateRetentionRequest(),
                 CancellationToken.None);
 
         Assert.Equal(
             StaffRetentionAnonymisationPrerequisiteStatus.Completed,
             replay.Status);
+        Assert.Equal(2, correlations.RequestCount);
         Assert.Equal(1, correlations.ScrubCount);
         Assert.Empty(profiles.AssignedProfileIds(subject, scope));
         Assert.False(roles.Has(
+            subject,
+            WorkspaceAccessRoles.MembershipMarker,
+            scope));
+
+        profiles.Assign(subject, scope, profile.Id);
+        roles.Add(
+            subject,
+            WorkspaceAccessRoles.MembershipMarker,
+            scope);
+        StaffRetentionAnonymisationPrerequisiteResult verified =
+            await prerequisite.VerifyAsync(
+                CreateRetentionRequest(),
+                CancellationToken.None);
+
+        Assert.Equal(
+            StaffRetentionAnonymisationPrerequisiteStatus.Completed,
+            verified.Status);
+        Assert.Contains(
+            profile.Id,
+            profiles.AssignedProfileIds(subject, scope));
+        Assert.True(roles.Has(
             subject,
             WorkspaceAccessRoles.MembershipMarker,
             scope));
@@ -510,7 +532,7 @@ public sealed class WorkspaceStaffAccessFlowTests
                 NullLogger<WorkspaceStaffAccessDenier>.Instance));
 
         StaffRetentionAnonymisationPrerequisiteResult result =
-            await prerequisite.ExecuteAsync(
+            await prerequisite.PrepareAsync(
                 CreateRetentionRequest(),
                 CancellationToken.None);
 
@@ -889,16 +911,22 @@ public sealed class WorkspaceStaffAccessFlowTests
                 dataRightsCorrelations = null)
     {
         correlations ??= new FakeCorrelationRepository();
+        WorkspaceStaffRetentionAccessClosure retentionAccessClosure = new(
+            staffStateReader,
+            processRepository,
+            denier,
+            NullLogger<
+                WorkspaceStaffRetentionAccessClosure>.Instance);
         return new(
             staffStateReader,
             processRepository,
             correlations,
             dataRightsCorrelations ??
                 new NoDataRightsCorrelationRepository(),
-            new FakeRequestDispatcher(correlations),
+            new FakeRequestDispatcher(
+                correlations,
+                retentionAccessClosure),
             denier,
-            new TestClock(),
-            new TestIdGenerator(),
             NullLogger<
                 WorkspaceStaffAnonymisationAccessPrerequisite>.Instance);
     }
@@ -1178,6 +1206,8 @@ public sealed class WorkspaceStaffAccessFlowTests
 
         public int ScrubCount { get; private set; }
 
+        public int RequestCount { get; private set; }
+
         public Task<WorkspaceStaffRetentionCorrelationReceipt?>
             GetAsync(
                 Guid staffMemberId,
@@ -1196,6 +1226,19 @@ public sealed class WorkspaceStaffAccessFlowTests
                 WorkspaceStaffRetentionCorrelationScrubRequest request,
                 CancellationToken cancellationToken)
         {
+            this.RequestCount++;
+            if (this.Receipt is not null)
+            {
+                return Task.FromResult(this.Receipt.Matches(
+                        request.TenantId,
+                        request.StaffMemberId,
+                        request.SelectedStaffVersion)
+                    ? Result.Success(this.Receipt)
+                    : Result.Failure<
+                        WorkspaceStaffRetentionCorrelationReceipt>(
+                        WorkspaceStaffRetentionErrors.ReceiptInvalid));
+            }
+
             this.ScrubCount++;
             Result<WorkspaceStaffRetentionCorrelationReceipt>
                 created =
@@ -1275,8 +1318,7 @@ public sealed class WorkspaceStaffAccessFlowTests
             GetTombstoneAsync(
                 Guid anchorProcessId,
                 CancellationToken cancellationToken) =>
-            Task.FromResult<
-                WorkspaceStaffCorrelationAnonymisationTombstone?>(
+            Task.FromResult(
                 tombstone?.Id == anchorProcessId
                     ? tombstone
                     : null);
@@ -1288,8 +1330,7 @@ public sealed class WorkspaceStaffAccessFlowTests
                 Guid staffMemberId,
                 long selectedStaffVersion,
                 CancellationToken cancellationToken) =>
-            Task.FromResult<
-                WorkspaceStaffCorrelationAnonymisationTombstone?>(
+            Task.FromResult(
                 tombstone?.StaffMemberId == staffMemberId &&
                 tombstone.SelectedStaffVersion ==
                     selectedStaffVersion
@@ -1323,7 +1364,8 @@ public sealed class WorkspaceStaffAccessFlowTests
     }
 
     private sealed class FakeRequestDispatcher(
-        FakeCorrelationRepository correlations)
+        FakeCorrelationRepository correlations,
+        IWorkspaceStaffRetentionAccessClosure accessClosure)
         : IRequestDispatcher
     {
         public async Task<Result<TResponse>> SendAsync<TResponse>(
@@ -1337,16 +1379,29 @@ public sealed class WorkspaceStaffAccessFlowTests
                     $"Unexpected command '{command.GetType().Name}'.");
             }
 
+            WorkspaceStaffAccessClosureResult closure =
+                await accessClosure.EnsureClosedAsync(
+                    scrub.TenantId,
+                    scrub.StaffMemberId,
+                    scrub.SelectedStaffVersion,
+                    cancellationToken);
+            if (closure.Status !=
+                WorkspaceStaffAccessClosureStatus.Completed)
+            {
+                return Result.Failure<TResponse>(
+                    new(closure.Code, closure.Code));
+            }
+
             Result<WorkspaceStaffRetentionCorrelationReceipt> result =
                 await correlations.ScrubAsync(
                     new WorkspaceStaffRetentionCorrelationScrubRequest(
-                        scrub.ReceiptId,
+                        CorrelationReceiptId,
                         scrub.ExecutionId,
                         scrub.TenantId,
                         scrub.StaffMemberId,
                         scrub.SelectedStaffVersion,
-                        scrub.SubjectId,
-                        scrub.CompletedAtUtc),
+                        closure.SubjectId,
+                        Now),
                     cancellationToken);
             return (Result<TResponse>)(object)result;
         }
@@ -1355,11 +1410,6 @@ public sealed class WorkspaceStaffAccessFlowTests
             IQuery<TResponse> query,
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
-    }
-
-    private sealed class TestIdGenerator : IIdGenerator
-    {
-        public Guid NewId() => CorrelationReceiptId;
     }
 
     private sealed class FakeRoles(List<string> operations) : IAccessControlRoleProvisioner

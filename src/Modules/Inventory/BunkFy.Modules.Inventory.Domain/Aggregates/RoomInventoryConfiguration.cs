@@ -1,9 +1,9 @@
 namespace BunkFy.Modules.Inventory.Domain.Aggregates;
 
-using Gma.Framework.Domain.Models;
-using Gma.Framework.Results;
 using BunkFy.Modules.Inventory.Domain.Errors;
 using BunkFy.Modules.Inventory.Domain.Events;
+using Gma.Framework.Domain.Models;
+using Gma.Framework.Results;
 
 public sealed class RoomInventoryConfiguration : ScopedAggregateRoot<Guid>
 {
@@ -49,19 +49,21 @@ public sealed class RoomInventoryConfiguration : ScopedAggregateRoot<Guid>
         DateTimeOffset nowUtc,
         string? actorId = null)
     {
-        if (expectedVersion != this.Version)
+        Result<RoomSalesModeConfigurationOutcome> evaluation =
+            this.EvaluateConfiguration(salesMode, expectedVersion);
+        if (evaluation.IsFailure)
         {
-            return Result.Failure(InventoryDomainErrors.VersionConflict);
+            return Result.Failure(evaluation.Error);
         }
 
-        if (salesMode is not (RoomSalesMode.RoomLevel or RoomSalesMode.BedLevel))
-        {
-            return Result.Failure(InventoryDomainErrors.SalesModeInvalid);
-        }
-
-        if (this.SalesMode == salesMode)
+        if (evaluation.Value == RoomSalesModeConfigurationOutcome.Unchanged)
         {
             return Result.Success();
+        }
+
+        if (eventId == Guid.Empty)
+        {
+            return Result.Failure(InventoryDomainErrors.EventIdRequired);
         }
 
         this.SalesMode = salesMode;
@@ -81,5 +83,34 @@ public sealed class RoomInventoryConfiguration : ScopedAggregateRoot<Guid>
         return Result.Success();
     }
 
+    public Result<RoomSalesModeConfigurationOutcome> EvaluateConfiguration(
+        RoomSalesMode salesMode,
+        long expectedVersion)
+    {
+        if (expectedVersion != this.Version)
+        {
+            return Result.Failure<RoomSalesModeConfigurationOutcome>(
+                InventoryDomainErrors.VersionConflict);
+        }
+
+        if (salesMode is not (
+            RoomSalesMode.RoomLevel or RoomSalesMode.BedLevel))
+        {
+            return Result.Failure<RoomSalesModeConfigurationOutcome>(
+                InventoryDomainErrors.SalesModeInvalid);
+        }
+
+        return Result.Success(
+            this.SalesMode == salesMode
+                ? RoomSalesModeConfigurationOutcome.Unchanged
+                : RoomSalesModeConfigurationOutcome.Changed);
+    }
+
     public void TouchAvailability() => this.AvailabilityMutationVersion++;
+}
+
+public enum RoomSalesModeConfigurationOutcome
+{
+    Unchanged = 1,
+    Changed = 2
 }

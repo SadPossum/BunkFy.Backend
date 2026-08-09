@@ -13,6 +13,7 @@ public static class InventoryDomainErrors
     public static readonly Error RoomRetired = new("Inventory.RoomRetired", "Retired room topology cannot be configured.");
     public static readonly Error BedLevelRequiresBeds = new("Inventory.BedLevelRequiresBeds", "Bed-level sales require at least one active bed.");
     public static readonly Error SalesModeInvalid = new("Inventory.SalesModeInvalid", "Sales mode must be room-level or bed-level.");
+    public static readonly Error EventIdRequired = new("Inventory.EventIdRequired", "A domain event id is required.");
     public static readonly Error VersionConflict = new("Inventory.VersionConflict", "The inventory configuration has changed. Refresh and retry.");
     public static readonly Error StayRangeInvalid = new("Inventory.StayRangeInvalid", "Arrival must be before departure.");
     public static readonly Error BlockReasonInvalid = new("Inventory.BlockReasonInvalid", "Block reason is required and must be 500 characters or fewer.");

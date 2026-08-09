@@ -1,119 +1,382 @@
 namespace BunkFy.Modules.Inventory.Tests;
 
-using Gma.Framework.Cqrs;
-using Gma.Framework.Pagination;
-using Gma.Framework.Results;
-using Gma.Framework.Runtime.Identity;
-using Gma.Framework.Runtime.Time;
 using BunkFy.Modules.Inventory.Application;
 using BunkFy.Modules.Inventory.Application.Commands;
+using BunkFy.Modules.Inventory.Application.Handlers;
 using BunkFy.Modules.Inventory.Application.Ports;
 using BunkFy.Modules.Inventory.Contracts;
 using BunkFy.Modules.Inventory.Domain.Aggregates;
 using BunkFy.Modules.Inventory.Domain.Errors;
-using Microsoft.Extensions.DependencyInjection;
 using BunkFy.Modules.Properties.Contracts;
+using Gma.Framework.Results;
+using Gma.Framework.Runtime.Identity;
+using Gma.Framework.Runtime.Time;
+using Gma.Framework.Scoping;
 using Xunit;
 
 [Trait("Category", "Unit")]
 public sealed class ConfigureRoomSalesModeCommandHandlerTests
 {
-    private static readonly Guid PropertyId = Guid.Parse("10000000-0000-0000-0000-000000000001");
-    private static readonly Guid RoomId = Guid.Parse("20000000-0000-0000-0000-000000000001");
+    private static readonly Guid PropertyId =
+        Guid.Parse("10000000-0000-0000-0000-000000000001");
+    private static readonly Guid RoomId =
+        Guid.Parse("20000000-0000-0000-0000-000000000001");
+
+    [Fact]
+    public async Task Exact_replay_returns_the_immutable_receipt_after_later_changes()
+    {
+        Harness harness = CreateHarness();
+        Guid firstOperationId = Guid.NewGuid();
+
+        Result<RoomInventoryMutationReceiptDto> first = await harness.HandleAsync(
+            new(
+                firstOperationId,
+                PropertyId,
+                RoomId,
+                InventorySalesMode.RoomLevel,
+                1));
+        Result<RoomInventoryMutationReceiptDto> later = await harness.HandleAsync(
+            new(
+                Guid.NewGuid(),
+                PropertyId,
+                RoomId,
+                InventorySalesMode.BedLevel,
+                2));
+        int generatedBeforeReplay = harness.Ids.CallCount;
+
+        Result<RoomInventoryMutationReceiptDto> replay = await harness.HandleAsync(
+            new(
+                firstOperationId,
+                PropertyId,
+                RoomId,
+                InventorySalesMode.RoomLevel,
+                1));
+
+        Assert.True(first.IsSuccess);
+        Assert.True(later.IsSuccess);
+        Assert.True(replay.IsSuccess);
+        Assert.Equal(first.Value, replay.Value);
+        Assert.Equal(InventorySalesMode.RoomLevel, replay.Value.SalesMode);
+        Assert.Equal(2, replay.Value.Version);
+        Assert.Equal(RoomSalesMode.BedLevel, harness.Configuration.SalesMode);
+        Assert.Equal(3, harness.Configuration.Version);
+        Assert.Equal(generatedBeforeReplay, harness.Ids.CallCount);
+        Assert.Equal(2, harness.Configuration.DomainEvents.Count);
+    }
+
+    [Fact]
+    public async Task Changed_reuse_of_an_operation_id_fails_closed()
+    {
+        Harness harness = CreateHarness();
+        Guid operationId = Guid.NewGuid();
+        Result<RoomInventoryMutationReceiptDto> first = await harness.HandleAsync(
+            new(
+                operationId,
+                PropertyId,
+                RoomId,
+                InventorySalesMode.RoomLevel,
+                1));
+
+        Result<RoomInventoryMutationReceiptDto> changed = await harness.HandleAsync(
+            new(
+                operationId,
+                PropertyId,
+                RoomId,
+                InventorySalesMode.BedLevel,
+                1));
+
+        Assert.True(first.IsSuccess);
+        Assert.Equal(
+            InventoryApplicationErrors.ManagementOperationConflict,
+            changed.Error);
+        Assert.Equal(RoomSalesMode.RoomLevel, harness.Configuration.SalesMode);
+        Assert.Equal(2, harness.Configuration.Version);
+        Assert.Single(harness.Operations.Added);
+        Assert.Equal(1, harness.Ids.CallCount);
+    }
+
+    [Fact]
+    public async Task No_op_records_a_receipt_without_event_or_version_advance()
+    {
+        Harness harness = CreateHarness();
+        Result<RoomInventoryMutationReceiptDto> initial = await harness.HandleAsync(
+            new(
+                Guid.NewGuid(),
+                PropertyId,
+                RoomId,
+                InventorySalesMode.RoomLevel,
+                1));
+        int eventsBefore = harness.Configuration.DomainEvents.Count;
+        int idsBefore = harness.Ids.CallCount;
+
+        Result<RoomInventoryMutationReceiptDto> noOp = await harness.HandleAsync(
+            new(
+                Guid.NewGuid(),
+                PropertyId,
+                RoomId,
+                InventorySalesMode.RoomLevel,
+                2));
+
+        Assert.True(initial.IsSuccess);
+        Assert.True(noOp.IsSuccess);
+        Assert.Equal(2, noOp.Value.Version);
+        Assert.Equal(2, harness.Configuration.Version);
+        Assert.Equal(eventsBefore, harness.Configuration.DomainEvents.Count);
+        Assert.Equal(idsBefore, harness.Ids.CallCount);
+        Assert.Equal(2, harness.Operations.Added.Count);
+    }
+
+    [Fact]
+    public async Task Failed_claim_check_does_not_bind_the_operation_id()
+    {
+        Harness harness = CreateHarness(activeAllocationCount: 1);
+        Guid operationId = Guid.NewGuid();
+        ConfigureRoomSalesModeCommand command = new(
+            operationId,
+            PropertyId,
+            RoomId,
+            InventorySalesMode.BedLevel,
+            1);
+
+        Result<RoomInventoryMutationReceiptDto> blocked =
+            await harness.HandleAsync(command);
+        harness.Availability.ActiveAllocationCount = 0;
+        Result<RoomInventoryMutationReceiptDto> retry =
+            await harness.HandleAsync(command);
+
+        Assert.Equal(InventoryApplicationErrors.RoomHasActiveClaims, blocked.Error);
+        Assert.True(retry.IsSuccess);
+        Assert.Single(harness.Operations.Added);
+        Assert.Equal(1, harness.Ids.CallCount);
+    }
+
+    [Fact]
+    public async Task Stale_attempt_does_not_bind_or_consume_an_event_id()
+    {
+        Harness harness = CreateHarness();
+
+        Result<RoomInventoryMutationReceiptDto> result = await harness.HandleAsync(
+            new(
+                Guid.NewGuid(),
+                PropertyId,
+                RoomId,
+                InventorySalesMode.RoomLevel,
+                2));
+
+        Assert.Equal(InventoryDomainErrors.VersionConflict, result.Error);
+        Assert.Empty(harness.Operations.Added);
+        Assert.Equal(0, harness.Ids.CallCount);
+        Assert.Empty(harness.Configuration.DomainEvents);
+    }
+
+    [Fact]
+    public async Task Admission_and_room_lock_happen_before_replay_lookup()
+    {
+        List<string> trace = [];
+        Harness harness = CreateHarness(trace: trace);
+        Guid operationId = Guid.NewGuid();
+        ConfigureRoomSalesModeCommand command = new(
+            operationId,
+            PropertyId,
+            RoomId,
+            InventorySalesMode.RoomLevel,
+            1);
+        Assert.True((await harness.HandleAsync(command)).IsSuccess);
+        trace.Clear();
+
+        Assert.True((await harness.HandleAsync(command)).IsSuccess);
+
+        Assert.Equal(["room-lock", "journal-read"], trace);
+    }
+
+    [Fact]
+    public async Task Invalid_operation_id_is_rejected_before_locking()
+    {
+        Harness harness = CreateHarness();
+
+        Result<RoomInventoryMutationReceiptDto> result = await harness.HandleAsync(
+            new(
+                Guid.Empty,
+                PropertyId,
+                RoomId,
+                InventorySalesMode.RoomLevel,
+                1));
+
+        Assert.Equal(
+            InventoryApplicationErrors.ManagementOperationInvalid,
+            result.Error);
+        Assert.Equal(0, harness.Lock.CallCount);
+        Assert.Empty(harness.Operations.Added);
+    }
 
     [Fact]
     public async Task Bed_level_requires_an_active_bed()
     {
-        RoomInventoryConfiguration configuration = CreateConfiguration();
-        ServiceProvider provider = CreateProvider(configuration, RoomStatus.Active, activeBedCount: 0);
-        ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryMutationReceiptDto> handler =
-            provider.GetRequiredService<ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryMutationReceiptDto>>();
+        Harness harness = CreateHarness(activeBedCount: 0);
 
-        Result<RoomInventoryMutationReceiptDto> result = await handler.HandleAsync(
-            new(PropertyId, RoomId, InventorySalesMode.BedLevel, 1),
-            CancellationToken.None);
+        Result<RoomInventoryMutationReceiptDto> result = await harness.HandleAsync(
+            new(
+                Guid.NewGuid(),
+                PropertyId,
+                RoomId,
+                InventorySalesMode.BedLevel,
+                1));
 
         Assert.Equal(InventoryDomainErrors.BedLevelRequiresBeds, result.Error);
-        Assert.Equal(RoomSalesMode.Unconfigured, configuration.SalesMode);
+        Assert.Equal(RoomSalesMode.Unconfigured, harness.Configuration.SalesMode);
+        Assert.Empty(harness.Operations.Added);
     }
 
     [Fact]
     public async Task Retired_room_cannot_be_configured()
     {
-        RoomInventoryConfiguration configuration = CreateConfiguration();
-        ServiceProvider provider = CreateProvider(configuration, RoomStatus.Retired, activeBedCount: 2);
-        ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryMutationReceiptDto> handler =
-            provider.GetRequiredService<ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryMutationReceiptDto>>();
+        Harness harness = CreateHarness(status: RoomStatus.Retired);
 
-        Result<RoomInventoryMutationReceiptDto> result = await handler.HandleAsync(
-            new(PropertyId, RoomId, InventorySalesMode.RoomLevel, 1),
-            CancellationToken.None);
+        Result<RoomInventoryMutationReceiptDto> result = await harness.HandleAsync(
+            new(
+                Guid.NewGuid(),
+                PropertyId,
+                RoomId,
+                InventorySalesMode.RoomLevel,
+                1));
 
         Assert.Equal(InventoryDomainErrors.RoomRetired, result.Error);
-        Assert.Equal(RoomSalesMode.Unconfigured, configuration.SalesMode);
+        Assert.Equal(RoomSalesMode.Unconfigured, harness.Configuration.SalesMode);
+        Assert.Empty(harness.Operations.Added);
     }
 
-    [Fact]
-    public async Task Valid_configuration_returns_a_minimal_receipt()
+    private static Harness CreateHarness(
+        RoomStatus status = RoomStatus.Active,
+        int activeBedCount = 2,
+        int activeAllocationCount = 0,
+        List<string>? trace = null)
     {
-        RoomInventoryConfiguration configuration = CreateConfiguration();
-        ServiceProvider provider = CreateProvider(configuration, RoomStatus.Active, activeBedCount: 2);
-        ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryMutationReceiptDto> handler =
-            provider.GetRequiredService<ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryMutationReceiptDto>>();
-
-        Result<RoomInventoryMutationReceiptDto> result = await handler.HandleAsync(
-            new(PropertyId, RoomId, InventorySalesMode.BedLevel, 1),
-            CancellationToken.None);
-
-        Assert.True(result.IsSuccess);
-        Assert.Equal(InventorySalesMode.BedLevel, result.Value.SalesMode);
-        Assert.Equal(2, result.Value.Version);
-        Assert.Equal(RoomSalesMode.BedLevel, configuration.SalesMode);
-    }
-
-    [Fact]
-    public async Task Mode_change_is_rejected_while_the_room_has_active_claims()
-    {
-        RoomInventoryConfiguration configuration = CreateConfiguration();
-        ServiceProvider provider = CreateProvider(
+        RoomInventoryConfiguration configuration =
+            RoomInventoryConfiguration.Create(
+                RoomId,
+                "tenant-a",
+                PropertyId,
+                TestClock.Now).Value;
+        RecordingManagementOperationRepository operations = new(trace);
+        RecordingRoomLock operationLock = new(trace);
+        MutableAvailabilityRepository availability = new(
+            activeAllocationCount);
+        TestIdGenerator ids = new();
+        ConfigureRoomSalesModeCommandHandler handler = new(
+            new InventoryManagementMutationCoordinator(
+                operationLock,
+                new TestScopeContext()),
+            new InventoryManagementOperationJournal(operations),
+            new FakeTopologyRepository(status, activeBedCount),
+            new FakeConfigurationRepository(configuration),
+            availability,
+            new TestClock(),
+            ids);
+        return new(
+            handler,
             configuration,
-            RoomStatus.Active,
-            activeBedCount: 2,
-            activeAllocationCount: 1);
-        ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryMutationReceiptDto> handler =
-            provider.GetRequiredService<ICommandHandler<ConfigureRoomSalesModeCommand, RoomInventoryMutationReceiptDto>>();
-
-        Result<RoomInventoryMutationReceiptDto> result = await handler.HandleAsync(
-            new(PropertyId, RoomId, InventorySalesMode.BedLevel, 1),
-            CancellationToken.None);
-
-        Assert.Equal(InventoryApplicationErrors.RoomHasActiveClaims, result.Error);
-        Assert.Equal(RoomSalesMode.Unconfigured, configuration.SalesMode);
+            operations,
+            operationLock,
+            availability,
+            ids);
     }
 
-    private static ServiceProvider CreateProvider(
-        RoomInventoryConfiguration configuration,
-        RoomStatus status,
-        int activeBedCount,
-        int activeAllocationCount = 0)
+    private sealed record Harness(
+        ConfigureRoomSalesModeCommandHandler Handler,
+        RoomInventoryConfiguration Configuration,
+        RecordingManagementOperationRepository Operations,
+        RecordingRoomLock Lock,
+        MutableAvailabilityRepository Availability,
+        TestIdGenerator Ids)
     {
-        ServiceCollection services = new();
-        services.AddSingleton<IInventoryTopologyRepository>(new FakeTopologyRepository(status, activeBedCount));
-        services.AddSingleton<IRoomInventoryConfigurationRepository>(new FakeConfigurationRepository(configuration));
-        services.AddSingleton<IInventoryReadRepository>(new FakeReadRepository(configuration));
-        services.AddSingleton<IInventoryAvailabilityRepository>(new FakeAvailabilityRepository(activeAllocationCount));
-        services.AddSingleton<ISystemClock>(new TestClock());
-        services.AddSingleton<IIdGenerator>(new TestIdGenerator());
-        services.AddInventoryApplication();
-        return services.BuildServiceProvider();
+        public Task<Result<RoomInventoryMutationReceiptDto>> HandleAsync(
+            ConfigureRoomSalesModeCommand command) => this.Handler.HandleAsync(
+                command,
+                CancellationToken.None);
     }
 
-    private sealed class FakeAvailabilityRepository(int activeAllocationCount) : IInventoryAvailabilityRepository
+    private sealed class RecordingManagementOperationRepository(
+        List<string>? trace)
+        : IInventoryManagementOperationRepository
     {
+        private readonly Dictionary<
+            (InventoryManagementResourceKind Kind, Guid ResourceId, Guid OperationId),
+            InventoryManagementOperationRecord> operations = [];
+
+        public List<InventoryManagementOperationRecord> Added { get; } = [];
+
+        public Task<InventoryManagementOperationRecord?> GetAsync(
+            InventoryManagementResourceKind resourceKind,
+            Guid resourceId,
+            Guid operationId,
+            CancellationToken cancellationToken)
+        {
+            trace?.Add("journal-read");
+            this.operations.TryGetValue(
+                (resourceKind, resourceId, operationId),
+                out InventoryManagementOperationRecord? operation);
+            return Task.FromResult(operation);
+        }
+
+        public Task AddAsync(
+            InventoryManagementOperationRecord operation,
+            CancellationToken cancellationToken)
+        {
+            this.operations.Add(
+                (operation.ResourceKind,
+                 operation.ResourceId,
+                 operation.OperationId),
+                operation);
+            this.Added.Add(operation);
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class RecordingRoomLock(List<string>? trace)
+        : IInventoryRoomManagementLock
+    {
+        public int CallCount { get; private set; }
+
+        public Task AcquireAsync(
+            string tenantId,
+            Guid roomId,
+            CancellationToken cancellationToken)
+        {
+            Assert.Equal("tenant-a", tenantId);
+            Assert.Equal(RoomId, roomId);
+            this.CallCount++;
+            trace?.Add("room-lock");
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class MutableAvailabilityRepository(int activeAllocationCount)
+        : IInventoryAvailabilityRepository
+    {
+        public int ActiveAllocationCount { get; set; } = activeAllocationCount;
+
+        public Task<RoomInventoryImpactSnapshot?> GetRoomImpactAsync(
+            Guid propertyId,
+            Guid roomId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<RoomInventoryImpactSnapshot?>(
+                propertyId == PropertyId && roomId == RoomId
+                    ? new(
+                        this.ActiveAllocationCount,
+                        0,
+                        0,
+                        0,
+                        this.ActiveAllocationCount == 0
+                            ? []
+                            : [Guid.NewGuid()],
+                        false)
+                    : null);
+
         public Task<InventoryAvailabilityContextSnapshot> GetContextAsync(
             Guid propertyId,
             IReadOnlyCollection<Guid> inventoryUnitIds,
-            CancellationToken cancellationToken) => throw new NotSupportedException();
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
 
         public Task<InventoryAvailabilityConflictSnapshot> GetConflictsAsync(
             Guid propertyId,
@@ -122,21 +385,8 @@ public sealed class ConfigureRoomSalesModeCommandHandlerTests
             DateOnly departure,
             Guid? excludedAllocationId,
             IReadOnlyCollection<Guid> excludedBlockIds,
-            CancellationToken cancellationToken) => throw new NotSupportedException();
-
-        public Task<RoomInventoryImpactSnapshot?> GetRoomImpactAsync(
-            Guid propertyId,
-            Guid roomId,
-            CancellationToken cancellationToken) => Task.FromResult<RoomInventoryImpactSnapshot?>(
-            propertyId == PropertyId && roomId == RoomId
-                ? new(
-                    activeAllocationCount,
-                    0,
-                    0,
-                    0,
-                    activeAllocationCount == 0 ? [] : [Guid.NewGuid()],
-                    false)
-                : null);
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
 
         public Task<BedRetirementImpactSnapshot?> GetBedRetirementImpactAsync(
             Guid propertyId,
@@ -144,27 +394,32 @@ public sealed class ConfigureRoomSalesModeCommandHandlerTests
             Guid bedId,
             Guid? excludedAllocationId,
             IReadOnlyCollection<Guid> excludedBlockIds,
-            CancellationToken cancellationToken) => throw new NotSupportedException();
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
 
         public Task TouchUnitsAsync(
             Guid propertyId,
             IReadOnlyCollection<Guid> inventoryUnitIds,
-            CancellationToken cancellationToken) => throw new NotSupportedException();
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 
-    private static RoomInventoryConfiguration CreateConfiguration() =>
-        RoomInventoryConfiguration.Create(RoomId, "tenant-a", PropertyId, TestClock.Now).Value;
-
-    private sealed class FakeTopologyRepository(RoomStatus status, int activeBedCount) : IInventoryTopologyRepository
+    private sealed class FakeTopologyRepository(
+        RoomStatus status,
+        int activeBedCount)
+        : IInventoryTopologyRepository
     {
-        public Task ApplyPropertyAsync(InventoryPropertyTopologyWriteModel property, CancellationToken cancellationToken) =>
-            Task.CompletedTask;
+        public Task ApplyPropertyAsync(
+            InventoryPropertyTopologyWriteModel property,
+            CancellationToken cancellationToken) => Task.CompletedTask;
 
-        public Task ApplyRoomAsync(InventoryRoomTopologyWriteModel room, CancellationToken cancellationToken) =>
-            Task.CompletedTask;
+        public Task ApplyRoomAsync(
+            InventoryRoomTopologyWriteModel room,
+            CancellationToken cancellationToken) => Task.CompletedTask;
 
-        public Task ApplyBedAsync(InventoryBedTopologyWriteModel bed, CancellationToken cancellationToken) =>
-            Task.CompletedTask;
+        public Task ApplyBedAsync(
+            InventoryBedTopologyWriteModel bed,
+            CancellationToken cancellationToken) => Task.CompletedTask;
 
         public Task<InventoryRoomTopologySnapshot?> GetRoomAsync(
             Guid propertyId,
@@ -172,19 +427,26 @@ public sealed class ConfigureRoomSalesModeCommandHandlerTests
             CancellationToken cancellationToken) =>
             Task.FromResult<InventoryRoomTopologySnapshot?>(
                 propertyId == PropertyId && roomId == RoomId
-                    ? new(PropertyId, RoomId, status, activeBedCount)
+                    ? new(
+                        PropertyId,
+                        RoomId,
+                        status,
+                        activeBedCount)
                     : null);
 
-        public Task<IReadOnlyCollection<InventoryUnitDefinitionSnapshot>> GetUnitDefinitionsAsync(
+        public Task<IReadOnlyCollection<InventoryUnitDefinitionSnapshot>>
+            GetUnitDefinitionsAsync(
             Guid propertyId,
             Guid? roomId,
             Guid? inventoryUnitId,
             bool touchVersions,
             CancellationToken cancellationToken) =>
-            Task.FromResult<IReadOnlyCollection<InventoryUnitDefinitionSnapshot>>([]);
+            Task.FromResult<IReadOnlyCollection<
+                InventoryUnitDefinitionSnapshot>>([]);
     }
 
-    private sealed class FakeConfigurationRepository(RoomInventoryConfiguration configuration)
+    private sealed class FakeConfigurationRepository(
+        RoomInventoryConfiguration configuration)
         : IRoomInventoryConfigurationRepository
     {
         public Task EnsureAsync(
@@ -198,67 +460,34 @@ public sealed class ConfigureRoomSalesModeCommandHandlerTests
             Guid propertyId,
             Guid roomId,
             CancellationToken cancellationToken) =>
-            Task.FromResult<RoomInventoryConfiguration?>(
-                propertyId == PropertyId && roomId == RoomId ? configuration : null);
+            Task.FromResult(
+                propertyId == PropertyId && roomId == RoomId
+                    ? configuration
+                    : null);
     }
 
-    private sealed class FakeReadRepository(RoomInventoryConfiguration configuration) : IInventoryReadRepository
+    private sealed class TestScopeContext : IScopeContext
     {
-        public Task<bool> PropertyExistsAsync(Guid propertyId, CancellationToken cancellationToken) =>
-            Task.FromResult(propertyId == PropertyId);
-
-        public Task<RoomInventoryDto?> GetRoomAsync(
-            Guid propertyId,
-            Guid roomId,
-            CancellationToken cancellationToken) =>
-            Task.FromResult<RoomInventoryDto?>(
-                propertyId == PropertyId && roomId == RoomId
-                    ? new(
-                        PropertyId,
-                        RoomId,
-                        "101",
-                        null,
-                        null,
-                        configuration.SalesMode == RoomSalesMode.BedLevel
-                            ? InventorySalesMode.BedLevel
-                            : InventorySalesMode.RoomLevel,
-                        configuration.Version,
-                        [])
-                    : null);
-
-        public Task<InventoryUnitSnapshot?> GetUnitAsync(
-            Guid propertyId,
-            Guid inventoryUnitId,
-            CancellationToken cancellationToken) => Task.FromResult<InventoryUnitSnapshot?>(null);
-
-        public Task<IReadOnlyCollection<InventoryUnitSnapshot>> ResolveBlockTargetUnitsAsync(
-            Guid propertyId,
-            InventoryBlockTarget target,
-            CancellationToken cancellationToken) =>
-            Task.FromResult<IReadOnlyCollection<InventoryUnitSnapshot>>([]);
-
-        public Task<RoomInventoryListResponse> ListRoomsAsync(
-            Guid propertyId,
-            PageRequest pageRequest,
-            CancellationToken cancellationToken) =>
-            Task.FromResult(new RoomInventoryListResponse([], pageRequest.Page, pageRequest.PageSize, false));
-
-        public Task<InventoryAvailabilityResponse> GetAvailabilityAsync(
-            Guid propertyId,
-            DateOnly arrival,
-            DateOnly departure,
-            CancellationToken cancellationToken) =>
-            Task.FromResult(new InventoryAvailabilityResponse(propertyId, arrival, departure, []));
+        public bool IsEnabled => true;
+        public string ScopeId => "tenant-a";
     }
 
     private sealed class TestClock : ISystemClock
     {
-        public static DateTimeOffset Now { get; } = new(2026, 7, 10, 12, 0, 0, TimeSpan.Zero);
+        public static DateTimeOffset Now { get; } =
+            new(2026, 7, 10, 12, 0, 0, TimeSpan.Zero);
+
         public DateTimeOffset UtcNow => Now;
     }
 
     private sealed class TestIdGenerator : IIdGenerator
     {
-        public Guid NewId() => Guid.CreateVersion7();
+        public int CallCount { get; private set; }
+
+        public Guid NewId()
+        {
+            this.CallCount++;
+            return Guid.CreateVersion7();
+        }
     }
 }

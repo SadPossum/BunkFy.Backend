@@ -4,6 +4,7 @@ using BunkFy.Modules.Retention.Contracts;
 using BunkFy.Modules.Staff.Application.Commands;
 using BunkFy.Modules.Staff.Application.Policies;
 using BunkFy.Modules.Staff.Application.Ports;
+using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Staff.Domain.Retention;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
@@ -16,6 +17,7 @@ internal sealed class StaffRetentionContributor
     private readonly IRequestDispatcher dispatcher;
     private readonly IStaffRetentionCandidateRepository candidates;
     private readonly StaffRetentionEligibilityEvaluator eligibility;
+    private readonly StaffRetentionPrerequisiteEvaluator prerequisites;
     private readonly StaffRetentionOptions options;
     private readonly ISystemClock clock;
 
@@ -23,12 +25,14 @@ internal sealed class StaffRetentionContributor
         IRequestDispatcher dispatcher,
         IStaffRetentionCandidateRepository candidates,
         StaffRetentionEligibilityEvaluator eligibility,
+        StaffRetentionPrerequisiteEvaluator prerequisites,
         IOptions<StaffRetentionOptions> options,
         ISystemClock clock)
     {
         this.dispatcher = dispatcher;
         this.candidates = candidates;
         this.eligibility = eligibility;
+        this.prerequisites = prerequisites;
         this.options = options.Value;
         this.clock = clock;
         this.Schedule = new(
@@ -132,6 +136,38 @@ internal sealed class StaffRetentionContributor
             if (mutationCount >= this.options.MutationBatchSize)
             {
                 break;
+            }
+
+            StaffRetentionPrerequisiteEvaluation preparation =
+                await this.prerequisites.PrepareAsync(
+                    new(
+                        StaffRetentionAnonymisationPrerequisiteContract
+                            .CurrentVersion,
+                        request.ExecutionId,
+                        request.TenantId,
+                        candidate.StaffMemberId,
+                        candidate.StaffVersion),
+                    cancellationToken).ConfigureAwait(false);
+            if (preparation !=
+                StaffRetentionPrerequisiteEvaluation.Completed)
+            {
+                RecordFailure(
+                    preparation ==
+                        StaffRetentionPrerequisiteEvaluation.Blocked
+                        ? StaffRetentionMutationFailure
+                            .PrerequisiteBlocked
+                        : StaffRetentionMutationFailure
+                            .PrerequisiteUnavailable,
+                    ref projectionFailed,
+                    ref policyFailed,
+                    ref prerequisiteBlocked,
+                    ref prerequisiteUnavailable,
+                    ref mutationFailed);
+                RecordScanned(
+                    candidate,
+                    ref pageScannedCount,
+                    ref nextAfterProjectionOrdinal);
+                continue;
             }
 
             Result<StaffRetentionMutationResult> mutation =

@@ -20,6 +20,7 @@ internal static class InventoryTenantTerminationExportSchema
     [
         typeof(InventoryUnitTenantExport),
         typeof(InventoryRoomConfigurationTenantExport),
+        typeof(InventoryManagementOperationTenantExport),
         typeof(InventoryManualBlockTenantExport),
         typeof(InventoryAllocationTenantExport),
         typeof(InventoryAllocationUnitTenantExport),

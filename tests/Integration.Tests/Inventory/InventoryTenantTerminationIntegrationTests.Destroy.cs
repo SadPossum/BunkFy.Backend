@@ -217,7 +217,7 @@ public sealed partial class InventoryTenantTerminationIntegrationTests
         Assert.Equal(
             "inventory.termination.destroyed",
             completed.ResultCode);
-        Assert.Equal(523, completed.AffectedCount);
+        Assert.Equal(524, completed.AffectedCount);
         Assert.Equal(selectedRevision, completed.SelectedProofRevision);
         Assert.Equal(
             selectedRevision + 1,
@@ -254,7 +254,7 @@ public sealed partial class InventoryTenantTerminationIntegrationTests
             await ReadReceiptCountAsync(ownerContext, TenantA)
                 .ConfigureAwait(false));
         Assert.Equal(
-            523,
+            524,
             await ReadReceiptRemovedCountAsync(ownerContext, TenantA)
                 .ConfigureAwait(false));
         Assert.Equal(

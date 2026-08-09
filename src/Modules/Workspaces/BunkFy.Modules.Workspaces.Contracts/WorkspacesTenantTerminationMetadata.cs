@@ -8,8 +8,8 @@ public static class WorkspacesTenantTerminationMetadata
     public const string OwnerKey = "workspaces";
     public const string PropertiesDestroyDependencyOwnerKey = "properties";
     public const string TaskRuntimeDestroyDependencyOwnerKey = "task-runtime";
-    public const int CatalogVersion = 9;
-    public const int PersonalDataCatalogVersion = 9;
+    public const int CatalogVersion = 10;
+    public const int PersonalDataCatalogVersion = 10;
     public const string ExportSchemaId =
         "workspaces.tenant-termination-export";
     public const int ExportSchemaVersion = 1;

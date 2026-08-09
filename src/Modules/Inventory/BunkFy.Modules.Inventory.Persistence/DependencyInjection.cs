@@ -1,20 +1,20 @@
 namespace BunkFy.Modules.Inventory.Persistence;
 
 using BunkFy.Modules.DataRights.Contracts;
+using BunkFy.Modules.Inventory.Application.Ports;
+using BunkFy.Modules.Inventory.Contracts;
+using BunkFy.Modules.Inventory.Persistence.Repositories;
+using BunkFy.Modules.Properties.Contracts;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Cqrs.Infrastructure;
 using Gma.Framework.Cqrs.UnitOfWork;
 using Gma.Framework.Messaging;
 using Gma.Framework.Persistence.EntityFrameworkCore;
 using Gma.Framework.ProjectionRebuild;
-using BunkFy.Modules.Inventory.Application.Ports;
-using BunkFy.Modules.Inventory.Contracts;
-using BunkFy.Modules.Inventory.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
-using BunkFy.Modules.Properties.Contracts;
 
 public static class DependencyInjection
 {
@@ -36,6 +36,12 @@ public static class DependencyInjection
         builder.Services.TryAddScoped<IInventoryReadRepository, InventoryReadRepository>();
         builder.Services.TryAddScoped<IInventoryAvailabilityRepository, InventoryAvailabilityRepository>();
         builder.Services.TryAddScoped<IManualInventoryBlockRepository, ManualInventoryBlockRepository>();
+        builder.Services.TryAddScoped<
+            IInventoryManagementOperationRepository,
+            InventoryManagementOperationRepository>();
+        builder.Services.TryAddScoped<
+            IInventoryRoomManagementLock,
+            InventoryRoomManagementLock>();
         builder.Services.TryAddScoped<IInventoryAvailabilityProjectionExportSource, InventoryAvailabilityProjectionExportSource>();
         builder.Services.TryAddScoped<IInventoryAllocationRepository, InventoryAllocationRepository>();
         builder.Services.TryAddScoped<IInventoryAllocationAmendmentDecisionRepository, InventoryAllocationAmendmentDecisionRepository>();
