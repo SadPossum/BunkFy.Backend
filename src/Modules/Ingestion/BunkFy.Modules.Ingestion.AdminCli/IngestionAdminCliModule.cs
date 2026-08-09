@@ -375,6 +375,7 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
 
     private static Command CreateConnectionUpdateCommand(IServiceProvider services, AdminCliGlobalOptions globalOptions)
     {
+        Option<Guid> operation = RequiredGuid("--operation-id");
         Option<Guid> property = RequiredGuid("--property-id");
         Option<Guid> connection = RequiredGuid("--connection-id");
         Option<string> mode = RequiredString("--execution-mode");
@@ -385,7 +386,7 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
         Option<long> version = RequiredLong("--expected-version");
         Command command = new("update", "Update future-run connection settings.")
         {
-            property, connection, mode, policy, configuration, secret, clearSecret, version
+            operation, property, connection, mode, policy, configuration, secret, clearSecret, version
         };
         command.SetAction((parse, token) => ExecuteObjectAsync(
             services, globalOptions, parse, IngestionAdminOperationNames.ConnectionUpdate,
@@ -401,7 +402,7 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
                 }
 
                 return await provider.GetRequiredService<IRequestDispatcher>().SendAsync(
-                    new UpdateAdapterConnectionCommand(parse.GetRequiredValue(property), parse.GetRequiredValue(connection),
+                    new UpdateAdapterConnectionCommand(parse.GetRequiredValue(operation), parse.GetRequiredValue(property), parse.GetRequiredValue(connection),
                         parsedMode.Value, parsedPolicy.Value, parse.GetRequiredValue(configuration),
                         ResolveSecretReferenceUpdateMode(parse.GetValue(secret), parse.GetValue(clearSecret)),
                         parse.GetValue(secret),

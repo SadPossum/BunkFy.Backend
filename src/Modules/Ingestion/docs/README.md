@@ -9,9 +9,9 @@ Ingestion is BunkFy's tenant- and property-scoped control plane for external sou
 The current foundation contains:
 
 - the module project boundaries, PostgreSQL migration, inbox/outbox infrastructure, and optional API/admin front doors;
-- scoped adapter connections with retry-safe caller-owned creation identity,
-  conflict policy, write-only secret references, configuration references, and
-  checkpoints;
+- scoped adapter connections with retry-safe caller-owned creation and settings
+  update identities, conflict policy, write-only secret references,
+  configuration references, and checkpoints;
 - task-linked source-run state, durable receipt identity, source deduplication, and staff proposal state machines;
 - repository-backed observation receipt handling with raw payload storage through the selected GMA file adapter;
 - assignment-bound adapter acknowledgement and checkpoint coordination;
@@ -49,7 +49,7 @@ The current foundation contains:
 - exact reservation-linked DataRights discovery with versioned Ingestion-owned source-link coordinates and no raw or fuzzy identity search;
 - catalogue-driven DataRights export of the selected provider-evidence graph, including deterministic protected raw-payload and normalized-history chunking plus fail-closed retained-object reads;
 - a mandatory tenant-termination owner that exports connection metadata,
-  connection-creation receipts, non-secret credential metadata, tenant ingress
+  connection-management receipts, non-secret credential metadata, tenant ingress
   controls, run and receipt provenance, reprocessing history, proposals, source
   links, dispatches, holds, retention execution, and minimum anonymisation proof
   under the shared workspace fence;
@@ -75,6 +75,14 @@ configuration fails with a stable conflict. The connection and its append-only
 digest-only operation receipt commit together, so a lost response cannot create
 a second connection. Invalid or denied attempts do not reserve the operation id.
 See [Ingestion Connection Creation Idempotency Task](../../../docs/planning/ingestion-connection-create-idempotency-task.md).
+
+Connection settings updates likewise require one caller-owned operation id per
+logical edit. Exact retries retain the original expected version and return the
+current bounded receipt without another aggregate event; changed reuse fails
+with a stable conflict. Keep, replace, and clear secret-reference intents are
+fingerprinted without persisting raw references, and a valid no-change update
+still records its successful operation receipt. See
+[Ingestion Connection Update Idempotency Task](../../../docs/planning/ingestion-connection-update-idempotency-task.md).
 
 Polling minimum/recommended intervals remain provider capability metadata, while each polling connection may separately own an explicit interval and retry limit. Ingestion persists that desired schedule and exposes it through a dynamic GMA `ITaskScheduleProvider`; TaskRuntime owns occurrence deduplication, leases, retries, and multi-worker execution. The trusted schedule reader crosses tenant query filters only to project enabled connection ids, tenant ids, cadence, and retry limits into tenant-scoped tasks. It does not expose adapter configuration or secret references.
 

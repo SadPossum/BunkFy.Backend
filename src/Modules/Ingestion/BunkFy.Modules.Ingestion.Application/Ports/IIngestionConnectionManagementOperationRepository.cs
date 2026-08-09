@@ -41,5 +41,6 @@ internal sealed record IngestionConnectionManagementOperationRecord(
 
 internal enum IngestionConnectionManagementMutationKind
 {
-    ConnectionCreate = 1
+    ConnectionCreate = 1,
+    ConnectionUpdate = 2
 }

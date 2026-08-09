@@ -1,6 +1,7 @@
 namespace Integration.Tests;
 
 using BunkFy.Adapter.Abstractions;
+using BunkFy.DataGovernance;
 using BunkFy.Modules.Ingestion.Application;
 using BunkFy.Modules.Ingestion.Application.Adapters;
 using BunkFy.Modules.Ingestion.Application.Commands;
@@ -277,7 +278,10 @@ public sealed class IngestionExecutionLockIntegrationTests
             new TestScope());
         return new UpdateAdapterConnectionCommandHandler(
             coordinator,
+            new IngestionConnectionManagementOperationRepository(dbContext),
+            new AllowCountryPolicyAdmission(),
             new TestDescriptors(),
+            new TestScope(),
             new TestClock());
     }
 
@@ -302,6 +306,7 @@ public sealed class IngestionExecutionLockIntegrationTests
         AdapterConnection connection,
         string configurationReference,
         long expectedVersion) => new(
+            Guid.NewGuid(),
             connection.PropertyId,
             connection.Id,
             AdapterExecutionMode.Continuous,
@@ -380,6 +385,34 @@ public sealed class IngestionExecutionLockIntegrationTests
     private sealed class TestClock : ISystemClock
     {
         public DateTimeOffset UtcNow => Now.AddMinutes(1);
+    }
+
+    private sealed class AllowCountryPolicyAdmission
+        : IIngestionCountryPolicyAdmission
+    {
+        public Task<CountryPolicyDecision> EvaluateAsync(
+            Guid propertyId,
+            string purposeCode,
+            CountryPolicySurface surface,
+            string sourceProvenance,
+            CancellationToken cancellationToken) => Task.FromResult(
+            CountryPolicyDecision.Allow(new CountryPolicyEvidence(
+                "GB",
+                "gb-hostel",
+                1,
+                "eu-west",
+                "none",
+                "guest-standard",
+                1,
+                new string('a', 64),
+                purposeCode,
+                surface,
+                sourceProvenance,
+                CountryPolicyApprovalState.Approved,
+                Now.AddDays(-1),
+                Now.AddDays(30),
+                Now,
+                [])));
     }
 
     private sealed class OpenTerminationFence : IWorkspaceTerminationFenceReader

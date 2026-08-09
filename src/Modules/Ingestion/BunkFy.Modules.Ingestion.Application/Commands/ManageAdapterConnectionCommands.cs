@@ -14,6 +14,7 @@ public sealed record CreateAdapterConnectionCommand(
     string? SecretReference) : ITransactionalCommand<AdapterConnectionMutationReceiptDto>;
 
 public sealed record UpdateAdapterConnectionCommand(
+    Guid OperationId,
     Guid PropertyId,
     Guid ConnectionId,
     AdapterExecutionMode ExecutionMode,

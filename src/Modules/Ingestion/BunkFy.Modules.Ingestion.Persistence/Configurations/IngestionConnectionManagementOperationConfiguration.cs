@@ -27,9 +27,12 @@ internal sealed class IngestionConnectionManagementOperationConfiguration
                 "char_length(\"RequestFingerprint\") = 64 AND " +
                 "\"RequestFingerprint\" ~ '^[0-9a-f]{64}$'");
             table.HasCheckConstraint(
-                "CK_ingestion_connection_management_operations_create",
-                "\"Kind\" = 1 AND \"ExpectedVersion\" = 0 AND " +
-                "\"ResultVersion\" = 1 AND \"Id\" = \"ConnectionId\"");
+                "CK_ingestion_connection_management_operations_outcome",
+                "(\"Kind\" = 1 AND \"ExpectedVersion\" = 0 AND " +
+                "\"ResultVersion\" = 1 AND \"Id\" = \"ConnectionId\") OR " +
+                "(\"Kind\" = 2 AND \"ExpectedVersion\" > 0 AND " +
+                "\"ResultVersion\" >= \"ExpectedVersion\" AND " +
+                "\"ResultVersion\" <= \"ExpectedVersion\" + 1)");
         });
         builder.HasKey(operation => new
         {

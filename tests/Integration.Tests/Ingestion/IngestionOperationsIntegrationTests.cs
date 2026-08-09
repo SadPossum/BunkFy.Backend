@@ -289,16 +289,43 @@ public sealed class IngestionOperationsIntegrationTests
             Assert.DoesNotContain("secret://integration", json, StringComparison.Ordinal);
         }
 
-        AdapterConnectionMutationReceiptDto keptSecretReceipt = await PutAsync<AdapterConnectionMutationReceiptDto>(
-            client,
-            $"/api/ingestion/properties/{PropertyId:D}/connections/{created.ConnectionId:D}",
-            new
-            {
-                executionMode = AdapterExecutionMode.Polling,
-                conflictPolicy = AdapterConflictPolicy.SuggestionsOnly,
-                configurationReference = "configuration://integration-updated",
-                expectedVersion = created.Version
-            }).ConfigureAwait(false);
+        Guid updateOperationId = Guid.NewGuid();
+        object updateRequest = new
+        {
+            operationId = updateOperationId,
+            executionMode = AdapterExecutionMode.Polling,
+            conflictPolicy = AdapterConflictPolicy.SuggestionsOnly,
+            configurationReference = "configuration://integration-updated",
+            expectedVersion = created.Version
+        };
+        AdapterConnectionMutationReceiptDto[] concurrentUpdateReceipts =
+            await Task.WhenAll(
+                PutAsync<AdapterConnectionMutationReceiptDto>(
+                    client,
+                    $"/api/ingestion/properties/{PropertyId:D}/connections/{created.ConnectionId:D}",
+                    updateRequest),
+                PutAsync<AdapterConnectionMutationReceiptDto>(
+                    client,
+                    $"/api/ingestion/properties/{PropertyId:D}/connections/{created.ConnectionId:D}",
+                    updateRequest)).ConfigureAwait(false);
+        AdapterConnectionMutationReceiptDto keptSecretReceipt =
+            concurrentUpdateReceipts[0];
+        Assert.All(
+            concurrentUpdateReceipts,
+            receipt => Assert.Equal(keptSecretReceipt, receipt));
+        using (HttpResponseMessage changedUpdateReplay = await client.PutAsJsonAsync(
+                   $"/api/ingestion/properties/{PropertyId:D}/connections/{created.ConnectionId:D}",
+                   new
+                   {
+                       operationId = updateOperationId,
+                       executionMode = AdapterExecutionMode.Polling,
+                       conflictPolicy = AdapterConflictPolicy.SuggestionsOnly,
+                       configurationReference = "configuration://changed",
+                       expectedVersion = created.Version
+                   }).ConfigureAwait(false))
+        {
+            Assert.Equal(HttpStatusCode.Conflict, changedUpdateReplay.StatusCode);
+        }
         AdapterConnectionDto keptSecret = await GetAsync<AdapterConnectionDto>(
             client,
             $"/api/ingestion/properties/{PropertyId:D}/connections/{created.ConnectionId:D}")
@@ -310,6 +337,7 @@ public sealed class IngestionOperationsIntegrationTests
             $"/api/ingestion/properties/{PropertyId:D}/connections/{created.ConnectionId:D}",
             new
             {
+                operationId = Guid.NewGuid(),
                 executionMode = AdapterExecutionMode.Polling,
                 conflictPolicy = AdapterConflictPolicy.SuggestionsOnly,
                 configurationReference = "configuration://integration-updated",
@@ -322,6 +350,20 @@ public sealed class IngestionOperationsIntegrationTests
             .ConfigureAwait(false);
         Assert.Equal(clearedSecretReceipt.Version, clearedSecret.Version);
         Assert.False(clearedSecret.HasSecretReference);
+        using (IServiceScope scope = api.Services.CreateScope())
+        {
+            scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>()
+                .SetTenant(TenantId);
+            IngestionDbContext dbContext = scope.ServiceProvider
+                .GetRequiredService<IngestionDbContext>();
+            Assert.Equal(
+                1,
+                await dbContext.ConnectionManagementOperations.CountAsync(
+                    operation =>
+                        operation.ConnectionId == created.ConnectionId &&
+                        operation.Id == updateOperationId)
+                    .ConfigureAwait(false));
+        }
 
         using (HttpResponseMessage invalidSchedule = await client.PutAsJsonAsync(
                    $"/api/ingestion/properties/{PropertyId:D}/connections/{created.ConnectionId:D}/polling-schedule",

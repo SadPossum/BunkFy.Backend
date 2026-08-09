@@ -233,6 +233,187 @@ public sealed class AdapterConnectionManagementTests
     }
 
     [Fact]
+    public async Task Update_requires_a_non_empty_operation_id_without_binding_it()
+    {
+        Guid propertyId = Guid.NewGuid();
+        AdapterConnection connection = AdapterConnection.Create(
+            Guid.NewGuid(), "tenant-a", propertyId, "fake.http",
+            AdapterExecutionMode.Polling,
+            IngestionConflictPolicy.SuggestionsOnly,
+            "configuration://main", null, Now).Value;
+        FakeConnectionRepository connections = new(connection);
+        FakeConnectionManagementOperationRepository operations = new();
+
+        var result = await CreateUpdateHandler(connections, operations)
+            .HandleAsync(
+                new(
+                    Guid.Empty,
+                    propertyId,
+                    connection.Id,
+                    AdapterExecutionMode.Continuous,
+                    AdapterConflictPolicy.SuggestionsOnly,
+                    "configuration://updated",
+                    SecretReferenceUpdateMode.Keep,
+                    null,
+                    connection.Version),
+                CancellationToken.None);
+
+        Assert.Equal(
+            IngestionApplicationErrors.ConnectionManagementOperationInvalid,
+            result.Error);
+        Assert.Equal(1, connection.Version);
+        Assert.Empty(operations.Items);
+    }
+
+    [Fact]
+    public async Task Update_exact_retry_replays_and_changed_intent_conflicts()
+    {
+        Guid propertyId = Guid.NewGuid();
+        Guid operationId = Guid.NewGuid();
+        AdapterConnection connection = AdapterConnection.Create(
+            Guid.NewGuid(), "tenant-a", propertyId, "fake.http",
+            AdapterExecutionMode.Polling,
+            IngestionConflictPolicy.SuggestionsOnly,
+            "configuration://main", "secret://initial", Now).Value;
+        FakeConnectionRepository connections = new(connection);
+        FakeConnectionManagementOperationRepository operations = new();
+        UpdateAdapterConnectionCommandHandler handler =
+            CreateUpdateHandler(connections, operations);
+        UpdateAdapterConnectionCommand command = new(
+            operationId,
+            propertyId,
+            connection.Id,
+            AdapterExecutionMode.Continuous,
+            AdapterConflictPolicy.AutoApplyWhenAdapterBaselineUnchanged,
+            " configuration://updated ",
+            SecretReferenceUpdateMode.Replace,
+            " secret://updated ",
+            ExpectedVersion: 1);
+
+        var updated = await handler.HandleAsync(command, CancellationToken.None);
+        var replayed = await handler.HandleAsync(
+            command with
+            {
+                ConfigurationReference = "configuration://updated",
+                SecretReference = "secret://updated"
+            },
+            CancellationToken.None);
+        var conflicted = await handler.HandleAsync(
+            command with { ConfigurationReference = "configuration://changed" },
+            CancellationToken.None);
+        var stale = await handler.HandleAsync(
+            command with { OperationId = Guid.NewGuid() },
+            CancellationToken.None);
+
+        Assert.True(updated.IsSuccess, updated.Error.Code);
+        Assert.Equal(updated.Value, replayed.Value);
+        Assert.Equal(2, connection.Version);
+        Assert.Equal("secret://updated", connection.SecretReference);
+        Assert.Equal(
+            IngestionApplicationErrors.ConnectionManagementOperationConflict,
+            conflicted.Error);
+        Assert.Equal(
+            BunkFy.Modules.Ingestion.Domain.Errors.IngestionDomainErrors.VersionConflict,
+            stale.Error);
+        IngestionConnectionManagementOperationRecord operation =
+            Assert.Single(operations.Items);
+        Assert.Equal(IngestionConnectionManagementMutationKind.ConnectionUpdate, operation.Kind);
+        Assert.Equal(1, operation.ExpectedVersion);
+        Assert.Equal(2, operation.ResultVersion);
+    }
+
+    [Fact]
+    public async Task Update_no_change_receipt_does_not_resolve_keep_against_mutable_secret_state()
+    {
+        Guid propertyId = Guid.NewGuid();
+        Guid operationId = Guid.NewGuid();
+        AdapterConnection connection = AdapterConnection.Create(
+            Guid.NewGuid(), "tenant-a", propertyId, "fake.http",
+            AdapterExecutionMode.Polling,
+            IngestionConflictPolicy.SuggestionsOnly,
+            "configuration://main", "secret://initial", Now).Value;
+        FakeConnectionRepository connections = new(connection);
+        FakeConnectionManagementOperationRepository operations = new();
+        UpdateAdapterConnectionCommandHandler handler =
+            CreateUpdateHandler(connections, operations);
+        UpdateAdapterConnectionCommand command = new(
+            operationId,
+            propertyId,
+            connection.Id,
+            AdapterExecutionMode.Polling,
+            AdapterConflictPolicy.SuggestionsOnly,
+            " configuration://main ",
+            SecretReferenceUpdateMode.Keep,
+            null,
+            ExpectedVersion: 1);
+
+        var noChange = await handler.HandleAsync(command, CancellationToken.None);
+        Assert.True(noChange.IsSuccess, noChange.Error.Code);
+        Assert.Equal(1, connection.Version);
+        Assert.Equal(1, Assert.Single(operations.Items).ResultVersion);
+
+        Assert.True(connection.Configure(
+            AdapterExecutionMode.Polling,
+            IngestionConflictPolicy.SuggestionsOnly,
+            "configuration://main",
+            "secret://changed-later",
+            connection.Version,
+            Now.AddMinutes(1)).IsSuccess);
+        var replayed = await handler.HandleAsync(command, CancellationToken.None);
+
+        Assert.True(replayed.IsSuccess, replayed.Error.Code);
+        Assert.Equal(2, replayed.Value.Version);
+        Assert.Single(operations.Items);
+    }
+
+    [Fact]
+    public async Task Update_revalidates_lifecycle_and_country_policy_before_replay()
+    {
+        Guid propertyId = Guid.NewGuid();
+        AdapterConnection connection = AdapterConnection.Create(
+            Guid.NewGuid(), "tenant-a", propertyId, "fake.http",
+            AdapterExecutionMode.Polling,
+            IngestionConflictPolicy.SuggestionsOnly,
+            "configuration://main", null, Now).Value;
+        FakeConnectionRepository connections = new(connection);
+        FakeConnectionManagementOperationRepository operations = new();
+        UpdateAdapterConnectionCommand command = new(
+            Guid.NewGuid(),
+            propertyId,
+            connection.Id,
+            AdapterExecutionMode.Polling,
+            AdapterConflictPolicy.SuggestionsOnly,
+            "configuration://main",
+            SecretReferenceUpdateMode.Keep,
+            null,
+            ExpectedVersion: 1);
+
+        var completed = await CreateUpdateHandler(connections, operations)
+            .HandleAsync(command, CancellationToken.None);
+        var lifecycleDenied = await CreateUpdateHandler(
+                connections,
+                operations,
+                lifecyclePolicies:
+                [new TestLifecyclePolicy(IngestionTenantLifecycleDecision.Restricted)])
+            .HandleAsync(command, CancellationToken.None);
+        var countryDenied = await CreateUpdateHandler(
+                connections,
+                operations,
+                new TestCountryPolicyAdmission(allowed: false))
+            .HandleAsync(command, CancellationToken.None);
+
+        Assert.True(completed.IsSuccess, completed.Error.Code);
+        Assert.Equal(
+            IngestionApplicationErrors.TenantLifecycleRestricted,
+            lifecycleDenied.Error);
+        Assert.Equal(
+            IngestionApplicationErrors.CountryPolicyDenied(
+                CountryPolicyDecisionReason.MissingBinding),
+            countryDenied.Error);
+        Assert.Single(operations.Items);
+    }
+
+    [Fact]
     public async Task Update_and_disable_use_property_scope_and_expected_version()
     {
         Guid propertyId = Guid.NewGuid();
@@ -240,12 +421,12 @@ public sealed class AdapterConnectionManagementTests
             Guid.NewGuid(), "tenant-a", propertyId, "fake.http", AdapterExecutionMode.Polling,
             IngestionConflictPolicy.SuggestionsOnly, "configuration://main", null, Now).Value;
         FakeConnectionRepository connections = new(connection);
+        FakeConnectionManagementOperationRepository operations = new();
         IngestionExecutionMutationCoordinator execution =
             TestIngestionExecution.Create(connections);
 
-        var updated = await new UpdateAdapterConnectionCommandHandler(
-            execution, new TestDescriptors(), new TestClock()).HandleAsync(
-            new(propertyId, connection.Id, AdapterExecutionMode.Continuous,
+        var updated = await CreateUpdateHandler(connections, operations).HandleAsync(
+            new(Guid.NewGuid(), propertyId, connection.Id, AdapterExecutionMode.Continuous,
                 AdapterConflictPolicy.AutoApplyWhenAdapterBaselineUnchanged,
                 "configuration://secondary", SecretReferenceUpdateMode.Replace, "secret://secondary", 1),
             CancellationToken.None);
@@ -280,30 +461,31 @@ public sealed class AdapterConnectionManagementTests
             Guid.NewGuid(), "tenant-a", propertyId, "fake.http", AdapterExecutionMode.Polling,
             IngestionConflictPolicy.SuggestionsOnly, "configuration://main", "secret://initial", Now).Value;
         FakeConnectionRepository connections = new(connection);
-        UpdateAdapterConnectionCommandHandler handler = new(
-            TestIngestionExecution.Create(connections),
-            new TestDescriptors(),
-            new TestClock());
+        FakeConnectionManagementOperationRepository operations = new();
+        UpdateAdapterConnectionCommandHandler handler =
+            CreateUpdateHandler(connections, operations);
 
         var kept = await handler.HandleAsync(new(
-            propertyId, connection.Id, AdapterExecutionMode.Continuous, AdapterConflictPolicy.SuggestionsOnly,
+            Guid.NewGuid(), propertyId, connection.Id, AdapterExecutionMode.Continuous, AdapterConflictPolicy.SuggestionsOnly,
             "configuration://changed", SecretReferenceUpdateMode.Keep, null, 1), CancellationToken.None);
         Assert.True(kept.IsSuccess, kept.Error.Code);
         Assert.Equal("secret://initial", connection.SecretReference);
 
+        Guid clearOperationId = Guid.NewGuid();
         var invalid = await handler.HandleAsync(new(
-            propertyId, connection.Id, AdapterExecutionMode.Continuous, AdapterConflictPolicy.SuggestionsOnly,
+            clearOperationId, propertyId, connection.Id, AdapterExecutionMode.Continuous, AdapterConflictPolicy.SuggestionsOnly,
             "configuration://changed", SecretReferenceUpdateMode.Clear, "secret://unexpected", 2),
             CancellationToken.None);
         Assert.Equal(IngestionApplicationErrors.SecretReferenceUpdateInvalid, invalid.Error);
         Assert.Equal(2, connection.Version);
 
         var cleared = await handler.HandleAsync(new(
-            propertyId, connection.Id, AdapterExecutionMode.Continuous, AdapterConflictPolicy.SuggestionsOnly,
+            clearOperationId, propertyId, connection.Id, AdapterExecutionMode.Continuous, AdapterConflictPolicy.SuggestionsOnly,
             "configuration://changed", SecretReferenceUpdateMode.Clear, null, 2), CancellationToken.None);
 
         Assert.True(cleared.IsSuccess, cleared.Error.Code);
         Assert.Null(connection.SecretReference);
+        Assert.Equal(2, operations.Items.Count);
     }
 
     [Fact]
@@ -384,6 +566,20 @@ public sealed class AdapterConnectionManagementTests
             return Task.CompletedTask;
         }
     }
+
+    private static UpdateAdapterConnectionCommandHandler CreateUpdateHandler(
+        FakeConnectionRepository connections,
+        FakeConnectionManagementOperationRepository operations,
+        IIngestionCountryPolicyAdmission? countryPolicy = null,
+        IEnumerable<IIngestionTenantLifecyclePolicy>? lifecyclePolicies = null) =>
+        new(
+            TestIngestionExecution.Create(connections),
+            operations,
+            countryPolicy ?? new TestCountryPolicyAdmission(),
+            new TestDescriptors(),
+            new TestScope(),
+            new TestClock(),
+            lifecyclePolicies);
 
     private sealed class FakeConnectionManagementOperationRepository
         : IIngestionConnectionManagementOperationRepository

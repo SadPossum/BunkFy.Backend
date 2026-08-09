@@ -299,6 +299,7 @@ public sealed class IngestionModule : IModule
             IRequestDispatcher dispatcher,
             CancellationToken cancellationToken) =>
             (await dispatcher.SendAsync(new UpdateAdapterConnectionCommand(
+                request.OperationId,
                 propertyId,
                 connectionId,
                 request.ExecutionMode,
@@ -1236,6 +1237,7 @@ public sealed class IngestionModule : IModule
         string? SecretReference);
 
     public sealed record UpdateConnectionRequest(
+        Guid OperationId,
         AdapterExecutionMode ExecutionMode,
         AdapterConflictPolicy ConflictPolicy,
         string ConfigurationReference,

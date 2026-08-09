@@ -19,6 +19,7 @@ using BunkFy.Modules.Properties.Contracts;
 using Gma.Framework.Pagination;
 using Gma.Framework.Scoping;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Xunit;
 
@@ -63,6 +64,19 @@ public sealed class IngestionModelTests
                 .Select(property => property.Name)
                 .ToArray());
         Assert.Equal(DeleteBehavior.Restrict, connectionOwnership.DeleteBehavior);
+        IEntityType designOperation = dbContext.GetService<IDesignTimeModel>()
+            .Model.FindEntityType(
+                typeof(IngestionConnectionManagementOperation))!;
+        ICheckConstraint outcomeConstraint = Assert.Single(
+            designOperation.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_ingestion_connection_management_operations_outcome");
+        Assert.Contains("\"Kind\" = 1", outcomeConstraint.Sql, StringComparison.Ordinal);
+        Assert.Contains("\"Kind\" = 2", outcomeConstraint.Sql, StringComparison.Ordinal);
+        Assert.Contains(
+            "\"ResultVersion\" <= \"ExpectedVersion\" + 1",
+            outcomeConstraint.Sql,
+            StringComparison.Ordinal);
     }
 
     [Fact]

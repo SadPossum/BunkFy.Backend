@@ -4,6 +4,7 @@ using System.Buffers.Binary;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using BunkFy.Modules.Ingestion.Application.Commands;
 using BunkFy.Modules.Ingestion.Domain.Connections;
 
 internal static class IngestionConnectionMutationFingerprint
@@ -16,6 +17,22 @@ internal static class IngestionConnectionMutationFingerprint
         ((int)connection.ConflictPolicy).ToString(CultureInfo.InvariantCulture),
         connection.ConfigurationReference,
         connection.SecretReference ?? string.Empty);
+
+    public static string ComputeUpdate(
+        UpdateAdapterConnectionCommand command,
+        IngestionConflictPolicy conflictPolicy) => Compute(
+        "bunkfy-ingestion-connection-update/v1",
+        command.PropertyId.ToString("N"),
+        command.ConnectionId.ToString("N"),
+        command.ExpectedVersion.ToString(CultureInfo.InvariantCulture),
+        ((int)command.ExecutionMode).ToString(CultureInfo.InvariantCulture),
+        ((int)conflictPolicy).ToString(CultureInfo.InvariantCulture),
+        command.ConfigurationReference?.Trim() ?? string.Empty,
+        ((int)command.SecretReferenceUpdateMode).ToString(
+            CultureInfo.InvariantCulture),
+        command.SecretReferenceUpdateMode == SecretReferenceUpdateMode.Replace
+            ? command.SecretReference?.Trim() ?? string.Empty
+            : string.Empty);
 
     private static string Compute(params string[] values)
     {

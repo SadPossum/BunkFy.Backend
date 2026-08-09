@@ -1,4 +1,4 @@
-# ingestion Personal-Data Inventory v13
+# ingestion Personal-Data Inventory v14
 
 Generated from `ingestion.personal-data` schema v1.
 Catalogue approval: `engineering-default`.
@@ -1042,10 +1042,12 @@ Engineering metadata is not legal or country-launch approval.
 | ingestion.operations.operation-id | BunkFy.Adapter.Abstractions | BunkFy.Adapter.Abstractions.AdapterObservationResult | OperationId | adapter-ingress | operations-lifecycle |
 | ingestion.operations.operation-id | BunkFy.Adapter.Abstractions | BunkFy.Adapter.Abstractions.AdapterObservedRecord | OperationId | adapter-ingress | operations-lifecycle |
 | ingestion.operations.operation-id | BunkFy.Modules.Ingestion.Api | BunkFy.Modules.Ingestion.Api.IngestionModule+CreateConnectionRequest | OperationId | api-input | operations-lifecycle |
+| ingestion.operations.operation-id | BunkFy.Modules.Ingestion.Api | BunkFy.Modules.Ingestion.Api.IngestionModule+UpdateConnectionRequest | OperationId | api-input | operations-lifecycle |
 | ingestion.operations.operation-id | BunkFy.Modules.Ingestion.Application | BunkFy.Modules.Ingestion.Application.Commands.CreateAdapterConnectionCommand | OperationId | application-command | operations-lifecycle |
 | ingestion.operations.operation-id | BunkFy.Modules.Ingestion.Application | BunkFy.Modules.Ingestion.Application.Commands.ReceiveObservationCommand | OperationId | application-command | operations-lifecycle |
 | ingestion.operations.operation-id | BunkFy.Modules.Ingestion.Application | BunkFy.Modules.Ingestion.Application.Commands.RecordObservationReprocessingOutputCommand | OperationId | application-command | operations-lifecycle |
 | ingestion.operations.operation-id | BunkFy.Modules.Ingestion.Application | BunkFy.Modules.Ingestion.Application.Commands.ReservationObservationDispatchResult | OperationId | application-command | operations-lifecycle |
+| ingestion.operations.operation-id | BunkFy.Modules.Ingestion.Application | BunkFy.Modules.Ingestion.Application.Commands.UpdateAdapterConnectionCommand | OperationId | application-command | operations-lifecycle |
 | ingestion.operations.operation-id | BunkFy.Modules.Ingestion.Domain | BunkFy.Modules.Ingestion.Domain.Receipts.ObservationReceipt | OperationId | persistence | operations-lifecycle |
 | ingestion.operations.operation-id | BunkFy.Modules.Ingestion.Domain | BunkFy.Modules.Ingestion.Domain.Reprocessing.ObservationReprocessingOutput | OperationId | persistence | operations-lifecycle |
 | ingestion.operations.operation-id | BunkFy.Modules.Ingestion.Persistence | BunkFy.Modules.Ingestion.Persistence.IngestionConnectionManagementOperation | Id | persistence | operations-lifecycle |

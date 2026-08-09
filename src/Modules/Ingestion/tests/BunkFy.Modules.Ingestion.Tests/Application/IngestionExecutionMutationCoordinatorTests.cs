@@ -139,11 +139,15 @@ public sealed class IngestionExecutionMutationCoordinatorTests
                 connections,
                 new RecordingRunRepository(null, calls),
                 new TestScope()),
+            new EmptyConnectionManagementOperationRepository(),
+            new TestCountryPolicyAdmission(),
             new TestDescriptors(),
+            new TestScope(),
             new TestClock());
 
         var result = await handler.HandleAsync(
             new UpdateAdapterConnectionCommand(
+                Guid.NewGuid(),
                 connection.PropertyId,
                 connection.Id,
                 AdapterExecutionMode.Polling,
@@ -373,6 +377,22 @@ public sealed class IngestionExecutionMutationCoordinatorTests
                     : null;
             return descriptor is not null;
         }
+    }
+
+    private sealed class EmptyConnectionManagementOperationRepository
+        : IIngestionConnectionManagementOperationRepository
+    {
+        public Task<IngestionConnectionManagementOperationRecord?> GetAsync(
+            Guid connectionId,
+            Guid operationId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IngestionConnectionManagementOperationRecord?>(null);
+
+        public Task AddAsync(
+            IngestionConnectionManagementOperationRecord operation,
+            CancellationToken cancellationToken) =>
+            throw new InvalidOperationException(
+                "A version-conflicted update must not bind its operation id.");
     }
 
     private sealed class TestScope : IScopeContext

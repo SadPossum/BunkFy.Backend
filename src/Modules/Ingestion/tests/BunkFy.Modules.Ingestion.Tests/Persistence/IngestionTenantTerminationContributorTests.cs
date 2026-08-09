@@ -101,6 +101,10 @@ public sealed class IngestionTenantTerminationContributorTests
             FieldsJson(connectionOperation),
             StringComparison.OrdinalIgnoreCase);
         Assert.Contains(
+            "\"kind\":2",
+            FieldsJson(connectionOperation),
+            StringComparison.Ordinal);
+        Assert.Contains(
             first.Records,
             record => record.RecordType ==
                 IngestionTenantTerminationMetadata
@@ -628,12 +632,12 @@ public sealed class IngestionTenantTerminationContributorTests
         AdapterConnection connection = CreateConnection(connectionId);
         IngestionConnectionManagementOperation connectionOperation = new(
             new IngestionConnectionManagementOperationRecord(
-                connectionId,
+                Guid.NewGuid(),
                 TenantId,
                 PropertyId,
                 connectionId,
-                IngestionConnectionManagementMutationKind.ConnectionCreate,
-                ExpectedVersion: 0,
+                IngestionConnectionManagementMutationKind.ConnectionUpdate,
+                ExpectedVersion: 1,
                 Digest,
                 ResultVersion: 1,
                 Now));

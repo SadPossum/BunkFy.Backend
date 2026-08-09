@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "ingestion.personal-data",
-  "catalogVersion": 13,
+  "catalogVersion": 14,
   "module": "ingestion",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -10088,8 +10088,22 @@
           "retentionPolicy": null
         },
         {
+          "assembly": "BunkFy.Modules.Ingestion.Application",
+          "type": "BunkFy.Modules.Ingestion.Application.Commands.UpdateAdapterConnectionCommand",
+          "member": "OperationId",
+          "surface": "application-command",
+          "retentionPolicy": null
+        },
+        {
           "assembly": "BunkFy.Modules.Ingestion.Api",
           "type": "BunkFy.Modules.Ingestion.Api.IngestionModule+CreateConnectionRequest",
+          "member": "OperationId",
+          "surface": "api-input",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Api",
+          "type": "BunkFy.Modules.Ingestion.Api.IngestionModule+UpdateConnectionRequest",
           "member": "OperationId",
           "surface": "api-input",
           "retentionPolicy": null

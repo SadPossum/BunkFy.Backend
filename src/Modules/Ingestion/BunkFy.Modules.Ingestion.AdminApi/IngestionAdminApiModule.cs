@@ -199,7 +199,7 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
             HttpContext context, AdminApiExecutor executor, IRequestDispatcher dispatcher, CancellationToken token) =>
             await executor.ExecuteAsync(context,
                 AdminOperation.Create(IngestionAdminOperationNames.ConnectionUpdate, IngestionAdminPermissions.ConnectionsManage), true,
-                ct => dispatcher.SendAsync(new UpdateAdapterConnectionCommand(propertyId, connectionId,
+                ct => dispatcher.SendAsync(new UpdateAdapterConnectionCommand(request.OperationId, propertyId, connectionId,
                     request.ExecutionMode, request.ConflictPolicy, request.ConfigurationReference,
                     ResolveSecretReferenceUpdateMode(request.SecretReference, request.ClearSecretReference),
                     request.SecretReference,
@@ -902,7 +902,7 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
 
     public sealed record CreateConnectionRequest(Guid OperationId, string AdapterType, AdapterExecutionMode ExecutionMode,
         AdapterConflictPolicy ConflictPolicy, string ConfigurationReference, string? SecretReference);
-    public sealed record UpdateConnectionRequest(AdapterExecutionMode ExecutionMode, AdapterConflictPolicy ConflictPolicy,
+    public sealed record UpdateConnectionRequest(Guid OperationId, AdapterExecutionMode ExecutionMode, AdapterConflictPolicy ConflictPolicy,
         string ConfigurationReference, string? SecretReference, bool ClearSecretReference, long ExpectedVersion);
 
     private static SecretReferenceUpdateMode ResolveSecretReferenceUpdateMode(

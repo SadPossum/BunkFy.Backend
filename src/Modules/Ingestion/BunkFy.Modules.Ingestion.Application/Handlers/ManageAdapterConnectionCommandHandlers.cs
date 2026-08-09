@@ -139,14 +139,53 @@ internal sealed class CreateAdapterConnectionCommandHandler(
 
 internal sealed class UpdateAdapterConnectionCommandHandler(
     IngestionExecutionMutationCoordinator execution,
+    IIngestionConnectionManagementOperationRepository operations,
+    IIngestionCountryPolicyAdmission countryPolicy,
     IAdapterDescriptorRegistry descriptors,
-    ISystemClock clock)
+    IScopeContext scopeContext,
+    ISystemClock clock,
+    IEnumerable<IIngestionTenantLifecyclePolicy>? lifecyclePolicies = null)
     : ICommandHandler<UpdateAdapterConnectionCommand, AdapterConnectionMutationReceiptDto>
 {
     public async Task<Result<AdapterConnectionMutationReceiptDto>> HandleAsync(
         UpdateAdapterConnectionCommand command,
         CancellationToken cancellationToken)
     {
+        if (!scopeContext.IsEnabled || string.IsNullOrWhiteSpace(scopeContext.ScopeId))
+        {
+            return Result.Failure<AdapterConnectionMutationReceiptDto>(IngestionApplicationErrors.ScopeRequired);
+        }
+
+        if (command.OperationId == Guid.Empty)
+        {
+            return Result.Failure<AdapterConnectionMutationReceiptDto>(
+                IngestionApplicationErrors.ConnectionManagementOperationInvalid);
+        }
+
+        Result lifecycleAdmission =
+            await IngestionTenantLifecycleAdmission.AuthorizeAsync(
+                lifecyclePolicies,
+                scopeContext.ScopeId,
+                IngestionTenantLifecycleOperation.ConnectionProvisioning,
+                cancellationToken).ConfigureAwait(false);
+        if (lifecycleAdmission.IsFailure)
+        {
+            return Result.Failure<AdapterConnectionMutationReceiptDto>(
+                lifecycleAdmission.Error);
+        }
+
+        CountryPolicyDecision countryPolicyDecision = await countryPolicy.EvaluateAsync(
+            command.PropertyId,
+            IngestionCountryPolicyAdmission.ReservationIngestionPurpose,
+            CountryPolicySurface.ApiWrite,
+            IngestionCountryPolicyAdmission.AuthorizedOperatorProvenance,
+            cancellationToken).ConfigureAwait(false);
+        if (!countryPolicyDecision.IsAllowed)
+        {
+            return Result.Failure<AdapterConnectionMutationReceiptDto>(
+                IngestionApplicationErrors.CountryPolicyDenied(countryPolicyDecision.Reason));
+        }
+
         AdapterConnection? connection = await execution.AcquireConnectionWriteAsync(
             command.ConnectionId,
             cancellationToken).ConfigureAwait(false);
@@ -173,16 +212,53 @@ internal sealed class UpdateAdapterConnectionCommandHandler(
             return Result.Failure<AdapterConnectionMutationReceiptDto>(secretReference.Error);
         }
 
+        string requestFingerprint =
+            IngestionConnectionMutationFingerprint.ComputeUpdate(command, conflictPolicy);
+        IngestionConnectionManagementOperationRecord? existingOperation =
+            await operations.GetAsync(
+                command.ConnectionId,
+                command.OperationId,
+                cancellationToken).ConfigureAwait(false);
+        if (existingOperation is not null)
+        {
+            return existingOperation.Matches(
+                IngestionConnectionManagementMutationKind.ConnectionUpdate,
+                command.PropertyId,
+                command.ConnectionId,
+                command.ExpectedVersion,
+                requestFingerprint)
+                    ? Result.Success(AdapterConnectionMappings.MapReceipt(connection))
+                    : Result.Failure<AdapterConnectionMutationReceiptDto>(
+                        IngestionApplicationErrors
+                            .ConnectionManagementOperationConflict);
+        }
+
+        DateTimeOffset nowUtc = clock.UtcNow;
         Result configured = connection.Configure(
             command.ExecutionMode,
             conflictPolicy,
             command.ConfigurationReference,
             secretReference.Value.Value,
             command.ExpectedVersion,
-            clock.UtcNow);
-        return configured.IsSuccess
-            ? Result.Success(AdapterConnectionMappings.MapReceipt(connection))
-            : Result.Failure<AdapterConnectionMutationReceiptDto>(configured.Error);
+            nowUtc);
+        if (configured.IsFailure)
+        {
+            return Result.Failure<AdapterConnectionMutationReceiptDto>(configured.Error);
+        }
+
+        await operations.AddAsync(
+            new IngestionConnectionManagementOperationRecord(
+                command.OperationId,
+                connection.ScopeId,
+                connection.PropertyId,
+                connection.Id,
+                IngestionConnectionManagementMutationKind.ConnectionUpdate,
+                command.ExpectedVersion,
+                requestFingerprint,
+                connection.Version,
+                CompletedAtUtc: nowUtc),
+            cancellationToken).ConfigureAwait(false);
+        return Result.Success(AdapterConnectionMappings.MapReceipt(connection));
     }
 
     private static Result<ResolvedSecretReference> ResolveSecretReferenceUpdate(
