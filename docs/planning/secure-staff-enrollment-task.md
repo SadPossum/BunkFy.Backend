@@ -21,7 +21,7 @@ Organizations remains authoritative for:
 - pending claim, approval, rejection, and optimistic claim versioning;
 - generic invitation, claim, and resolution events.
 
-Organizations adds only an additive product admission hook. The hook receives opaque organization, invitation/link, claim, subject, and operation context and may deny a transition. It contains no Staff fields, profile names, property assignments, or BunkFy policy.
+Organizations adds only an additive product admission hook. The hook receives opaque organization, invitation/link, claim, subject, and operation context and returns allowed, denied, or temporarily unavailable. It contains no Staff fields, profile names, property assignments, or BunkFy policy.
 
 ### BunkFy Workspaces
 
@@ -47,7 +47,7 @@ AccessControl remains authoritative for roles and assignments. BunkFy grants its
 
 1. The browser previews the GMA token and removes it from reusable browser history.
 2. After authentication, the applicant submits the original opaque token and a proposed Staff profile to the BunkFy endpoint. The server inspects the token through Organizations contracts and resolves the authenticated subject and preferred verified Auth email; browser-supplied organization, source, subject, or email values are never trusted.
-3. The Organizations admission hook permits the exact invitation/link and subject only while the BunkFy application is ready. Possession of the original token is still required by Organizations.
+3. The Organizations admission hook permits the exact invitation/link and subject only while the BunkFy application is ready. A restricted workspace denies the transition; unavailable authoritative state returns a retryable failure without mutation. Possession of the original token is still required by Organizations.
 4. A manual claim becomes pending. Its integration event binds the Organizations claim id/version to the BunkFy process, and workspace owners read an enriched, minimal applicant summary from BunkFy.
 5. Approval or automatic claim creates/restores membership in Organizations. No membership handler grants ordinary-member permissions.
 6. The accepted invitation/claim event asks Staff to provision the exact applicant profile. Only after that succeeds does Workspaces install the constrained member baseline in AccessControl and mark the process complete.

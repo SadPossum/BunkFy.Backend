@@ -73,6 +73,12 @@ The organization catalog is global authority and cannot be stored behind the amb
 
 Organizations does not own product permissions or employment data. Membership alone never grants a BunkFy operation.
 
+The Organizations join-admission contract distinguishes `Allowed`, `Denied`,
+and `Unavailable`. BunkFy maps a deliberately restricted workspace to denial,
+but maps missing or invalid authoritative workspace state to unavailable so the
+join fails closed with retryable semantics instead of appearing permanently
+rejected.
+
 ### GMA Tenancy
 
 Tenancy continues to resolve and propagate the active resource scope. In BunkFy the selected organization id becomes the tenant id. An Organizations/Tenancy extension validates that the organization exists, is active, and that a user subject has an active membership before ordinary product endpoints execute.

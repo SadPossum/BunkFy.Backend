@@ -13,7 +13,7 @@ internal sealed class WorkspaceStaffJoinAdmissionPolicy(
     IWorkspaceAuthoritativeScope authoritativeScope)
     : IOrganizationJoinAdmissionPolicy
 {
-    public async ValueTask<bool> IsAllowedAsync(
+    public async ValueTask<OrganizationJoinAdmissionDecision> EvaluateAsync(
         OrganizationJoinAdmissionContext context,
         CancellationToken cancellationToken = default)
     {
@@ -29,7 +29,7 @@ internal sealed class WorkspaceStaffJoinAdmissionPolicy(
         if (sourceKind == WorkspaceStaffOnboardingSource.Unknown ||
             !Guid.TryParse(context.ApplicantSubjectId, out Guid memberId))
         {
-            return false;
+            return OrganizationJoinAdmissionDecision.Denied;
         }
 
         return await authoritativeScope.RunAsync(
@@ -44,10 +44,16 @@ internal sealed class WorkspaceStaffJoinAdmissionPolicy(
                             context.OrganizationId.ToString("D"),
                             cancellationToken)
                         .ConfigureAwait(false);
+                if (operational.Outcome ==
+                    WorkspaceOperationalAdmissionOutcome.Restricted)
+                {
+                    return OrganizationJoinAdmissionDecision.Denied;
+                }
+
                 if (operational.Outcome !=
                     WorkspaceOperationalAdmissionOutcome.Allowed)
                 {
-                    return false;
+                    return OrganizationJoinAdmissionDecision.Unavailable;
                 }
 
                 IWorkspaceStaffAccessPlanRepository plans = services
@@ -58,7 +64,7 @@ internal sealed class WorkspaceStaffJoinAdmissionPolicy(
                 if (plan is null || plan.SourceKind != sourceKind ||
                     plan.Status != WorkspaceStaffAccessPlanState.Active)
                 {
-                    return false;
+                    return OrganizationJoinAdmissionDecision.Denied;
                 }
 
                 IWorkspaceStaffOnboardingRepository applications = services
@@ -72,13 +78,13 @@ internal sealed class WorkspaceStaffJoinAdmissionPolicy(
                     .ConfigureAwait(false);
                 if (application is null || !application.IsAdmissible)
                 {
-                    return false;
+                    return OrganizationJoinAdmissionDecision.Denied;
                 }
 
                 if (context.Operation == OrganizationJoinAdmissionOperation.ApproveEnrollment &&
                     (!context.ClaimId.HasValue || application.ClaimId != context.ClaimId))
                 {
-                    return false;
+                    return OrganizationJoinAdmissionDecision.Denied;
                 }
 
                 IAuthMemberContactReader contacts = services
@@ -87,11 +93,14 @@ internal sealed class WorkspaceStaffJoinAdmissionPolicy(
                     options.Value.GlobalAuthScopeId,
                     memberId,
                     cancellationToken).ConfigureAwait(false);
-                return !string.IsNullOrWhiteSpace(verifiedEmail) &&
+                bool emailMatches = !string.IsNullOrWhiteSpace(verifiedEmail) &&
                     string.Equals(
                         application.VerifiedAccountEmail,
                         verifiedEmail,
                         StringComparison.OrdinalIgnoreCase);
+                return emailMatches
+                    ? OrganizationJoinAdmissionDecision.Allowed
+                    : OrganizationJoinAdmissionDecision.Denied;
             }).ConfigureAwait(false);
     }
 }

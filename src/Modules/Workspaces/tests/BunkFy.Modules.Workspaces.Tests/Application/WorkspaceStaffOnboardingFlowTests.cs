@@ -278,12 +278,23 @@ public sealed class WorkspaceStaffOnboardingFlowTests
             application.SubjectId,
             OrganizationEnrollmentApprovalMode.RequiresApproval);
 
-        Assert.True(await policy.IsAllowedAsync(valid));
-        Assert.False(await policy.IsAllowedAsync(valid with { SourceId = Guid.NewGuid() }));
-        Assert.False(await policy.IsAllowedAsync(valid with { ApplicantSubjectId = Guid.NewGuid().ToString("D") }));
+        Assert.Equal(
+            OrganizationJoinAdmissionDecision.Allowed,
+            await policy.EvaluateAsync(valid));
+        Assert.Equal(
+            OrganizationJoinAdmissionDecision.Denied,
+            await policy.EvaluateAsync(valid with { SourceId = Guid.NewGuid() }));
+        Assert.Equal(
+            OrganizationJoinAdmissionDecision.Denied,
+            await policy.EvaluateAsync(valid with
+            {
+                ApplicantSubjectId = Guid.NewGuid().ToString("D")
+            }));
 
         contacts.VerifiedEmail = "changed@example.test";
-        Assert.False(await policy.IsAllowedAsync(valid));
+        Assert.Equal(
+            OrganizationJoinAdmissionDecision.Denied,
+            await policy.EvaluateAsync(valid));
     }
 
     [Fact]
@@ -312,9 +323,15 @@ public sealed class WorkspaceStaffOnboardingFlowTests
             Guid.NewGuid().ToString("D"),
             OrganizationEnrollmentApprovalMode.RequiresApproval);
 
-        Assert.True(await policy.IsAllowedAsync(approval));
-        Assert.False(await policy.IsAllowedAsync(approval with { ClaimId = Guid.NewGuid() }));
-        Assert.False(await policy.IsAllowedAsync(approval with { ClaimId = null }));
+        Assert.Equal(
+            OrganizationJoinAdmissionDecision.Allowed,
+            await policy.EvaluateAsync(approval));
+        Assert.Equal(
+            OrganizationJoinAdmissionDecision.Denied,
+            await policy.EvaluateAsync(approval with { ClaimId = Guid.NewGuid() }));
+        Assert.Equal(
+            OrganizationJoinAdmissionDecision.Denied,
+            await policy.EvaluateAsync(approval with { ClaimId = null }));
     }
 
     [Fact]
@@ -335,7 +352,7 @@ public sealed class WorkspaceStaffOnboardingFlowTests
             .GetServices<IOrganizationJoinAdmissionPolicy>()
             .Single();
 
-        bool allowed = await policy.IsAllowedAsync(new(
+        OrganizationJoinAdmissionDecision decision = await policy.EvaluateAsync(new(
             OrganizationJoinAdmissionOperation.ClaimEnrollment,
             WorkspaceStaffOnboardingTests.OrganizationId,
             application.SourceId,
@@ -344,7 +361,37 @@ public sealed class WorkspaceStaffOnboardingFlowTests
             application.SubjectId,
             OrganizationEnrollmentApprovalMode.RequiresApproval));
 
-        Assert.False(allowed);
+        Assert.Equal(OrganizationJoinAdmissionDecision.Denied, decision);
+    }
+
+    [Fact]
+    public async Task Admission_reports_unavailable_when_workspace_state_is_not_authoritative()
+    {
+        WorkspaceStaffOnboarding application =
+            WorkspaceStaffOnboardingTests.CreateApplication();
+        using ServiceProvider provider = CreateProvider(
+            new FakeRepository(application),
+            new FakeStaffProvisioner(),
+            new FakeAccessControl(),
+            terminationFence: new WorkspaceTerminationFenceSnapshot(
+                Guid.Empty,
+                Guid.NewGuid(),
+                WorkspaceTerminationFenceState.Frozen,
+                Version: 1));
+        IOrganizationJoinAdmissionPolicy policy = provider
+            .GetServices<IOrganizationJoinAdmissionPolicy>()
+            .Single();
+
+        OrganizationJoinAdmissionDecision decision = await policy.EvaluateAsync(new(
+            OrganizationJoinAdmissionOperation.ClaimEnrollment,
+            WorkspaceStaffOnboardingTests.OrganizationId,
+            application.SourceId,
+            null,
+            application.SubjectId,
+            application.SubjectId,
+            OrganizationEnrollmentApprovalMode.RequiresApproval));
+
+        Assert.Equal(OrganizationJoinAdmissionDecision.Unavailable, decision);
     }
 
     private static ServiceProvider CreateProvider(
