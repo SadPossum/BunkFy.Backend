@@ -28,7 +28,8 @@ public sealed class WorkspaceStaffJoinSourceManagerTests
                 Invitation(unmanagedId)
             ],
             2,
-            25)
+            25,
+            HasMore: true)
         };
         RecordingPlans plans = new(Plan(managedId, WorkspaceStaffOnboardingSource.Invitation));
         WorkspaceStaffJoinSourceManager manager = CreateManager(organizations, plans);
@@ -41,6 +42,7 @@ public sealed class WorkspaceStaffJoinSourceManagerTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal(2, result.Value.Page);
+        Assert.True(result.Value.HasMore);
         Assert.Equal(2, result.Value.Items.Count);
         Assert.NotNull(result.Value.Items.Single(item => item.SourceId == managedId).AccessPlan);
         Assert.Null(result.Value.Items.Single(item => item.SourceId == unmanagedId).AccessPlan);
@@ -69,7 +71,8 @@ public sealed class WorkspaceStaffJoinSourceManagerTests
                     Now)
             ],
             1,
-            25)
+            25,
+            HasMore: true)
         };
         WorkspaceStaffJoinSourceManager manager = CreateManager(
             organizations,
@@ -82,6 +85,7 @@ public sealed class WorkspaceStaffJoinSourceManagerTests
             "owner-a");
 
         WorkspaceStaffJoinSourceDto source = Assert.Single(result.Value.Items);
+        Assert.True(result.Value.HasMore);
         Assert.Equal(WorkspaceStaffJoinSourceStatus.CapacityReached, source.Status);
         Assert.Equal(12, source.MaximumClaims);
         Assert.Equal("RequiresApproval", source.ApprovalMode);

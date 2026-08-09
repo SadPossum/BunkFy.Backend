@@ -59,7 +59,8 @@ public sealed record WorkspaceStaffJoinSourceDto(
 public sealed record WorkspaceStaffJoinSourceListResponse(
     IReadOnlyList<WorkspaceStaffJoinSourceDto> Items,
     int Page,
-    int PageSize);
+    int PageSize,
+    bool HasMore = false);
 
 public sealed record WorkspaceStaffJoinSourceReplacementDto(
     Guid PreviousSourceId,

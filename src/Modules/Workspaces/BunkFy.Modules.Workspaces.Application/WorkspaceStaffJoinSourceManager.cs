@@ -78,7 +78,8 @@ internal sealed class WorkspaceStaffJoinSourceManager(
                     item,
                     accessPlans.GetValueOrDefault(item.InvitationId))).ToArray(),
                 listed.Value.Page,
-                listed.Value.PageSize));
+                listed.Value.PageSize,
+                listed.Value.HasMore));
         }
 
         OrganizationJoinSourceOperation<OrganizationEnrollmentLinkListResponse> links =
@@ -97,7 +98,8 @@ internal sealed class WorkspaceStaffJoinSourceManager(
                 item,
                 linkPlans.GetValueOrDefault(item.EnrollmentLinkId))).ToArray(),
             links.Value.Page,
-            links.Value.PageSize));
+            links.Value.PageSize,
+            links.Value.HasMore));
     }
 
     public async Task<Result<WorkspaceStaffJoinSourceDto>> RevokeInvitationAsync(

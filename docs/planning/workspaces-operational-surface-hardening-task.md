@@ -119,3 +119,13 @@ Operations Notifications 95/95, Workspaces extensions 83/83, Architecture
 tests across 23 files, the Vite production build, and OpenAPI/generated-contract
 drift. Docker was intentionally not rerun because this slice changed no schema,
 provider contract, or broker behavior.
+
+## Deferred Follow-up
+
+Closed on 2026-08-09 by the generic Organizations
+`organizations-truthful-pagination-task.md` slice. Organization memberships,
+invitations, enrollment links, join requests, subject discovery, and catalog
+listing now expose truthful bounded continuation. Workspaces propagates the
+join-source value, and the web member and issued-source pagers consume it
+explicitly. The follow-up used one focused PostgreSQL provider test because it
+changed provider query translation, but introduced no schema migration.
