@@ -37,7 +37,8 @@ public sealed partial class WorkspaceStaffOnboarding : ScopedAggregateRoot<Guid>
         WorkspaceStaffOnboardingState.Completed or
         WorkspaceStaffOnboardingState.Rejected or
         WorkspaceStaffOnboardingState.Superseded or
-        WorkspaceStaffOnboardingState.Expired);
+        WorkspaceStaffOnboardingState.Expired or
+        WorkspaceStaffOnboardingState.Withdrawn);
 
     public bool HasApplicantAuthority =>
         !this.StaffMemberId.HasValue &&
@@ -151,7 +152,8 @@ public sealed partial class WorkspaceStaffOnboarding : ScopedAggregateRoot<Guid>
             WorkspaceStaffOnboardingState.Failed or
             WorkspaceStaffOnboardingState.Completed or
             WorkspaceStaffOnboardingState.Superseded or
-            WorkspaceStaffOnboardingState.Expired)
+            WorkspaceStaffOnboardingState.Expired or
+            WorkspaceStaffOnboardingState.Withdrawn)
         {
             return Result.Success();
         }
@@ -176,7 +178,8 @@ public sealed partial class WorkspaceStaffOnboarding : ScopedAggregateRoot<Guid>
 
         if (this.Status is WorkspaceStaffOnboardingState.Rejected or
             WorkspaceStaffOnboardingState.Superseded or
-            WorkspaceStaffOnboardingState.Expired)
+            WorkspaceStaffOnboardingState.Expired or
+            WorkspaceStaffOnboardingState.Withdrawn)
         {
             return Result.Failure(WorkspaceStaffOnboardingErrors.Unavailable);
         }
@@ -245,7 +248,8 @@ public sealed partial class WorkspaceStaffOnboarding : ScopedAggregateRoot<Guid>
         if (this.Status is WorkspaceStaffOnboardingState.Completed or
             WorkspaceStaffOnboardingState.Rejected or
             WorkspaceStaffOnboardingState.Superseded or
-            WorkspaceStaffOnboardingState.Expired)
+            WorkspaceStaffOnboardingState.Expired or
+            WorkspaceStaffOnboardingState.Withdrawn)
         {
             return Result.Failure(WorkspaceStaffOnboardingErrors.StateConflict);
         }
@@ -261,7 +265,8 @@ public sealed partial class WorkspaceStaffOnboarding : ScopedAggregateRoot<Guid>
         if (this.Status is WorkspaceStaffOnboardingState.Completed or
             WorkspaceStaffOnboardingState.Rejected or
             WorkspaceStaffOnboardingState.Superseded or
-            WorkspaceStaffOnboardingState.Expired)
+            WorkspaceStaffOnboardingState.Expired or
+            WorkspaceStaffOnboardingState.Withdrawn)
         {
             return Result.Success();
         }
@@ -278,7 +283,8 @@ public sealed partial class WorkspaceStaffOnboarding : ScopedAggregateRoot<Guid>
         if (this.Status is WorkspaceStaffOnboardingState.Completed or
             WorkspaceStaffOnboardingState.Rejected or
             WorkspaceStaffOnboardingState.Superseded or
-            WorkspaceStaffOnboardingState.Expired)
+            WorkspaceStaffOnboardingState.Expired or
+            WorkspaceStaffOnboardingState.Withdrawn)
         {
             return Result.Success();
         }

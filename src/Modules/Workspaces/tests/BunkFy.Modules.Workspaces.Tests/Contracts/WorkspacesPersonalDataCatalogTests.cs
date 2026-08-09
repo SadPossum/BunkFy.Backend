@@ -313,6 +313,7 @@ public sealed class WorkspacesPersonalDataCatalogTests
                      typeof(OrganizationInvitationExpiredIntegrationEvent),
                      typeof(OrganizationEnrollmentClaimChangedIntegrationEvent),
                      typeof(OrganizationEnrollmentClaimExpiredIntegrationEvent),
+                     typeof(OrganizationEnrollmentClaimWithdrawnIntegrationEvent),
                      typeof(OrganizationEnrollmentLinkChangedIntegrationEvent),
                      typeof(OrganizationEnrollmentLinkExpiredIntegrationEvent),
                      typeof(OrganizationMembershipChangedIntegrationEvent),

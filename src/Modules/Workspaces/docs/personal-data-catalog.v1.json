@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "workspaces.personal-data",
-  "catalogVersion": 10,
+  "catalogVersion": 11,
   "module": "workspaces",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -1720,6 +1720,13 @@
           "retentionPolicy": "integration-message-journal"
         },
         {
+          "assembly": "Gma.Modules.Organizations.Contracts",
+          "type": "Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimWithdrawnIntegrationEvent",
+          "member": "ClaimId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
           "assembly": "BunkFy.Modules.Workspaces.Persistence",
           "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingDataRightsExport",
           "member": "ClaimId",
@@ -1829,6 +1836,13 @@
           "retentionPolicy": "integration-message-journal"
         },
         {
+          "assembly": "Gma.Modules.Organizations.Contracts",
+          "type": "Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimWithdrawnIntegrationEvent",
+          "member": "ClaimVersion",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
           "assembly": "BunkFy.Modules.Workspaces.Persistence",
           "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingDataRightsExport",
           "member": "ClaimVersion",
@@ -1914,6 +1928,13 @@
         },
         {
           "assembly": "Gma.Modules.Organizations.Contracts",
+          "type": "Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimWithdrawnIntegrationEvent",
+          "member": "EventId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "Gma.Modules.Organizations.Contracts",
           "type": "Gma.Modules.Organizations.Contracts.OrganizationEnrollmentLinkExpiredIntegrationEvent",
           "member": "EventId",
           "surface": "integration-event",
@@ -1992,6 +2013,13 @@
         {
           "assembly": "Gma.Modules.Organizations.Contracts",
           "type": "Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimExpiredIntegrationEvent",
+          "member": "OccurredAtUtc",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "Gma.Modules.Organizations.Contracts",
+          "type": "Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimWithdrawnIntegrationEvent",
           "member": "OccurredAtUtc",
           "surface": "integration-event",
           "retentionPolicy": "integration-message-journal"
@@ -2527,6 +2555,13 @@
         {
           "assembly": "Gma.Modules.Organizations.Contracts",
           "type": "Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimExpiredIntegrationEvent",
+          "member": "EnrollmentLinkId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "Gma.Modules.Organizations.Contracts",
+          "type": "Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimWithdrawnIntegrationEvent",
           "member": "EnrollmentLinkId",
           "surface": "integration-event",
           "retentionPolicy": "integration-message-journal"
@@ -4821,6 +4856,20 @@
         {
           "assembly": "Gma.Modules.Organizations.Contracts",
           "type": "Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimExpiredIntegrationEvent",
+          "member": "OrganizationId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "Gma.Modules.Organizations.Contracts",
+          "type": "Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimWithdrawnIntegrationEvent",
+          "member": "ScopeId",
+          "surface": "integration-event",
+          "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "Gma.Modules.Organizations.Contracts",
+          "type": "Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimWithdrawnIntegrationEvent",
           "member": "OrganizationId",
           "surface": "integration-event",
           "retentionPolicy": "integration-message-journal"

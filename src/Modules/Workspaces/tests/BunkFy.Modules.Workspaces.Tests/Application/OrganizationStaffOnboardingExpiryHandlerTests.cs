@@ -135,6 +135,64 @@ public sealed class OrganizationStaffOnboardingExpiryHandlerTests
     }
 
     [Fact]
+    public async Task Claim_withdrawal_terminates_staging_once_and_preserves_a_reusable_plan()
+    {
+        WorkspaceStaffOnboarding application = WorkspaceStaffOnboardingTests.CreateApplication();
+        Guid claimId = Guid.NewGuid();
+        Assert.True(application.ObserveClaimRequested(claimId, 1, Now).IsSuccess);
+        WorkspaceStaffAccessPlan plan = CreateActivePlan(
+            WorkspaceStaffOnboardingSource.EnrollmentLink,
+            application.SourceId);
+        FakeOnboardingRepository applications = new(application);
+        OrganizationEnrollmentClaimWithdrawnStaffOnboardingHandler handler = new(
+            applications,
+            new FakeAccessPlanRepository(plan),
+            WorkspaceStaffOnboardingMutationTestSupport.Create(applications),
+            new FakeClock());
+        OrganizationEnrollmentClaimWithdrawnIntegrationEvent integrationEvent = new(
+            Guid.NewGuid(),
+            Now.AddMinutes(1),
+            ScopeId,
+            OrganizationId,
+            application.SourceId,
+            claimId,
+            2);
+
+        await handler.HandleAsync(integrationEvent, CancellationToken.None);
+        long applicationVersion = application.Version;
+        await handler.HandleAsync(integrationEvent, CancellationToken.None);
+
+        Assert.Equal(WorkspaceStaffOnboardingState.Withdrawn, application.Status);
+        Assert.Equal(applicationVersion, application.Version);
+        Assert.Equal(WorkspaceStaffAccessPlanState.Active, plan.Status);
+        Assert.Null(plan.SourceExpiredAtUtc);
+        Assert.Null(application.VerifiedAccountEmail);
+        Assert.Null(application.DisplayName);
+    }
+
+    [Fact]
+    public async Task Claim_withdrawal_without_its_application_is_retried_by_the_inbox()
+    {
+        FakeOnboardingRepository applications = new();
+        OrganizationEnrollmentClaimWithdrawnStaffOnboardingHandler handler = new(
+            applications,
+            new FakeAccessPlanRepository(),
+            WorkspaceStaffOnboardingMutationTestSupport.Create(applications),
+            new FakeClock());
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => handler.HandleAsync(
+            new OrganizationEnrollmentClaimWithdrawnIntegrationEvent(
+                Guid.NewGuid(),
+                Now.AddMinutes(1),
+                ScopeId,
+                OrganizationId,
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                2),
+            CancellationToken.None));
+    }
+
+    [Fact]
     public async Task Claim_expiry_without_its_application_is_retried_by_the_inbox()
     {
         FakeOnboardingRepository applications = new();

@@ -59,7 +59,9 @@ internal sealed class WorkspaceStaffRetentionCorrelationRepository(
                         application.Status !=
                             WorkspaceStaffOnboardingState.Superseded &&
                         application.Status !=
-                            WorkspaceStaffOnboardingState.Expired,
+                            WorkspaceStaffOnboardingState.Expired &&
+                        application.Status !=
+                            WorkspaceStaffOnboardingState.Withdrawn,
                     cancellationToken)
                 .ConfigureAwait(false);
             if (activeOnboarding)
@@ -155,7 +157,9 @@ internal sealed class WorkspaceStaffRetentionCorrelationRepository(
                      application.Status ==
                         WorkspaceStaffOnboardingState.Superseded ||
                      application.Status ==
-                        WorkspaceStaffOnboardingState.Expired))
+                        WorkspaceStaffOnboardingState.Expired ||
+                     application.Status ==
+                        WorkspaceStaffOnboardingState.Withdrawn))
                 .ExecuteUpdateAsync(
                     updates => updates
                         .SetProperty(

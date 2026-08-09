@@ -201,6 +201,9 @@ public sealed class WorkspaceStaffOnboardingRetentionTests
     [InlineData(
         OrganizationEnrollmentClaimStatus.Expired,
         WorkspaceStaffOnboardingState.Expired)]
+    [InlineData(
+        OrganizationEnrollmentClaimStatus.Withdrawn,
+        WorkspaceStaffOnboardingState.Withdrawn)]
     public async Task Terminal_claim_redacts_staging_and_finalizes_source_expired_plan(
         OrganizationEnrollmentClaimStatus claimStatus,
         WorkspaceStaffOnboardingState expectedState)
@@ -224,9 +227,16 @@ public sealed class WorkspaceStaffOnboardingRetentionTests
 
         Assert.True(result.IsSuccess, result.Error.Code);
         Assert.Equal(
-            claimStatus == OrganizationEnrollmentClaimStatus.Rejected
-                ? WorkspaceStaffOnboardingRetentionOutcome.ClaimRejected
-                : WorkspaceStaffOnboardingRetentionOutcome.ClaimExpired,
+            claimStatus switch
+            {
+                OrganizationEnrollmentClaimStatus.Rejected =>
+                    WorkspaceStaffOnboardingRetentionOutcome.ClaimRejected,
+                OrganizationEnrollmentClaimStatus.Expired =>
+                    WorkspaceStaffOnboardingRetentionOutcome.ClaimExpired,
+                OrganizationEnrollmentClaimStatus.Withdrawn =>
+                    WorkspaceStaffOnboardingRetentionOutcome.ClaimWithdrawn,
+                _ => throw new ArgumentOutOfRangeException(nameof(claimStatus))
+            },
             result.Value.Outcome);
         Assert.Equal(expectedState, application.Status);
         Assert.Equal(WorkspaceStaffAccessPlanState.Expired, plan.Status);

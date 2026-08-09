@@ -6,6 +6,7 @@ using BunkFy.Modules.Workspaces.Application.Contributors;
 using BunkFy.Modules.Workspaces.Contracts;
 using Gma.Framework.Messaging;
 using Gma.Framework.ModuleComposition;
+using Gma.Modules.Organizations.Contracts;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -45,6 +46,14 @@ public sealed class WorkspacesModuleMetadataTests
             feature =>
                 feature.Id ==
                 MessagingCompositionFeatures.Outbox);
+        Assert.Contains(
+            WorkspacesModuleMetadata.Descriptor.GetSubscriptions(),
+            subscription =>
+                subscription.ProducerModule == OrganizationsModuleMetadata.Name &&
+                subscription.EventType ==
+                    OrganizationEnrollmentClaimWithdrawnIntegrationEvent.EventType &&
+                subscription.HandlerName ==
+                    WorkspacesModuleMetadata.EnrollmentClaimWithdrawnHandlerName);
     }
 
     [Fact]

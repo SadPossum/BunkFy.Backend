@@ -20,5 +20,6 @@ internal enum WorkspaceStaffOnboardingRetentionOutcome
     ClaimExpired = 4,
     ClaimAccepted = 5,
     ClaimAcceptedRecoveryRequired = 6,
-    AuthorityLapsed = 7
+    AuthorityLapsed = 7,
+    ClaimWithdrawn = 8
 }

@@ -165,6 +165,7 @@ public sealed class WorkspaceStaffOnboardingMutationCoordinatorTests
     [InlineData(typeof(OrganizationEnrollmentLinkStaffOnboardingHandler))]
     [InlineData(typeof(OrganizationInvitationExpiredStaffOnboardingHandler))]
     [InlineData(typeof(OrganizationEnrollmentClaimExpiredStaffOnboardingHandler))]
+    [InlineData(typeof(OrganizationEnrollmentClaimWithdrawnStaffOnboardingHandler))]
     [InlineData(typeof(OrganizationEnrollmentLinkExpiredStaffOnboardingHandler))]
     public void Direct_source_graph_writers_require_mutation_coordinator(
         Type writerType)

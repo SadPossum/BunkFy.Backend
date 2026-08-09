@@ -19,6 +19,7 @@ public static class WorkspacesModuleMetadata
     public const string InvitationExpiredHandlerName = "staff-invitation-expired";
     public const string EnrollmentClaimChangedHandlerName = "staff-enrollment-claim-changed";
     public const string EnrollmentClaimExpiredHandlerName = "staff-enrollment-claim-expired";
+    public const string EnrollmentClaimWithdrawnHandlerName = "staff-enrollment-claim-withdrawn";
     public const string EnrollmentLinkChangedHandlerName = "staff-enrollment-link-changed";
     public const string EnrollmentLinkExpiredHandlerName = "staff-enrollment-link-expired";
     public const string MembershipAccessSeedHandlerName = "bunkfy-workspace-access-profile-seeds";
@@ -47,6 +48,9 @@ public static class WorkspacesModuleMetadata
         .WithSubscription<OrganizationEnrollmentClaimExpiredIntegrationEvent>(
             OrganizationsModuleMetadata.Name,
             EnrollmentClaimExpiredHandlerName)
+        .WithSubscription<OrganizationEnrollmentClaimWithdrawnIntegrationEvent>(
+            OrganizationsModuleMetadata.Name,
+            EnrollmentClaimWithdrawnHandlerName)
         .WithSubscription<OrganizationEnrollmentLinkChangedIntegrationEvent>(
             OrganizationsModuleMetadata.Name,
             EnrollmentLinkChangedHandlerName)

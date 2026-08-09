@@ -205,7 +205,8 @@ internal sealed partial class
             WorkspaceStaffOnboardingState.Completed or
             WorkspaceStaffOnboardingState.Rejected or
             WorkspaceStaffOnboardingState.Superseded or
-            WorkspaceStaffOnboardingState.Expired);
+            WorkspaceStaffOnboardingState.Expired or
+            WorkspaceStaffOnboardingState.Withdrawn);
 
     private static Result<
         WorkspaceStaffCorrelationAnonymisationRestoreReceipt>

@@ -24,7 +24,7 @@ public sealed class WorkspaceStaffOnboardingExpiryPersistenceTests
     [DockerFact]
     [Trait("Category", "Docker")]
     [Trait("Category", "Integration")]
-    public async Task Pending_claim_survives_link_expiry_then_claim_expiry_is_persisted_and_redacted()
+    public async Task Claim_terminal_facts_are_persisted_redacted_and_finalize_expired_sources()
     {
         await using PostgreSqlContainer postgreSql = new PostgreSqlBuilder("postgres:16-alpine")
             .WithDatabase("bunkfy_workspace_expiry_tests")
@@ -150,6 +150,86 @@ public sealed class WorkspaceStaffOnboardingExpiryPersistenceTests
         Assert.Null(persisted.WorkEmail);
         Assert.Equal(WorkspaceStaffAccessPlanState.Expired, persistedPlan.Status);
         Assert.Empty(active);
+
+        Guid withdrawnLinkId = Guid.NewGuid();
+        Guid withdrawnClaimId = Guid.NewGuid();
+        Guid withdrawnApplicationId = Guid.NewGuid();
+        WorkspaceStaffOnboarding withdrawnApplication = WorkspaceStaffOnboarding.Create(
+            withdrawnApplicationId,
+            scopeId,
+            WorkspaceStaffOnboardingSource.EnrollmentLink,
+            withdrawnLinkId,
+            Guid.NewGuid().ToString("D"),
+            "withdrawn@example.test",
+            "Withdrawn Applicant",
+            null,
+            "withdrawn.staff@example.test",
+            null,
+            null,
+            null,
+            null,
+            nowUtc).Value;
+        Assert.True(withdrawnApplication.ObserveClaimRequested(
+            withdrawnClaimId,
+            1,
+            nowUtc.AddMinutes(1)).IsSuccess);
+        WorkspaceStaffAccessPlan withdrawnPlan = WorkspaceStaffAccessPlan.Create(
+            withdrawnLinkId,
+            scopeId,
+            WorkspaceStaffOnboardingSource.EnrollmentLink,
+            Guid.NewGuid(),
+            "front-desk",
+            [],
+            Guid.NewGuid().ToString("D"),
+            nowUtc).Value;
+        Assert.True(withdrawnPlan.Activate(nowUtc.AddMinutes(1)).IsSuccess);
+        dbContext.StaffOnboardingApplications.Add(withdrawnApplication);
+        dbContext.StaffAccessPlans.Add(withdrawnPlan);
+        await dbContext.SaveChangesAsync().ConfigureAwait(false);
+        dbContext.ChangeTracker.Clear();
+
+        var withdrawalHandler =
+            (IIntegrationEventHandler<OrganizationEnrollmentClaimWithdrawnIntegrationEvent>)
+            scope.ServiceProvider.GetRequiredService(subscriptions.Subscriptions.Single(subscription =>
+                subscription.ConsumerModule == WorkspacesModuleMetadata.Name &&
+                subscription.HandlerName ==
+                    WorkspacesModuleMetadata.EnrollmentClaimWithdrawnHandlerName).HandlerType);
+        await using (var transaction = await dbContext.Database
+            .BeginTransactionAsync().ConfigureAwait(false))
+        {
+            await withdrawalHandler.HandleAsync(
+                new OrganizationEnrollmentClaimWithdrawnIntegrationEvent(
+                    Guid.NewGuid(),
+                    nowUtc.AddMinutes(3),
+                    scopeId,
+                    organizationId,
+                    withdrawnLinkId,
+                    withdrawnClaimId,
+                    2),
+                CancellationToken.None).ConfigureAwait(false);
+            await dbContext.SaveChangesAsync().ConfigureAwait(false);
+            await transaction.CommitAsync().ConfigureAwait(false);
+        }
+
+        dbContext.ChangeTracker.Clear();
+        WorkspaceStaffOnboarding withdrawnPersisted =
+            await dbContext.StaffOnboardingApplications.SingleAsync(
+                item => item.Id == withdrawnApplicationId).ConfigureAwait(false);
+        WorkspaceStaffAccessPlan reusablePlan = await dbContext.StaffAccessPlans
+            .SingleAsync(item => item.Id == withdrawnLinkId).ConfigureAwait(false);
+        IReadOnlyList<WorkspaceStaffOnboarding> withdrawnActive =
+            await repository.ListActiveBySourceAsync(
+                WorkspaceStaffOnboardingSource.EnrollmentLink,
+                withdrawnLinkId,
+                CancellationToken.None).ConfigureAwait(false);
+
+        Assert.Equal(WorkspaceStaffOnboardingState.Withdrawn, withdrawnPersisted.Status);
+        Assert.Equal(2, withdrawnPersisted.ClaimVersion);
+        Assert.Null(withdrawnPersisted.VerifiedAccountEmail);
+        Assert.Null(withdrawnPersisted.DisplayName);
+        Assert.Null(withdrawnPersisted.WorkEmail);
+        Assert.Equal(WorkspaceStaffAccessPlanState.Active, reusablePlan.Status);
+        Assert.Empty(withdrawnActive);
 
         Guid abandonedLinkId = Guid.NewGuid();
         Guid abandonedApplicationId = Guid.NewGuid();

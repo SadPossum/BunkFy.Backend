@@ -1,4 +1,4 @@
-# workspaces Personal-Data Inventory v10
+# workspaces Personal-Data Inventory v11
 
 Generated from `workspaces.personal-data` schema v1.
 Catalogue approval: `engineering-default`.
@@ -368,6 +368,7 @@ Engineering metadata is not legal or country-launch approval.
 | workspaces.enrollment-claim-id | BunkFy.Modules.Workspaces.Persistence | BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingDataRightsExport | ClaimId | data-rights-export | workspaces-data-rights-export-fragment |
 | workspaces.enrollment-claim-id | Gma.Modules.Organizations.Contracts | Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimChangedIntegrationEvent | ClaimId | integration-event | integration-message-journal |
 | workspaces.enrollment-claim-id | Gma.Modules.Organizations.Contracts | Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimExpiredIntegrationEvent | ClaimId | integration-event | integration-message-journal |
+| workspaces.enrollment-claim-id | Gma.Modules.Organizations.Contracts | Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimWithdrawnIntegrationEvent | ClaimId | integration-event | integration-message-journal |
 | workspaces.enrollment-claim-state | Gma.Modules.Organizations.Contracts | Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimChangedIntegrationEvent | Change | integration-event | integration-message-journal |
 | workspaces.enrollment-claim-state | Gma.Modules.Organizations.Contracts | Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimChangedIntegrationEvent | Status | integration-event | integration-message-journal |
 | workspaces.enrollment-claim-version | BunkFy.Modules.Workspaces.Contracts | BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffOnboardingDto | ClaimVersion | api-response | transient-response |
@@ -375,9 +376,11 @@ Engineering metadata is not legal or country-launch approval.
 | workspaces.enrollment-claim-version | BunkFy.Modules.Workspaces.Persistence | BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingDataRightsExport | ClaimVersion | data-rights-export | workspaces-data-rights-export-fragment |
 | workspaces.enrollment-claim-version | Gma.Modules.Organizations.Contracts | Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimChangedIntegrationEvent | ClaimVersion | integration-event | integration-message-journal |
 | workspaces.enrollment-claim-version | Gma.Modules.Organizations.Contracts | Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimExpiredIntegrationEvent | ClaimVersion | integration-event | integration-message-journal |
+| workspaces.enrollment-claim-version | Gma.Modules.Organizations.Contracts | Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimWithdrawnIntegrationEvent | ClaimVersion | integration-event | integration-message-journal |
 | workspaces.integration-event-id | BunkFy.Modules.Staff.Contracts | BunkFy.Modules.Staff.Contracts.StaffMemberLifecycleChangedIntegrationEvent | EventId | integration-event | integration-message-journal |
 | workspaces.integration-event-id | Gma.Modules.Organizations.Contracts | Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimChangedIntegrationEvent | EventId | integration-event | integration-message-journal |
 | workspaces.integration-event-id | Gma.Modules.Organizations.Contracts | Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimExpiredIntegrationEvent | EventId | integration-event | integration-message-journal |
+| workspaces.integration-event-id | Gma.Modules.Organizations.Contracts | Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimWithdrawnIntegrationEvent | EventId | integration-event | integration-message-journal |
 | workspaces.integration-event-id | Gma.Modules.Organizations.Contracts | Gma.Modules.Organizations.Contracts.OrganizationEnrollmentLinkChangedIntegrationEvent | EventId | integration-event | integration-message-journal |
 | workspaces.integration-event-id | Gma.Modules.Organizations.Contracts | Gma.Modules.Organizations.Contracts.OrganizationEnrollmentLinkExpiredIntegrationEvent | EventId | integration-event | integration-message-journal |
 | workspaces.integration-event-id | Gma.Modules.Organizations.Contracts | Gma.Modules.Organizations.Contracts.OrganizationInvitationChangedIntegrationEvent | EventId | integration-event | integration-message-journal |
@@ -386,6 +389,7 @@ Engineering metadata is not legal or country-launch approval.
 | workspaces.integration-event-occurred-at | BunkFy.Modules.Staff.Contracts | BunkFy.Modules.Staff.Contracts.StaffMemberLifecycleChangedIntegrationEvent | OccurredAtUtc | integration-event | integration-message-journal |
 | workspaces.integration-event-occurred-at | Gma.Modules.Organizations.Contracts | Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimChangedIntegrationEvent | OccurredAtUtc | integration-event | integration-message-journal |
 | workspaces.integration-event-occurred-at | Gma.Modules.Organizations.Contracts | Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimExpiredIntegrationEvent | OccurredAtUtc | integration-event | integration-message-journal |
+| workspaces.integration-event-occurred-at | Gma.Modules.Organizations.Contracts | Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimWithdrawnIntegrationEvent | OccurredAtUtc | integration-event | integration-message-journal |
 | workspaces.integration-event-occurred-at | Gma.Modules.Organizations.Contracts | Gma.Modules.Organizations.Contracts.OrganizationEnrollmentLinkChangedIntegrationEvent | OccurredAtUtc | integration-event | integration-message-journal |
 | workspaces.integration-event-occurred-at | Gma.Modules.Organizations.Contracts | Gma.Modules.Organizations.Contracts.OrganizationEnrollmentLinkExpiredIntegrationEvent | OccurredAtUtc | integration-event | integration-message-journal |
 | workspaces.integration-event-occurred-at | Gma.Modules.Organizations.Contracts | Gma.Modules.Organizations.Contracts.OrganizationInvitationChangedIntegrationEvent | OccurredAtUtc | integration-event | integration-message-journal |
@@ -431,6 +435,7 @@ Engineering metadata is not legal or country-launch approval.
 | workspaces.join-source-id | BunkFy.Modules.Workspaces.Persistence | BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingDataRightsExport | SourceId | data-rights-export | workspaces-data-rights-export-fragment |
 | workspaces.join-source-id | Gma.Modules.Organizations.Contracts | Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimChangedIntegrationEvent | EnrollmentLinkId | integration-event | integration-message-journal |
 | workspaces.join-source-id | Gma.Modules.Organizations.Contracts | Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimExpiredIntegrationEvent | EnrollmentLinkId | integration-event | integration-message-journal |
+| workspaces.join-source-id | Gma.Modules.Organizations.Contracts | Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimWithdrawnIntegrationEvent | EnrollmentLinkId | integration-event | integration-message-journal |
 | workspaces.join-source-id | Gma.Modules.Organizations.Contracts | Gma.Modules.Organizations.Contracts.OrganizationEnrollmentLinkChangedIntegrationEvent | EnrollmentLinkId | integration-event | integration-message-journal |
 | workspaces.join-source-id | Gma.Modules.Organizations.Contracts | Gma.Modules.Organizations.Contracts.OrganizationEnrollmentLinkExpiredIntegrationEvent | EnrollmentLinkId | integration-event | integration-message-journal |
 | workspaces.join-source-id | Gma.Modules.Organizations.Contracts | Gma.Modules.Organizations.Contracts.OrganizationInvitationChangedIntegrationEvent | InvitationId | integration-event | integration-message-journal |
@@ -943,6 +948,8 @@ Engineering metadata is not legal or country-launch approval.
 | workspaces.workspace-scope-id | Gma.Modules.Organizations.Contracts | Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimChangedIntegrationEvent | ScopeId | integration-event | integration-message-journal |
 | workspaces.workspace-scope-id | Gma.Modules.Organizations.Contracts | Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimExpiredIntegrationEvent | OrganizationId | integration-event | integration-message-journal |
 | workspaces.workspace-scope-id | Gma.Modules.Organizations.Contracts | Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimExpiredIntegrationEvent | ScopeId | integration-event | integration-message-journal |
+| workspaces.workspace-scope-id | Gma.Modules.Organizations.Contracts | Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimWithdrawnIntegrationEvent | OrganizationId | integration-event | integration-message-journal |
+| workspaces.workspace-scope-id | Gma.Modules.Organizations.Contracts | Gma.Modules.Organizations.Contracts.OrganizationEnrollmentClaimWithdrawnIntegrationEvent | ScopeId | integration-event | integration-message-journal |
 | workspaces.workspace-scope-id | Gma.Modules.Organizations.Contracts | Gma.Modules.Organizations.Contracts.OrganizationEnrollmentLinkChangedIntegrationEvent | OrganizationId | integration-event | integration-message-journal |
 | workspaces.workspace-scope-id | Gma.Modules.Organizations.Contracts | Gma.Modules.Organizations.Contracts.OrganizationEnrollmentLinkChangedIntegrationEvent | ScopeId | integration-event | integration-message-journal |
 | workspaces.workspace-scope-id | Gma.Modules.Organizations.Contracts | Gma.Modules.Organizations.Contracts.OrganizationEnrollmentLinkExpiredIntegrationEvent | OrganizationId | integration-event | integration-message-journal |

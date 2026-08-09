@@ -160,6 +160,11 @@ public static class DependencyInjection
             WorkspacesModuleMetadata.Name,
             OrganizationsModuleMetadata.Name);
         services.AddIntegrationEventHandler<
+            OrganizationEnrollmentClaimWithdrawnIntegrationEvent,
+            OrganizationEnrollmentClaimWithdrawnStaffOnboardingHandler>(
+            WorkspacesModuleMetadata.Name,
+            OrganizationsModuleMetadata.Name);
+        services.AddIntegrationEventHandler<
             OrganizationEnrollmentLinkChangedIntegrationEvent,
             OrganizationEnrollmentLinkStaffOnboardingHandler>(
             WorkspacesModuleMetadata.Name,

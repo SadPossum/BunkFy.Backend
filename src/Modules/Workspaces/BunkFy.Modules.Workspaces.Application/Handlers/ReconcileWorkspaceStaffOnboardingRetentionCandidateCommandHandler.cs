@@ -120,6 +120,9 @@ internal sealed class ReconcileWorkspaceStaffOnboardingRetentionCandidateCommand
             OrganizationEnrollmentClaimStatus.Expired =>
                 await this.ObserveExpiredAsync(
                     application, claim, nowUtc, cancellationToken).ConfigureAwait(false),
+            OrganizationEnrollmentClaimStatus.Withdrawn =>
+                await this.ObserveWithdrawnAsync(
+                    application, claim, nowUtc, cancellationToken).ConfigureAwait(false),
             OrganizationEnrollmentClaimStatus.Accepted =>
                 await this.ObserveAcceptedAsync(
                     application, claim, nowUtc, cancellationToken).ConfigureAwait(false),
@@ -212,6 +215,28 @@ internal sealed class ReconcileWorkspaceStaffOnboardingRetentionCandidateCommand
                 ? WorkspaceStaffOnboardingRetentionOutcome.ClaimAccepted
                 : WorkspaceStaffOnboardingRetentionOutcome
                     .ClaimAcceptedRecoveryRequired,
+            affected: true);
+    }
+
+    private async Task<Result<WorkspaceStaffOnboardingRetentionReconciliation>> ObserveWithdrawnAsync(
+        WorkspaceStaffOnboarding application,
+        OrganizationEnrollmentClaimDto claim,
+        DateTimeOffset nowUtc,
+        CancellationToken cancellationToken)
+    {
+        Result observed = application.ObserveClaimWithdrawn(
+            claim.ClaimId,
+            claim.Version,
+            nowUtc);
+        if (observed.IsFailure)
+        {
+            return Failure(observed);
+        }
+
+        await this.FinalizePlanAsync(application.SourceId, nowUtc, cancellationToken)
+            .ConfigureAwait(false);
+        return Success(
+            WorkspaceStaffOnboardingRetentionOutcome.ClaimWithdrawn,
             affected: true);
     }
 

@@ -13,7 +13,8 @@ public sealed partial class WorkspaceStaffOnboarding
         }
 
         if (this.Status is WorkspaceStaffOnboardingState.Superseded or
-            WorkspaceStaffOnboardingState.Expired ||
+            WorkspaceStaffOnboardingState.Expired or
+            WorkspaceStaffOnboardingState.Withdrawn ||
             (this.ClaimVersion.HasValue && claimVersion <= this.ClaimVersion.Value))
         {
             return Result.Success();
@@ -40,7 +41,8 @@ public sealed partial class WorkspaceStaffOnboarding
         }
 
         if (this.Status is WorkspaceStaffOnboardingState.Superseded or
-            WorkspaceStaffOnboardingState.Expired)
+            WorkspaceStaffOnboardingState.Expired or
+            WorkspaceStaffOnboardingState.Withdrawn)
         {
             return Result.Success();
         }
@@ -85,7 +87,8 @@ public sealed partial class WorkspaceStaffOnboarding
         }
 
         if (this.Status is WorkspaceStaffOnboardingState.Superseded or
-            WorkspaceStaffOnboardingState.Expired ||
+            WorkspaceStaffOnboardingState.Expired or
+            WorkspaceStaffOnboardingState.Withdrawn ||
             (this.ClaimVersion.HasValue && claimVersion < this.ClaimVersion.Value))
         {
             return Result.Success();
@@ -121,7 +124,8 @@ public sealed partial class WorkspaceStaffOnboarding
             return claim;
         }
 
-        if (this.Status == WorkspaceStaffOnboardingState.Superseded ||
+        if (this.Status is WorkspaceStaffOnboardingState.Superseded or
+                WorkspaceStaffOnboardingState.Withdrawn ||
             (this.ClaimVersion.HasValue && claimVersion < this.ClaimVersion.Value))
         {
             return Result.Success();
@@ -143,6 +147,43 @@ public sealed partial class WorkspaceStaffOnboarding
         this.ClaimId = claimId;
         this.ClaimVersion = claimVersion;
         this.Status = WorkspaceStaffOnboardingState.Expired;
+        this.FailureCode = null;
+        this.RedactApplicantData();
+        this.Advance(nowUtc);
+        return Result.Success();
+    }
+
+    public Result ObserveClaimWithdrawn(Guid claimId, long claimVersion, DateTimeOffset nowUtc)
+    {
+        Result claim = this.ValidateClaim(claimId, claimVersion);
+        if (claim.IsFailure)
+        {
+            return claim;
+        }
+
+        if (this.Status is WorkspaceStaffOnboardingState.Superseded or
+                WorkspaceStaffOnboardingState.Expired ||
+            (this.ClaimVersion.HasValue && claimVersion < this.ClaimVersion.Value))
+        {
+            return Result.Success();
+        }
+
+        if (this.ClaimVersion == claimVersion)
+        {
+            return this.Status == WorkspaceStaffOnboardingState.Withdrawn
+                ? Result.Success()
+                : Result.Failure(WorkspaceStaffOnboardingErrors.ClaimConflict);
+        }
+
+        if (this.Status is not (WorkspaceStaffOnboardingState.Submitted or
+            WorkspaceStaffOnboardingState.PendingApproval))
+        {
+            return Result.Failure(WorkspaceStaffOnboardingErrors.StateConflict);
+        }
+
+        this.ClaimId = claimId;
+        this.ClaimVersion = claimVersion;
+        this.Status = WorkspaceStaffOnboardingState.Withdrawn;
         this.FailureCode = null;
         this.RedactApplicantData();
         this.Advance(nowUtc);

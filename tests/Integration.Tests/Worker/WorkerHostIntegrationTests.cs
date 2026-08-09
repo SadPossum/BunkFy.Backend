@@ -259,6 +259,12 @@ public sealed class WorkerHostIntegrationTests
             subscriptions.Subscriptions,
             subscription =>
                 subscription.ConsumerModule == WorkspacesModuleMetadata.Name &&
+                subscription.HandlerName ==
+                    WorkspacesModuleMetadata.EnrollmentClaimWithdrawnHandlerName);
+        Assert.Contains(
+            subscriptions.Subscriptions,
+            subscription =>
+                subscription.ConsumerModule == WorkspacesModuleMetadata.Name &&
                 subscription.HandlerName == WorkspacesModuleMetadata.EnrollmentLinkExpiredHandlerName);
     }
 

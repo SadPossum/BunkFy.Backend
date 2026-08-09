@@ -27,7 +27,9 @@ internal sealed partial class
                      application.Status ==
                         WorkspaceStaffOnboardingState.Superseded ||
                      application.Status ==
-                        WorkspaceStaffOnboardingState.Expired))
+                        WorkspaceStaffOnboardingState.Expired ||
+                     application.Status ==
+                        WorkspaceStaffOnboardingState.Withdrawn))
                 .ExecuteUpdateAsync(
                     updates => updates
                         .SetProperty(
@@ -106,7 +108,9 @@ internal sealed partial class
                      application.Status ==
                         WorkspaceStaffOnboardingState.Superseded ||
                      application.Status ==
-                        WorkspaceStaffOnboardingState.Expired))
+                        WorkspaceStaffOnboardingState.Expired ||
+                     application.Status ==
+                        WorkspaceStaffOnboardingState.Withdrawn))
                 .ToArrayAsync(cancellationToken)
                 .ConfigureAwait(false);
         WorkspaceStaffAccessProcess[] processRecords =

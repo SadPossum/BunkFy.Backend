@@ -48,6 +48,7 @@ public static class WorkspaceStaffOnboardingMappings
             WorkspaceStaffOnboardingState.Rejected => WorkspaceStaffOnboardingStatus.Rejected,
             WorkspaceStaffOnboardingState.Superseded => WorkspaceStaffOnboardingStatus.Superseded,
             WorkspaceStaffOnboardingState.Expired => WorkspaceStaffOnboardingStatus.Expired,
+            WorkspaceStaffOnboardingState.Withdrawn => WorkspaceStaffOnboardingStatus.Withdrawn,
             _ => WorkspaceStaffOnboardingStatus.Unknown
         },
         application.StaffMemberId,

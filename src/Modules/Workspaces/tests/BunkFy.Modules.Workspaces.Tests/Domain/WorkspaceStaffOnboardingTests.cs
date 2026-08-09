@@ -165,6 +165,28 @@ public sealed class WorkspaceStaffOnboardingTests
     }
 
     [Fact]
+    public void Claim_withdrawal_is_monotonic_terminal_and_redacts_applicant_data()
+    {
+        WorkspaceStaffOnboarding application = CreateApplication();
+        Guid claimId = Guid.NewGuid();
+        Assert.True(application.ObserveClaimRequested(claimId, 1, Now.AddMinutes(1)).IsSuccess);
+
+        Assert.True(application.ObserveClaimWithdrawn(claimId, 2, Now.AddMinutes(2)).IsSuccess);
+        long withdrawnVersion = application.Version;
+        Assert.True(application.ObserveClaimWithdrawn(claimId, 2, Now.AddMinutes(3)).IsSuccess);
+        Assert.True(application.ObserveClaimRequested(claimId, 1, Now.AddMinutes(4)).IsSuccess);
+        Assert.True(application.ObserveClaimAccepted(claimId, 1, Now.AddMinutes(5)).IsSuccess);
+        Assert.True(application.ObserveClaimRejected(claimId, 1, Now.AddMinutes(6)).IsSuccess);
+        Assert.True(application.ObserveClaimExpired(claimId, 1, Now.AddMinutes(7)).IsSuccess);
+
+        Assert.Equal(WorkspaceStaffOnboardingState.Withdrawn, application.Status);
+        Assert.Equal(2, application.ClaimVersion);
+        Assert.Equal(withdrawnVersion, application.Version);
+        Assert.False(application.IsActive);
+        AssertApplicantDataRedacted(application);
+    }
+
+    [Fact]
     public void Accepted_event_can_arrive_before_the_requested_event()
     {
         WorkspaceStaffOnboarding application = CreateApplication();
