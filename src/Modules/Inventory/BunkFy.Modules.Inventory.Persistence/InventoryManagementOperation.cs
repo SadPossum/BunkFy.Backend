@@ -25,6 +25,7 @@ internal sealed class InventoryManagementOperation : IScopedEntity
         this.ResultBlockStatus = record.ResultBlockStatus;
         this.ResultAffectedBlockCount = record.ResultAffectedBlockCount;
         this.ResultVersion = record.ResultVersion;
+        this.ResultTopologyChangeId = record.ResultTopologyChangeId;
         this.CompletedAtUtc = record.CompletedAtUtc;
     }
 
@@ -42,6 +43,7 @@ internal sealed class InventoryManagementOperation : IScopedEntity
     public ManualInventoryBlockStatus? ResultBlockStatus { get; private set; }
     public int? ResultAffectedBlockCount { get; private set; }
     public long ResultVersion { get; private set; }
+    public Guid? ResultTopologyChangeId { get; private set; }
     public DateTimeOffset CompletedAtUtc { get; private set; }
 
     internal InventoryManagementOperationRecord ToRecord() => new(
@@ -59,5 +61,6 @@ internal sealed class InventoryManagementOperation : IScopedEntity
         this.ResultBlockStatus,
         this.ResultAffectedBlockCount,
         this.ResultVersion,
-        this.CompletedAtUtc);
+        this.CompletedAtUtc,
+        this.ResultTopologyChangeId);
 }

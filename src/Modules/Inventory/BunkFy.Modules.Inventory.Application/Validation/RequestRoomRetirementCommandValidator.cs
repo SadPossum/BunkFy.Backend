@@ -8,6 +8,11 @@ internal sealed class RequestRoomRetirementCommandValidator : ICommandValidator<
 {
     public IEnumerable<string> Validate(RequestRoomRetirementCommand command)
     {
+        if (command.OperationId == Guid.Empty)
+        {
+            yield return "OperationId is required.";
+        }
+
         if (command.PropertyId == Guid.Empty || command.RoomId == Guid.Empty)
         {
             yield return "PropertyId and RoomId are required.";

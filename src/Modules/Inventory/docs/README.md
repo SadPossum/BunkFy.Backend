@@ -17,6 +17,9 @@ values are engineering defaults until country, retention, and rights approval.
 - manual half-open `[arrival, departure)` block groups targeting a property, configured building/floor, room, or unit;
 - retry-safe manual-block creation and release with caller-owned operation ids,
   canonical request fingerprints, typed immutable receipts, and exact replay;
+- retry-safe room and bed retirement requests and rejected-process retries with
+  caller-owned operation ids, normalized intent fingerprints, expected process
+  versions, compact journal pointers, and exact replay;
 - durable, idempotent multi-unit reservation allocations and releases with concurrent-claim serialization;
 - exact-reservation Data Rights discovery/export plus terminal allocation
   anonymisation and restore-safe owner proof;
@@ -43,6 +46,14 @@ reuse returns a stable conflict, and failed attempts do not consume the id. The
 journal stores only normalized request fingerprints and compact typed results,
 not a duplicate copy of the free-text reason.
 
+Room and bed retirement requests serialize on the room coordinate. Exact
+request retries resolve the stored topology-change pointer and return the
+current bounded process view, while a new operation id with the same normalized
+reason adopts that process. Changed intent returns a stable conflict. Rejected
+process retries additionally bind the caller-observed process version, acquire
+the process and room fences in that order, and publish no duplicate finalization
+request on exact replay.
+
 Public and Admin Inventory endpoints emit `Cache-Control: no-store`, `Pragma: no-cache`, and an expired response date. This prevents block reasons, staff references, claim identifiers, and current availability state from being retained by shared caches. Admin endpoints also declare explicit success response metadata so generated clients match runtime responses.
 
 ## Tenant Termination
@@ -50,7 +61,8 @@ Public and Admin Inventory endpoints emit `Cache-Control: no-store`, `Pragma: no
 Inventory is a mandatory `Export` and `Destroy` owner. Export depends on
 Properties and contains Inventory-owned unit identities, room sales
 configuration, manual blocks, allocations and allocation units, amendment
-decisions, anonymisation proof, and bed or room retirement processes.
+decisions, anonymisation proof, bed or room retirement processes, and immutable
+management-operation receipts including retirement topology-change pointers.
 Replicated topology, transport journals, rebuild checkpoints, operation locks,
 and the internal tenant revision are deliberately excluded from portability.
 
@@ -75,10 +87,11 @@ restore proof but cannot be deleted outside the exact destruction operation.
 
 Migrations `AddInventoryTenantExportRevision`,
 `AddInventoryTenantDestructionLifecycle`, and
-`AddInventoryManualBlockManagementOperations` add the revision/lifecycle
-state, resumable operation, typed receipt ledger, and provider-side proof
-guards. All 122 focused non-Docker Inventory tests pass, EF reports no pending
-model changes, and the consolidated PostgreSQL scenarios passed through
+`AddInventoryManualBlockManagementOperations`, and
+`AddInventoryRetirementManagementOperations` add the revision/lifecycle state,
+resumable operation, typed receipt ledger, and provider-side proof guards.
+All 130 focused non-Docker Inventory tests pass, EF reports no pending model changes,
+and the consolidated PostgreSQL scenarios passed through
 2026-08-09 with lock drain, outbox suppression, bounded graph removal,
 replay/conflict, concurrent block mutation, trigger enforcement, closed
 admission, downgrade refusal, and tenant isolation.

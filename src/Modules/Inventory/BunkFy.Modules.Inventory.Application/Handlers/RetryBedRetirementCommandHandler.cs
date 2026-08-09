@@ -10,6 +10,8 @@ using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
 
 internal sealed class RetryBedRetirementCommandHandler(
+    InventoryManagementMutationCoordinator mutations,
+    InventoryManagementOperationJournal journal,
     IBedRetirementRepository retirements,
     IInventoryAvailabilityRepository availability,
     BedRetirementCoordinator coordinator,
@@ -21,12 +23,51 @@ internal sealed class RetryBedRetirementCommandHandler(
         RetryBedRetirementCommand command,
         CancellationToken cancellationToken)
     {
+        if (command.OperationId == Guid.Empty)
+        {
+            return Result.Failure<BedRetirementDto>(
+                InventoryApplicationErrors.ManagementOperationInvalid);
+        }
+
+        string fingerprint = InventoryManagementMutationFingerprint
+            .ComputeBedRetirementRetry(
+                command.PropertyId,
+                command.TopologyChangeId,
+                command.ExpectedVersion);
+        await mutations.AcquireBedRetirementAsync(
+                command.TopologyChangeId,
+                cancellationToken)
+            .ConfigureAwait(false);
+        InventoryManagementReplayDecision<
+            InventoryRetirementOperationPointer> replay = await journal
+                .InspectBedRetirementRetryAsync(
+                    command.PropertyId,
+                    command.TopologyChangeId,
+                    command.OperationId,
+                    command.ExpectedVersion,
+                    fingerprint,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        if (replay.Exists)
+        {
+            return await this.ReplayAsync(replay, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
         BedRetirementProcess? process = await retirements
             .GetAsync(command.PropertyId, command.TopologyChangeId, cancellationToken)
             .ConfigureAwait(false);
         if (process is null)
         {
             return Result.Failure<BedRetirementDto>(InventoryApplicationErrors.BedRetirementNotFound);
+        }
+
+        await mutations.AcquireRoomAsync(process.RoomId, cancellationToken)
+            .ConfigureAwait(false);
+        if (process.Version != command.ExpectedVersion)
+        {
+            return Result.Failure<BedRetirementDto>(
+                InventoryApplicationErrors.VersionConflict);
         }
 
         if (process.State != InventoryRetirementProcessState.Rejected)
@@ -51,9 +92,49 @@ internal sealed class RetryBedRetirementCommandHandler(
             return Result.Failure<BedRetirementDto>(InventoryApplicationErrors.BedRetirementStillDraining);
         }
 
-        Result requested = process.RequestFinalization(idGenerator.NewId(), clock.UtcNow);
-        return requested.IsFailure
-            ? Result.Failure<BedRetirementDto>(requested.Error)
-            : Result.Success(await coordinator.GetDtoAsync(process, cancellationToken).ConfigureAwait(false));
+        DateTimeOffset nowUtc = clock.UtcNow;
+        Result requested = process.RequestFinalization(
+            idGenerator.NewId(),
+            nowUtc);
+        if (requested.IsFailure)
+        {
+            return Result.Failure<BedRetirementDto>(requested.Error);
+        }
+
+        await journal.RecordBedRetirementRetryAsync(
+                process,
+                command.OperationId,
+                command.ExpectedVersion,
+                fingerprint,
+                nowUtc,
+                cancellationToken)
+            .ConfigureAwait(false);
+        return Result.Success(process.ToDto(impact));
+    }
+
+    private async Task<Result<BedRetirementDto>> ReplayAsync(
+        InventoryManagementReplayDecision<
+            InventoryRetirementOperationPointer> replay,
+        CancellationToken cancellationToken)
+    {
+        Result<InventoryRetirementOperationPointer> pointer = replay.ToResult();
+        if (pointer.IsFailure)
+        {
+            return Result.Failure<BedRetirementDto>(pointer.Error);
+        }
+
+        BedRetirementProcess? process = await retirements.GetAsync(
+            pointer.Value.PropertyId,
+            pointer.Value.TopologyChangeId,
+            cancellationToken).ConfigureAwait(false);
+        if (process is null)
+        {
+            throw new InvalidDataException(
+                "A committed bed-retirement retry references a missing process.");
+        }
+
+        return Result.Success(await coordinator
+            .GetDtoAsync(process, cancellationToken)
+            .ConfigureAwait(false));
     }
 }

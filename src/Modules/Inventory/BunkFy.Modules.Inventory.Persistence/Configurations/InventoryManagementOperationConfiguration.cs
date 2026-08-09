@@ -26,7 +26,7 @@ internal sealed class InventoryManagementOperationConfiguration
                 "\"RequestFingerprint\" ~ '^[0-9a-f]{64}$'");
             table.HasCheckConstraint(
                 "CK_inventory_management_operations_kind",
-                "\"Kind\" BETWEEN 1 AND 5 AND " +
+                "\"Kind\" BETWEEN 1 AND 9 AND " +
                 "((\"Kind\" = 1 AND \"ResourceKind\" = 1) OR " +
                 "(\"Kind\" IN (2, 3) AND \"ResourceKind\" = 2 AND " +
                 "\"ResourceId\" = \"PropertyId\") OR " +
@@ -35,7 +35,13 @@ internal sealed class InventoryManagementOperationConfiguration
                 "\"ResourceId\" = \"ResultBlockId\") OR " +
                 "(\"Kind\" = 5 AND \"ResourceKind\" = 4 AND " +
                 "\"ResultBlockGroupId\" IS NOT NULL AND " +
-                "\"ResourceId\" = \"ResultBlockGroupId\"))");
+                "\"ResourceId\" = \"ResultBlockGroupId\") OR " +
+                "(\"Kind\" = 6 AND \"ResourceKind\" = 5) OR " +
+                "(\"Kind\" = 7 AND \"ResourceKind\" = 6 AND " +
+                "\"ResourceId\" = \"ResultTopologyChangeId\") OR " +
+                "(\"Kind\" = 8 AND \"ResourceKind\" = 1) OR " +
+                "(\"Kind\" = 9 AND \"ResourceKind\" = 7 AND " +
+                "\"ResourceId\" = \"ResultTopologyChangeId\"))");
             table.HasCheckConstraint(
                 "CK_inventory_management_operations_result",
                 "(\"Kind\" = 1 AND \"ExpectedVersion\" > 0 AND " +
@@ -46,7 +52,8 @@ internal sealed class InventoryManagementOperationConfiguration
                 "\"ResultBlockId\" IS NULL AND " +
                 "\"ResultBlockGroupId\" IS NULL AND " +
                 "\"ResultBlockStatus\" IS NULL AND " +
-                "\"ResultAffectedBlockCount\" IS NULL) OR " +
+                "\"ResultAffectedBlockCount\" IS NULL AND " +
+                "\"ResultTopologyChangeId\" IS NULL) OR " +
                 "(\"Kind\" = 2 AND \"ExpectedVersion\" = 0 AND " +
                 "\"ResultVersion\" = 1 AND " +
                 "\"ResultSalesMode\" IS NULL AND " +
@@ -57,7 +64,8 @@ internal sealed class InventoryManagementOperationConfiguration
                 "\"ResultBlockStatus\" IS NOT NULL AND " +
                 "\"ResultBlockStatus\" = 1 AND " +
                 "\"ResultAffectedBlockCount\" IS NOT NULL AND " +
-                "\"ResultAffectedBlockCount\" = 1) OR " +
+                "\"ResultAffectedBlockCount\" = 1 AND " +
+                "\"ResultTopologyChangeId\" IS NULL) OR " +
                 "(\"Kind\" = 3 AND \"ExpectedVersion\" = 0 AND " +
                 "\"ResultVersion\" = 0 AND " +
                 "\"ResultSalesMode\" IS NULL AND " +
@@ -66,7 +74,8 @@ internal sealed class InventoryManagementOperationConfiguration
                 $"\"ResultBlockGroupId\" <> '{EmptyGuid}' AND " +
                 "\"ResultBlockStatus\" IS NULL AND " +
                 "\"ResultAffectedBlockCount\" IS NOT NULL AND " +
-                "\"ResultAffectedBlockCount\" > 0) OR " +
+                "\"ResultAffectedBlockCount\" > 0 AND " +
+                "\"ResultTopologyChangeId\" IS NULL) OR " +
                 "(\"Kind\" = 4 AND \"ExpectedVersion\" > 0 AND " +
                 "\"ResultVersion\" = \"ExpectedVersion\" + 1 AND " +
                 "\"ResultSalesMode\" IS NULL AND " +
@@ -77,7 +86,8 @@ internal sealed class InventoryManagementOperationConfiguration
                 "\"ResultBlockStatus\" IS NOT NULL AND " +
                 "\"ResultBlockStatus\" = 2 AND " +
                 "\"ResultAffectedBlockCount\" IS NOT NULL AND " +
-                "\"ResultAffectedBlockCount\" = 1) OR " +
+                "\"ResultAffectedBlockCount\" = 1 AND " +
+                "\"ResultTopologyChangeId\" IS NULL) OR " +
                 "(\"Kind\" = 5 AND \"ExpectedVersion\" = 0 AND " +
                 "\"ResultVersion\" = 0 AND " +
                 "\"ResultSalesMode\" IS NULL AND " +
@@ -86,7 +96,26 @@ internal sealed class InventoryManagementOperationConfiguration
                 $"\"ResultBlockGroupId\" <> '{EmptyGuid}' AND " +
                 "\"ResultBlockStatus\" IS NULL AND " +
                 "\"ResultAffectedBlockCount\" IS NOT NULL AND " +
-                "\"ResultAffectedBlockCount\" > 0)");
+                "\"ResultAffectedBlockCount\" > 0 AND " +
+                "\"ResultTopologyChangeId\" IS NULL) OR " +
+                "(\"Kind\" IN (6, 8) AND \"ExpectedVersion\" = 0 AND " +
+                "\"ResultVersion\" > 0 AND " +
+                "\"ResultSalesMode\" IS NULL AND " +
+                "\"ResultBlockId\" IS NULL AND " +
+                "\"ResultBlockGroupId\" IS NULL AND " +
+                "\"ResultBlockStatus\" IS NULL AND " +
+                "\"ResultAffectedBlockCount\" IS NULL AND " +
+                "\"ResultTopologyChangeId\" IS NOT NULL AND " +
+                $"\"ResultTopologyChangeId\" <> '{EmptyGuid}') OR " +
+                "(\"Kind\" IN (7, 9) AND \"ExpectedVersion\" > 0 AND " +
+                "\"ResultVersion\" = \"ExpectedVersion\" + 1 AND " +
+                "\"ResultSalesMode\" IS NULL AND " +
+                "\"ResultBlockId\" IS NULL AND " +
+                "\"ResultBlockGroupId\" IS NULL AND " +
+                "\"ResultBlockStatus\" IS NULL AND " +
+                "\"ResultAffectedBlockCount\" IS NULL AND " +
+                "\"ResultTopologyChangeId\" IS NOT NULL AND " +
+                $"\"ResultTopologyChangeId\" <> '{EmptyGuid}')");
         });
         builder.HasKey(operation => new
         {

@@ -32,10 +32,18 @@ public sealed class InventoryPersonalDataCatalogTests
             StringComparer.Ordinal),
         [typeof(InventoryModule.CreateManualBlockRequest)] = OperationIdMember(),
         [typeof(InventoryModule.CreateManualBlockGroupRequest)] = OperationIdMember(),
+        [typeof(InventoryModule.RequestBedRetirementRequest)] =
+            OperationIdMember(),
+        [typeof(InventoryModule.RequestRoomRetirementRequest)] =
+            OperationIdMember(),
         [typeof(CreateManualInventoryBlockCommand)] = OperationIdMember(),
         [typeof(CreateManualInventoryBlockGroupCommand)] = OperationIdMember(),
         [typeof(ReleaseManualInventoryBlockCommand)] = OperationIdMember(),
         [typeof(ReleaseManualInventoryBlockGroupCommand)] = OperationIdMember(),
+        [typeof(RequestBedRetirementCommand)] = OperationIdMember(),
+        [typeof(RequestRoomRetirementCommand)] = OperationIdMember(),
+        [typeof(RetryBedRetirementCommand)] = OperationAndVersionMembers(),
+        [typeof(RetryRoomRetirementCommand)] = OperationAndVersionMembers(),
         [typeof(ManualInventoryBlockListResponse)] = PaginationMembers(),
         [typeof(RoomInventoryListResponse)] = PaginationMembers(),
         [typeof(BedRetirementImpactSnapshot)] = new([nameof(BedRetirementImpactSnapshot.HasActiveClaims)], StringComparer.Ordinal),
@@ -46,6 +54,10 @@ public sealed class InventoryPersonalDataCatalogTests
             ],
             StringComparer.Ordinal)
     };
+
+    private static HashSet<string> OperationAndVersionMembers() => new(
+        ["OperationId", "ExpectedVersion"],
+        StringComparer.Ordinal);
 
     [Fact]
     public void Every_catalogue_binding_resolves_to_a_real_member()

@@ -238,6 +238,7 @@ public sealed class InventoryModule : IModule
                 ? Results.Unauthorized()
                 : (await dispatcher.SendAsync(
                     new RequestBedRetirementCommand(
+                        request.OperationId,
                         propertyId,
                         roomId,
                         bedId,
@@ -268,10 +269,15 @@ public sealed class InventoryModule : IModule
         inventory.MapPost("/properties/{propertyId:guid}/bed-retirements/{topologyChangeId:guid}/retry", async (
             Guid propertyId,
             Guid topologyChangeId,
+            RetryRetirementRequest request,
             IRequestDispatcher dispatcher,
             CancellationToken cancellationToken) =>
             (await dispatcher.SendAsync(
-                new RetryBedRetirementCommand(propertyId, topologyChangeId),
+                new RetryBedRetirementCommand(
+                    request.OperationId,
+                    propertyId,
+                    topologyChangeId,
+                    request.ExpectedVersion),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
             .Produces<BedRetirementDto>(StatusCodes.Status200OK)
             .RequireTenant()
@@ -293,6 +299,7 @@ public sealed class InventoryModule : IModule
                 ? Results.Unauthorized()
                 : (await dispatcher.SendAsync(
                     new RequestRoomRetirementCommand(
+                        request.OperationId,
                         propertyId,
                         roomId,
                         request.Reason,
@@ -322,10 +329,15 @@ public sealed class InventoryModule : IModule
         inventory.MapPost("/properties/{propertyId:guid}/room-retirements/{topologyChangeId:guid}/retry", async (
             Guid propertyId,
             Guid topologyChangeId,
+            RetryRetirementRequest request,
             IRequestDispatcher dispatcher,
             CancellationToken cancellationToken) =>
             (await dispatcher.SendAsync(
-                new RetryRoomRetirementCommand(propertyId, topologyChangeId),
+                new RetryRoomRetirementCommand(
+                    request.OperationId,
+                    propertyId,
+                    topologyChangeId,
+                    request.ExpectedVersion),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
             .Produces<RoomRetirementDto>(StatusCodes.Status200OK)
             .RequireTenant()
@@ -354,8 +366,15 @@ public sealed class InventoryModule : IModule
         Guid OperationId,
         long ExpectedVersion);
     public sealed record ReleaseManualBlockGroupRequest(Guid OperationId);
-    public sealed record RequestBedRetirementRequest(string Reason);
-    public sealed record RequestRoomRetirementRequest(string Reason);
+    public sealed record RequestBedRetirementRequest(
+        Guid OperationId,
+        string Reason);
+    public sealed record RequestRoomRetirementRequest(
+        Guid OperationId,
+        string Reason);
+    public sealed record RetryRetirementRequest(
+        Guid OperationId,
+        long ExpectedVersion);
 
     private static async ValueTask<object?> SensitiveResponseFilter(
         EndpointFilterInvocationContext context,
@@ -384,6 +403,7 @@ public sealed class InventoryModule : IModule
         new(InventoryApplicationErrors.AccessDenied.Code, StatusCodes.Status403Forbidden),
         new(InventoryApplicationErrors.ManagementOperationInvalid.Code, StatusCodes.Status400BadRequest),
         new(InventoryApplicationErrors.ManagementOperationConflict.Code, StatusCodes.Status409Conflict),
+        new(InventoryApplicationErrors.RetirementRequestConflict.Code, StatusCodes.Status409Conflict),
         new(InventoryApplicationErrors.WorkspaceProcessingRestricted.Code, StatusCodes.Status423Locked),
         new(InventoryApplicationErrors.WorkspaceProcessingAdmissionUnavailable.Code, StatusCodes.Status503ServiceUnavailable),
         new(InventoryApplicationErrors.PropertyNotFound.Code, StatusCodes.Status404NotFound),

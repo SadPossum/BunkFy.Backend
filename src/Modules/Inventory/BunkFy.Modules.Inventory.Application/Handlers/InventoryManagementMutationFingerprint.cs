@@ -55,6 +55,44 @@ internal static class InventoryManagementMutationFingerprint
             propertyId.ToString("N"),
             blockGroupId.ToString("N"));
 
+    public static string ComputeBedRetirementRequest(
+        Guid propertyId,
+        Guid roomId,
+        Guid bedId,
+        string reason) => Compute(
+            "bunkfy-inventory-bed-retirement-request/v1",
+            propertyId.ToString("N"),
+            roomId.ToString("N"),
+            bedId.ToString("N"),
+            NormalizeReason(reason));
+
+    public static string ComputeBedRetirementRetry(
+        Guid propertyId,
+        Guid topologyChangeId,
+        long expectedVersion) => Compute(
+            "bunkfy-inventory-bed-retirement-retry/v1",
+            propertyId.ToString("N"),
+            topologyChangeId.ToString("N"),
+            expectedVersion.ToString(CultureInfo.InvariantCulture));
+
+    public static string ComputeRoomRetirementRequest(
+        Guid propertyId,
+        Guid roomId,
+        string reason) => Compute(
+            "bunkfy-inventory-room-retirement-request/v1",
+            propertyId.ToString("N"),
+            roomId.ToString("N"),
+            NormalizeReason(reason));
+
+    public static string ComputeRoomRetirementRetry(
+        Guid propertyId,
+        Guid topologyChangeId,
+        long expectedVersion) => Compute(
+            "bunkfy-inventory-room-retirement-retry/v1",
+            propertyId.ToString("N"),
+            topologyChangeId.ToString("N"),
+            expectedVersion.ToString(CultureInfo.InvariantCulture));
+
     public static string NormalizeReason(string? reason) =>
         reason?.Trim() ?? string.Empty;
 

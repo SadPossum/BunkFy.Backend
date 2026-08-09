@@ -25,12 +25,14 @@ internal static class InventoryBedRetirementAdminCliCommandGroup
 
     private static Command CreateRequestCommand(IServiceProvider services, AdminCliGlobalOptions globalOptions)
     {
+        Option<Guid> operation = RequiredId("--operation-id");
         Option<Guid> property = RequiredId("--property-id");
         Option<Guid> room = RequiredId("--room-id");
         Option<Guid> bed = RequiredId("--bed-id");
         Option<string> reason = new("--reason") { Required = true };
         Command command = new("request", "Drain a bed and retire it when active claims are clear.")
         {
+            operation,
             property,
             room,
             bed,
@@ -43,6 +45,7 @@ internal static class InventoryBedRetirementAdminCliCommandGroup
             InventoryAdminOperationNames.BedRetirementsRequest,
             (dispatcher, token) => dispatcher.SendAsync(
                 new RequestBedRetirementCommand(
+                    parse.GetValue(operation),
                     parse.GetValue(property),
                     parse.GetValue(room),
                     parse.GetValue(bed),
@@ -72,16 +75,31 @@ internal static class InventoryBedRetirementAdminCliCommandGroup
 
     private static Command CreateRetryCommand(IServiceProvider services, AdminCliGlobalOptions globalOptions)
     {
+        Option<Guid> operation = RequiredId("--operation-id");
         Option<Guid> property = RequiredId("--property-id");
         Option<Guid> change = RequiredId("--topology-change-id");
-        Command command = new("retry", "Retry a rejected bed-retirement finalization.") { property, change };
+        Option<long> expectedVersion = new("--expected-version")
+        {
+            Required = true
+        };
+        Command command = new("retry", "Retry a rejected bed-retirement finalization.")
+        {
+            operation,
+            property,
+            change,
+            expectedVersion
+        };
         command.SetAction((parse, cancellationToken) => ExecuteAsync(
             services,
             globalOptions,
             parse,
             InventoryAdminOperationNames.BedRetirementsRetry,
             (dispatcher, token) => dispatcher.SendAsync(
-                new RetryBedRetirementCommand(parse.GetValue(property), parse.GetValue(change)),
+                new RetryBedRetirementCommand(
+                    parse.GetValue(operation),
+                    parse.GetValue(property),
+                    parse.GetValue(change),
+                    parse.GetValue(expectedVersion)),
                 token),
             cancellationToken));
         return command;

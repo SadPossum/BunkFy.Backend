@@ -152,6 +152,67 @@ public sealed partial class InventoryTenantTerminationExportContributorTests
     }
 
     [Fact]
+    public async Task Management_operation_export_versions_immutable_records_and_keeps_retirement_pointer()
+    {
+        MutableFenceReader fences = new();
+        await using InventoryDbContext context = CreateContext(fences);
+        Guid groupOperationId = Guid.NewGuid();
+        Guid retirementOperationId = Guid.NewGuid();
+        Guid topologyChangeId = Guid.NewGuid();
+        context.ManagementOperations.AddRange(
+            new InventoryManagementOperation(
+                InventoryManagementOperationRecord.ForBlockGroup(
+                    groupOperationId,
+                    TenantId,
+                    InventoryManagementResourceKind.Property,
+                    PropertyId,
+                    InventoryManagementMutationKind.ManualBlockGroupCreate,
+                    Digest,
+                    new(BlockGroupId, PropertyId, AffectedBlockCount: 3),
+                    Now)),
+            new InventoryManagementOperation(
+                InventoryManagementOperationRecord.ForRetirement(
+                    retirementOperationId,
+                    TenantId,
+                    PropertyId,
+                    InventoryManagementResourceKind.BedRetirement,
+                    topologyChangeId,
+                    InventoryManagementMutationKind.BedRetirementRetry,
+                    expectedVersion: 3,
+                    Digest,
+                    topologyChangeId,
+                    resultVersion: 4,
+                    Now)));
+        await context.SaveChangesAsync();
+        context.ChangeTracker.Clear();
+        fences.Current = FrozenFence();
+        InventoryTenantTerminationContributor contributor = new(
+            context,
+            new TestScopeContext(),
+            new TestClock(),
+            fences);
+        CollectingSink sink = new();
+
+        TenantTerminationContributionResult result = await contributor
+            .ExportAsync(Request(), sink, CancellationToken.None);
+
+        Assert.Equal(
+            TenantTerminationContributionStatus.Completed,
+            result.Status);
+        Assert.Equal(2, result.AffectedCount);
+        Assert.All(sink.Records, record => Assert.Equal(1, record.RecordVersion));
+        DataRightsExportRecord retirement = Assert.Single(
+            sink.Records,
+            record => Field(record, "inventory.operation-id").GetGuid() ==
+                retirementOperationId);
+        Assert.Equal(
+            topologyChangeId,
+            Field(retirement, "inventory.management-operation")
+                .GetProperty("resultTopologyChangeId")
+                .GetGuid());
+    }
+
+    [Fact]
     public async Task Export_retries_without_records_for_a_different_fence()
     {
         MutableFenceReader fences = new()

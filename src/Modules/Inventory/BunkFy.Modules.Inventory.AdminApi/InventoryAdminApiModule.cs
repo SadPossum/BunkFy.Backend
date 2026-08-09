@@ -251,6 +251,7 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
                 requireTenant: true,
                 token => dispatcher.SendAsync(
                     new RequestBedRetirementCommand(
+                        request.OperationId,
                         propertyId,
                         roomId,
                         bedId,
@@ -280,6 +281,7 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
         inventory.MapPost("/properties/{propertyId:guid}/bed-retirements/{topologyChangeId:guid}/retry", async (
             Guid propertyId,
             Guid topologyChangeId,
+            RetryRetirementRequest request,
             HttpContext httpContext,
             AdminApiExecutor executor,
             IRequestDispatcher dispatcher,
@@ -288,7 +290,13 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
                 httpContext,
                 AdminOperation.Create(InventoryAdminOperationNames.BedRetirementsRetry, InventoryAdminPermissions.Configure),
                 requireTenant: true,
-                token => dispatcher.SendAsync(new RetryBedRetirementCommand(propertyId, topologyChangeId), token),
+                token => dispatcher.SendAsync(
+                    new RetryBedRetirementCommand(
+                        request.OperationId,
+                        propertyId,
+                        topologyChangeId,
+                        request.ExpectedVersion),
+                    token),
                 cancellationToken,
                 errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
             .Produces<BedRetirementDto>(StatusCodes.Status200OK);
@@ -307,6 +315,7 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
                 requireTenant: true,
                 token => dispatcher.SendAsync(
                     new RequestRoomRetirementCommand(
+                        request.OperationId,
                         propertyId,
                         roomId,
                         request.Reason,
@@ -335,6 +344,7 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
         inventory.MapPost("/properties/{propertyId:guid}/room-retirements/{topologyChangeId:guid}/retry", async (
             Guid propertyId,
             Guid topologyChangeId,
+            RetryRetirementRequest request,
             HttpContext httpContext,
             AdminApiExecutor executor,
             IRequestDispatcher dispatcher,
@@ -343,7 +353,13 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
                 httpContext,
                 AdminOperation.Create(InventoryAdminOperationNames.RoomRetirementsRetry, InventoryAdminPermissions.Configure),
                 requireTenant: true,
-                token => dispatcher.SendAsync(new RetryRoomRetirementCommand(propertyId, topologyChangeId), token),
+                token => dispatcher.SendAsync(
+                    new RetryRoomRetirementCommand(
+                        request.OperationId,
+                        propertyId,
+                        topologyChangeId,
+                        request.ExpectedVersion),
+                    token),
                 cancellationToken,
                 errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
             .Produces<RoomRetirementDto>(StatusCodes.Status200OK);
@@ -369,8 +385,15 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
         Guid OperationId,
         long ExpectedVersion);
     public sealed record ReleaseManualBlockGroupRequest(Guid OperationId);
-    public sealed record RequestBedRetirementRequest(string Reason);
-    public sealed record RequestRoomRetirementRequest(string Reason);
+    public sealed record RequestBedRetirementRequest(
+        Guid OperationId,
+        string Reason);
+    public sealed record RequestRoomRetirementRequest(
+        Guid OperationId,
+        string Reason);
+    public sealed record RetryRetirementRequest(
+        Guid OperationId,
+        long ExpectedVersion);
 
     private static async ValueTask<object?> SensitiveResponseFilter(
         EndpointFilterInvocationContext context,
@@ -390,6 +413,7 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
     private static readonly ApiErrorStatusCodeMap AdminErrorStatusCodes = ApiErrorStatusCodeMap.Create(
         new(InventoryApplicationErrors.ManagementOperationInvalid.Code, StatusCodes.Status400BadRequest),
         new(InventoryApplicationErrors.ManagementOperationConflict.Code, StatusCodes.Status409Conflict),
+        new(InventoryApplicationErrors.RetirementRequestConflict.Code, StatusCodes.Status409Conflict),
         new(InventoryApplicationErrors.WorkspaceProcessingRestricted.Code, StatusCodes.Status423Locked),
         new(InventoryApplicationErrors.WorkspaceProcessingAdmissionUnavailable.Code, StatusCodes.Status503ServiceUnavailable),
         new(InventoryApplicationErrors.PropertyNotFound.Code, StatusCodes.Status404NotFound),

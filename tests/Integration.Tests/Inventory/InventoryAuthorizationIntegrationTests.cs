@@ -605,24 +605,48 @@ public sealed class InventoryAuthorizationIntegrationTests
 
     private static async Task ExerciseBedRetirementWorkflowAsync(AuthTestApplication api)
     {
-        Guid topologyChangeId;
-        using (IServiceScope requestScope = api.Services.CreateScope())
-        {
-            requestScope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantA);
-            ICommandHandler<RequestBedRetirementCommand, BedRetirementDto> request = requestScope.ServiceProvider
-                .GetRequiredService<ICommandHandler<RequestBedRetirementCommand, BedRetirementDto>>();
-            Result<BedRetirementDto> result = await request.HandleAsync(
-                new(PropertyB, RoomB, BedB, "Replace damaged bed frame", "integration-test"),
-                CancellationToken.None).ConfigureAwait(false);
+        Guid operationId = Guid.NewGuid();
+        Result<BedRetirementDto>[] concurrentResults = await Task.WhenAll(
+            RequestBedRetirementAsync(api, operationId),
+            RequestBedRetirementAsync(api, operationId)).ConfigureAwait(false);
+        Assert.All(concurrentResults, result => Assert.True(result.IsSuccess));
+        BedRetirementDto result = concurrentResults[0].Value;
+        Assert.All(
+            concurrentResults,
+            concurrent => Assert.Equal(
+                result.TopologyChangeId,
+                concurrent.Value.TopologyChangeId));
+        Assert.Equal(InventoryRetirementStatus.Draining, result.Status);
+        Assert.Equal(1, result.ActiveAllocationCount);
+        Assert.Equal(
+            RoomModeRaceReservation,
+            Assert.Single(result.AffectedReservationIds));
+        Guid topologyChangeId = result.TopologyChangeId;
 
-            Assert.True(result.IsSuccess);
-            Assert.Equal(InventoryRetirementStatus.Draining, result.Value.Status);
-            Assert.Equal(1, result.Value.ActiveAllocationCount);
-            Assert.Equal(RoomModeRaceReservation, Assert.Single(result.Value.AffectedReservationIds));
-            topologyChangeId = result.Value.TopologyChangeId;
-            await requestScope.ServiceProvider.GetRequiredService<InventoryDbContext>()
-                .SaveChangesAsync()
+        using (IServiceScope verificationScope = api.Services.CreateScope())
+        {
+            verificationScope.ServiceProvider
+                .GetRequiredService<ITenantContextAccessor>()
+                .SetTenant(TenantA);
+            InventoryDbContext inventoryDb = verificationScope.ServiceProvider
+                .GetRequiredService<InventoryDbContext>();
+            Assert.Equal(
+                1,
+                await inventoryDb.BedRetirements
+                    .CountAsync(item => item.Id == topologyChangeId)
+                    .ConfigureAwait(false));
+            IInventoryManagementOperationRepository operations =
+                verificationScope.ServiceProvider.GetRequiredService<
+                    IInventoryManagementOperationRepository>();
+            InventoryManagementOperationRecord? operation = await operations
+                .GetAsync(
+                    InventoryManagementResourceKind.InventoryUnit,
+                    BedB,
+                    operationId,
+                    CancellationToken.None)
                 .ConfigureAwait(false);
+            Assert.NotNull(operation);
+            Assert.Equal(topologyChangeId, operation.ResultTopologyChangeId);
         }
 
         using (IServiceScope releaseScope = api.Services.CreateScope())
@@ -742,12 +766,47 @@ public sealed class InventoryAuthorizationIntegrationTests
         }
     }
 
+    private static async Task<Result<BedRetirementDto>>
+        RequestBedRetirementAsync(
+        AuthTestApplication api,
+        Guid operationId)
+    {
+        using IServiceScope scope = api.Services.CreateScope();
+        scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>()
+            .SetTenant(TenantA);
+        InventoryDbContext inventoryDb = scope.ServiceProvider
+            .GetRequiredService<InventoryDbContext>();
+        await using var transaction = await inventoryDb.Database
+            .BeginTransactionAsync()
+            .ConfigureAwait(false);
+        ICommandHandler<RequestBedRetirementCommand, BedRetirementDto> handler =
+            scope.ServiceProvider.GetRequiredService<
+                ICommandHandler<RequestBedRetirementCommand, BedRetirementDto>>();
+        Result<BedRetirementDto> result = await handler.HandleAsync(
+            new(
+                operationId,
+                PropertyB,
+                RoomB,
+                BedB,
+                "Replace damaged bed frame",
+                "integration-test"),
+            CancellationToken.None).ConfigureAwait(false);
+        await inventoryDb.SaveChangesAsync().ConfigureAwait(false);
+        await transaction.CommitAsync().ConfigureAwait(false);
+        return result;
+    }
+
     private static async Task ExerciseRoomRetirementWorkflowAsync(AuthTestApplication api)
     {
         Guid topologyChangeId;
         using (IServiceScope requestScope = api.Services.CreateScope())
         {
             requestScope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantA);
+            InventoryDbContext requestDb = requestScope.ServiceProvider
+                .GetRequiredService<InventoryDbContext>();
+            await using var transaction = await requestDb.Database
+                .BeginTransactionAsync()
+                .ConfigureAwait(false);
             ICommandHandler<RetireRoomCommand, Unit> directRetirement = requestScope.ServiceProvider
                 .GetRequiredService<ICommandHandler<RetireRoomCommand, Unit>>();
             Result<Unit> bypass = await directRetirement.HandleAsync(
@@ -759,7 +818,12 @@ public sealed class InventoryAuthorizationIntegrationTests
             ICommandHandler<RequestRoomRetirementCommand, RoomRetirementDto> request = requestScope.ServiceProvider
                 .GetRequiredService<ICommandHandler<RequestRoomRetirementCommand, RoomRetirementDto>>();
             Result<RoomRetirementDto> result = await request.HandleAsync(
-                new(PropertyB, RoomB, "Permanently repurpose room", "integration-test"),
+                new(
+                    Guid.NewGuid(),
+                    PropertyB,
+                    RoomB,
+                    "Permanently repurpose room",
+                    "integration-test"),
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.True(result.IsSuccess);
@@ -776,18 +840,28 @@ public sealed class InventoryAuthorizationIntegrationTests
                 [RoomB, BedB2],
                 CancellationToken.None).ConfigureAwait(false);
             Assert.All(context.Units, unit => Assert.False(unit.IsSellable));
-            await requestScope.ServiceProvider.GetRequiredService<InventoryDbContext>()
-                .SaveChangesAsync()
-                .ConfigureAwait(false);
+            await requestDb.SaveChangesAsync().ConfigureAwait(false);
+            await transaction.CommitAsync().ConfigureAwait(false);
         }
 
         using (IServiceScope nestedScope = api.Services.CreateScope())
         {
             nestedScope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantA);
+            InventoryDbContext nestedDb = nestedScope.ServiceProvider
+                .GetRequiredService<InventoryDbContext>();
+            await using var transaction = await nestedDb.Database
+                .BeginTransactionAsync()
+                .ConfigureAwait(false);
             ICommandHandler<RequestBedRetirementCommand, BedRetirementDto> requestBed = nestedScope.ServiceProvider
                 .GetRequiredService<ICommandHandler<RequestBedRetirementCommand, BedRetirementDto>>();
             Result<BedRetirementDto> nested = await requestBed.HandleAsync(
-                new(PropertyB, RoomB, BedB2, "Should be covered by room retirement", "integration-test"),
+                new(
+                    Guid.NewGuid(),
+                    PropertyB,
+                    RoomB,
+                    BedB2,
+                    "Should be covered by room retirement",
+                    "integration-test"),
                 CancellationToken.None).ConfigureAwait(false);
             Assert.True(nested.IsFailure);
             Assert.Equal(InventoryApplicationErrors.RoomRetirementInProgress.Code, nested.Error.Code);

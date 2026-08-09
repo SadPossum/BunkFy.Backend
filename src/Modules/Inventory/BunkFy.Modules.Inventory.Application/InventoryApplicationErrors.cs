@@ -48,6 +48,9 @@ public static class InventoryApplicationErrors
     public static readonly Error ManagementOperationConflict = new(
         "Inventory.ManagementOperationConflict",
         "The Inventory management operation id is already bound to a different request.");
+    public static readonly Error RetirementRequestConflict = new(
+        "Inventory.RetirementRequestConflict",
+        "A retirement process already exists for this target with a different reason.");
     public static readonly Error AnonymisationRequestInvalid = new(
         "Inventory.AnonymisationRequestInvalid",
         "The inventory allocation anonymisation request is invalid.");

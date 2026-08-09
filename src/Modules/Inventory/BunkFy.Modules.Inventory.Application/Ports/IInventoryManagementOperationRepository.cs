@@ -30,7 +30,8 @@ public sealed record InventoryManagementOperationRecord(
     ManualInventoryBlockStatus? ResultBlockStatus,
     int? ResultAffectedBlockCount,
     long ResultVersion,
-    DateTimeOffset CompletedAtUtc)
+    DateTimeOffset CompletedAtUtc,
+    Guid? ResultTopologyChangeId = null)
 {
     public bool Matches(
         InventoryManagementMutationKind kind,
@@ -95,6 +96,20 @@ public sealed record InventoryManagementOperationRecord(
             this.ResultBlockGroupId.Value,
             this.PropertyId,
             this.ResultAffectedBlockCount.Value);
+    }
+
+    public InventoryRetirementOperationPointer ToRetirementPointer()
+    {
+        if (this.ResultTopologyChangeId is null)
+        {
+            throw new InvalidDataException(
+                "The Inventory management operation has no retirement pointer.");
+        }
+
+        return new(
+            this.PropertyId,
+            this.ResultTopologyChangeId.Value,
+            this.ResultVersion);
     }
 
     public static InventoryManagementOperationRecord ForRoom(
@@ -172,14 +187,51 @@ public sealed record InventoryManagementOperationRecord(
             receipt.AffectedBlockCount,
             0,
             completedAtUtc);
+
+    public static InventoryManagementOperationRecord ForRetirement(
+        Guid operationId,
+        string scopeId,
+        Guid propertyId,
+        InventoryManagementResourceKind resourceKind,
+        Guid resourceId,
+        InventoryManagementMutationKind kind,
+        long expectedVersion,
+        string requestFingerprint,
+        Guid topologyChangeId,
+        long resultVersion,
+        DateTimeOffset completedAtUtc) => new(
+            operationId,
+            scopeId,
+            propertyId,
+            resourceKind,
+            resourceId,
+            kind,
+            expectedVersion,
+            requestFingerprint,
+            null,
+            null,
+            null,
+            null,
+            null,
+            resultVersion,
+            completedAtUtc,
+            topologyChangeId);
 }
+
+public sealed record InventoryRetirementOperationPointer(
+    Guid PropertyId,
+    Guid TopologyChangeId,
+    long ResultVersion);
 
 public enum InventoryManagementResourceKind
 {
     Room = 1,
     Property = 2,
     Block = 3,
-    BlockGroup = 4
+    BlockGroup = 4,
+    InventoryUnit = 5,
+    BedRetirement = 6,
+    RoomRetirement = 7
 }
 
 public enum InventoryManagementMutationKind
@@ -188,5 +240,9 @@ public enum InventoryManagementMutationKind
     ManualBlockCreate = 2,
     ManualBlockGroupCreate = 3,
     ManualBlockRelease = 4,
-    ManualBlockGroupRelease = 5
+    ManualBlockGroupRelease = 5,
+    BedRetirementRequest = 6,
+    BedRetirementRetry = 7,
+    RoomRetirementRequest = 8,
+    RoomRetirementRetry = 9
 }

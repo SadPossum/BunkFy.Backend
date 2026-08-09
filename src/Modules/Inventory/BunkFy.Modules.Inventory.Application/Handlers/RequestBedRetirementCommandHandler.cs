@@ -11,6 +11,8 @@ using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
 
 internal sealed class RequestBedRetirementCommandHandler(
+    InventoryManagementMutationCoordinator mutations,
+    InventoryManagementOperationJournal journal,
     IInventoryReadRepository inventory,
     IBedRetirementRepository retirements,
     IRoomRetirementRepository roomRetirements,
@@ -26,19 +28,41 @@ internal sealed class RequestBedRetirementCommandHandler(
         RequestBedRetirementCommand command,
         CancellationToken cancellationToken)
     {
+        if (command.OperationId == Guid.Empty)
+        {
+            return Result.Failure<BedRetirementDto>(
+                InventoryApplicationErrors.ManagementOperationInvalid);
+        }
+
         string? scopeId = scopeContext.ScopeId;
         if (!scopeContext.IsEnabled || string.IsNullOrWhiteSpace(scopeId))
         {
             return Result.Failure<BedRetirementDto>(InventoryApplicationErrors.TenantRequired);
         }
 
-        InventoryUnitSnapshot? unit = await inventory.GetUnitAsync(
-            command.PropertyId,
-            command.BedId,
-            cancellationToken).ConfigureAwait(false);
-        if (unit is null || unit.Unit.RoomId != command.RoomId || unit.Unit.Kind != InventoryUnitKind.Bed)
+        string normalizedReason = InventoryManagementMutationFingerprint
+            .NormalizeReason(command.Reason);
+        string fingerprint = InventoryManagementMutationFingerprint
+            .ComputeBedRetirementRequest(
+                command.PropertyId,
+                command.RoomId,
+                command.BedId,
+                normalizedReason);
+        await mutations.AcquireRoomAsync(command.RoomId, cancellationToken)
+            .ConfigureAwait(false);
+        InventoryManagementReplayDecision<
+            InventoryRetirementOperationPointer> replay = await journal
+                .InspectBedRetirementRequestAsync(
+                    command.PropertyId,
+                    command.BedId,
+                    command.OperationId,
+                    fingerprint,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        if (replay.Exists)
         {
-            return Result.Failure<BedRetirementDto>(InventoryApplicationErrors.InventoryUnitNotFound);
+            return await this.ReplayAsync(replay, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         BedRetirementProcess? existing = await retirements
@@ -46,7 +70,43 @@ internal sealed class RequestBedRetirementCommandHandler(
             .ConfigureAwait(false);
         if (existing is not null)
         {
-            return Result.Success(await coordinator.GetDtoAsync(existing, cancellationToken).ConfigureAwait(false));
+            if (existing.RoomId != command.RoomId)
+            {
+                return Result.Failure<BedRetirementDto>(
+                    InventoryApplicationErrors.InventoryUnitNotFound);
+            }
+
+            if (!string.Equals(
+                    existing.Reason,
+                    normalizedReason,
+                    StringComparison.Ordinal))
+            {
+                return Result.Failure<BedRetirementDto>(
+                    InventoryApplicationErrors.RetirementRequestConflict);
+            }
+
+            await journal.RecordBedRetirementRequestAsync(
+                    existing,
+                    command.OperationId,
+                    fingerprint,
+                    clock.UtcNow,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            return Result.Success(await coordinator
+                .GetDtoAsync(existing, cancellationToken)
+                .ConfigureAwait(false));
+        }
+
+        InventoryUnitSnapshot? unit = await inventory.GetUnitAsync(
+            command.PropertyId,
+            command.BedId,
+            cancellationToken).ConfigureAwait(false);
+        if (unit is null ||
+            unit.Unit.RoomId != command.RoomId ||
+            unit.Unit.Kind != InventoryUnitKind.Bed)
+        {
+            return Result.Failure<BedRetirementDto>(
+                InventoryApplicationErrors.InventoryUnitNotFound);
         }
 
         if (!unit.Unit.IsTopologyActive)
@@ -62,15 +122,16 @@ internal sealed class RequestBedRetirementCommandHandler(
             return Result.Failure<BedRetirementDto>(InventoryApplicationErrors.RoomRetirementInProgress);
         }
 
+        DateTimeOffset nowUtc = clock.UtcNow;
         Result<BedRetirementProcess> created = BedRetirementProcess.Create(
             idGenerator.NewId(),
             scopeId,
             command.PropertyId,
             command.RoomId,
             command.BedId,
-            command.Reason,
+            normalizedReason,
             command.RequestedBy,
-            clock.UtcNow);
+            nowUtc);
         if (created.IsFailure)
         {
             return Result.Failure<BedRetirementDto>(created.Error);
@@ -91,6 +152,39 @@ internal sealed class RequestBedRetirementCommandHandler(
             command.RoomId,
             clock.UtcNow,
             cancellationToken).ConfigureAwait(false);
+        await journal.RecordBedRetirementRequestAsync(
+                created.Value,
+                command.OperationId,
+                fingerprint,
+                nowUtc,
+                cancellationToken)
+            .ConfigureAwait(false);
         return Result.Success(result);
+    }
+
+    private async Task<Result<BedRetirementDto>> ReplayAsync(
+        InventoryManagementReplayDecision<
+            InventoryRetirementOperationPointer> replay,
+        CancellationToken cancellationToken)
+    {
+        Result<InventoryRetirementOperationPointer> pointer = replay.ToResult();
+        if (pointer.IsFailure)
+        {
+            return Result.Failure<BedRetirementDto>(pointer.Error);
+        }
+
+        BedRetirementProcess? process = await retirements.GetAsync(
+            pointer.Value.PropertyId,
+            pointer.Value.TopologyChangeId,
+            cancellationToken).ConfigureAwait(false);
+        if (process is null)
+        {
+            throw new InvalidDataException(
+                "A committed bed-retirement operation references a missing process.");
+        }
+
+        return Result.Success(await coordinator
+            .GetDtoAsync(process, cancellationToken)
+            .ConfigureAwait(false));
     }
 }

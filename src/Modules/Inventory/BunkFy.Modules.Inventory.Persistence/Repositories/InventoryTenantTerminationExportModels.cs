@@ -80,6 +80,7 @@ internal sealed record InventoryManagementOperationStateTenantExport(
     Guid? ResultBlockGroupId,
     ManualInventoryBlockStatus? ResultBlockStatus,
     int? ResultAffectedBlockCount,
+    Guid? ResultTopologyChangeId,
     long ResultVersion,
     DateTimeOffset CompletedAtUtc);
 

@@ -190,6 +190,7 @@ internal sealed partial class InventoryTenantTerminationContributor
                     operation.ResultBlockGroupId,
                     operation.ResultBlockStatus,
                     operation.ResultAffectedBlockCount,
+                    operation.ResultTopologyChangeId,
                     operation.ResultVersion,
                     operation.CompletedAtUtc));
             await WriteAsync(
@@ -199,7 +200,7 @@ internal sealed partial class InventoryTenantTerminationContributor
                     operation.PropertyId,
                     $"{(int)operation.ResourceKind}:" +
                     $"{operation.ResourceId:N}:{operation.Id:N}"),
-                operation.ResultVersion,
+                recordVersion: 1,
                 record,
                 sink,
                 cancellationToken).ConfigureAwait(false);

@@ -41,6 +41,20 @@ internal sealed class InventoryManagementMutationCoordinator(
             blockGroupId,
             cancellationToken);
 
+    public Task AcquireBedRetirementAsync(
+        Guid topologyChangeId,
+        CancellationToken cancellationToken) => this.AcquireResourceAsync(
+            InventoryManagementResourceKind.BedRetirement,
+            topologyChangeId,
+            cancellationToken);
+
+    public Task AcquireRoomRetirementAsync(
+        Guid topologyChangeId,
+        CancellationToken cancellationToken) => this.AcquireResourceAsync(
+            InventoryManagementResourceKind.RoomRetirement,
+            topologyChangeId,
+            cancellationToken);
+
     public Task AcquirePropertyOperationAsync(
         Guid propertyId,
         Guid operationId,

@@ -4,6 +4,7 @@ using BunkFy.Modules.Inventory.Contracts;
 using Gma.Framework.Cqrs;
 
 public sealed record RequestBedRetirementCommand(
+    Guid OperationId,
     Guid PropertyId,
     Guid RoomId,
     Guid BedId,

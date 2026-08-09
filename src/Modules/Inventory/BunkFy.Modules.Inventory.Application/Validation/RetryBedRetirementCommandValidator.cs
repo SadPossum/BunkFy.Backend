@@ -7,9 +7,16 @@ internal sealed class RetryBedRetirementCommandValidator : ICommandValidator<Ret
 {
     public IEnumerable<string> Validate(RetryBedRetirementCommand command)
     {
-        if (command.PropertyId == Guid.Empty || command.TopologyChangeId == Guid.Empty)
+        if (command.OperationId == Guid.Empty ||
+            command.PropertyId == Guid.Empty ||
+            command.TopologyChangeId == Guid.Empty)
         {
-            yield return "PropertyId and TopologyChangeId are required.";
+            yield return "OperationId, PropertyId and TopologyChangeId are required.";
+        }
+
+        if (command.ExpectedVersion <= 0)
+        {
+            yield return "ExpectedVersion must be greater than zero.";
         }
     }
 }

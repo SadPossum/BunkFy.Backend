@@ -95,6 +95,78 @@ internal sealed class InventoryManagementOperationJournal(
             static operation => operation.ToBlockGroupReceipt(),
             cancellationToken);
 
+    public Task<InventoryManagementReplayDecision<
+        InventoryRetirementOperationPointer>>
+        InspectBedRetirementRequestAsync(
+        Guid propertyId,
+        Guid bedId,
+        Guid operationId,
+        string fingerprint,
+        CancellationToken cancellationToken) => this.InspectAsync(
+            propertyId,
+            InventoryManagementResourceKind.InventoryUnit,
+            bedId,
+            operationId,
+            InventoryManagementMutationKind.BedRetirementRequest,
+            0,
+            fingerprint,
+            static operation => operation.ToRetirementPointer(),
+            cancellationToken);
+
+    public Task<InventoryManagementReplayDecision<
+        InventoryRetirementOperationPointer>> InspectBedRetirementRetryAsync(
+        Guid propertyId,
+        Guid topologyChangeId,
+        Guid operationId,
+        long expectedVersion,
+        string fingerprint,
+        CancellationToken cancellationToken) => this.InspectAsync(
+            propertyId,
+            InventoryManagementResourceKind.BedRetirement,
+            topologyChangeId,
+            operationId,
+            InventoryManagementMutationKind.BedRetirementRetry,
+            expectedVersion,
+            fingerprint,
+            static operation => operation.ToRetirementPointer(),
+            cancellationToken);
+
+    public Task<InventoryManagementReplayDecision<
+        InventoryRetirementOperationPointer>>
+        InspectRoomRetirementRequestAsync(
+        Guid propertyId,
+        Guid roomId,
+        Guid operationId,
+        string fingerprint,
+        CancellationToken cancellationToken) => this.InspectAsync(
+            propertyId,
+            InventoryManagementResourceKind.Room,
+            roomId,
+            operationId,
+            InventoryManagementMutationKind.RoomRetirementRequest,
+            0,
+            fingerprint,
+            static operation => operation.ToRetirementPointer(),
+            cancellationToken);
+
+    public Task<InventoryManagementReplayDecision<
+        InventoryRetirementOperationPointer>> InspectRoomRetirementRetryAsync(
+        Guid propertyId,
+        Guid topologyChangeId,
+        Guid operationId,
+        long expectedVersion,
+        string fingerprint,
+        CancellationToken cancellationToken) => this.InspectAsync(
+            propertyId,
+            InventoryManagementResourceKind.RoomRetirement,
+            topologyChangeId,
+            operationId,
+            InventoryManagementMutationKind.RoomRetirementRetry,
+            expectedVersion,
+            fingerprint,
+            static operation => operation.ToRetirementPointer(),
+            cancellationToken);
+
     private async Task<InventoryManagementReplayDecision<TReceipt>>
         InspectAsync<TReceipt>(
         Guid propertyId,
@@ -164,6 +236,111 @@ internal sealed class InventoryManagementOperationJournal(
             cancellationToken).ConfigureAwait(false);
         return receipt;
     }
+
+    public Task RecordBedRetirementRequestAsync(
+        BedRetirementProcess process,
+        Guid operationId,
+        string fingerprint,
+        DateTimeOffset completedAtUtc,
+        CancellationToken cancellationToken) => this.RecordRetirementAsync(
+            process.ScopeId,
+            process.PropertyId,
+            InventoryManagementResourceKind.InventoryUnit,
+            process.BedId,
+            InventoryManagementMutationKind.BedRetirementRequest,
+            expectedVersion: 0,
+            fingerprint,
+            process.Id,
+            process.Version,
+            operationId,
+            completedAtUtc,
+            cancellationToken);
+
+    public Task RecordBedRetirementRetryAsync(
+        BedRetirementProcess process,
+        Guid operationId,
+        long expectedVersion,
+        string fingerprint,
+        DateTimeOffset completedAtUtc,
+        CancellationToken cancellationToken) => this.RecordRetirementAsync(
+            process.ScopeId,
+            process.PropertyId,
+            InventoryManagementResourceKind.BedRetirement,
+            process.Id,
+            InventoryManagementMutationKind.BedRetirementRetry,
+            expectedVersion,
+            fingerprint,
+            process.Id,
+            process.Version,
+            operationId,
+            completedAtUtc,
+            cancellationToken);
+
+    public Task RecordRoomRetirementRequestAsync(
+        RoomRetirementProcess process,
+        Guid operationId,
+        string fingerprint,
+        DateTimeOffset completedAtUtc,
+        CancellationToken cancellationToken) => this.RecordRetirementAsync(
+            process.ScopeId,
+            process.PropertyId,
+            InventoryManagementResourceKind.Room,
+            process.RoomId,
+            InventoryManagementMutationKind.RoomRetirementRequest,
+            expectedVersion: 0,
+            fingerprint,
+            process.Id,
+            process.Version,
+            operationId,
+            completedAtUtc,
+            cancellationToken);
+
+    public Task RecordRoomRetirementRetryAsync(
+        RoomRetirementProcess process,
+        Guid operationId,
+        long expectedVersion,
+        string fingerprint,
+        DateTimeOffset completedAtUtc,
+        CancellationToken cancellationToken) => this.RecordRetirementAsync(
+            process.ScopeId,
+            process.PropertyId,
+            InventoryManagementResourceKind.RoomRetirement,
+            process.Id,
+            InventoryManagementMutationKind.RoomRetirementRetry,
+            expectedVersion,
+            fingerprint,
+            process.Id,
+            process.Version,
+            operationId,
+            completedAtUtc,
+            cancellationToken);
+
+    private Task RecordRetirementAsync(
+        string scopeId,
+        Guid propertyId,
+        InventoryManagementResourceKind resourceKind,
+        Guid resourceId,
+        InventoryManagementMutationKind kind,
+        long expectedVersion,
+        string fingerprint,
+        Guid topologyChangeId,
+        long resultVersion,
+        Guid operationId,
+        DateTimeOffset completedAtUtc,
+        CancellationToken cancellationToken) => operations.AddAsync(
+            InventoryManagementOperationRecord.ForRetirement(
+                operationId,
+                scopeId,
+                propertyId,
+                resourceKind,
+                resourceId,
+                kind,
+                expectedVersion,
+                fingerprint,
+                topologyChangeId,
+                resultVersion,
+                completedAtUtc),
+            cancellationToken);
 
     public async Task<ManualInventoryBlockMutationReceiptDto>
         RecordBlockCreateAsync(
