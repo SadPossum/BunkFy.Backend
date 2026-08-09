@@ -88,7 +88,7 @@ public sealed class AuthenticationAssuranceIntegrationTests
             client,
             TenantId,
             $"/api/organizations/{TenantId}/invitations",
-            new { recipientEmail, lifetimeHours = 24 },
+            new { sourceId = Guid.NewGuid(), recipientEmail, lifetimeHours = 24 },
             accessToken);
 
     private static string CreateAccessTokenWithAuthenticationTime(
