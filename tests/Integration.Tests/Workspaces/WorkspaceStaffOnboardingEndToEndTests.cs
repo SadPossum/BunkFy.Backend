@@ -372,7 +372,7 @@ public sealed class WorkspaceStaffOnboardingEndToEndTests
             "/api/organizations",
             GlobalScopeId,
             owner.AccessToken,
-            new { name, slug }).ConfigureAwait(false);
+            new { operationId = Guid.NewGuid(), name, slug }).ConfigureAwait(false);
         return await ReadSuccessAsync<OrganizationMembershipSummaryDto>(response).ConfigureAwait(false);
     }
 
