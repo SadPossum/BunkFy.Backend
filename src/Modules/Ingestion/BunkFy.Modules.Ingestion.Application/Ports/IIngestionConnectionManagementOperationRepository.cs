@@ -47,5 +47,7 @@ internal enum IngestionConnectionManagementMutationKind
     ConnectionDisable = 4,
     PollingScheduleConfigure = 5,
     PollingScheduleClear = 6,
-    CheckpointReset = 7
+    CheckpointReset = 7,
+    AdapterIngressCredentialCreate = 8,
+    AdapterIngressCredentialRevoke = 9
 }

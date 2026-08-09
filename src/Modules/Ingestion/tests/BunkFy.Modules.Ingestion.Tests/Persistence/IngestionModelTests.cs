@@ -77,7 +77,15 @@ public sealed class IngestionModelTests
             outcomeConstraint.Sql,
             StringComparison.Ordinal);
         Assert.Contains(
-            "\"Kind\" IN (3, 4)",
+            "\"Kind\" = 8",
+            outcomeConstraint.Sql,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "\"Id\" <> \"ConnectionId\"",
+            outcomeConstraint.Sql,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "\"Kind\" IN (3, 4, 9)",
             outcomeConstraint.Sql,
             StringComparison.Ordinal);
         Assert.Contains(

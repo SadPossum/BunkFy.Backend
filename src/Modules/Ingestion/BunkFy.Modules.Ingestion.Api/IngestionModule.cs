@@ -442,6 +442,7 @@ public sealed class IngestionModule : IModule
 
             Result<CreateAdapterIngressCredentialResponse> result = await dispatcher.SendAsync(
                 new CreateAdapterIngressCredentialCommand(
+                    request.OperationId,
                     propertyId,
                     connectionId,
                     request.Label,
@@ -467,7 +468,7 @@ public sealed class IngestionModule : IModule
             Guid propertyId,
             Guid connectionId,
             Guid credentialId,
-            VersionRequest request,
+            ConnectionControlRequest request,
             HttpContext context,
             IAccessHttpSubjectResolver subjectResolver,
             IRequestDispatcher dispatcher,
@@ -480,6 +481,7 @@ public sealed class IngestionModule : IModule
             }
 
             return (await dispatcher.SendAsync(new RevokeAdapterIngressCredentialCommand(
+                request.OperationId,
                 propertyId,
                 connectionId,
                 credentialId,
@@ -1281,6 +1283,7 @@ public sealed class IngestionModule : IModule
         long ExpectedVersion);
 
     public sealed record CreateIngressCredentialRequest(
+        Guid OperationId,
         string Label,
         DateTimeOffset? ExpiresAtUtc = null,
         string? SourceSystem = null);

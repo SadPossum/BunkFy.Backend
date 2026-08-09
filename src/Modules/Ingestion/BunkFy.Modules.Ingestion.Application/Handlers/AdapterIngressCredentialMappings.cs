@@ -11,12 +11,12 @@ internal static class AdapterIngressCredentialMappings
         credential.Slot,
         credential.Label,
         (AdapterIngressCredentialStatus)(int)credential.State,
-        credential.ExpiresAtUtc,
+        NormalizeTimestamp(credential.ExpiresAtUtc),
         credential.CreatedBy,
-        credential.CreatedAtUtc,
+        NormalizeTimestamp(credential.CreatedAtUtc),
         credential.RevokedBy,
-        credential.RevokedAtUtc,
-        credential.LastAuthenticatedAtUtc,
+        NormalizeTimestamp(credential.RevokedAtUtc),
+        NormalizeTimestamp(credential.LastAuthenticatedAtUtc),
         credential.Version,
         credential.AdapterType,
         credential.AdapterProtocolVersion,
@@ -28,4 +28,16 @@ internal static class AdapterIngressCredentialMappings
         credential.ConnectionId,
         (AdapterIngressCredentialStatus)(int)credential.State,
         credential.Version);
+
+    private static DateTimeOffset NormalizeTimestamp(DateTimeOffset value)
+    {
+        DateTimeOffset utc = value.ToUniversalTime();
+        const long ticksPerMicrosecond = TimeSpan.TicksPerMillisecond / 1000;
+        return new(
+            utc.Ticks - (utc.Ticks % ticksPerMicrosecond),
+            TimeSpan.Zero);
+    }
+
+    private static DateTimeOffset? NormalizeTimestamp(DateTimeOffset? value) =>
+        value.HasValue ? NormalizeTimestamp(value.Value) : null;
 }

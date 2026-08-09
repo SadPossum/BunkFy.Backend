@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "ingestion.personal-data",
-  "catalogVersion": 15,
+  "catalogVersion": 16,
   "module": "ingestion",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -860,6 +860,13 @@
           "assembly": "BunkFy.Modules.Ingestion.Contracts",
           "type": "BunkFy.Modules.Ingestion.Contracts.CreateAdapterIngressCredentialResponse",
           "member": "Credential",
+          "surface": "api-response",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Contracts",
+          "type": "BunkFy.Modules.Ingestion.Contracts.CreateAdapterIngressCredentialResponse",
+          "member": "Outcome",
           "surface": "api-response",
           "retentionPolicy": null
         }
@@ -10089,6 +10096,13 @@
         },
         {
           "assembly": "BunkFy.Modules.Ingestion.Application",
+          "type": "BunkFy.Modules.Ingestion.Application.Commands.CreateAdapterIngressCredentialCommand",
+          "member": "OperationId",
+          "surface": "application-command",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Application",
           "type": "BunkFy.Modules.Ingestion.Application.Commands.ConfigureAdapterConnectionPollingScheduleCommand",
           "member": "OperationId",
           "surface": "application-command",
@@ -10110,6 +10124,13 @@
         },
         {
           "assembly": "BunkFy.Modules.Ingestion.Application",
+          "type": "BunkFy.Modules.Ingestion.Application.Commands.RevokeAdapterIngressCredentialCommand",
+          "member": "OperationId",
+          "surface": "application-command",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Application",
           "type": "BunkFy.Modules.Ingestion.Application.Commands.SetAdapterConnectionEnabledCommand",
           "member": "OperationId",
           "surface": "application-command",
@@ -10125,6 +10146,13 @@
         {
           "assembly": "BunkFy.Modules.Ingestion.Api",
           "type": "BunkFy.Modules.Ingestion.Api.IngestionModule+CreateConnectionRequest",
+          "member": "OperationId",
+          "surface": "api-input",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Api",
+          "type": "BunkFy.Modules.Ingestion.Api.IngestionModule+CreateIngressCredentialRequest",
           "member": "OperationId",
           "surface": "api-input",
           "retentionPolicy": null

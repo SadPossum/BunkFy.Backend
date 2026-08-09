@@ -4,7 +4,7 @@ using BunkFy.Modules.Ingestion.Contracts;
 using Gma.Framework.Results;
 using Gma.Framework.Scoping;
 
-internal static class IngestionConnectionManagementAdmission
+internal static class IngestionManagementAdmission
 {
     public static async ValueTask<Result<string>> AuthorizeAsync(
         IScopeContext scopeContext,
@@ -28,10 +28,10 @@ internal static class IngestionConnectionManagementAdmission
 
         Result lifecycleAdmission =
             await IngestionTenantLifecycleAdmission.AuthorizeAsync(
-            lifecyclePolicies,
-            scopeContext.ScopeId,
-            IngestionTenantLifecycleOperation.ConnectionProvisioning,
-            cancellationToken).ConfigureAwait(false);
+                lifecyclePolicies,
+                scopeContext.ScopeId,
+                IngestionTenantLifecycleOperation.ConnectionProvisioning,
+                cancellationToken).ConfigureAwait(false);
         return lifecycleAdmission.IsSuccess
             ? Result.Success(scopeContext.ScopeId)
             : Result.Failure<string>(lifecycleAdmission.Error);

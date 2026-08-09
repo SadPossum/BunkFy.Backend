@@ -53,6 +53,15 @@ internal sealed class AdapterIngressCredentialRepository(IngestionDbContext dbCo
         credential => credential.ConnectionId == connectionId && credential.Id == credentialId,
         cancellationToken);
 
+    public Task<bool> IdExistsAsync(
+        Guid credentialId,
+        CancellationToken cancellationToken) =>
+        dbContext.AdapterIngressCredentials
+            .AsNoTracking()
+            .AnyAsync(
+                credential => credential.Id == credentialId,
+                cancellationToken);
+
     public Task<AdapterIngressCredential?> GetForAuthenticationAsync(
         Guid connectionId,
         Guid credentialId,

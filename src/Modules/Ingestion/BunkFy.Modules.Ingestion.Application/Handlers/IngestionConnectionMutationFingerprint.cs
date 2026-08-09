@@ -1,15 +1,13 @@
 namespace BunkFy.Modules.Ingestion.Application.Handlers;
 
-using System.Buffers.Binary;
 using System.Globalization;
-using System.Security.Cryptography;
-using System.Text;
 using BunkFy.Modules.Ingestion.Application.Commands;
 using BunkFy.Modules.Ingestion.Domain.Connections;
 
 internal static class IngestionConnectionMutationFingerprint
 {
-    public static string ComputeCreate(AdapterConnection connection) => Compute(
+    public static string ComputeCreate(AdapterConnection connection) =>
+        IngestionMutationFingerprint.Compute(
         "bunkfy-ingestion-connection-create/v1",
         connection.PropertyId.ToString("N"),
         connection.AdapterType,
@@ -20,7 +18,8 @@ internal static class IngestionConnectionMutationFingerprint
 
     public static string ComputeUpdate(
         UpdateAdapterConnectionCommand command,
-        IngestionConflictPolicy conflictPolicy) => Compute(
+        IngestionConflictPolicy conflictPolicy) =>
+        IngestionMutationFingerprint.Compute(
         "bunkfy-ingestion-connection-update/v1",
         command.PropertyId.ToString("N"),
         command.ConnectionId.ToString("N"),
@@ -35,7 +34,8 @@ internal static class IngestionConnectionMutationFingerprint
             : string.Empty);
 
     public static string ComputeEnabledState(
-        SetAdapterConnectionEnabledCommand command) => Compute(
+        SetAdapterConnectionEnabledCommand command) =>
+        IngestionMutationFingerprint.Compute(
         command.Enabled
             ? "bunkfy-ingestion-connection-enable/v1"
             : "bunkfy-ingestion-connection-disable/v1",
@@ -44,7 +44,8 @@ internal static class IngestionConnectionMutationFingerprint
         command.ExpectedVersion.ToString(CultureInfo.InvariantCulture));
 
     public static string ComputePollingSchedule(
-        ConfigureAdapterConnectionPollingScheduleCommand command) => Compute(
+        ConfigureAdapterConnectionPollingScheduleCommand command) =>
+        IngestionMutationFingerprint.Compute(
         "bunkfy-ingestion-connection-polling-schedule-configure/v1",
         command.PropertyId.ToString("N"),
         command.ConnectionId.ToString("N"),
@@ -72,25 +73,9 @@ internal static class IngestionConnectionMutationFingerprint
         string schema,
         Guid propertyId,
         Guid connectionId,
-        long expectedVersion) => Compute(
+        long expectedVersion) => IngestionMutationFingerprint.Compute(
         schema,
         propertyId.ToString("N"),
         connectionId.ToString("N"),
         expectedVersion.ToString(CultureInfo.InvariantCulture));
-
-    private static string Compute(params string[] values)
-    {
-        using IncrementalHash hash = IncrementalHash.CreateHash(
-            HashAlgorithmName.SHA256);
-        Span<byte> length = stackalloc byte[sizeof(int)];
-        foreach (string value in values)
-        {
-            byte[] bytes = Encoding.UTF8.GetBytes(value);
-            BinaryPrimitives.WriteInt32BigEndian(length, bytes.Length);
-            hash.AppendData(length);
-            hash.AppendData(bytes);
-        }
-
-        return Convert.ToHexStringLower(hash.GetHashAndReset());
-    }
 }

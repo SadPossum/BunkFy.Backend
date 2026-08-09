@@ -47,6 +47,14 @@ public sealed record AdapterIngressCredentialMutationReceiptDto(
     AdapterIngressCredentialStatus Status,
     long Version);
 
+public enum AdapterIngressCredentialIssuanceOutcome
+{
+    Unknown = 0,
+    Issued = 1,
+    AlreadyIssued = 2
+}
+
 public sealed record CreateAdapterIngressCredentialResponse(
     AdapterIngressCredentialDto Credential,
-    string Token);
+    AdapterIngressCredentialIssuanceOutcome Outcome,
+    string? Token);

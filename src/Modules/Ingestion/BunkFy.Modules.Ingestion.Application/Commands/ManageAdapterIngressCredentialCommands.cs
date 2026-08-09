@@ -4,6 +4,7 @@ using Gma.Framework.Cqrs;
 using BunkFy.Modules.Ingestion.Contracts;
 
 public sealed record CreateAdapterIngressCredentialCommand(
+    Guid OperationId,
     Guid PropertyId,
     Guid ConnectionId,
     string Label,
@@ -13,6 +14,7 @@ public sealed record CreateAdapterIngressCredentialCommand(
     : ITransactionalCommand<CreateAdapterIngressCredentialResponse>;
 
 public sealed record RevokeAdapterIngressCredentialCommand(
+    Guid OperationId,
     Guid PropertyId,
     Guid ConnectionId,
     Guid CredentialId,

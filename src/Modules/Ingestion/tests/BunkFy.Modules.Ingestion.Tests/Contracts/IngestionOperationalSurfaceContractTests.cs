@@ -93,6 +93,10 @@ public sealed class IngestionOperationalSurfaceContractTests
             "CredentialId",
             "Status",
             "Version");
+        AssertProperties<CreateAdapterIngressCredentialResponse>(
+            "Credential",
+            "Outcome",
+            "Token");
     }
 
     private static void AssertProperties<T>(params string[] expected)

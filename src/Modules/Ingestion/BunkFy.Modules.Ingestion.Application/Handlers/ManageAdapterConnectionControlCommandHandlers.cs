@@ -27,7 +27,7 @@ internal sealed class SetAdapterConnectionEnabledCommandHandler(
         CancellationToken cancellationToken)
     {
         Result<string> admission =
-            await IngestionConnectionManagementAdmission.AuthorizeAsync(
+            await IngestionManagementAdmission.AuthorizeAsync(
                 scopeContext,
                 lifecyclePolicies,
                 command.OperationId,
@@ -143,7 +143,7 @@ internal sealed class ConfigureAdapterConnectionPollingScheduleCommandHandler(
         CancellationToken cancellationToken)
     {
         Result<string> admission =
-            await IngestionConnectionManagementAdmission.AuthorizeAsync(
+            await IngestionManagementAdmission.AuthorizeAsync(
                 scopeContext,
                 lifecyclePolicies,
                 command.OperationId,
@@ -240,7 +240,7 @@ internal sealed class ClearAdapterConnectionPollingScheduleCommandHandler(
         CancellationToken cancellationToken)
     {
         Result<string> admission =
-            await IngestionConnectionManagementAdmission.AuthorizeAsync(
+            await IngestionManagementAdmission.AuthorizeAsync(
                 scopeContext,
                 lifecyclePolicies,
                 command.OperationId,
@@ -319,7 +319,7 @@ internal sealed class ResetAdapterConnectionCheckpointCommandHandler(
         CancellationToken cancellationToken)
     {
         Result<string> admission =
-            await IngestionConnectionManagementAdmission.AuthorizeAsync(
+            await IngestionManagementAdmission.AuthorizeAsync(
                 scopeContext,
                 lifecyclePolicies,
                 command.OperationId,

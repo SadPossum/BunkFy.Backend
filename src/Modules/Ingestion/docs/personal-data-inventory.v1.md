@@ -1,4 +1,4 @@
-# ingestion Personal-Data Inventory v15
+# ingestion Personal-Data Inventory v16
 
 Generated from `ingestion.personal-data` schema v1.
 Catalogue approval: `engineering-default`.
@@ -377,6 +377,7 @@ Engineering metadata is not legal or country-launch approval.
 | ingestion.adapter-credential.has-secret | BunkFy.Adapter.Abstractions | BunkFy.Adapter.Abstractions.AdapterConfigurationMaterial | HasSecret | adapter-ingress | adapter-credential-lifecycle |
 | ingestion.adapter-credential.id | BunkFy.Modules.Ingestion.Domain | BunkFy.Modules.Ingestion.Domain.Credentials.AdapterIngressCredential | Id | persistence | adapter-credential-lifecycle |
 | ingestion.adapter-credential.issuance-response | BunkFy.Modules.Ingestion.Contracts | BunkFy.Modules.Ingestion.Contracts.CreateAdapterIngressCredentialResponse | Credential | api-response | adapter-credential-lifecycle |
+| ingestion.adapter-credential.issuance-response | BunkFy.Modules.Ingestion.Contracts | BunkFy.Modules.Ingestion.Contracts.CreateAdapterIngressCredentialResponse | Outcome | api-response | adapter-credential-lifecycle |
 | ingestion.adapter-credential.label | BunkFy.Modules.Ingestion.Application | BunkFy.Modules.Ingestion.Application.Commands.CreateAdapterIngressCredentialCommand | Label | application-command | adapter-credential-lifecycle |
 | ingestion.adapter-credential.label | BunkFy.Modules.Ingestion.Contracts | BunkFy.Modules.Ingestion.Contracts.AdapterIngressCredentialDto | Label | api-response | adapter-credential-lifecycle |
 | ingestion.adapter-credential.label | BunkFy.Modules.Ingestion.Contracts | BunkFy.Modules.Ingestion.Contracts.AdapterIngressCredentialListItemDto | Label | api-response | adapter-credential-lifecycle |
@@ -1044,14 +1045,17 @@ Engineering metadata is not legal or country-launch approval.
 | ingestion.operations.operation-id | BunkFy.Modules.Ingestion.Api | BunkFy.Modules.Ingestion.Api.IngestionModule+ConfigurePollingScheduleRequest | OperationId | api-input | operations-lifecycle |
 | ingestion.operations.operation-id | BunkFy.Modules.Ingestion.Api | BunkFy.Modules.Ingestion.Api.IngestionModule+ConnectionControlRequest | OperationId | api-input | operations-lifecycle |
 | ingestion.operations.operation-id | BunkFy.Modules.Ingestion.Api | BunkFy.Modules.Ingestion.Api.IngestionModule+CreateConnectionRequest | OperationId | api-input | operations-lifecycle |
+| ingestion.operations.operation-id | BunkFy.Modules.Ingestion.Api | BunkFy.Modules.Ingestion.Api.IngestionModule+CreateIngressCredentialRequest | OperationId | api-input | operations-lifecycle |
 | ingestion.operations.operation-id | BunkFy.Modules.Ingestion.Api | BunkFy.Modules.Ingestion.Api.IngestionModule+UpdateConnectionRequest | OperationId | api-input | operations-lifecycle |
 | ingestion.operations.operation-id | BunkFy.Modules.Ingestion.Application | BunkFy.Modules.Ingestion.Application.Commands.ClearAdapterConnectionPollingScheduleCommand | OperationId | application-command | operations-lifecycle |
 | ingestion.operations.operation-id | BunkFy.Modules.Ingestion.Application | BunkFy.Modules.Ingestion.Application.Commands.ConfigureAdapterConnectionPollingScheduleCommand | OperationId | application-command | operations-lifecycle |
 | ingestion.operations.operation-id | BunkFy.Modules.Ingestion.Application | BunkFy.Modules.Ingestion.Application.Commands.CreateAdapterConnectionCommand | OperationId | application-command | operations-lifecycle |
+| ingestion.operations.operation-id | BunkFy.Modules.Ingestion.Application | BunkFy.Modules.Ingestion.Application.Commands.CreateAdapterIngressCredentialCommand | OperationId | application-command | operations-lifecycle |
 | ingestion.operations.operation-id | BunkFy.Modules.Ingestion.Application | BunkFy.Modules.Ingestion.Application.Commands.ReceiveObservationCommand | OperationId | application-command | operations-lifecycle |
 | ingestion.operations.operation-id | BunkFy.Modules.Ingestion.Application | BunkFy.Modules.Ingestion.Application.Commands.RecordObservationReprocessingOutputCommand | OperationId | application-command | operations-lifecycle |
 | ingestion.operations.operation-id | BunkFy.Modules.Ingestion.Application | BunkFy.Modules.Ingestion.Application.Commands.ReservationObservationDispatchResult | OperationId | application-command | operations-lifecycle |
 | ingestion.operations.operation-id | BunkFy.Modules.Ingestion.Application | BunkFy.Modules.Ingestion.Application.Commands.ResetAdapterConnectionCheckpointCommand | OperationId | application-command | operations-lifecycle |
+| ingestion.operations.operation-id | BunkFy.Modules.Ingestion.Application | BunkFy.Modules.Ingestion.Application.Commands.RevokeAdapterIngressCredentialCommand | OperationId | application-command | operations-lifecycle |
 | ingestion.operations.operation-id | BunkFy.Modules.Ingestion.Application | BunkFy.Modules.Ingestion.Application.Commands.SetAdapterConnectionEnabledCommand | OperationId | application-command | operations-lifecycle |
 | ingestion.operations.operation-id | BunkFy.Modules.Ingestion.Application | BunkFy.Modules.Ingestion.Application.Commands.UpdateAdapterConnectionCommand | OperationId | application-command | operations-lifecycle |
 | ingestion.operations.operation-id | BunkFy.Modules.Ingestion.Domain | BunkFy.Modules.Ingestion.Domain.Receipts.ObservationReceipt | OperationId | persistence | operations-lifecycle |

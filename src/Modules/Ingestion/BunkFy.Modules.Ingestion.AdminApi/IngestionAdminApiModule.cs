@@ -288,6 +288,7 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
                 {
                     Result<CreateAdapterIngressCredentialResponse> result = await dispatcher.SendAsync(
                         new CreateAdapterIngressCredentialCommand(
+                            request.OperationId,
                             propertyId,
                             connectionId,
                             request.Label,
@@ -315,7 +316,12 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
                 true,
                 ct => request.Confirmed
                     ? dispatcher.SendAsync(new RevokeAdapterIngressCredentialCommand(
-                        propertyId, connectionId, credentialId, request.ExpectedVersion, Actor(context)), ct)
+                        request.OperationId,
+                        propertyId,
+                        connectionId,
+                        credentialId,
+                        request.ExpectedVersion,
+                        Actor(context)), ct)
                     : Task.FromResult(Result.Failure<AdapterIngressCredentialMutationReceiptDto>(
                         AdminErrors.ConfirmationRequired)),
                 token,
@@ -944,10 +950,14 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
         int MaxAttempts,
         long ExpectedVersion);
     public sealed record CreateIngressCredentialRequest(
+        Guid OperationId,
         string Label,
         DateTimeOffset? ExpiresAtUtc = null,
         string? SourceSystem = null);
-    public sealed record RevokeIngressCredentialRequest(long ExpectedVersion, bool Confirmed);
+    public sealed record RevokeIngressCredentialRequest(
+        Guid OperationId,
+        long ExpectedVersion,
+        bool Confirmed);
     public sealed record GlobalIngressControlRequest(
         long ExpectedVersion,
         string ReasonCode,

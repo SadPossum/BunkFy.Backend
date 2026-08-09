@@ -824,6 +824,7 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
         IServiceProvider services,
         AdminCliGlobalOptions globalOptions)
     {
+        Option<Guid> operation = RequiredGuid("--operation-id");
         Option<Guid> property = RequiredGuid("--property-id");
         Option<Guid> connection = RequiredGuid("--connection-id");
         Option<string> label = RequiredString("--label");
@@ -831,7 +832,7 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
         Option<string?> sourceSystem = new("--source-system");
         Command command = new("create", "Create an adapter ingress credential and print its token once.")
         {
-            property, connection, label, expires, sourceSystem
+            operation, property, connection, label, expires, sourceSystem
         };
         command.SetAction((parse, token) => ExecuteObjectAsync(
             services,
@@ -841,6 +842,7 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
             IngestionAdminPermissions.CredentialsManage,
             (provider, ct) => provider.GetRequiredService<IRequestDispatcher>().SendAsync(
                 new CreateAdapterIngressCredentialCommand(
+                    parse.GetRequiredValue(operation),
                     parse.GetRequiredValue(property),
                     parse.GetRequiredValue(connection),
                     parse.GetRequiredValue(label),
@@ -856,6 +858,7 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
         IServiceProvider services,
         AdminCliGlobalOptions globalOptions)
     {
+        Option<Guid> operation = RequiredGuid("--operation-id");
         Option<Guid> property = RequiredGuid("--property-id");
         Option<Guid> connection = RequiredGuid("--connection-id");
         Option<Guid> credential = RequiredGuid("--credential-id");
@@ -863,7 +866,7 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
         Option<bool> yes = new("--yes");
         Command command = new("revoke", "Revoke an adapter ingress credential.")
         {
-            property, connection, credential, version, yes
+            operation, property, connection, credential, version, yes
         };
         command.SetAction((parse, token) => ExecuteObjectAsync<AdapterIngressCredentialMutationReceiptDto>(
             services,
@@ -874,6 +877,7 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
             parse.GetValue(yes)
                 ? (provider, ct) => provider.GetRequiredService<IRequestDispatcher>().SendAsync(
                     new RevokeAdapterIngressCredentialCommand(
+                        parse.GetRequiredValue(operation),
                         parse.GetRequiredValue(property),
                         parse.GetRequiredValue(connection),
                         parse.GetRequiredValue(credential),

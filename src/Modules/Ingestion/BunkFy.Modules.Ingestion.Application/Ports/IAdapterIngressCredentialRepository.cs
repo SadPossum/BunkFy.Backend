@@ -9,6 +9,9 @@ public interface IAdapterIngressCredentialRepository
         Guid connectionId,
         Guid credentialId,
         CancellationToken cancellationToken);
+    Task<bool> IdExistsAsync(
+        Guid credentialId,
+        CancellationToken cancellationToken);
     Task<AdapterIngressCredential?> GetForAuthenticationAsync(
         Guid connectionId,
         Guid credentialId,

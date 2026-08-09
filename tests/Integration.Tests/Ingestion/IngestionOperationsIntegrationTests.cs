@@ -875,6 +875,7 @@ public sealed class IngestionOperationsIntegrationTests
             .GetRequiredService<IRequestDispatcher>()
             .SendAsync(
                 new CreateAdapterIngressCredentialCommand(
+                    Guid.NewGuid(),
                     OtherTenantPropertyId,
                     OtherTenantPushConnectionId,
                     "other tenant ingress",
@@ -905,6 +906,24 @@ public sealed class IngestionOperationsIntegrationTests
         await dbContext.SaveChangesAsync().ConfigureAwait(false);
     }
 
+    private static async Task<int> CountConnectionManagementOperationsAsync(
+        AuthTestApplication api,
+        Guid connectionId,
+        IngestionConnectionManagementMutationKind kind)
+    {
+        using IServiceScope scope = api.Services.CreateScope();
+        scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>()
+            .SetTenant(TenantId);
+        IngestionDbContext dbContext =
+            scope.ServiceProvider.GetRequiredService<IngestionDbContext>();
+        return await dbContext.ConnectionManagementOperations
+            .AsNoTracking()
+            .CountAsync(operation =>
+                operation.ConnectionId == connectionId &&
+                operation.Kind == kind)
+            .ConfigureAwait(false);
+    }
+
     private static async Task ProveRemoteAdapterLeasesAsync(
         AuthTestApplication api,
         HttpClient managementClient)
@@ -915,10 +934,18 @@ public sealed class IngestionOperationsIntegrationTests
             await PostAsync<CreateAdapterIngressCredentialResponse>(
                 managementClient,
                 credentialsPath,
-                new { label = "remote poller" }).ConfigureAwait(false);
+                new
+                {
+                    operationId = Guid.NewGuid(),
+                    label = "remote poller"
+                }).ConfigureAwait(false);
+        Assert.Equal(
+            AdapterIngressCredentialIssuanceOutcome.Issued,
+            credential.Outcome);
+        string credentialToken = Assert.IsType<string>(credential.Token);
         using HttpClient adapterHttp = api.CreateClient();
         AdapterHttpIngressClient remoteClient = CreateAdapterClient(
-            adapterHttp, credential.Token, RemoteConnectionId);
+            adapterHttp, credentialToken, RemoteConnectionId);
         Guid workerId = Guid.Parse("93000000-0000-0000-0000-000000000001");
         RemoteLeasedAdapterCycleRunner cycle = new(
             new RemoteIntegrationRunner(),
@@ -964,9 +991,9 @@ public sealed class IngestionOperationsIntegrationTests
             WorkerId = Guid.Parse("93000000-0000-0000-0000-000000000003")
         };
         Task<HttpResponseMessage> firstTask = SendAdapterControlAsync(
-            adapterHttp, RemoteConnectionId, credential.Token, "remote-leases/claim", firstClaim);
+            adapterHttp, RemoteConnectionId, credentialToken, "remote-leases/claim", firstClaim);
         Task<HttpResponseMessage> secondTask = SendAdapterControlAsync(
-            adapterHttp, RemoteConnectionId, credential.Token, "remote-leases/claim", secondClaim);
+            adapterHttp, RemoteConnectionId, credentialToken, "remote-leases/claim", secondClaim);
         HttpResponseMessage[] claims = await Task.WhenAll(firstTask, secondTask).ConfigureAwait(false);
         try
         {
@@ -1008,7 +1035,7 @@ public sealed class IngestionOperationsIntegrationTests
             using HttpResponseMessage takeoverResponse = await SendAdapterControlAsync(
                 adapterHttp,
                 RemoteConnectionId,
-                credential.Token,
+                credentialToken,
                 "remote-leases/claim",
                 takeoverRequest).ConfigureAwait(false);
             AdapterRemoteLeaseClaimResponse takeover =
@@ -1024,7 +1051,7 @@ public sealed class IngestionOperationsIntegrationTests
             using HttpResponseMessage staleSubmission = await SendAdapterControlAsync(
                 adapterHttp,
                 RemoteConnectionId,
-                credential.Token,
+                credentialToken,
                 "remote-leases/observations",
                 new AdapterRemoteObservationSubmissionRequest(
                     staleProof,
@@ -1046,7 +1073,7 @@ public sealed class IngestionOperationsIntegrationTests
             using HttpResponseMessage completed = await SendAdapterControlAsync(
                 adapterHttp,
                 RemoteConnectionId,
-                credential.Token,
+                credentialToken,
                 "remote-leases/complete",
                 new AdapterRemoteRunCompletionRequest(
                     takeoverProof,
@@ -1070,7 +1097,7 @@ public sealed class IngestionOperationsIntegrationTests
             adapterHttp,
             TenantId,
             RemoteConnectionId,
-            credential.Token,
+            credentialToken,
             CreateIngressSubmission(Guid.NewGuid(), "{}"u8.ToArray(), "remote-bypass"))
             .ConfigureAwait(false);
         Assert.Equal(HttpStatusCode.Unauthorized, directPushBypass.StatusCode);
@@ -1107,16 +1134,60 @@ public sealed class IngestionOperationsIntegrationTests
     {
         string credentialsPath =
             $"/api/ingestion/properties/{PropertyId:D}/connections/{PushConnectionId:D}/credentials";
-        CreateAdapterIngressCredentialResponse primary;
-        using (HttpResponseMessage created = await managementClient.PostAsJsonAsync(
-                   credentialsPath,
-                   new { label = "integration primary" }).ConfigureAwait(false))
+        Guid primaryIssueOperationId = Guid.NewGuid();
+        object primaryIssueRequest = new
         {
-            primary = await ReadSuccessAsync<CreateAdapterIngressCredentialResponse>(created).ConfigureAwait(false);
-            Assert.True(created.Headers.CacheControl?.NoStore);
+            operationId = primaryIssueOperationId,
+            label = "integration primary"
+        };
+        Task<HttpResponseMessage>[] issueRequests =
+        [
+            managementClient.PostAsJsonAsync(
+                credentialsPath,
+                primaryIssueRequest),
+            managementClient.PostAsJsonAsync(
+                credentialsPath,
+                primaryIssueRequest)
+        ];
+        HttpResponseMessage[] issueResponses =
+            await Task.WhenAll(issueRequests).ConfigureAwait(false);
+        CreateAdapterIngressCredentialResponse[] issueResults;
+        try
+        {
+            issueResults = await Task.WhenAll(issueResponses.Select(
+                ReadSuccessAsync<CreateAdapterIngressCredentialResponse>))
+                .ConfigureAwait(false);
+            Assert.All(
+                issueResponses,
+                response => Assert.True(response.Headers.CacheControl?.NoStore));
+        }
+        finally
+        {
+            foreach (HttpResponseMessage response in issueResponses)
+            {
+                response.Dispose();
+            }
         }
 
-        Assert.StartsWith("bfi_v1_", primary.Token, StringComparison.Ordinal);
+        CreateAdapterIngressCredentialResponse primary = Assert.Single(
+            issueResults,
+            result => result.Outcome ==
+                AdapterIngressCredentialIssuanceOutcome.Issued);
+        CreateAdapterIngressCredentialResponse primaryReplay = Assert.Single(
+            issueResults,
+            result => result.Outcome ==
+                AdapterIngressCredentialIssuanceOutcome.AlreadyIssued);
+        string primaryToken = Assert.IsType<string>(primary.Token);
+        Assert.Null(primaryReplay.Token);
+        Assert.Equal(primary.Credential, primaryReplay.Credential);
+        Assert.StartsWith("bfi_v1_", primaryToken, StringComparison.Ordinal);
+        Assert.Equal(
+            1,
+            await CountConnectionManagementOperationsAsync(
+                api,
+                PushConnectionId,
+                IngestionConnectionManagementMutationKind
+                    .AdapterIngressCredentialCreate).ConfigureAwait(false));
         Assert.Equal(FakeHttpAdapterDescriptor.Value.AdapterType, primary.Credential.AdapterType);
         Assert.Equal(1, primary.Credential.AdapterProtocolVersion);
         Assert.Equal(1, primary.Credential.ConfigurationSchemaVersion);
@@ -1125,7 +1196,7 @@ public sealed class IngestionOperationsIntegrationTests
             managementClient, credentialsPath).ConfigureAwait(false);
         AdapterIngressCredentialListItemDto listedPrimary = Assert.Single(initialList.Credentials);
         string listedJson = JsonSerializer.Serialize(initialList);
-        Assert.DoesNotContain(primary.Token, listedJson, StringComparison.Ordinal);
+        Assert.DoesNotContain(primaryToken, listedJson, StringComparison.Ordinal);
         Assert.DoesNotContain("secretHash", listedJson, StringComparison.OrdinalIgnoreCase);
         AdminCliResult cliList = await admin.ExecuteAsync(
             "ingestion", "credentials", "list",
@@ -1135,7 +1206,7 @@ public sealed class IngestionOperationsIntegrationTests
             "--connection-id", PushConnectionId.ToString("D"),
             "--output", "json");
         Assert.Equal(AdminExitCodes.Success, cliList.ExitCode);
-        Assert.DoesNotContain(primary.Token, cliList.Output, StringComparison.Ordinal);
+        Assert.DoesNotContain(primaryToken, cliList.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("secretHash", cliList.Output, StringComparison.OrdinalIgnoreCase);
 
         byte[] payload = CreateCanonicalReservationPayload(sourceSequence: 1);
@@ -1145,7 +1216,7 @@ public sealed class IngestionOperationsIntegrationTests
         using HttpClient ingressClient = api.CreateClient();
         AdapterHttpIngressClient otherTenantIngress = CreateAdapterClient(
             ingressClient,
-            otherTenantCredential.Token,
+            Assert.IsType<string>(otherTenantCredential.Token),
             OtherTenantId,
             OtherTenantPushConnectionId);
 
@@ -1161,17 +1232,17 @@ public sealed class IngestionOperationsIntegrationTests
             Assert.Equal(HttpStatusCode.Unauthorized, staffJwt.StatusCode);
         }
         using (HttpResponseMessage wrongTenant = await SendIngressAsync(
-                   ingressClient, "tenant-other", PushConnectionId, primary.Token, submission).ConfigureAwait(false))
+                   ingressClient, "tenant-other", PushConnectionId, primaryToken, submission).ConfigureAwait(false))
         {
             Assert.Equal(HttpStatusCode.Unauthorized, wrongTenant.StatusCode);
         }
         using (HttpResponseMessage wrongConnection = await SendIngressAsync(
-                   ingressClient, TenantId, Guid.NewGuid(), primary.Token, submission).ConfigureAwait(false))
+                   ingressClient, TenantId, Guid.NewGuid(), primaryToken, submission).ConfigureAwait(false))
         {
             Assert.Equal(HttpStatusCode.Unauthorized, wrongConnection.StatusCode);
         }
 
-        AdapterHttpIngressClient primaryIngress = CreateIngressClient(ingressClient, primary.Token);
+        AdapterHttpIngressClient primaryIngress = CreateIngressClient(ingressClient, primaryToken);
         AdapterIngressSubmissionResponse accepted = await primaryIngress.SubmitAsync(
             [observedRecord], CancellationToken.None).ConfigureAwait(false);
         Assert.Equal(AdapterObservationDisposition.Accepted, Assert.Single(accepted.Results).Disposition);
@@ -1199,21 +1270,68 @@ public sealed class IngestionOperationsIntegrationTests
         CreateAdapterIngressCredentialResponse secondary = await PostAsync<CreateAdapterIngressCredentialResponse>(
             managementClient,
             credentialsPath,
-            new { label = "integration rotated" }).ConfigureAwait(false);
-        Assert.NotEqual(primary.Token, secondary.Token);
+            new
+            {
+                operationId = Guid.NewGuid(),
+                label = "integration rotated"
+            }).ConfigureAwait(false);
+        Assert.Equal(
+            AdapterIngressCredentialIssuanceOutcome.Issued,
+            secondary.Outcome);
+        string secondaryToken = Assert.IsType<string>(secondary.Token);
+        Assert.NotEqual(primaryToken, secondaryToken);
 
-        AdapterIngressCredentialMutationReceiptDto revoked =
-            await PostAsync<AdapterIngressCredentialMutationReceiptDto>(
-            managementClient,
-            $"{credentialsPath}/{primary.Credential.CredentialId:D}/revoke",
-            new { expectedVersion = primary.Credential.Version }).ConfigureAwait(false);
-        Assert.Equal(AdapterIngressCredentialStatus.Revoked, revoked.Status);
+        Guid primaryRevokeOperationId = Guid.NewGuid();
+        object primaryRevokeRequest = new
+        {
+            operationId = primaryRevokeOperationId,
+            expectedVersion = primary.Credential.Version
+        };
+        Task<HttpResponseMessage>[] revokeRequests =
+        [
+            managementClient.PostAsJsonAsync(
+                $"{credentialsPath}/{primary.Credential.CredentialId:D}/revoke",
+                primaryRevokeRequest),
+            managementClient.PostAsJsonAsync(
+                $"{credentialsPath}/{primary.Credential.CredentialId:D}/revoke",
+                primaryRevokeRequest)
+        ];
+        HttpResponseMessage[] revokeResponses =
+            await Task.WhenAll(revokeRequests).ConfigureAwait(false);
+        AdapterIngressCredentialMutationReceiptDto[] revokeResults;
+        try
+        {
+            revokeResults = await Task.WhenAll(revokeResponses.Select(
+                ReadSuccessAsync<AdapterIngressCredentialMutationReceiptDto>))
+                .ConfigureAwait(false);
+        }
+        finally
+        {
+            foreach (HttpResponseMessage response in revokeResponses)
+            {
+                response.Dispose();
+            }
+        }
+
+        Assert.Equal(revokeResults[0], revokeResults[1]);
+        Assert.All(
+            revokeResults,
+            revoked => Assert.Equal(
+                AdapterIngressCredentialStatus.Revoked,
+                revoked.Status));
+        Assert.Equal(
+            1,
+            await CountConnectionManagementOperationsAsync(
+                api,
+                PushConnectionId,
+                IngestionConnectionManagementMutationKind
+                    .AdapterIngressCredentialRevoke).ConfigureAwait(false));
         using (HttpResponseMessage revokedIngress = await SendIngressAsync(
-                   ingressClient, TenantId, PushConnectionId, primary.Token, submission).ConfigureAwait(false))
+                   ingressClient, TenantId, PushConnectionId, primaryToken, submission).ConfigureAwait(false))
         {
             Assert.Equal(HttpStatusCode.Unauthorized, revokedIngress.StatusCode);
         }
-        AdapterHttpIngressClient secondaryIngress = CreateIngressClient(ingressClient, secondary.Token);
+        AdapterHttpIngressClient secondaryIngress = CreateIngressClient(ingressClient, secondaryToken);
         AdapterObservationResult otherTenantAfterRevocation = await SubmitCanonicalAsync(
             otherTenantIngress,
             sourceSequence: 10,
@@ -1328,7 +1446,7 @@ public sealed class IngestionOperationsIntegrationTests
         await ProveProviderLossIsolationAsync(
             api,
             managementClient,
-            secondary.Token).ConfigureAwait(false);
+            secondaryToken).ConfigureAwait(false);
 
         MemoryCheckpointLease runtimeCheckpoint = new(PushConnectionId);
         StandaloneAdapterCycleRunner standaloneCycle = new(
@@ -1369,7 +1487,7 @@ public sealed class IngestionOperationsIntegrationTests
             ingressClient,
             TenantId,
             PushConnectionId,
-            secondary.Token,
+            secondaryToken,
             CreateIngressSubmission(
                 disabledRecord.OperationId,
                 disabledRecord.Payload.ToArray(),
@@ -1383,10 +1501,12 @@ public sealed class IngestionOperationsIntegrationTests
         Assert.Contains(finalList.Credentials, credential =>
             credential.CredentialId == listedPrimary.CredentialId && credential.LastAuthenticatedAtUtc.HasValue);
 
+        Guid secondaryRevokeOperationId = Guid.NewGuid();
         AdminCliResult confirmationRequired = await admin.ExecuteAsync(
             "ingestion", "credentials", "revoke",
             "--actor", "owner",
             "--tenant", TenantId,
+            "--operation-id", secondaryRevokeOperationId.ToString("D"),
             "--property-id", PropertyId.ToString("D"),
             "--connection-id", PushConnectionId.ToString("D"),
             "--credential-id", secondary.Credential.CredentialId.ToString("D"),
@@ -1398,14 +1518,15 @@ public sealed class IngestionOperationsIntegrationTests
             "ingestion", "credentials", "revoke",
             "--actor", "owner",
             "--tenant", TenantId,
+            "--operation-id", secondaryRevokeOperationId.ToString("D"),
             "--property-id", PropertyId.ToString("D"),
             "--connection-id", PushConnectionId.ToString("D"),
             "--credential-id", secondary.Credential.CredentialId.ToString("D"),
             "--expected-version", secondary.Credential.Version.ToString(
                 System.Globalization.CultureInfo.InvariantCulture),
             "--yes"));
-        Assert.Equal(0, await admin.CountAuditEntriesContainingAsync(primary.Token).ConfigureAwait(false));
-        Assert.Equal(0, await admin.CountAuditEntriesContainingAsync(secondary.Token).ConfigureAwait(false));
+        Assert.Equal(0, await admin.CountAuditEntriesContainingAsync(primaryToken).ConfigureAwait(false));
+        Assert.Equal(0, await admin.CountAuditEntriesContainingAsync(secondaryToken).ConfigureAwait(false));
     }
 
     private static async Task ProveProviderLossIsolationAsync(

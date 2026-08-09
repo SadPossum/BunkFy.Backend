@@ -29,7 +29,7 @@ internal sealed class CreateAdapterConnectionCommandHandler(
         CancellationToken cancellationToken)
     {
         Result<string> admission =
-            await IngestionConnectionManagementAdmission.AuthorizeAsync(
+            await IngestionManagementAdmission.AuthorizeAsync(
                 scopeContext,
                 lifecyclePolicies,
                 command.OperationId,
@@ -141,7 +141,7 @@ internal sealed class UpdateAdapterConnectionCommandHandler(
         CancellationToken cancellationToken)
     {
         Result<string> admission =
-            await IngestionConnectionManagementAdmission.AuthorizeAsync(
+            await IngestionManagementAdmission.AuthorizeAsync(
                 scopeContext,
                 lifecyclePolicies,
                 command.OperationId,
