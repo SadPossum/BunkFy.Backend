@@ -31,15 +31,29 @@ internal sealed class ManualInventoryBlockCreator(
             return Result.Failure<ManualInventoryBlockCreationResult>(InventoryApplicationErrors.TenantRequired);
         }
 
+        if (!InventoryBlockTargetNormalizer.TryNormalize(
+                target,
+                out InventoryBlockTarget normalizedTarget))
+        {
+            return Result.Failure<ManualInventoryBlockCreationResult>(
+                InventoryApplicationErrors.BlockTargetInvalid);
+        }
+
+        string normalizedReason =
+            InventoryManagementMutationFingerprint.NormalizeReason(reason);
+
         if (!await inventory.PropertyExistsAsync(propertyId, cancellationToken).ConfigureAwait(false))
         {
             return Result.Failure<ManualInventoryBlockCreationResult>(InventoryApplicationErrors.PropertyNotFound);
         }
 
         IReadOnlyCollection<InventoryUnitSnapshot> resolved = await inventory
-            .ResolveBlockTargetUnitsAsync(propertyId, target, cancellationToken)
+            .ResolveBlockTargetUnitsAsync(
+                propertyId,
+                normalizedTarget,
+                cancellationToken)
             .ConfigureAwait(false);
-        if (target.Kind == InventoryBlockTargetKind.Unit)
+        if (normalizedTarget.Kind == InventoryBlockTargetKind.Unit)
         {
             InventoryUnitSnapshot? unit = resolved.SingleOrDefault();
             if (unit is null)
@@ -103,7 +117,7 @@ internal sealed class ManualInventoryBlockCreator(
                 inventoryUnitId,
                 arrival,
                 departure,
-                reason,
+                normalizedReason,
                 idGenerator.NewId(),
                 nowUtc,
                 actorId);

@@ -333,21 +333,31 @@ public sealed class ConfigureRoomSalesModeCommandHandlerTests
     }
 
     private sealed class RecordingRoomLock(List<string>? trace)
-        : IInventoryRoomManagementLock
+        : IInventoryManagementLock
     {
         public int CallCount { get; private set; }
 
-        public Task AcquireAsync(
+        public Task AcquireResourceAsync(
             string tenantId,
-            Guid roomId,
+            InventoryManagementResourceKind resourceKind,
+            Guid resourceId,
             CancellationToken cancellationToken)
         {
             Assert.Equal("tenant-a", tenantId);
-            Assert.Equal(RoomId, roomId);
+            Assert.Equal(InventoryManagementResourceKind.Room, resourceKind);
+            Assert.Equal(RoomId, resourceId);
             this.CallCount++;
             trace?.Add("room-lock");
             return Task.CompletedTask;
         }
+
+        public Task AcquireOperationAsync(
+            string tenantId,
+            InventoryManagementResourceKind resourceKind,
+            Guid resourceId,
+            Guid operationId,
+            CancellationToken cancellationToken) => throw new InvalidOperationException(
+                "Room sales mode does not acquire an operation-only lock.");
     }
 
     private sealed class MutableAvailabilityRepository(int activeAllocationCount)

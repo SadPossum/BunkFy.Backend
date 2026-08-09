@@ -51,7 +51,8 @@ internal sealed class ConfigureRoomSalesModeCommandHandler(
                 command.SalesMode);
         await mutations.AcquireRoomAsync(command.RoomId, cancellationToken)
             .ConfigureAwait(false);
-        InventoryManagementReplayDecision replay = await journal
+        InventoryManagementReplayDecision<RoomInventoryMutationReceiptDto>
+            replay = await journal
             .InspectRoomAsync(
                 command.PropertyId,
                 command.RoomId,

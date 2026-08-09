@@ -10,6 +10,8 @@ using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
 
 internal sealed class ReleaseManualInventoryBlockGroupCommandHandler(
+    InventoryManagementMutationCoordinator mutations,
+    InventoryManagementOperationJournal journal,
     IManualInventoryBlockRepository blocks,
     IInventoryAvailabilityRepository availability,
     InventoryRetirementCoordinator retirements,
@@ -21,6 +23,34 @@ internal sealed class ReleaseManualInventoryBlockGroupCommandHandler(
         ReleaseManualInventoryBlockGroupCommand command,
         CancellationToken cancellationToken)
     {
+        if (command.OperationId == Guid.Empty)
+        {
+            return Result.Failure<
+                ManualInventoryBlockGroupMutationReceiptDto>(
+                InventoryApplicationErrors.ManagementOperationInvalid);
+        }
+
+        string fingerprint = InventoryManagementMutationFingerprint
+            .ComputeManualBlockGroupRelease(
+                command.PropertyId,
+                command.BlockGroupId);
+        await mutations.AcquireBlockGroupAsync(
+                command.BlockGroupId,
+                cancellationToken)
+            .ConfigureAwait(false);
+        InventoryManagementReplayDecision<
+            ManualInventoryBlockGroupMutationReceiptDto> replay =
+            await journal.InspectBlockGroupReleaseAsync(
+                command.PropertyId,
+                command.BlockGroupId,
+                command.OperationId,
+                fingerprint,
+                cancellationToken).ConfigureAwait(false);
+        if (replay.Exists)
+        {
+            return replay.ToResult();
+        }
+
         IReadOnlyCollection<ManualInventoryBlock> group = await blocks
             .GetActiveGroupAsync(command.PropertyId, command.BlockGroupId, cancellationToken)
             .ConfigureAwait(false);
@@ -50,9 +80,17 @@ internal sealed class ReleaseManualInventoryBlockGroupCommandHandler(
             excludedAllocationId: null,
             excludedBlockIds: group.Select(block => block.Id).ToArray(),
             cancellationToken).ConfigureAwait(false);
-        return Result.Success(new ManualInventoryBlockGroupMutationReceiptDto(
+        ManualInventoryBlockGroupMutationReceiptDto receipt = new(
             command.BlockGroupId,
             command.PropertyId,
-            group.Count));
+            group.Count);
+        receipt = await journal.RecordBlockGroupReleaseAsync(
+            group.First().ScopeId,
+            receipt,
+            command.OperationId,
+            fingerprint,
+            nowUtc,
+            cancellationToken).ConfigureAwait(false);
+        return Result.Success(receipt);
     }
 }

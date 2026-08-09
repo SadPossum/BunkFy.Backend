@@ -143,6 +143,7 @@ public sealed class InventoryModule : IModule
             CancellationToken cancellationToken) =>
             (await dispatcher.SendAsync(
                 new CreateManualInventoryBlockCommand(
+                    request.OperationId,
                     propertyId,
                     request.InventoryUnitId,
                     request.Arrival,
@@ -165,6 +166,7 @@ public sealed class InventoryModule : IModule
             CancellationToken cancellationToken) =>
             (await dispatcher.SendAsync(
                 new CreateManualInventoryBlockGroupCommand(
+                    request.OperationId,
                     propertyId,
                     request.Target,
                     request.Arrival,
@@ -188,6 +190,7 @@ public sealed class InventoryModule : IModule
             CancellationToken cancellationToken) =>
             (await dispatcher.SendAsync(
                 new ReleaseManualInventoryBlockCommand(
+                    request.OperationId,
                     propertyId,
                     blockId,
                     request.ExpectedVersion,
@@ -202,12 +205,14 @@ public sealed class InventoryModule : IModule
         inventory.MapPost("/properties/{propertyId:guid}/block-groups/{blockGroupId:guid}/release", async (
             Guid propertyId,
             Guid blockGroupId,
+            ReleaseManualBlockGroupRequest request,
             HttpContext httpContext,
             IAccessHttpSubjectResolver subjectResolver,
             IRequestDispatcher dispatcher,
             CancellationToken cancellationToken) =>
             (await dispatcher.SendAsync(
                 new ReleaseManualInventoryBlockGroupCommand(
+                    request.OperationId,
                     propertyId,
                     blockGroupId,
                     ResolveActor(httpContext, subjectResolver)),
@@ -334,16 +339,21 @@ public sealed class InventoryModule : IModule
         InventorySalesMode SalesMode,
         long ExpectedVersion);
     public sealed record CreateManualBlockRequest(
+        Guid OperationId,
         Guid InventoryUnitId,
         DateOnly Arrival,
         DateOnly Departure,
         string Reason);
     public sealed record CreateManualBlockGroupRequest(
+        Guid OperationId,
         InventoryBlockTarget Target,
         DateOnly Arrival,
         DateOnly Departure,
         string Reason);
-    public sealed record ReleaseManualBlockRequest(long ExpectedVersion);
+    public sealed record ReleaseManualBlockRequest(
+        Guid OperationId,
+        long ExpectedVersion);
+    public sealed record ReleaseManualBlockGroupRequest(Guid OperationId);
     public sealed record RequestBedRetirementRequest(string Reason);
     public sealed record RequestRoomRetirementRequest(string Reason);
 

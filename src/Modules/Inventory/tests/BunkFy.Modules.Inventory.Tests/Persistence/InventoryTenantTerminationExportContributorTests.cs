@@ -38,6 +38,10 @@ public sealed partial class InventoryTenantTerminationExportContributorTests
         Guid.Parse("80000000-0000-0000-0000-000000000001");
     private static readonly Guid ManagementOperationId =
         Guid.Parse("80500000-0000-0000-0000-000000000001");
+    private static readonly Guid BlockId =
+        Guid.Parse("81000000-0000-0000-0000-000000000001");
+    private static readonly Guid BlockGroupId =
+        Guid.Parse("82000000-0000-0000-0000-000000000001");
     private static readonly DateTimeOffset FrozenAtUtc =
         new(2026, 7, 31, 12, 0, 0, TimeSpan.Zero);
     private static readonly DateTimeOffset Now =
@@ -89,6 +93,25 @@ public sealed partial class InventoryTenantTerminationExportContributorTests
             ManagementOperationId,
             first.Records[2].Fields.Single(field =>
                 field.FieldId == "inventory.operation-id").Value.GetGuid());
+        JsonElement managementState = Field(
+            first.Records[2],
+            "inventory.management-operation");
+        Assert.Equal(
+            "manual-block-create",
+            managementState.GetProperty("kind").GetString());
+        Assert.Equal(
+            BlockId,
+            managementState.GetProperty("resultBlockId").GetGuid());
+        Assert.Equal(
+            BlockGroupId,
+            managementState.GetProperty("resultBlockGroupId").GetGuid());
+        Assert.Equal(
+            "active",
+            managementState.GetProperty("resultBlockStatus").GetString());
+        Assert.Equal(
+            1,
+            managementState.GetProperty("resultAffectedBlockCount").GetInt32());
+        Assert.False(managementState.TryGetProperty("reason", out _));
         Assert.Equal(
             InventoryTenantTerminationMetadata.ExportSchemaId,
             contributor.ExportDescriptor.ExportSchemaId);
@@ -289,8 +312,8 @@ public sealed partial class InventoryTenantTerminationExportContributorTests
             FrozenAtUtc.AddDays(-4),
             "user:owner").IsSuccess);
         ManualInventoryBlock block = ManualInventoryBlock.Create(
-            Guid.Parse("81000000-0000-0000-0000-000000000001"),
-            Guid.Parse("82000000-0000-0000-0000-000000000001"),
+            BlockId,
+            BlockGroupId,
             TenantId,
             PropertyId,
             BedId,
@@ -401,13 +424,17 @@ public sealed partial class InventoryTenantTerminationExportContributorTests
                 ManagementOperationId,
                 TenantId,
                 PropertyId,
-                InventoryManagementResourceKind.Room,
-                RoomId,
-                InventoryManagementMutationKind.RoomSalesModeConfiguration,
-                1,
+                InventoryManagementResourceKind.Property,
+                PropertyId,
+                InventoryManagementMutationKind.ManualBlockCreate,
+                0,
                 Digest,
-                InventorySalesMode.BedLevel,
-                2,
+                null,
+                BlockId,
+                BlockGroupId,
+                ManualInventoryBlockStatus.Active,
+                1,
+                1,
                 FrozenAtUtc.AddDays(-4)));
 
         context.InventoryUnits.Add(unit);

@@ -7,6 +7,11 @@ internal sealed class ReleaseManualInventoryBlockCommandValidator : ICommandVali
 {
     public IEnumerable<string> Validate(ReleaseManualInventoryBlockCommand command)
     {
+        if (command.OperationId == Guid.Empty)
+        {
+            yield return "OperationId is required.";
+        }
+
         if (command.PropertyId == Guid.Empty)
         {
             yield return "PropertyId is required.";

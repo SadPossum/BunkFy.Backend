@@ -15,6 +15,8 @@ values are engineering defaults until country, retention, and rights approval.
 - durable room and bed inventory-unit identities;
 - explicit `Unconfigured`, `RoomLevel`, or `BedLevel` room sales mode;
 - manual half-open `[arrival, departure)` block groups targeting a property, configured building/floor, room, or unit;
+- retry-safe manual-block creation and release with caller-owned operation ids,
+  canonical request fingerprints, typed immutable receipts, and exact replay;
 - durable, idempotent multi-unit reservation allocations and releases with concurrent-claim serialization;
 - exact-reservation Data Rights discovery/export plus terminal allocation
   anonymisation and restore-safe owner proof;
@@ -32,6 +34,14 @@ Grouped blocks resolve against Inventory's local topology projection at creation
 Room and manual-block directories use deterministic, bounded pages with `HasMore`; repositories determine continuation with `pageSize + 1` lookahead and do not execute exact count queries. Callers should continue only while `HasMore` is true. Availability intentionally remains one complete property and date-range decision snapshot because partial availability would be unsafe for assignment decisions.
 
 Ordinary sales-mode and manual-block writes return identity, status, version, and affected-count receipts instead of nested read models. API and web callers invalidate and refetch the authoritative room, block, or availability read after a successful write. Retirement operations keep their bounded process DTOs because their impact and retry state are part of the immediate operator decision.
+
+Manual-block writes require one non-empty operation id per logical attempt.
+Inventory serializes creates on the property-and-operation coordinate and
+releases on the durable block or block-group coordinate. An exact retry returns
+the original receipt before consulting mutable topology or block state; changed
+reuse returns a stable conflict, and failed attempts do not consume the id. The
+journal stores only normalized request fingerprints and compact typed results,
+not a duplicate copy of the free-text reason.
 
 Public and Admin Inventory endpoints emit `Cache-Control: no-store`, `Pragma: no-cache`, and an expired response date. This prevents block reasons, staff references, claim identifiers, and current availability state from being retained by shared caches. Admin endpoints also declare explicit success response metadata so generated clients match runtime responses.
 
@@ -63,13 +73,15 @@ Anonymisation receipts, restore receipts, and the final destruction receipt are
 protected in EF and PostgreSQL; anonymisation tombstones remain updateable for
 restore proof but cannot be deleted outside the exact destruction operation.
 
-Migrations `AddInventoryTenantExportRevision` and
-`AddInventoryTenantDestructionLifecycle` add the revision/lifecycle state,
-resumable operation, receipt ledger, and provider-side proof guards. All 90
-Inventory tests pass, EF reports no pending model changes, and the exact
-PostgreSQL 16 scenario passed on 2026-08-04 with lock drain, outbox suppression,
-bounded graph removal, replay/conflict, trigger enforcement, closed admission,
-and tenant isolation.
+Migrations `AddInventoryTenantExportRevision`,
+`AddInventoryTenantDestructionLifecycle`, and
+`AddInventoryManualBlockManagementOperations` add the revision/lifecycle
+state, resumable operation, typed receipt ledger, and provider-side proof
+guards. All 122 focused non-Docker Inventory tests pass, EF reports no pending
+model changes, and the consolidated PostgreSQL scenarios passed through
+2026-08-09 with lock drain, outbox suppression, bounded graph removal,
+replay/conflict, concurrent block mutation, trigger enforcement, closed
+admission, downgrade refusal, and tenant isolation.
 
 Production execution remains disabled until every mandatory owner, terminal
 orchestration, protected replay, operator controls, and final admission are

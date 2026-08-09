@@ -30,6 +30,12 @@ public sealed class InventoryPersonalDataCatalogTests
         [typeof(ConfigureRoomSalesModeCommand)] = new(
             [nameof(ConfigureRoomSalesModeCommand.OperationId)],
             StringComparer.Ordinal),
+        [typeof(InventoryModule.CreateManualBlockRequest)] = OperationIdMember(),
+        [typeof(InventoryModule.CreateManualBlockGroupRequest)] = OperationIdMember(),
+        [typeof(CreateManualInventoryBlockCommand)] = OperationIdMember(),
+        [typeof(CreateManualInventoryBlockGroupCommand)] = OperationIdMember(),
+        [typeof(ReleaseManualInventoryBlockCommand)] = OperationIdMember(),
+        [typeof(ReleaseManualInventoryBlockGroupCommand)] = OperationIdMember(),
         [typeof(ManualInventoryBlockListResponse)] = PaginationMembers(),
         [typeof(RoomInventoryListResponse)] = PaginationMembers(),
         [typeof(BedRetirementImpactSnapshot)] = new([nameof(BedRetirementImpactSnapshot.HasActiveClaims)], StringComparer.Ordinal),
@@ -360,6 +366,9 @@ public sealed class InventoryPersonalDataCatalogTests
 
     private static HashSet<string> PaginationMembers() =>
         new(["HasMore", "Page", "PageSize"], StringComparer.Ordinal);
+
+    private static HashSet<string> OperationIdMember() =>
+        new(["OperationId"], StringComparer.Ordinal);
 
     private static PersonalDataCatalogDocument LoadCatalogue() => PersonalDataCatalogJson.Parse(
         File.ReadAllBytes(Path.Combine(

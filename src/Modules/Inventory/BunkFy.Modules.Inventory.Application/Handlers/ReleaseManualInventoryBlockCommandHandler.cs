@@ -10,6 +10,8 @@ using BunkFy.Modules.Inventory.Contracts;
 using BunkFy.Modules.Inventory.Domain.Aggregates;
 
 internal sealed class ReleaseManualInventoryBlockCommandHandler(
+    InventoryManagementMutationCoordinator mutations,
+    InventoryManagementOperationJournal journal,
     IManualInventoryBlockRepository blocks,
     IInventoryAvailabilityRepository availability,
     InventoryRetirementCoordinator retirements,
@@ -21,6 +23,52 @@ internal sealed class ReleaseManualInventoryBlockCommandHandler(
         ReleaseManualInventoryBlockCommand command,
         CancellationToken cancellationToken)
     {
+        if (command.OperationId == Guid.Empty)
+        {
+            return Result.Failure<ManualInventoryBlockMutationReceiptDto>(
+                InventoryApplicationErrors.ManagementOperationInvalid);
+        }
+
+        string fingerprint = InventoryManagementMutationFingerprint
+            .ComputeManualBlockRelease(
+                command.PropertyId,
+                command.BlockId,
+                command.ExpectedVersion);
+        await mutations.AcquireBlockAsync(
+                command.BlockId,
+                cancellationToken)
+            .ConfigureAwait(false);
+        InventoryManagementReplayDecision<
+            ManualInventoryBlockMutationReceiptDto> replay = await journal
+                .InspectBlockReleaseAsync(
+                    command.PropertyId,
+                    command.BlockId,
+                    command.OperationId,
+                    command.ExpectedVersion,
+                    fingerprint,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        if (replay.Exists)
+        {
+            return replay.ToResult();
+        }
+
+        ManualInventoryBlockIdentity? identity = await blocks
+            .GetIdentityAsync(
+                command.PropertyId,
+                command.BlockId,
+                cancellationToken)
+            .ConfigureAwait(false);
+        if (identity is null)
+        {
+            return Result.Failure<ManualInventoryBlockMutationReceiptDto>(
+                InventoryApplicationErrors.BlockNotFound);
+        }
+
+        await mutations.AcquireBlockGroupAsync(
+                identity.BlockGroupId,
+                cancellationToken)
+            .ConfigureAwait(false);
         ManualInventoryBlock? block = await blocks
             .GetAsync(command.PropertyId, command.BlockId, cancellationToken)
             .ConfigureAwait(false);
@@ -29,10 +77,11 @@ internal sealed class ReleaseManualInventoryBlockCommandHandler(
             return Result.Failure<ManualInventoryBlockMutationReceiptDto>(InventoryApplicationErrors.BlockNotFound);
         }
 
+        DateTimeOffset nowUtc = clock.UtcNow;
         Result released = block.Release(
             command.ExpectedVersion,
             idGenerator.NewId(),
-            clock.UtcNow,
+            nowUtc,
             command.ActorId);
         if (released.IsFailure)
         {
@@ -49,6 +98,15 @@ internal sealed class ReleaseManualInventoryBlockCommandHandler(
             excludedAllocationId: null,
             excludedBlockIds: [block.Id],
             cancellationToken).ConfigureAwait(false);
-        return Result.Success(block.ToMutationReceipt());
+        ManualInventoryBlockMutationReceiptDto receipt = await journal
+            .RecordBlockReleaseAsync(
+                block,
+                command.OperationId,
+                command.ExpectedVersion,
+                fingerprint,
+                nowUtc,
+                cancellationToken)
+            .ConfigureAwait(false);
+        return Result.Success(receipt);
     }
 }

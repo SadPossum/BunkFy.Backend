@@ -104,6 +104,7 @@
     <File Path="docs/planning/international-market-gate-task.md" />
     <File Path="docs/planning/inventory-allocation-mutation-serialization-task.md" />
     <File Path="docs/planning/inventory-data-rights-owner-capability-task.md" />
+    <File Path="docs/planning/inventory-manual-block-idempotency-task.md" />
     <File Path="docs/planning/inventory-module-task.md" />
     <File Path="docs/planning/inventory-operational-surface-hardening-task.md" />
     <File Path="docs/planning/inventory-personal-data-catalogue-task.md" />

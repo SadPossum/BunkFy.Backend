@@ -190,6 +190,7 @@ public sealed class InventoryAuthorizationIntegrationTests
                    operatorTokens.AccessToken,
                    new
                    {
+                       operationId = Guid.NewGuid(),
                        inventoryUnitId = RoomA,
                        arrival = "2026-08-01",
                        departure = "2026-08-03",
@@ -226,6 +227,7 @@ public sealed class InventoryAuthorizationIntegrationTests
                    operatorTokens.AccessToken,
                    new
                    {
+                       operationId = Guid.NewGuid(),
                        inventoryUnitId = RoomA,
                        arrival = "2026-08-02",
                        departure = "2026-08-04",
@@ -249,7 +251,11 @@ public sealed class InventoryAuthorizationIntegrationTests
                    HttpMethod.Post,
                    $"/api/inventory/properties/{PropertyA:D}/blocks/{block.BlockId:D}/release",
                    operatorTokens.AccessToken,
-                   new { expectedVersion = 99 }).ConfigureAwait(false))
+                   new
+                   {
+                       operationId = Guid.NewGuid(),
+                       expectedVersion = 99
+                   }).ConfigureAwait(false))
         {
             await AssertStatusAsync(HttpStatusCode.Conflict, staleRelease).ConfigureAwait(false);
         }
@@ -259,7 +265,11 @@ public sealed class InventoryAuthorizationIntegrationTests
                    HttpMethod.Post,
                    $"/api/inventory/properties/{PropertyA:D}/blocks/{block.BlockId:D}/release",
                    operatorTokens.AccessToken,
-                   new { expectedVersion = 1 }).ConfigureAwait(false))
+                   new
+                   {
+                       operationId = Guid.NewGuid(),
+                       expectedVersion = 1
+                   }).ConfigureAwait(false))
         {
             ManualInventoryBlockMutationReceiptDto released =
                 await ReadSuccessAsync<ManualInventoryBlockMutationReceiptDto>(release).ConfigureAwait(false);
@@ -278,6 +288,7 @@ public sealed class InventoryAuthorizationIntegrationTests
                    operatorTokens.AccessToken,
                    new
                    {
+                       operationId = Guid.NewGuid(),
                        target = new { kind = InventoryBlockTargetKind.Property },
                        arrival = "2026-08-05",
                        departure = "2026-08-07",
@@ -302,7 +313,8 @@ public sealed class InventoryAuthorizationIntegrationTests
                    client,
                    HttpMethod.Post,
                    $"/api/inventory/properties/{PropertyA:D}/block-groups/{blockGroup.BlockGroupId:D}/release",
-                   operatorTokens.AccessToken).ConfigureAwait(false))
+                   operatorTokens.AccessToken,
+                   new { operationId = Guid.NewGuid() }).ConfigureAwait(false))
         {
             ManualInventoryBlockGroupMutationReceiptDto releasedGroup =
                 await ReadSuccessAsync<ManualInventoryBlockGroupMutationReceiptDto>(releaseBlockGroup).ConfigureAwait(false);

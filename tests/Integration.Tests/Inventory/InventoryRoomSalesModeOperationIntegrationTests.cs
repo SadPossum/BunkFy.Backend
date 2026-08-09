@@ -39,7 +39,7 @@ public sealed class InventoryRoomSalesModeOperationIntegrationTests
     [DockerFact]
     [Trait("Category", "Docker")]
     [Trait("Category", "Integration")]
-    public async Task Migrated_room_mode_mutations_converge_and_replay_honors_admission()
+    public async Task Migrated_management_mutations_converge_and_replay_honors_admission()
     {
         await using PostgreSqlContainer postgreSql =
             new PostgreSqlBuilder("postgres:16-alpine")
@@ -111,12 +111,16 @@ public sealed class InventoryRoomSalesModeOperationIntegrationTests
         Assert.True(noChange.IsSuccess, noChange.Error.Code);
         Assert.Equal(3, noChange.Value.Version);
 
+        Guid[] blockOperationIds = await ExerciseManualBlockOperationsAsync(
+            services).ConfigureAwait(false);
+
         await AssertPersistedResultsAsync(
             services,
             firstOperationId,
             later.OperationId,
-            noChangeOperationId).ConfigureAwait(false);
-        await AssertDatabaseConstraintAsync(services).ConfigureAwait(false);
+            noChangeOperationId,
+            blockOperationIds).ConfigureAwait(false);
+        await AssertDatabaseConstraintsAsync(services).ConfigureAwait(false);
 
         await CloseTenantLifecycleAsync(services).ConfigureAwait(false);
         Result<RoomInventoryMutationReceiptDto> closedReplay =
@@ -126,6 +130,159 @@ public sealed class InventoryRoomSalesModeOperationIntegrationTests
             closedReplay.Error);
 
         await AssertDowngradeRefusedAsync(services).ConfigureAwait(false);
+    }
+
+    private static async Task<Guid[]> ExerciseManualBlockOperationsAsync(
+        ServiceProvider services)
+    {
+        Guid createOperationId = Guid.NewGuid();
+        CreateManualInventoryBlockCommand create = new(
+            createOperationId,
+            PropertyId,
+            RoomId,
+            new DateOnly(2026, 10, 1),
+            new DateOnly(2026, 10, 3),
+            "  Boiler maintenance  ",
+            "user:operator");
+        Result<ManualInventoryBlockMutationReceiptDto>[] created =
+            await Task.WhenAll(
+                SendAsync(services, create),
+                SendAsync(services, create)).ConfigureAwait(false);
+        Assert.All(
+            created,
+            result => Assert.True(result.IsSuccess, result.Error.Code));
+        Assert.Equal(created[0].Value, created[1].Value);
+        Assert.Equal(ManualInventoryBlockStatus.Active, created[0].Value.Status);
+
+        Result<ManualInventoryBlockMutationReceiptDto> normalizedReplay =
+            await SendAsync(
+                services,
+                create with { Reason = "Boiler maintenance" })
+                .ConfigureAwait(false);
+        Assert.True(normalizedReplay.IsSuccess, normalizedReplay.Error.Code);
+        Assert.Equal(created[0].Value, normalizedReplay.Value);
+
+        Result<ManualInventoryBlockMutationReceiptDto> conflictingCreate =
+            await SendAsync(
+                services,
+                create with { Reason = "Another reason" })
+                .ConfigureAwait(false);
+        Assert.Equal(
+            InventoryApplicationErrors.ManagementOperationConflict,
+            conflictingCreate.Error);
+
+        Guid recoverableCreateOperationId = Guid.NewGuid();
+        CreateManualInventoryBlockCommand recoverableCreate = create with
+        {
+            OperationId = recoverableCreateOperationId,
+            Reason = "Recovered maintenance"
+        };
+        Result<ManualInventoryBlockMutationReceiptDto> blockedCreate =
+            await SendAsync(services, recoverableCreate).ConfigureAwait(false);
+        Assert.Equal(
+            InventoryApplicationErrors.BlockOverlap,
+            blockedCreate.Error);
+
+        Guid releaseOperationId = Guid.NewGuid();
+        ReleaseManualInventoryBlockCommand release = new(
+            releaseOperationId,
+            PropertyId,
+            created[0].Value.BlockId,
+            created[0].Value.Version,
+            "user:operator");
+        Result<ManualInventoryBlockMutationReceiptDto>[] released =
+            await Task.WhenAll(
+                SendAsync(services, release),
+                SendAsync(services, release)).ConfigureAwait(false);
+        Assert.All(
+            released,
+            result => Assert.True(result.IsSuccess, result.Error.Code));
+        Assert.Equal(released[0].Value, released[1].Value);
+        Assert.Equal(
+            ManualInventoryBlockStatus.Released,
+            released[0].Value.Status);
+
+        Result<ManualInventoryBlockMutationReceiptDto> conflictingRelease =
+            await SendAsync(
+                services,
+                release with { ExpectedVersion = released[0].Value.Version })
+                .ConfigureAwait(false);
+        Assert.Equal(
+            InventoryApplicationErrors.ManagementOperationConflict,
+            conflictingRelease.Error);
+
+        Result<ManualInventoryBlockMutationReceiptDto> recoveredCreate =
+            await SendAsync(services, recoverableCreate).ConfigureAwait(false);
+        Assert.True(recoveredCreate.IsSuccess, recoveredCreate.Error.Code);
+
+        Guid recoveredReleaseOperationId = Guid.NewGuid();
+        Result<ManualInventoryBlockMutationReceiptDto> recoveredRelease =
+            await SendAsync(
+                services,
+                new ReleaseManualInventoryBlockCommand(
+                    recoveredReleaseOperationId,
+                    PropertyId,
+                    recoveredCreate.Value.BlockId,
+                    recoveredCreate.Value.Version,
+                    "user:operator"))
+                .ConfigureAwait(false);
+        Assert.True(recoveredRelease.IsSuccess, recoveredRelease.Error.Code);
+
+        Guid groupCreateOperationId = Guid.NewGuid();
+        CreateManualInventoryBlockGroupCommand createGroup = new(
+            groupCreateOperationId,
+            PropertyId,
+            new(InventoryBlockTargetKind.Property),
+            new DateOnly(2026, 10, 5),
+            new DateOnly(2026, 10, 7),
+            "Property maintenance",
+            "user:operator");
+        Result<ManualInventoryBlockGroupMutationReceiptDto>[] groups =
+            await Task.WhenAll(
+                SendAsync(services, createGroup),
+                SendAsync(services, createGroup)).ConfigureAwait(false);
+        Assert.All(
+            groups,
+            result => Assert.True(result.IsSuccess, result.Error.Code));
+        Assert.Equal(groups[0].Value, groups[1].Value);
+        Assert.Equal(1, groups[0].Value.AffectedBlockCount);
+
+        Result<ManualInventoryBlockGroupMutationReceiptDto> normalizedGroup =
+            await SendAsync(
+                services,
+                createGroup with
+                {
+                    Target = new(
+                        InventoryBlockTargetKind.Property,
+                        BuildingLabel: "ignored")
+                }).ConfigureAwait(false);
+        Assert.True(normalizedGroup.IsSuccess, normalizedGroup.Error.Code);
+        Assert.Equal(groups[0].Value, normalizedGroup.Value);
+
+        Guid groupReleaseOperationId = Guid.NewGuid();
+        ReleaseManualInventoryBlockGroupCommand releaseGroup = new(
+            groupReleaseOperationId,
+            PropertyId,
+            groups[0].Value.BlockGroupId,
+            "user:operator");
+        Result<ManualInventoryBlockGroupMutationReceiptDto>[] releasedGroups =
+            await Task.WhenAll(
+                SendAsync(services, releaseGroup),
+                SendAsync(services, releaseGroup)).ConfigureAwait(false);
+        Assert.All(
+            releasedGroups,
+            result => Assert.True(result.IsSuccess, result.Error.Code));
+        Assert.Equal(releasedGroups[0].Value, releasedGroups[1].Value);
+
+        return
+        [
+            createOperationId,
+            releaseOperationId,
+            recoverableCreateOperationId,
+            recoveredReleaseOperationId,
+            groupCreateOperationId,
+            groupReleaseOperationId
+        ];
     }
 
     private static async Task MigrateFromPreviousAndSeedAsync(
@@ -221,7 +378,8 @@ public sealed class InventoryRoomSalesModeOperationIntegrationTests
         ServiceProvider services,
         Guid firstOperationId,
         Guid laterOperationId,
-        Guid noChangeOperationId)
+        Guid noChangeOperationId,
+        IReadOnlyCollection<Guid> blockOperationIds)
     {
         using IServiceScope scope = services.CreateScope();
         InventoryDbContext dbContext = scope.ServiceProvider
@@ -233,7 +391,7 @@ public sealed class InventoryRoomSalesModeOperationIntegrationTests
             .ConfigureAwait(false);
         Assert.Equal(RoomSalesMode.RoomLevel, configuration.SalesMode);
         Assert.Equal(3, configuration.Version);
-        Assert.Equal(3, configuration.AvailabilityMutationVersion);
+        Assert.Equal(9, configuration.AvailabilityMutationVersion);
 
         Assert.Equal(
             3,
@@ -249,15 +407,31 @@ public sealed class InventoryRoomSalesModeOperationIntegrationTests
                           {noChangeOperationId})
                     """).SingleAsync().ConfigureAwait(false));
         Assert.Equal(
+            6,
+            await dbContext.Database.SqlQuery<long>($"""
+                    SELECT COUNT(*) AS "Value"
+                    FROM inventory.management_operations
+                    WHERE "ScopeId" = {TenantId}
+                      AND "Kind" BETWEEN 2 AND 5
+                    """).SingleAsync().ConfigureAwait(false));
+        Assert.Equal(6, blockOperationIds.Distinct().Count());
+        Assert.Equal(
             2,
             await dbContext.OutboxMessages.CountAsync(message =>
                 EF.Functions.Like(
                     message.EventType,
                     $"%{nameof(RoomSalesModeChangedIntegrationEvent)}%"))
                 .ConfigureAwait(false));
+        Assert.Equal(
+            6,
+            await dbContext.OutboxMessages.CountAsync(message =>
+                EF.Functions.Like(
+                    message.EventType,
+                    "%ManualInventoryBlock%IntegrationEvent%"))
+                .ConfigureAwait(false));
     }
 
-    private static async Task AssertDatabaseConstraintAsync(
+    private static async Task AssertDatabaseConstraintsAsync(
         ServiceProvider services)
     {
         using IServiceScope scope = services.CreateScope();
@@ -277,6 +451,23 @@ public sealed class InventoryRoomSalesModeOperationIntegrationTests
                          {DateTimeOffset.UtcNow})
                     """)).ConfigureAwait(false);
         Assert.Equal(PostgresErrorCodes.CheckViolation, invalidFingerprint.SqlState);
+
+        PostgresException incompleteReceipt =
+            await Assert.ThrowsAsync<PostgresException>(() =>
+                dbContext.Database.ExecuteSqlInterpolatedAsync($"""
+                    INSERT INTO inventory.management_operations
+                        ("Id", "ScopeId", "ResourceKind", "ResourceId",
+                         "PropertyId", "Kind", "ExpectedVersion",
+                         "RequestFingerprint", "ResultVersion",
+                         "CompletedAtUtc")
+                    VALUES
+                        ({Guid.NewGuid()}, {TenantId}, 2, {PropertyId},
+                         {PropertyId}, 2, 0, {new string('a', 64)}, 1,
+                         {DateTimeOffset.UtcNow})
+                    """)).ConfigureAwait(false);
+        Assert.Equal(
+            PostgresErrorCodes.CheckViolation,
+            incompleteReceipt.SqlState);
     }
 
     private static async Task CloseTenantLifecycleAsync(
@@ -306,7 +497,7 @@ public sealed class InventoryRoomSalesModeOperationIntegrationTests
             () => dbContext.Database.GetService<IMigrator>()
                 .MigrateAsync(PreviousMigration)).ConfigureAwait(false);
         Assert.Contains(
-            "Cannot downgrade Inventory while management operation receipts exist.",
+            "Cannot downgrade Inventory while",
             failure.MessageText,
             StringComparison.Ordinal);
     }
@@ -315,6 +506,54 @@ public sealed class InventoryRoomSalesModeOperationIntegrationTests
         SendAsync(
             ServiceProvider services,
             ConfigureRoomSalesModeCommand command)
+    {
+        using IServiceScope scope = services.CreateScope();
+        return await scope.ServiceProvider
+            .GetRequiredService<IRequestDispatcher>()
+            .SendAsync(command, CancellationToken.None)
+            .ConfigureAwait(false);
+    }
+
+    private static async Task<Result<ManualInventoryBlockMutationReceiptDto>>
+        SendAsync(
+            ServiceProvider services,
+            CreateManualInventoryBlockCommand command)
+    {
+        using IServiceScope scope = services.CreateScope();
+        return await scope.ServiceProvider
+            .GetRequiredService<IRequestDispatcher>()
+            .SendAsync(command, CancellationToken.None)
+            .ConfigureAwait(false);
+    }
+
+    private static async Task<Result<ManualInventoryBlockMutationReceiptDto>>
+        SendAsync(
+            ServiceProvider services,
+            ReleaseManualInventoryBlockCommand command)
+    {
+        using IServiceScope scope = services.CreateScope();
+        return await scope.ServiceProvider
+            .GetRequiredService<IRequestDispatcher>()
+            .SendAsync(command, CancellationToken.None)
+            .ConfigureAwait(false);
+    }
+
+    private static async Task<Result<ManualInventoryBlockGroupMutationReceiptDto>>
+        SendAsync(
+            ServiceProvider services,
+            CreateManualInventoryBlockGroupCommand command)
+    {
+        using IServiceScope scope = services.CreateScope();
+        return await scope.ServiceProvider
+            .GetRequiredService<IRequestDispatcher>()
+            .SendAsync(command, CancellationToken.None)
+            .ConfigureAwait(false);
+    }
+
+    private static async Task<Result<ManualInventoryBlockGroupMutationReceiptDto>>
+        SendAsync(
+            ServiceProvider services,
+            ReleaseManualInventoryBlockGroupCommand command)
     {
         using IServiceScope scope = services.CreateScope();
         return await scope.ServiceProvider

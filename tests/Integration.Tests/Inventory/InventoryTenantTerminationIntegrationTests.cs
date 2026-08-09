@@ -278,6 +278,10 @@ public sealed partial class InventoryTenantTerminationIntegrationTests
                 ExpectedVersion: 1,
                 Digest,
                 InventorySalesMode.BedLevel,
+                null,
+                null,
+                null,
+                null,
                 ResultVersion: 2,
                 FrozenAtUtc.AddDays(-4)),
             CancellationToken.None);

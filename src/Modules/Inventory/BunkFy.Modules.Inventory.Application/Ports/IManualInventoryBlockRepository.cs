@@ -6,6 +6,11 @@ using BunkFy.Modules.Inventory.Domain.Aggregates;
 
 public interface IManualInventoryBlockRepository
 {
+    Task<ManualInventoryBlockIdentity?> GetIdentityAsync(
+        Guid propertyId,
+        Guid blockId,
+        CancellationToken cancellationToken);
+
     Task AddAsync(ManualInventoryBlock block, CancellationToken cancellationToken);
     Task AddRangeAsync(IReadOnlyCollection<ManualInventoryBlock> blocks, CancellationToken cancellationToken);
     Task<ManualInventoryBlock?> GetAsync(Guid propertyId, Guid blockId, CancellationToken cancellationToken);
@@ -20,3 +25,7 @@ public interface IManualInventoryBlockRepository
         PageRequest pageRequest,
         CancellationToken cancellationToken);
 }
+
+public sealed record ManualInventoryBlockIdentity(
+    Guid BlockId,
+    Guid BlockGroupId);

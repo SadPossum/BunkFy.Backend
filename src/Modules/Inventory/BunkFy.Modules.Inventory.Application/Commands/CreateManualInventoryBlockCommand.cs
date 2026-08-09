@@ -4,6 +4,7 @@ using Gma.Framework.Cqrs;
 using BunkFy.Modules.Inventory.Contracts;
 
 public sealed record CreateManualInventoryBlockCommand(
+    Guid OperationId,
     Guid PropertyId,
     Guid InventoryUnitId,
     DateOnly Arrival,

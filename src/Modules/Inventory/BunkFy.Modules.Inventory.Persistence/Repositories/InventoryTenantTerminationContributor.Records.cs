@@ -186,6 +186,10 @@ internal sealed partial class InventoryTenantTerminationContributor
                     operation.ExpectedVersion,
                     operation.RequestFingerprint,
                     operation.ResultSalesMode,
+                    operation.ResultBlockId,
+                    operation.ResultBlockGroupId,
+                    operation.ResultBlockStatus,
+                    operation.ResultAffectedBlockCount,
                     operation.ResultVersion,
                     operation.CompletedAtUtc));
             await WriteAsync(

@@ -156,6 +156,7 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
                 requireTenant: true,
                 token => dispatcher.SendAsync(
                     new CreateManualInventoryBlockCommand(
+                        request.OperationId,
                         propertyId,
                         request.InventoryUnitId,
                         request.Arrival,
@@ -179,6 +180,7 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
                 requireTenant: true,
                 token => dispatcher.SendAsync(
                     new CreateManualInventoryBlockGroupCommand(
+                        request.OperationId,
                         propertyId,
                         request.Target,
                         request.Arrival,
@@ -202,7 +204,11 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
                 AdminOperation.Create(InventoryAdminOperationNames.BlocksRelease, InventoryAdminPermissions.BlocksManage),
                 requireTenant: true,
                 token => dispatcher.SendAsync(
-                    new ReleaseManualInventoryBlockCommand(propertyId, blockId, request.ExpectedVersion),
+                    new ReleaseManualInventoryBlockCommand(
+                        request.OperationId,
+                        propertyId,
+                        blockId,
+                        request.ExpectedVersion),
                     token),
                 cancellationToken,
                 errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
@@ -211,6 +217,7 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
         inventory.MapPost("/properties/{propertyId:guid}/block-groups/{blockGroupId:guid}/release", async (
             Guid propertyId,
             Guid blockGroupId,
+            ReleaseManualBlockGroupRequest request,
             HttpContext httpContext,
             AdminApiExecutor executor,
             IRequestDispatcher dispatcher,
@@ -220,7 +227,10 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
                 AdminOperation.Create(InventoryAdminOperationNames.BlocksRelease, InventoryAdminPermissions.BlocksManage),
                 requireTenant: true,
                 token => dispatcher.SendAsync(
-                    new ReleaseManualInventoryBlockGroupCommand(propertyId, blockGroupId),
+                    new ReleaseManualInventoryBlockGroupCommand(
+                        request.OperationId,
+                        propertyId,
+                        blockGroupId),
                     token),
                 cancellationToken,
                 errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
@@ -344,16 +354,21 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
         InventorySalesMode SalesMode,
         long ExpectedVersion);
     public sealed record CreateManualBlockRequest(
+        Guid OperationId,
         Guid InventoryUnitId,
         DateOnly Arrival,
         DateOnly Departure,
         string Reason);
     public sealed record CreateManualBlockGroupRequest(
+        Guid OperationId,
         InventoryBlockTarget Target,
         DateOnly Arrival,
         DateOnly Departure,
         string Reason);
-    public sealed record ReleaseManualBlockRequest(long ExpectedVersion);
+    public sealed record ReleaseManualBlockRequest(
+        Guid OperationId,
+        long ExpectedVersion);
+    public sealed record ReleaseManualBlockGroupRequest(Guid OperationId);
     public sealed record RequestBedRetirementRequest(string Reason);
     public sealed record RequestRoomRetirementRequest(string Reason);
 

@@ -9,6 +9,18 @@ using Microsoft.EntityFrameworkCore;
 internal sealed class ManualInventoryBlockRepository(InventoryDbContext dbContext)
     : IManualInventoryBlockRepository
 {
+    public Task<ManualInventoryBlockIdentity?> GetIdentityAsync(
+        Guid propertyId,
+        Guid blockId,
+        CancellationToken cancellationToken) => dbContext.ManualBlocks
+            .AsNoTracking()
+            .Where(block =>
+                block.Id == blockId && block.PropertyId == propertyId)
+            .Select(block => new ManualInventoryBlockIdentity(
+                block.Id,
+                block.BlockGroupId))
+            .SingleOrDefaultAsync(cancellationToken);
+
     public Task AddAsync(ManualInventoryBlock block, CancellationToken cancellationToken)
     {
         dbContext.ManualBlocks.Add(block);

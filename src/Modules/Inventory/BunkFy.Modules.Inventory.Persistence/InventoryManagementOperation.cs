@@ -20,6 +20,10 @@ internal sealed class InventoryManagementOperation : IScopedEntity
         this.ExpectedVersion = record.ExpectedVersion;
         this.RequestFingerprint = record.RequestFingerprint;
         this.ResultSalesMode = record.ResultSalesMode;
+        this.ResultBlockId = record.ResultBlockId;
+        this.ResultBlockGroupId = record.ResultBlockGroupId;
+        this.ResultBlockStatus = record.ResultBlockStatus;
+        this.ResultAffectedBlockCount = record.ResultAffectedBlockCount;
         this.ResultVersion = record.ResultVersion;
         this.CompletedAtUtc = record.CompletedAtUtc;
     }
@@ -32,7 +36,11 @@ internal sealed class InventoryManagementOperation : IScopedEntity
     public InventoryManagementMutationKind Kind { get; private set; }
     public long ExpectedVersion { get; private set; }
     public string RequestFingerprint { get; private set; } = string.Empty;
-    public InventorySalesMode ResultSalesMode { get; private set; }
+    public InventorySalesMode? ResultSalesMode { get; private set; }
+    public Guid? ResultBlockId { get; private set; }
+    public Guid? ResultBlockGroupId { get; private set; }
+    public ManualInventoryBlockStatus? ResultBlockStatus { get; private set; }
+    public int? ResultAffectedBlockCount { get; private set; }
     public long ResultVersion { get; private set; }
     public DateTimeOffset CompletedAtUtc { get; private set; }
 
@@ -46,6 +54,10 @@ internal sealed class InventoryManagementOperation : IScopedEntity
         this.ExpectedVersion,
         this.RequestFingerprint,
         this.ResultSalesMode,
+        this.ResultBlockId,
+        this.ResultBlockGroupId,
+        this.ResultBlockStatus,
+        this.ResultAffectedBlockCount,
         this.ResultVersion,
         this.CompletedAtUtc);
 }

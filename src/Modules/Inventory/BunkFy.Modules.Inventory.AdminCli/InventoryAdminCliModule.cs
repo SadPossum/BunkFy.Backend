@@ -210,6 +210,10 @@ public sealed class InventoryAdminCliModule : IAdminCliModule
     {
         Option<Guid> propertyOption = new("--property-id") { Required = true };
         Option<Guid> unitOption = new("--unit-id") { Required = true };
+        Option<Guid> operationOption = new("--operation-id")
+        {
+            Required = true
+        };
         Option<string> arrivalOption = new("--arrival") { Required = true };
         Option<string> departureOption = new("--departure") { Required = true };
         Option<string> reasonOption = new("--reason") { Required = true };
@@ -217,6 +221,7 @@ public sealed class InventoryAdminCliModule : IAdminCliModule
         {
             propertyOption,
             unitOption,
+            operationOption,
             arrivalOption,
             departureOption,
             reasonOption
@@ -244,6 +249,7 @@ public sealed class InventoryAdminCliModule : IAdminCliModule
                     IRequestDispatcher dispatcher = provider.GetRequiredService<IRequestDispatcher>();
                     Result<ManualInventoryBlockMutationReceiptDto> result = await dispatcher.SendAsync(
                         new CreateManualInventoryBlockCommand(
+                            parseResult.GetValue(operationOption),
                             parseResult.GetValue(propertyOption),
                             parseResult.GetValue(unitOption),
                             arrival,
@@ -269,11 +275,16 @@ public sealed class InventoryAdminCliModule : IAdminCliModule
     {
         Option<Guid> propertyOption = new("--property-id") { Required = true };
         Option<Guid> blockOption = new("--block-id") { Required = true };
+        Option<Guid> operationOption = new("--operation-id")
+        {
+            Required = true
+        };
         Option<long> expectedVersionOption = new("--expected-version") { Required = true };
         Command command = new("release", "Release a manual inventory block.")
         {
             propertyOption,
             blockOption,
+            operationOption,
             expectedVersionOption
         };
 
@@ -290,6 +301,7 @@ public sealed class InventoryAdminCliModule : IAdminCliModule
                     IRequestDispatcher dispatcher = provider.GetRequiredService<IRequestDispatcher>();
                     Result<ManualInventoryBlockMutationReceiptDto> result = await dispatcher.SendAsync(
                         new ReleaseManualInventoryBlockCommand(
+                            parseResult.GetValue(operationOption),
                             parseResult.GetValue(propertyOption),
                             parseResult.GetValue(blockOption),
                             parseResult.GetValue(expectedVersionOption)),

@@ -75,7 +75,11 @@ internal sealed record InventoryManagementOperationStateTenantExport(
         .InventoryManagementMutationKind Kind,
     long ExpectedVersion,
     string RequestFingerprint,
-    InventorySalesMode ResultSalesMode,
+    InventorySalesMode? ResultSalesMode,
+    Guid? ResultBlockId,
+    Guid? ResultBlockGroupId,
+    ManualInventoryBlockStatus? ResultBlockStatus,
+    int? ResultAffectedBlockCount,
     long ResultVersion,
     DateTimeOffset CompletedAtUtc);
 

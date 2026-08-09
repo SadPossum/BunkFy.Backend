@@ -50,6 +50,7 @@ Useful entry points:
 - [Inventory Operational Surface Hardening Task](planning/inventory-operational-surface-hardening-task.md)
 - [Inventory Allocation Mutation Serialization Task](planning/inventory-allocation-mutation-serialization-task.md)
 - [Inventory Room Sales Mode Idempotency Task](planning/inventory-room-sales-mode-idempotency-task.md)
+- [Inventory Manual Block Idempotency Task](planning/inventory-manual-block-idempotency-task.md)
 - [Properties Operational Surface Hardening Task](planning/properties-operational-surface-hardening-task.md)
 - [Inventory Personal-Data Catalogue Task](planning/inventory-personal-data-catalogue-task.md)
 - [Inventory Data-Rights Owner Capability Task](planning/inventory-data-rights-owner-capability-task.md)

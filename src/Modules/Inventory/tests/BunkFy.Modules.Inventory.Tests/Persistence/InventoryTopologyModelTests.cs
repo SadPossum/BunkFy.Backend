@@ -65,6 +65,10 @@ public sealed class InventoryTopologyModelTests
                 1,
                 new string('a', 64),
                 InventorySalesMode.RoomLevel,
+                null,
+                null,
+                null,
+                null,
                 2,
                 DateTimeOffset.UtcNow));
         dbContext.ManagementOperations.Add(operation);

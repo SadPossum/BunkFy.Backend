@@ -26,13 +26,67 @@ internal sealed class InventoryManagementOperationConfiguration
                 "\"RequestFingerprint\" ~ '^[0-9a-f]{64}$'");
             table.HasCheckConstraint(
                 "CK_inventory_management_operations_kind",
-                "\"ResourceKind\" = 1 AND \"Kind\" = 1");
+                "\"Kind\" BETWEEN 1 AND 5 AND " +
+                "((\"Kind\" = 1 AND \"ResourceKind\" = 1) OR " +
+                "(\"Kind\" IN (2, 3) AND \"ResourceKind\" = 2 AND " +
+                "\"ResourceId\" = \"PropertyId\") OR " +
+                "(\"Kind\" = 4 AND \"ResourceKind\" = 3 AND " +
+                "\"ResultBlockId\" IS NOT NULL AND " +
+                "\"ResourceId\" = \"ResultBlockId\") OR " +
+                "(\"Kind\" = 5 AND \"ResourceKind\" = 4 AND " +
+                "\"ResultBlockGroupId\" IS NOT NULL AND " +
+                "\"ResourceId\" = \"ResultBlockGroupId\"))");
             table.HasCheckConstraint(
                 "CK_inventory_management_operations_result",
-                "\"ExpectedVersion\" > 0 AND " +
-                "\"ResultVersion\" >= \"ExpectedVersion\" AND " +
-                "\"ResultVersion\" - \"ExpectedVersion\" <= 1 AND " +
-                "\"ResultSalesMode\" IN (2, 3)");
+                "(\"Kind\" = 1 AND \"ExpectedVersion\" > 0 AND " +
+                "\"ResultVersion\" BETWEEN \"ExpectedVersion\" AND " +
+                "\"ExpectedVersion\" + 1 AND " +
+                "\"ResultSalesMode\" IS NOT NULL AND " +
+                "\"ResultSalesMode\" IN (2, 3) AND " +
+                "\"ResultBlockId\" IS NULL AND " +
+                "\"ResultBlockGroupId\" IS NULL AND " +
+                "\"ResultBlockStatus\" IS NULL AND " +
+                "\"ResultAffectedBlockCount\" IS NULL) OR " +
+                "(\"Kind\" = 2 AND \"ExpectedVersion\" = 0 AND " +
+                "\"ResultVersion\" = 1 AND " +
+                "\"ResultSalesMode\" IS NULL AND " +
+                "\"ResultBlockId\" IS NOT NULL AND " +
+                $"\"ResultBlockId\" <> '{EmptyGuid}' AND " +
+                "\"ResultBlockGroupId\" IS NOT NULL AND " +
+                $"\"ResultBlockGroupId\" <> '{EmptyGuid}' AND " +
+                "\"ResultBlockStatus\" IS NOT NULL AND " +
+                "\"ResultBlockStatus\" = 1 AND " +
+                "\"ResultAffectedBlockCount\" IS NOT NULL AND " +
+                "\"ResultAffectedBlockCount\" = 1) OR " +
+                "(\"Kind\" = 3 AND \"ExpectedVersion\" = 0 AND " +
+                "\"ResultVersion\" = 0 AND " +
+                "\"ResultSalesMode\" IS NULL AND " +
+                "\"ResultBlockId\" IS NULL AND " +
+                "\"ResultBlockGroupId\" IS NOT NULL AND " +
+                $"\"ResultBlockGroupId\" <> '{EmptyGuid}' AND " +
+                "\"ResultBlockStatus\" IS NULL AND " +
+                "\"ResultAffectedBlockCount\" IS NOT NULL AND " +
+                "\"ResultAffectedBlockCount\" > 0) OR " +
+                "(\"Kind\" = 4 AND \"ExpectedVersion\" > 0 AND " +
+                "\"ResultVersion\" = \"ExpectedVersion\" + 1 AND " +
+                "\"ResultSalesMode\" IS NULL AND " +
+                "\"ResultBlockId\" IS NOT NULL AND " +
+                $"\"ResultBlockId\" <> '{EmptyGuid}' AND " +
+                "\"ResultBlockGroupId\" IS NOT NULL AND " +
+                $"\"ResultBlockGroupId\" <> '{EmptyGuid}' AND " +
+                "\"ResultBlockStatus\" IS NOT NULL AND " +
+                "\"ResultBlockStatus\" = 2 AND " +
+                "\"ResultAffectedBlockCount\" IS NOT NULL AND " +
+                "\"ResultAffectedBlockCount\" = 1) OR " +
+                "(\"Kind\" = 5 AND \"ExpectedVersion\" = 0 AND " +
+                "\"ResultVersion\" = 0 AND " +
+                "\"ResultSalesMode\" IS NULL AND " +
+                "\"ResultBlockId\" IS NULL AND " +
+                "\"ResultBlockGroupId\" IS NOT NULL AND " +
+                $"\"ResultBlockGroupId\" <> '{EmptyGuid}' AND " +
+                "\"ResultBlockStatus\" IS NULL AND " +
+                "\"ResultAffectedBlockCount\" IS NOT NULL AND " +
+                "\"ResultAffectedBlockCount\" > 0)");
         });
         builder.HasKey(operation => new
         {
@@ -55,8 +109,9 @@ internal sealed class InventoryManagementOperationConfiguration
             .IsFixedLength()
             .IsRequired();
         builder.Property(operation => operation.ResultSalesMode)
-            .HasConversion<int>()
-            .IsRequired();
+            .HasConversion<int?>();
+        builder.Property(operation => operation.ResultBlockStatus)
+            .HasConversion<int?>();
         builder.HasIndex(operation => new
         {
             operation.ScopeId,
