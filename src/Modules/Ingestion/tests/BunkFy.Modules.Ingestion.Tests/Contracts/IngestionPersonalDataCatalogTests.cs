@@ -46,7 +46,7 @@ public sealed class IngestionPersonalDataCatalogTests
     [Fact]
     public void Catalogue_version_includes_tenant_portability_and_notification_projection()
     {
-        Assert.Equal(14, Catalogue.CatalogVersion);
+        Assert.Equal(15, Catalogue.CatalogVersion);
         AssertBinding(
             typeof(IngestionNotificationSourceLink),
             nameof(IngestionNotificationSourceLink.SourceLinkId),

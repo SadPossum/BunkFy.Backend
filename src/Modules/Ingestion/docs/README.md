@@ -84,6 +84,15 @@ fingerprinted without persisting raw references, and a valid no-change update
 still records its successful operation receipt. See
 [Ingestion Connection Update Idempotency Task](../../../docs/planning/ingestion-connection-update-idempotency-task.md).
 
+Enable, disable, polling-schedule configuration and clearing, and checkpoint
+reset also require one caller-owned operation id per logical action. The
+existing connection lock serializes receipt lookup with aggregate mutation;
+exact retries return before another transition, while changed reuse conflicts.
+Lifecycle admission is rechecked on every attempt, enabling rechecks country
+policy, schedule configuration rechecks adapter capability, and a disable
+replay returns before it can inspect or cancel a later remote run. See
+[Ingestion Connection Control Idempotency Task](../../../docs/planning/ingestion-connection-control-idempotency-task.md).
+
 Polling minimum/recommended intervals remain provider capability metadata, while each polling connection may separately own an explicit interval and retry limit. Ingestion persists that desired schedule and exposes it through a dynamic GMA `ITaskScheduleProvider`; TaskRuntime owns occurrence deduplication, leases, retries, and multi-worker execution. The trusted schedule reader crosses tenant query filters only to project enabled connection ids, tenant ids, cadence, and retry limits into tenant-scoped tasks. It does not expose adapter configuration or secret references.
 
 Disabling a connection pauses schedule emission without deleting its configuration; re-enabling resumes it. Clearing is an explicit optimistic operation, and a schedule must be cleared before changing away from polling mode. Ingestion permits only one active source run per connection, guarded both before start and by a filtered PostgreSQL unique index so concurrent scheduler/manual starts fail closed.

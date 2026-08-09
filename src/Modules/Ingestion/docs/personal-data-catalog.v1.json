@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "ingestion.personal-data",
-  "catalogVersion": 14,
+  "catalogVersion": 15,
   "module": "ingestion",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -10089,6 +10089,34 @@
         },
         {
           "assembly": "BunkFy.Modules.Ingestion.Application",
+          "type": "BunkFy.Modules.Ingestion.Application.Commands.ConfigureAdapterConnectionPollingScheduleCommand",
+          "member": "OperationId",
+          "surface": "application-command",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Application",
+          "type": "BunkFy.Modules.Ingestion.Application.Commands.ClearAdapterConnectionPollingScheduleCommand",
+          "member": "OperationId",
+          "surface": "application-command",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Application",
+          "type": "BunkFy.Modules.Ingestion.Application.Commands.ResetAdapterConnectionCheckpointCommand",
+          "member": "OperationId",
+          "surface": "application-command",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Application",
+          "type": "BunkFy.Modules.Ingestion.Application.Commands.SetAdapterConnectionEnabledCommand",
+          "member": "OperationId",
+          "surface": "application-command",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Application",
           "type": "BunkFy.Modules.Ingestion.Application.Commands.UpdateAdapterConnectionCommand",
           "member": "OperationId",
           "surface": "application-command",
@@ -10097,6 +10125,20 @@
         {
           "assembly": "BunkFy.Modules.Ingestion.Api",
           "type": "BunkFy.Modules.Ingestion.Api.IngestionModule+CreateConnectionRequest",
+          "member": "OperationId",
+          "surface": "api-input",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Api",
+          "type": "BunkFy.Modules.Ingestion.Api.IngestionModule+ConfigurePollingScheduleRequest",
+          "member": "OperationId",
+          "surface": "api-input",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Api",
+          "type": "BunkFy.Modules.Ingestion.Api.IngestionModule+ConnectionControlRequest",
           "member": "OperationId",
           "surface": "api-input",
           "retentionPolicy": null

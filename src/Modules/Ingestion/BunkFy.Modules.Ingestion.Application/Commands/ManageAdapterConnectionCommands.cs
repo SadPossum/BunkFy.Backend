@@ -33,6 +33,7 @@ public enum SecretReferenceUpdateMode
 }
 
 public sealed record ConfigureAdapterConnectionPollingScheduleCommand(
+    Guid OperationId,
     Guid PropertyId,
     Guid ConnectionId,
     int IntervalSeconds,
@@ -40,17 +41,20 @@ public sealed record ConfigureAdapterConnectionPollingScheduleCommand(
     long ExpectedVersion) : ITransactionalCommand<AdapterConnectionMutationReceiptDto>;
 
 public sealed record ClearAdapterConnectionPollingScheduleCommand(
+    Guid OperationId,
     Guid PropertyId,
     Guid ConnectionId,
     long ExpectedVersion) : ITransactionalCommand<AdapterConnectionMutationReceiptDto>;
 
 public sealed record SetAdapterConnectionEnabledCommand(
+    Guid OperationId,
     Guid PropertyId,
     Guid ConnectionId,
     bool Enabled,
     long ExpectedVersion) : ITransactionalCommand<AdapterConnectionMutationReceiptDto>;
 
 public sealed record ResetAdapterConnectionCheckpointCommand(
+    Guid OperationId,
     Guid PropertyId,
     Guid ConnectionId,
     long ExpectedVersion) : ITransactionalCommand<AdapterConnectionMutationReceiptDto>;

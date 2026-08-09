@@ -321,6 +321,7 @@ public sealed class IngestionModule : IModule
             IRequestDispatcher dispatcher,
             CancellationToken cancellationToken) =>
             (await dispatcher.SendAsync(new ConfigureAdapterConnectionPollingScheduleCommand(
+                request.OperationId,
                 propertyId,
                 connectionId,
                 request.IntervalSeconds,
@@ -335,10 +336,11 @@ public sealed class IngestionModule : IModule
         group.MapPost("/{connectionId:guid}/polling-schedule/clear", async (
             Guid propertyId,
             Guid connectionId,
-            VersionRequest request,
+            ConnectionControlRequest request,
             IRequestDispatcher dispatcher,
             CancellationToken cancellationToken) =>
             (await dispatcher.SendAsync(new ClearAdapterConnectionPollingScheduleCommand(
+                request.OperationId,
                 propertyId,
                 connectionId,
                 request.ExpectedVersion), cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes))
@@ -351,11 +353,15 @@ public sealed class IngestionModule : IModule
         group.MapPost("/{connectionId:guid}/enable", async (
             Guid propertyId,
             Guid connectionId,
-            VersionRequest request,
+            ConnectionControlRequest request,
             IRequestDispatcher dispatcher,
             CancellationToken cancellationToken) =>
             (await dispatcher.SendAsync(new SetAdapterConnectionEnabledCommand(
-                propertyId, connectionId, Enabled: true, request.ExpectedVersion), cancellationToken).ConfigureAwait(false))
+                request.OperationId,
+                propertyId,
+                connectionId,
+                Enabled: true,
+                request.ExpectedVersion), cancellationToken).ConfigureAwait(false))
             .ToHttpResult(ErrorStatusCodes))
             .Produces<AdapterConnectionMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
@@ -366,11 +372,15 @@ public sealed class IngestionModule : IModule
         group.MapPost("/{connectionId:guid}/disable", async (
             Guid propertyId,
             Guid connectionId,
-            VersionRequest request,
+            ConnectionControlRequest request,
             IRequestDispatcher dispatcher,
             CancellationToken cancellationToken) =>
             (await dispatcher.SendAsync(new SetAdapterConnectionEnabledCommand(
-                propertyId, connectionId, Enabled: false, request.ExpectedVersion), cancellationToken).ConfigureAwait(false))
+                request.OperationId,
+                propertyId,
+                connectionId,
+                Enabled: false,
+                request.ExpectedVersion), cancellationToken).ConfigureAwait(false))
             .ToHttpResult(ErrorStatusCodes))
             .Produces<AdapterConnectionMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
@@ -381,11 +391,14 @@ public sealed class IngestionModule : IModule
         group.MapPost("/{connectionId:guid}/reset-checkpoint", async (
             Guid propertyId,
             Guid connectionId,
-            VersionRequest request,
+            ConnectionControlRequest request,
             IRequestDispatcher dispatcher,
             CancellationToken cancellationToken) =>
             (await dispatcher.SendAsync(new ResetAdapterConnectionCheckpointCommand(
-                propertyId, connectionId, request.ExpectedVersion), cancellationToken).ConfigureAwait(false))
+                request.OperationId,
+                propertyId,
+                connectionId,
+                request.ExpectedVersion), cancellationToken).ConfigureAwait(false))
             .ToHttpResult(ErrorStatusCodes))
             .Produces<AdapterConnectionMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
@@ -1257,7 +1270,12 @@ public sealed class IngestionModule : IModule
 
     public sealed record VersionRequest(long ExpectedVersion);
 
+    public sealed record ConnectionControlRequest(
+        Guid OperationId,
+        long ExpectedVersion);
+
     public sealed record ConfigurePollingScheduleRequest(
+        Guid OperationId,
         int IntervalSeconds,
         int MaxAttempts,
         long ExpectedVersion);

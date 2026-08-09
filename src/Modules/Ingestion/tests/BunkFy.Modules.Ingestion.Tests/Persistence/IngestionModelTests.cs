@@ -72,7 +72,14 @@ public sealed class IngestionModelTests
             constraint => constraint.Name ==
                 "CK_ingestion_connection_management_operations_outcome");
         Assert.Contains("\"Kind\" = 1", outcomeConstraint.Sql, StringComparison.Ordinal);
-        Assert.Contains("\"Kind\" = 2", outcomeConstraint.Sql, StringComparison.Ordinal);
+        Assert.Contains(
+            "\"Kind\" IN (2, 5, 6, 7)",
+            outcomeConstraint.Sql,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "\"Kind\" IN (3, 4)",
+            outcomeConstraint.Sql,
+            StringComparison.Ordinal);
         Assert.Contains(
             "\"ResultVersion\" <= \"ExpectedVersion\" + 1",
             outcomeConstraint.Sql,

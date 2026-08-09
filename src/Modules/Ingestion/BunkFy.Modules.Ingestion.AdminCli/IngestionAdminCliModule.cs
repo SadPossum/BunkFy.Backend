@@ -414,40 +414,49 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
     private static Command CreateConnectionStateCommand(
         IServiceProvider services, AdminCliGlobalOptions globalOptions, bool enabled)
     {
+        Option<Guid> operation = RequiredGuid("--operation-id");
         Option<Guid> property = RequiredGuid("--property-id");
         Option<Guid> connection = RequiredGuid("--connection-id");
         Option<long> version = RequiredLong("--expected-version");
         Command command = new(enabled ? "enable" : "disable", enabled ? "Enable a connection." : "Disable a connection.")
         {
-            property, connection, version
+            operation, property, connection, version
         };
         command.SetAction((parse, token) => ExecuteObjectAsync(
             services, globalOptions, parse,
             enabled ? IngestionAdminOperationNames.ConnectionEnable : IngestionAdminOperationNames.ConnectionDisable,
             IngestionAdminPermissions.ConnectionsManage,
             (provider, ct) => provider.GetRequiredService<IRequestDispatcher>().SendAsync(
-                new SetAdapterConnectionEnabledCommand(parse.GetRequiredValue(property), parse.GetRequiredValue(connection),
-                    enabled, parse.GetRequiredValue(version)), ct), token));
+                new SetAdapterConnectionEnabledCommand(
+                    parse.GetRequiredValue(operation),
+                    parse.GetRequiredValue(property),
+                    parse.GetRequiredValue(connection),
+                    enabled,
+                    parse.GetRequiredValue(version)), ct), token));
         return command;
     }
 
     private static Command CreateCheckpointResetCommand(IServiceProvider services, AdminCliGlobalOptions globalOptions)
     {
+        Option<Guid> operation = RequiredGuid("--operation-id");
         Option<Guid> property = RequiredGuid("--property-id");
         Option<Guid> connection = RequiredGuid("--connection-id");
         Option<long> version = RequiredLong("--expected-version");
         Option<bool> yes = new("--yes");
         Command command = new("reset-checkpoint", "Reset a disabled connection checkpoint.")
         {
-            property, connection, version, yes
+            operation, property, connection, version, yes
         };
         command.SetAction((parse, token) => ExecuteObjectAsync(
             services, globalOptions, parse, IngestionAdminOperationNames.ConnectionResetCheckpoint,
             IngestionAdminPermissions.ConnectionsManage,
             (provider, ct) => parse.GetValue(yes)
                 ? provider.GetRequiredService<IRequestDispatcher>().SendAsync(
-                    new ResetAdapterConnectionCheckpointCommand(parse.GetRequiredValue(property),
-                        parse.GetRequiredValue(connection), parse.GetRequiredValue(version)), ct)
+                    new ResetAdapterConnectionCheckpointCommand(
+                        parse.GetRequiredValue(operation),
+                        parse.GetRequiredValue(property),
+                        parse.GetRequiredValue(connection),
+                        parse.GetRequiredValue(version)), ct)
                 : Task.FromResult(Result.Failure<AdapterConnectionMutationReceiptDto>(
                     AdminErrors.ConfirmationRequired)), token));
         return command;
@@ -733,6 +742,7 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
         AdminCliGlobalOptions globalOptions,
         bool clear)
     {
+        Option<Guid> operation = RequiredGuid("--operation-id");
         Option<Guid> property = RequiredGuid("--property-id");
         Option<Guid> connection = RequiredGuid("--connection-id");
         Option<int> interval = new("--interval-seconds");
@@ -742,6 +752,7 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
             clear ? "clear-schedule" : "schedule",
             clear ? "Clear a polling schedule." : "Configure a polling schedule.")
         {
+            operation,
             property,
             connection,
             version
@@ -764,11 +775,13 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
             (provider, ct) => clear
                 ? provider.GetRequiredService<IRequestDispatcher>().SendAsync(
                     new ClearAdapterConnectionPollingScheduleCommand(
+                        parse.GetRequiredValue(operation),
                         parse.GetRequiredValue(property),
                         parse.GetRequiredValue(connection),
                         parse.GetValue(version)), ct)
                 : provider.GetRequiredService<IRequestDispatcher>().SendAsync(
                     new ConfigureAdapterConnectionPollingScheduleCommand(
+                        parse.GetRequiredValue(operation),
                         parse.GetRequiredValue(property),
                         parse.GetRequiredValue(connection),
                         parse.GetValue(interval),

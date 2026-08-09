@@ -42,5 +42,10 @@ internal sealed record IngestionConnectionManagementOperationRecord(
 internal enum IngestionConnectionManagementMutationKind
 {
     ConnectionCreate = 1,
-    ConnectionUpdate = 2
+    ConnectionUpdate = 2,
+    ConnectionEnable = 3,
+    ConnectionDisable = 4,
+    PollingScheduleConfigure = 5,
+    PollingScheduleClear = 6,
+    CheckpointReset = 7
 }

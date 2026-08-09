@@ -369,6 +369,7 @@ public sealed class IngestionOperationsIntegrationTests
                    $"/api/ingestion/properties/{PropertyId:D}/connections/{created.ConnectionId:D}/polling-schedule",
                    new
                    {
+                       operationId = Guid.NewGuid(),
                        intervalSeconds = 59,
                        maxAttempts = 3,
                        expectedVersion = clearedSecret.Version
@@ -377,15 +378,42 @@ public sealed class IngestionOperationsIntegrationTests
             Assert.Equal(HttpStatusCode.BadRequest, invalidSchedule.StatusCode);
         }
 
-        AdapterConnectionMutationReceiptDto scheduledReceipt = await PutAsync<AdapterConnectionMutationReceiptDto>(
-            client,
-            $"/api/ingestion/properties/{PropertyId:D}/connections/{created.ConnectionId:D}/polling-schedule",
-            new
-            {
-                intervalSeconds = 300,
-                maxAttempts = 3,
-                expectedVersion = clearedSecret.Version
-            }).ConfigureAwait(false);
+        Guid scheduleOperationId = Guid.NewGuid();
+        object scheduleRequest = new
+        {
+            operationId = scheduleOperationId,
+            intervalSeconds = 300,
+            maxAttempts = 3,
+            expectedVersion = clearedSecret.Version
+        };
+        AdapterConnectionMutationReceiptDto[] concurrentScheduleReceipts =
+            await Task.WhenAll(
+                PutAsync<AdapterConnectionMutationReceiptDto>(
+                    client,
+                    $"/api/ingestion/properties/{PropertyId:D}/connections/{created.ConnectionId:D}/polling-schedule",
+                    scheduleRequest),
+                PutAsync<AdapterConnectionMutationReceiptDto>(
+                    client,
+                    $"/api/ingestion/properties/{PropertyId:D}/connections/{created.ConnectionId:D}/polling-schedule",
+                    scheduleRequest)).ConfigureAwait(false);
+        AdapterConnectionMutationReceiptDto scheduledReceipt =
+            concurrentScheduleReceipts[0];
+        Assert.All(
+            concurrentScheduleReceipts,
+            receipt => Assert.Equal(scheduledReceipt, receipt));
+        using (HttpResponseMessage changedScheduleReplay =
+               await client.PutAsJsonAsync(
+                   $"/api/ingestion/properties/{PropertyId:D}/connections/{created.ConnectionId:D}/polling-schedule",
+                   new
+                   {
+                       operationId = scheduleOperationId,
+                       intervalSeconds = 600,
+                       maxAttempts = 3,
+                       expectedVersion = clearedSecret.Version
+                   }).ConfigureAwait(false))
+        {
+            Assert.Equal(HttpStatusCode.Conflict, changedScheduleReplay.StatusCode);
+        }
         AdapterConnectionDto scheduled = await GetAsync<AdapterConnectionDto>(
             client,
             $"/api/ingestion/properties/{PropertyId:D}/connections/{created.ConnectionId:D}")
@@ -416,7 +444,11 @@ public sealed class IngestionOperationsIntegrationTests
             await PostAsync<AdapterConnectionMutationReceiptDto>(
                 client,
                 $"/api/ingestion/properties/{PropertyId:D}/connections/{created.ConnectionId:D}/polling-schedule/clear",
-                new { expectedVersion = scheduled.Version }).ConfigureAwait(false);
+                new
+                {
+                    operationId = Guid.NewGuid(),
+                    expectedVersion = scheduled.Version
+                }).ConfigureAwait(false);
         AdapterConnectionDto scheduleCleared = await GetAsync<AdapterConnectionDto>(
             client,
             $"/api/ingestion/properties/{PropertyId:D}/connections/{created.ConnectionId:D}")
@@ -432,6 +464,7 @@ public sealed class IngestionOperationsIntegrationTests
             $"/api/ingestion/properties/{PropertyId:D}/connections/{created.ConnectionId:D}/polling-schedule",
             new
             {
+                operationId = Guid.NewGuid(),
                 intervalSeconds = 300,
                 maxAttempts = 4,
                 expectedVersion = scheduleCleared.Version
@@ -496,10 +529,27 @@ public sealed class IngestionOperationsIntegrationTests
         Assert.Equal(1, retainedHealth.RedactedSensitiveHistoryCount);
         Assert.Equal(0, retainedHealth.ActiveLegalHoldCount);
 
-        AdapterConnectionMutationReceiptDto disabledReceipt = await PostAsync<AdapterConnectionMutationReceiptDto>(
-            client,
-            $"/api/ingestion/properties/{PropertyId:D}/connections/{created.ConnectionId:D}/disable",
-            new { expectedVersion = rescheduled.Version }).ConfigureAwait(false);
+        Guid disableOperationId = Guid.NewGuid();
+        object disableRequest = new
+        {
+            operationId = disableOperationId,
+            expectedVersion = rescheduled.Version
+        };
+        AdapterConnectionMutationReceiptDto[] concurrentDisableReceipts =
+            await Task.WhenAll(
+                PostAsync<AdapterConnectionMutationReceiptDto>(
+                    client,
+                    $"/api/ingestion/properties/{PropertyId:D}/connections/{created.ConnectionId:D}/disable",
+                    disableRequest),
+                PostAsync<AdapterConnectionMutationReceiptDto>(
+                    client,
+                    $"/api/ingestion/properties/{PropertyId:D}/connections/{created.ConnectionId:D}/disable",
+                    disableRequest)).ConfigureAwait(false);
+        AdapterConnectionMutationReceiptDto disabledReceipt =
+            concurrentDisableReceipts[0];
+        Assert.All(
+            concurrentDisableReceipts,
+            receipt => Assert.Equal(disabledReceipt, receipt));
         Assert.Equal(AdapterConnectionStatus.Disabled, disabledReceipt.Status);
         AdapterConnectionDto disabled = await GetAsync<AdapterConnectionDto>(
             client,
@@ -519,11 +569,42 @@ public sealed class IngestionOperationsIntegrationTests
         Assert.Null(disabledHealth.NextRunExpectedAtUtc);
         Assert.False(disabledHealth.RunExpected);
 
+        Guid resetOperationId = Guid.NewGuid();
+        object resetRequest = new
+        {
+            operationId = resetOperationId,
+            expectedVersion = disabled.Version
+        };
         AdapterConnectionMutationReceiptDto reset = await PostAsync<AdapterConnectionMutationReceiptDto>(
             client,
             $"/api/ingestion/properties/{PropertyId:D}/connections/{created.ConnectionId:D}/reset-checkpoint",
-            new { expectedVersion = disabled.Version }).ConfigureAwait(false);
+            resetRequest).ConfigureAwait(false);
+        AdapterConnectionMutationReceiptDto replayedReset = await PostAsync<AdapterConnectionMutationReceiptDto>(
+            client,
+            $"/api/ingestion/properties/{PropertyId:D}/connections/{created.ConnectionId:D}/reset-checkpoint",
+            resetRequest).ConfigureAwait(false);
         Assert.Equal(disabled.Version, reset.Version);
+        Assert.Equal(reset, replayedReset);
+        using (IServiceScope scope = api.Services.CreateScope())
+        {
+            scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>()
+                .SetTenant(TenantId);
+            IngestionDbContext dbContext = scope.ServiceProvider
+                .GetRequiredService<IngestionDbContext>();
+            Guid[] operationIds =
+            [
+                scheduleOperationId,
+                disableOperationId,
+                resetOperationId
+            ];
+            Assert.Equal(
+                operationIds.Length,
+                await dbContext.ConnectionManagementOperations.CountAsync(
+                    operation =>
+                        operation.ConnectionId == created.ConnectionId &&
+                        operationIds.Contains(operation.Id))
+                    .ConfigureAwait(false));
+        }
 
         IngestionRunListResponse runs = await GetAsync<IngestionRunListResponse>(
             client,
@@ -1276,7 +1357,11 @@ public sealed class IngestionOperationsIntegrationTests
         AdapterConnectionMutationReceiptDto disabled = await PostAsync<AdapterConnectionMutationReceiptDto>(
             managementClient,
             $"/api/ingestion/properties/{PropertyId:D}/connections/{PushConnectionId:D}/disable",
-            new { expectedVersion = 1L }).ConfigureAwait(false);
+            new
+            {
+                operationId = Guid.NewGuid(),
+                expectedVersion = 1L
+            }).ConfigureAwait(false);
         Assert.Equal(AdapterConnectionStatus.Disabled, disabled.Status);
         AdapterObservedRecord disabledRecord = CreateIngressRecord(
             Guid.Parse("92000000-0000-0000-0000-000000000002"), payload, "remote-push-2");

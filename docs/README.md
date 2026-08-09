@@ -160,6 +160,7 @@ Useful entry points:
 - [Ingestion Operational Surface Hardening Task](planning/ingestion-operational-surface-hardening-task.md)
 - [Ingestion Connection Creation Idempotency Task](planning/ingestion-connection-create-idempotency-task.md)
 - [Ingestion Connection Update Idempotency Task](planning/ingestion-connection-update-idempotency-task.md)
+- [Ingestion Connection Control Idempotency Task](planning/ingestion-connection-control-idempotency-task.md)
 - [Ingestion Execution Mutation Serialization Task](planning/ingestion-execution-mutation-serialization-task.md)
 - [Ingestion Source Graph Mutation Serialization Task](planning/ingestion-source-graph-mutation-serialization-task.md)
 - [Ingestion Sensitive History Retention Task](planning/ingestion-sensitive-history-retention-task.md)

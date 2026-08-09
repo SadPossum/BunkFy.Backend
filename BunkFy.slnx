@@ -91,6 +91,7 @@
     <File Path="docs/planning/imap-reservation-mail-authentication-task.md" />
     <File Path="docs/planning/imap-reservation-mail-key-rotation-task.md" />
     <File Path="docs/planning/ingestion-adapter-ingress-task.md" />
+    <File Path="docs/planning/ingestion-connection-control-idempotency-task.md" />
     <File Path="docs/planning/ingestion-connection-create-idempotency-task.md" />
     <File Path="docs/planning/ingestion-connection-update-idempotency-task.md" />
     <File Path="docs/planning/ingestion-data-rights-workflow-task.md" />

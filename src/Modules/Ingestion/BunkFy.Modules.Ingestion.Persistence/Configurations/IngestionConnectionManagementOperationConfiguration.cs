@@ -30,9 +30,11 @@ internal sealed class IngestionConnectionManagementOperationConfiguration
                 "CK_ingestion_connection_management_operations_outcome",
                 "(\"Kind\" = 1 AND \"ExpectedVersion\" = 0 AND " +
                 "\"ResultVersion\" = 1 AND \"Id\" = \"ConnectionId\") OR " +
-                "(\"Kind\" = 2 AND \"ExpectedVersion\" > 0 AND " +
+                "(\"Kind\" IN (2, 5, 6, 7) AND \"ExpectedVersion\" > 0 AND " +
                 "\"ResultVersion\" >= \"ExpectedVersion\" AND " +
-                "\"ResultVersion\" <= \"ExpectedVersion\" + 1)");
+                "\"ResultVersion\" <= \"ExpectedVersion\" + 1) OR " +
+                "(\"Kind\" IN (3, 4) AND \"ExpectedVersion\" > 0 AND " +
+                "\"ResultVersion\" = \"ExpectedVersion\" + 1)");
         });
         builder.HasKey(operation => new
         {

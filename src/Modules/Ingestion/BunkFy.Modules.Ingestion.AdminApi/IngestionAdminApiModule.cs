@@ -214,12 +214,17 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
                     IngestionAdminPermissions.ConnectionsManage),
                 true,
                 ct => dispatcher.SendAsync(new ConfigureAdapterConnectionPollingScheduleCommand(
-                    propertyId, connectionId, request.IntervalSeconds, request.MaxAttempts, request.ExpectedVersion), ct),
+                    request.OperationId,
+                    propertyId,
+                    connectionId,
+                    request.IntervalSeconds,
+                    request.MaxAttempts,
+                    request.ExpectedVersion), ct),
                 token,
                 errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
             .Produces<AdapterConnectionMutationReceiptDto>(StatusCodes.Status200OK);
         group.MapPost("/{connectionId:guid}/polling-schedule/clear", async (
-            Guid propertyId, Guid connectionId, VersionRequest request,
+            Guid propertyId, Guid connectionId, ConnectionControlRequest request,
             HttpContext context, AdminApiExecutor executor, IRequestDispatcher dispatcher, CancellationToken token) =>
             await executor.ExecuteAsync(context,
                 AdminOperation.Create(
@@ -227,25 +232,31 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
                     IngestionAdminPermissions.ConnectionsManage),
                 true,
                 ct => dispatcher.SendAsync(new ClearAdapterConnectionPollingScheduleCommand(
-                    propertyId, connectionId, request.ExpectedVersion), ct),
+                    request.OperationId,
+                    propertyId,
+                    connectionId,
+                    request.ExpectedVersion), ct),
                 token,
                 errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
             .Produces<AdapterConnectionMutationReceiptDto>(StatusCodes.Status200OK);
-        group.MapPost("/{connectionId:guid}/enable", (Guid propertyId, Guid connectionId, VersionRequest request,
+        group.MapPost("/{connectionId:guid}/enable", (Guid propertyId, Guid connectionId, ConnectionControlRequest request,
             HttpContext context, AdminApiExecutor executor, IRequestDispatcher dispatcher, CancellationToken token) =>
             SetEnabledAsync(propertyId, connectionId, request, true, context, executor, dispatcher, token))
             .Produces<AdapterConnectionMutationReceiptDto>(StatusCodes.Status200OK);
-        group.MapPost("/{connectionId:guid}/disable", (Guid propertyId, Guid connectionId, VersionRequest request,
+        group.MapPost("/{connectionId:guid}/disable", (Guid propertyId, Guid connectionId, ConnectionControlRequest request,
             HttpContext context, AdminApiExecutor executor, IRequestDispatcher dispatcher, CancellationToken token) =>
             SetEnabledAsync(propertyId, connectionId, request, false, context, executor, dispatcher, token))
             .Produces<AdapterConnectionMutationReceiptDto>(StatusCodes.Status200OK);
         group.MapPost("/{connectionId:guid}/reset-checkpoint", async (Guid propertyId, Guid connectionId,
-            ConfirmedVersionRequest request, HttpContext context, AdminApiExecutor executor, IRequestDispatcher dispatcher,
+            ConfirmedConnectionControlRequest request, HttpContext context, AdminApiExecutor executor, IRequestDispatcher dispatcher,
             CancellationToken token) => await executor.ExecuteAsync(context,
                 AdminOperation.Create(IngestionAdminOperationNames.ConnectionResetCheckpoint, IngestionAdminPermissions.ConnectionsManage), true,
                 async ct => request.Confirmed
                     ? await dispatcher.SendAsync(new ResetAdapterConnectionCheckpointCommand(
-                        propertyId, connectionId, request.ExpectedVersion), ct).ConfigureAwait(false)
+                        request.OperationId,
+                        propertyId,
+                        connectionId,
+                        request.ExpectedVersion), ct).ConfigureAwait(false)
                     : Result.Failure<AdapterConnectionMutationReceiptDto>(AdminErrors.ConfirmationRequired),
                 token, errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
             .Produces<AdapterConnectionMutationReceiptDto>(StatusCodes.Status200OK);
@@ -845,14 +856,18 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
     }
 
     private static Task<IResult> SetEnabledAsync(
-        Guid propertyId, Guid connectionId, VersionRequest request, bool enabled, HttpContext context,
+        Guid propertyId, Guid connectionId, ConnectionControlRequest request, bool enabled, HttpContext context,
         AdminApiExecutor executor, IRequestDispatcher dispatcher, CancellationToken token) => executor.ExecuteAsync(
         context,
         AdminOperation.Create(enabled ? IngestionAdminOperationNames.ConnectionEnable : IngestionAdminOperationNames.ConnectionDisable,
             IngestionAdminPermissions.ConnectionsManage),
         true,
         ct => dispatcher.SendAsync(new SetAdapterConnectionEnabledCommand(
-            propertyId, connectionId, enabled, request.ExpectedVersion), ct),
+            request.OperationId,
+            propertyId,
+            connectionId,
+            enabled,
+            request.ExpectedVersion), ct),
         token,
         errorStatusCodes: ErrorStatusCodes);
 
@@ -916,7 +931,15 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
         };
     public sealed record VersionRequest(long ExpectedVersion);
     public sealed record ConfirmedVersionRequest(long ExpectedVersion, bool Confirmed);
+    public sealed record ConnectionControlRequest(
+        Guid OperationId,
+        long ExpectedVersion);
+    public sealed record ConfirmedConnectionControlRequest(
+        Guid OperationId,
+        long ExpectedVersion,
+        bool Confirmed);
     public sealed record ConfigurePollingScheduleRequest(
+        Guid OperationId,
         int IntervalSeconds,
         int MaxAttempts,
         long ExpectedVersion);

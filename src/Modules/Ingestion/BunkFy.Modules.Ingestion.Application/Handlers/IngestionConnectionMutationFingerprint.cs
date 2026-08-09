@@ -34,6 +34,50 @@ internal static class IngestionConnectionMutationFingerprint
             ? command.SecretReference?.Trim() ?? string.Empty
             : string.Empty);
 
+    public static string ComputeEnabledState(
+        SetAdapterConnectionEnabledCommand command) => Compute(
+        command.Enabled
+            ? "bunkfy-ingestion-connection-enable/v1"
+            : "bunkfy-ingestion-connection-disable/v1",
+        command.PropertyId.ToString("N"),
+        command.ConnectionId.ToString("N"),
+        command.ExpectedVersion.ToString(CultureInfo.InvariantCulture));
+
+    public static string ComputePollingSchedule(
+        ConfigureAdapterConnectionPollingScheduleCommand command) => Compute(
+        "bunkfy-ingestion-connection-polling-schedule-configure/v1",
+        command.PropertyId.ToString("N"),
+        command.ConnectionId.ToString("N"),
+        command.ExpectedVersion.ToString(CultureInfo.InvariantCulture),
+        command.IntervalSeconds.ToString(CultureInfo.InvariantCulture),
+        command.MaxAttempts.ToString(CultureInfo.InvariantCulture));
+
+    public static string ComputePollingScheduleClear(
+        ClearAdapterConnectionPollingScheduleCommand command) =>
+        ComputeVersionedControl(
+            "bunkfy-ingestion-connection-polling-schedule-clear/v1",
+            command.PropertyId,
+            command.ConnectionId,
+            command.ExpectedVersion);
+
+    public static string ComputeCheckpointReset(
+        ResetAdapterConnectionCheckpointCommand command) =>
+        ComputeVersionedControl(
+            "bunkfy-ingestion-connection-checkpoint-reset/v1",
+            command.PropertyId,
+            command.ConnectionId,
+            command.ExpectedVersion);
+
+    private static string ComputeVersionedControl(
+        string schema,
+        Guid propertyId,
+        Guid connectionId,
+        long expectedVersion) => Compute(
+        schema,
+        propertyId.ToString("N"),
+        connectionId.ToString("N"),
+        expectedVersion.ToString(CultureInfo.InvariantCulture));
+
     private static string Compute(params string[] values)
     {
         using IncrementalHash hash = IncrementalHash.CreateHash(
