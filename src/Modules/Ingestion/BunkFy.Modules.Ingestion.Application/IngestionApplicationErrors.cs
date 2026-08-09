@@ -10,6 +10,12 @@ public static class IngestionApplicationErrors
 {
     public static readonly Error ScopeRequired = new("Ingestion.ScopeRequired", "An active scope is required.");
     public static readonly Error ConnectionNotFound = new("Ingestion.ConnectionNotFound", "The adapter connection was not found.");
+    public static readonly Error ConnectionManagementOperationInvalid = new(
+        "Ingestion.ConnectionManagementOperationInvalid",
+        "A valid connection management operation id is required.");
+    public static readonly Error ConnectionManagementOperationConflict = new(
+        "Ingestion.ConnectionManagementOperationConflict",
+        "The connection management operation id was already used for different intent.");
     public static readonly Error PropertyNotFound = new("Ingestion.PropertyNotFound", "The property was not found in Ingestion's local projection.");
     public static Error CountryPolicyDenied(CountryPolicyDecisionReason reason) => new(
         $"Ingestion.CountryPolicyDenied.{reason}",

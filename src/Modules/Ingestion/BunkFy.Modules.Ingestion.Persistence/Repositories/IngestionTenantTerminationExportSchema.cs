@@ -19,6 +19,7 @@ internal static class IngestionTenantTerminationExportSchema
     private static readonly Type[] SourceTypes =
     [
         typeof(IngestionAdapterConnectionTenantExport),
+        typeof(IngestionConnectionManagementOperationTenantExport),
         typeof(IngestionAdapterCredentialTenantExport),
         typeof(IngestionAdapterIngressControlTenantExport),
         typeof(IngestionRunTenantExport),
@@ -40,6 +41,11 @@ internal static class IngestionTenantTerminationExportSchema
         Binding<IngestionAdapterConnectionTenantExport>(
             nameof(IngestionAdapterConnectionTenantExport.Connection),
             "ingestion.tenant.adapter-connection",
+            "include-with-authorized-export"),
+        Binding<IngestionConnectionManagementOperationTenantExport>(
+            nameof(IngestionConnectionManagementOperationTenantExport
+                .Operation),
+            "ingestion.tenant.connection-management-operation",
             "include-with-authorized-export"),
         Binding<IngestionAdapterCredentialTenantExport>(
             nameof(IngestionAdapterCredentialTenantExport

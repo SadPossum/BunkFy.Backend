@@ -31,6 +31,9 @@ public sealed class IngestionDbContext(
     public DbSet<OutboxMessage> OutboxMessages => this.Set<OutboxMessage>();
     public DbSet<InboxMessage> InboxMessages => this.Set<InboxMessage>();
     public DbSet<AdapterConnection> AdapterConnections => this.Set<AdapterConnection>();
+    internal DbSet<IngestionConnectionManagementOperation>
+        ConnectionManagementOperations =>
+        this.Set<IngestionConnectionManagementOperation>();
     public DbSet<AdapterIngressCredential> AdapterIngressCredentials => this.Set<AdapterIngressCredential>();
     public DbSet<AdapterIngressTenantControl> AdapterIngressTenantControls =>
         this.Set<AdapterIngressTenantControl>();
@@ -180,6 +183,17 @@ public sealed class IngestionDbContext(
         {
             throw new InvalidOperationException(
                 "Ingestion owner proof is append-only.");
+        }
+
+        bool connectionManagementOperationMutationRequested =
+            this.ChangeTracker
+                .Entries<IngestionConnectionManagementOperation>()
+                .Any(entry => entry.State is
+                    EntityState.Modified or EntityState.Deleted);
+        if (connectionManagementOperationMutationRequested)
+        {
+            throw new InvalidOperationException(
+                "Ingestion connection management operation receipts are append-only.");
         }
     }
 

@@ -341,6 +341,7 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
 
     private static Command CreateConnectionCreateCommand(IServiceProvider services, AdminCliGlobalOptions globalOptions)
     {
+        Option<Guid> operation = RequiredGuid("--operation-id");
         Option<Guid> property = RequiredGuid("--property-id");
         Option<string> adapter = RequiredString("--adapter-type");
         Option<string> mode = RequiredString("--execution-mode");
@@ -349,7 +350,7 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
         Option<string?> secret = new("--secret-reference");
         Command command = new("create", "Create an adapter connection.")
         {
-            property, adapter, mode, policy, configuration, secret
+            operation, property, adapter, mode, policy, configuration, secret
         };
         command.SetAction((parse, token) => ExecuteObjectAsync(
             services, globalOptions, parse, IngestionAdminOperationNames.ConnectionCreate,
@@ -365,7 +366,7 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
                 }
 
                 return await provider.GetRequiredService<IRequestDispatcher>().SendAsync(
-                    new CreateAdapterConnectionCommand(parse.GetRequiredValue(property), parse.GetRequiredValue(adapter),
+                    new CreateAdapterConnectionCommand(parse.GetRequiredValue(operation), parse.GetRequiredValue(property), parse.GetRequiredValue(adapter),
                         parsedMode.Value, parsedPolicy.Value, parse.GetRequiredValue(configuration), parse.GetValue(secret)), ct)
                     .ConfigureAwait(false);
             }, token));

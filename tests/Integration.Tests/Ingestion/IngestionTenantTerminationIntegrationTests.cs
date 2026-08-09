@@ -219,6 +219,17 @@ public sealed partial class IngestionTenantTerminationIntegrationTests
             connectionId,
             propertyId,
             SecretReference);
+        IngestionConnectionManagementOperation connectionOperation = new(
+            new IngestionConnectionManagementOperationRecord(
+                connectionId,
+                tenantId,
+                propertyId,
+                connectionId,
+                IngestionConnectionManagementMutationKind.ConnectionCreate,
+                ExpectedVersion: 0,
+                Digest,
+                ResultVersion: 1,
+                SeedNowUtc));
         byte[] secretHash = Enumerable
             .Repeat((byte)0xa5, AdapterIngressCredential.SecretHashLength)
             .ToArray();
@@ -456,6 +467,7 @@ public sealed partial class IngestionTenantTerminationIntegrationTests
 
         context.AddRange(
             connection,
+            connectionOperation,
             credential,
             tenantControl,
             run,

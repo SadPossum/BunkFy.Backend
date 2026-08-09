@@ -9,7 +9,9 @@ Ingestion is BunkFy's tenant- and property-scoped control plane for external sou
 The current foundation contains:
 
 - the module project boundaries, PostgreSQL migration, inbox/outbox infrastructure, and optional API/admin front doors;
-- scoped adapter connections with conflict policy, write-only secret references, configuration references, and checkpoints;
+- scoped adapter connections with retry-safe caller-owned creation identity,
+  conflict policy, write-only secret references, configuration references, and
+  checkpoints;
 - task-linked source-run state, durable receipt identity, source deduplication, and staff proposal state machines;
 - repository-backed observation receipt handling with raw payload storage through the selected GMA file adapter;
 - assignment-bound adapter acknowledgement and checkpoint coordination;
@@ -46,7 +48,11 @@ The current foundation contains:
 - versioned parser capability discovery plus retained-source reprocessing with immutable source receipts, derived lineage, per-output audit, bounded evidence reservations, and TaskRuntime execution;
 - exact reservation-linked DataRights discovery with versioned Ingestion-owned source-link coordinates and no raw or fuzzy identity search;
 - catalogue-driven DataRights export of the selected provider-evidence graph, including deterministic protected raw-payload and normalized-history chunking plus fail-closed retained-object reads;
-- a mandatory tenant-termination owner that exports connection and non-secret credential metadata, tenant ingress controls, run and receipt provenance, reprocessing history, proposals, source links, dispatches, holds, retention execution, and minimum anonymisation proof under the shared workspace fence;
+- a mandatory tenant-termination owner that exports connection metadata,
+  connection-creation receipts, non-secret credential metadata, tenant ingress
+  controls, run and receipt provenance, reprocessing history, proposals, source
+  links, dispatches, holds, retention execution, and minimum anonymisation proof
+  under the shared workspace fence;
 - a destructive tenant-termination lifecycle that closes local admission,
   blocks on active legal holds and live outbox leases, proves raw-object absence
   before removing receipt rows, deletes the complete owner graph in bounded
@@ -61,6 +67,14 @@ Persisted and remote run failures use bounded stable error codes only. Adapter-l
 The deterministic `fake.http` adapter, hardened `json.file-drop` adapter, strict `imap.reservation-json` mailbox adapter, and local configuration-material provider exercise three polling mechanisms from `src/Adapters`. IMAP uses MailKit behind an adapter-local session boundary, password or OAuth 2 authentication, mandatory TLS outside explicit loopback development, HMAC-authenticated attachment bytes, read-only bounded MIME retrieval, and UIDVALIDITY-aware checkpoints. Signed malformed/future mail becomes replayable retained evidence, while unsigned or incorrectly signed mail is retained as non-reprocessable untrusted evidence; neither blocks later UIDs. `BunkFy.Parsers.ReservationMail` can replay only trusted-unparsed evidence through the same strict envelope reader; parser metadata is present in API/Admin hosts and executable code is Worker-only. The dependency-light `BunkFy.Adapters.Http` client exercises the authenticated external push boundary against the same shared observation contract without referencing Ingestion internals. `BunkFy.Adapter.Runtime` and the executable `BunkFy.AdapterHost` run polling contracts independently with pre-acknowledgement local checkpoint durability, reloadable token/material sources, bounded retry, and non-sensitive local status. Ingestion is composed into API, Admin API, Admin CLI, and Worker hosts. MinIO stores JSON and RFC822 raw payloads, and the worker opts into explicit adapter, parser, and projection groups. Vendor-specific OTA/mail/HTML parsers, remote fleet discovery, and federated workload identities remain deferred; bounded remote lease claim, renewal, observation submission, and completion are implemented.
 
 Descriptor registration is separate from runner registration: control-plane hosts need capability metadata but must not load executable adapter runners. The current registry is host-composed and immutable for the process lifetime. A future remote adapter discovery implementation can replace `IAdapterDescriptorRegistry`; until then, deployments must keep descriptor registrations aligned across API, Admin, CLI, and Worker binaries. A worker rejects a runner whose descriptor differs from its registration.
+
+Connection creation requires one caller-owned operation id, which becomes the
+connection id. Exact retries are serialized by the connection transaction key
+and return the current bounded connection receipt; reuse for changed normalized
+configuration fails with a stable conflict. The connection and its append-only
+digest-only operation receipt commit together, so a lost response cannot create
+a second connection. Invalid or denied attempts do not reserve the operation id.
+See [Ingestion Connection Creation Idempotency Task](../../../docs/planning/ingestion-connection-create-idempotency-task.md).
 
 Polling minimum/recommended intervals remain provider capability metadata, while each polling connection may separately own an explicit interval and retry limit. Ingestion persists that desired schedule and exposes it through a dynamic GMA `ITaskScheduleProvider`; TaskRuntime owns occurrence deduplication, leases, retries, and multi-worker execution. The trusted schedule reader crosses tenant query filters only to project enabled connection ids, tenant ids, cadence, and retry limits into tenant-scoped tasks. It does not expose adapter configuration or secret references.
 
@@ -105,9 +119,10 @@ receipt state is committed. See
 
 Tenant termination is deliberately a different export surface. It contains
 portable adapter configuration metadata and normalized operational history,
-but excludes secret references, credential hashes and hash algorithms, raw
-payload bytes, inbox/outbox state, projections, checkpoints, source-operation
-locks, global ingress control, anonymisation plans, and fingerprints. Raw
+but excludes secret references, connection request fingerprints, credential
+hashes and hash algorithms, raw payload bytes, inbox/outbox state, projections,
+checkpoints, source-operation locks, global ingress control, anonymisation plans,
+and anonymisation fingerprints. Raw
 payload bytes remain available only through the separately authorized
 subject/evidence export while the retention policy still permits them.
 Relational writes, direct credential expiry/telemetry updates, and export use
@@ -155,7 +170,7 @@ Connection health keeps its operational state factual: `NoActivity`, `RunActive`
 
 Health also reports whether the current host knows the connection's adapter descriptor and still supports its execution mode, together with protocol/configuration schema versions. This detects deployment composition drift without claiming that a registered adapter is operationally healthy.
 
-Focused Docker coverage proves PostgreSQL, MinIO, JetStream, exact deduplication, worker-downtime recovery, automatic reservation creation, accepted and rejected allocation amendments, fresh worker restarts, the staff-conflict proposal path, real-token property-scoped connection management and health, separately authorized raw-payload retrieval, retention migration backfill, active-proposal evidence protection, legacy PII baseline reduction, normalized-history redaction and constraints, overlapping legal holds and fence conflicts, protected-ledger restore replay, anti-resurrection barriers, physical object purge, one-time adapter credential rotation, tenant/connection denial, direct push acceptance/replay, standalone and remote-leased runner delivery plus checkpointing, revocation, queued JSON file-drop receipt/archive/quarantine behavior, real SMTP-to-IMAP reservation acquisition and poison-message progress through GreenMail, tenant-termination export across all 15 streams with cross-tenant revision isolation and frozen-write serialization, crash-safe tenant destruction across raw objects and derived/source receipt lineage, and Admin API/CLI confirmation. Vendor-specific connectors, federated workload identity, remote fleet discovery, orphan reconciliation, irreversible anonymisation execution, and broader operational workflows remain later slices.
+Focused Docker coverage proves PostgreSQL, MinIO, JetStream, exact deduplication, worker-downtime recovery, automatic reservation creation, accepted and rejected allocation amendments, fresh worker restarts, the staff-conflict proposal path, real-token property-scoped connection management and health, separately authorized raw-payload retrieval, retention migration backfill, active-proposal evidence protection, legacy PII baseline reduction, normalized-history redaction and constraints, overlapping legal holds and fence conflicts, protected-ledger restore replay, anti-resurrection barriers, physical object purge, one-time adapter credential rotation, tenant/connection denial, direct push acceptance/replay, standalone and remote-leased runner delivery plus checkpointing, revocation, queued JSON file-drop receipt/archive/quarantine behavior, real SMTP-to-IMAP reservation acquisition and poison-message progress through GreenMail, tenant-termination export across all 16 streams with cross-tenant revision isolation and frozen-write serialization, crash-safe tenant destruction across raw objects and derived/source receipt lineage, and Admin API/CLI confirmation. Vendor-specific connectors, federated workload identity, remote fleet discovery, orphan reconciliation, irreversible anonymisation execution, and broader operational workflows remain later slices.
 
 Retained rejected evidence can be parsed again without reopening the source receipt; the durable attempt, lineage, and retention-fence contract is in [Ingestion Source Reprocessing Task](../../../docs/planning/ingestion-source-reprocessing-task.md).
 

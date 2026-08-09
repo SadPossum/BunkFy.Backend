@@ -7,15 +7,17 @@ public static class IngestionTenantTerminationMetadata
 {
     public const string OwnerKey = IngestionModuleMetadata.Name;
     public const string DependencyOwnerKey = "staff";
-    public const int CatalogVersion = 2;
-    public const int PersonalDataCatalogVersion = 12;
+    public const int CatalogVersion = 3;
+    public const int PersonalDataCatalogVersion = 13;
     public const string ExportCatalogId = "ingestion.tenant-portability";
-    public const int ExportCatalogSchemaVersion = 1;
+    public const int ExportCatalogSchemaVersion = 2;
     public const string ExportSchemaId =
         "ingestion.tenant-termination-export";
-    public const int ExportSchemaVersion = 1;
+    public const int ExportSchemaVersion = 2;
 
     public const string AdapterConnectionRecordType = "adapter-connection";
+    public const string ConnectionManagementOperationRecordType =
+        "connection-management-operation";
     public const string AdapterCredentialRecordType =
         "adapter-ingress-credential-metadata";
     public const string AdapterIngressControlRecordType =
@@ -45,6 +47,7 @@ public static class IngestionTenantTerminationMetadata
         Array.AsReadOnly(
         [
             AdapterConnectionRecordType,
+            ConnectionManagementOperationRecordType,
             AdapterCredentialRecordType,
             AdapterIngressControlRecordType,
             IngestionRunRecordType,
@@ -68,7 +71,9 @@ public static class IngestionTenantTerminationMetadata
             "ingestion.operations.property-id",
             "ingestion.operations.connection-id",
             "ingestion.operations.id",
+            "ingestion.operations.operation-id",
             "ingestion.tenant.adapter-connection",
+            "ingestion.tenant.connection-management-operation",
             "ingestion.tenant.adapter-credential-metadata",
             "ingestion.tenant.adapter-ingress-control",
             "ingestion.tenant.run",

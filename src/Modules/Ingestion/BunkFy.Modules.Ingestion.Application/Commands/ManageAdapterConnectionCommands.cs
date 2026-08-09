@@ -5,6 +5,7 @@ using Gma.Framework.Cqrs;
 using BunkFy.Modules.Ingestion.Contracts;
 
 public sealed record CreateAdapterConnectionCommand(
+    Guid OperationId,
     Guid PropertyId,
     string AdapterType,
     AdapterExecutionMode ExecutionMode,

@@ -190,6 +190,7 @@ public sealed class IngestionOperationsIntegrationTests
                    $"/api/ingestion/properties/{PropertyId:D}/connections",
                    new
                    {
+                       operationId = Guid.NewGuid(),
                        adapterType = "fake.http",
                        executionMode = AdapterExecutionMode.Continuous,
                        conflictPolicy = AdapterConflictPolicy.SuggestionsOnly,
@@ -199,17 +200,63 @@ public sealed class IngestionOperationsIntegrationTests
             Assert.Equal(HttpStatusCode.BadRequest, unsupportedMode.StatusCode);
         }
 
-        AdapterConnectionMutationReceiptDto createdReceipt = await PostAsync<AdapterConnectionMutationReceiptDto>(
-            client,
-            $"/api/ingestion/properties/{PropertyId:D}/connections",
-            new
-            {
-                adapterType = "fake.http",
-                executionMode = AdapterExecutionMode.Polling,
-                conflictPolicy = AdapterConflictPolicy.SuggestionsOnly,
-                configurationReference = "configuration://integration",
-                secretReference = "secret://integration"
-            }).ConfigureAwait(false);
+        Guid createOperationId = Guid.NewGuid();
+        object createRequest = new
+        {
+            operationId = createOperationId,
+            adapterType = "fake.http",
+            executionMode = AdapterExecutionMode.Polling,
+            conflictPolicy = AdapterConflictPolicy.SuggestionsOnly,
+            configurationReference = "configuration://integration",
+            secretReference = "secret://integration"
+        };
+        AdapterConnectionMutationReceiptDto[] concurrentCreateReceipts =
+            await Task.WhenAll(
+                PostAsync<AdapterConnectionMutationReceiptDto>(
+                    client,
+                    $"/api/ingestion/properties/{PropertyId:D}/connections",
+                    createRequest),
+                PostAsync<AdapterConnectionMutationReceiptDto>(
+                    client,
+                    $"/api/ingestion/properties/{PropertyId:D}/connections",
+                    createRequest)).ConfigureAwait(false);
+        AdapterConnectionMutationReceiptDto createdReceipt =
+            concurrentCreateReceipts[0];
+        Assert.All(
+            concurrentCreateReceipts,
+            receipt => Assert.Equal(createdReceipt, receipt));
+        Assert.Equal(createOperationId, createdReceipt.ConnectionId);
+        using (HttpResponseMessage changedReplay = await client.PostAsJsonAsync(
+                   $"/api/ingestion/properties/{PropertyId:D}/connections",
+                   new
+                   {
+                       operationId = createOperationId,
+                       adapterType = "fake.http",
+                       executionMode = AdapterExecutionMode.Polling,
+                       conflictPolicy = AdapterConflictPolicy.SuggestionsOnly,
+                       configurationReference = "configuration://changed",
+                       secretReference = "secret://integration"
+                   }).ConfigureAwait(false))
+        {
+            Assert.Equal(HttpStatusCode.Conflict, changedReplay.StatusCode);
+        }
+        using (IServiceScope scope = api.Services.CreateScope())
+        {
+            scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>()
+                .SetTenant(TenantId);
+            IngestionDbContext dbContext = scope.ServiceProvider
+                .GetRequiredService<IngestionDbContext>();
+            Assert.Equal(
+                1,
+                await dbContext.AdapterConnections.CountAsync(
+                    connection => connection.Id == createOperationId)
+                    .ConfigureAwait(false));
+            Assert.Equal(
+                1,
+                await dbContext.ConnectionManagementOperations.CountAsync(
+                    operation => operation.Id == createOperationId)
+                    .ConfigureAwait(false));
+        }
         Assert.Equal(AdapterConnectionStatus.Enabled, createdReceipt.Status);
         Assert.Equal(1, createdReceipt.Version);
         AdapterConnectionDto created = await GetAsync<AdapterConnectionDto>(
@@ -463,6 +510,7 @@ public sealed class IngestionOperationsIntegrationTests
             $"/api/ingestion/properties/{PropertyId:D}/connections",
             new
             {
+                operationId = Guid.NewGuid(),
                 adapterType = JsonFileDropAdapterDescriptor.AdapterType,
                 executionMode = AdapterExecutionMode.Polling,
                 conflictPolicy = AdapterConflictPolicy.SuggestionsOnly,

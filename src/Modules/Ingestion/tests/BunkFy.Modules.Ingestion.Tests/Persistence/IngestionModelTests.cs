@@ -26,6 +26,46 @@ using Xunit;
 public sealed class IngestionModelTests
 {
     [Fact]
+    public void Connection_management_operations_are_scoped_and_immutable()
+    {
+        using IngestionDbContext dbContext = CreateDbContext();
+        IEntityType operation = dbContext.Model.FindEntityType(
+            typeof(IngestionConnectionManagementOperation))!;
+
+        Assert.NotEmpty(operation.GetDeclaredQueryFilters());
+        Assert.Equal(
+            [
+                nameof(IngestionConnectionManagementOperation.ScopeId),
+                nameof(IngestionConnectionManagementOperation.ConnectionId),
+                nameof(IngestionConnectionManagementOperation.Id)
+            ],
+            operation.FindPrimaryKey()!.Properties
+                .Select(property => property.Name)
+                .ToArray());
+        Assert.Equal(
+            64,
+            operation.FindProperty(nameof(
+                IngestionConnectionManagementOperation.RequestFingerprint))!
+                .GetMaxLength());
+        Assert.True(operation.FindProperty(nameof(
+                IngestionConnectionManagementOperation.RequestFingerprint))!
+            .IsFixedLength());
+        IForeignKey connectionOwnership = Assert.Single(
+            operation.GetForeignKeys(),
+            foreignKey => foreignKey.PrincipalEntityType.ClrType ==
+                typeof(AdapterConnection));
+        Assert.Equal(
+            [
+                nameof(IngestionConnectionManagementOperation.ScopeId),
+                nameof(IngestionConnectionManagementOperation.ConnectionId)
+            ],
+            connectionOwnership.Properties
+                .Select(property => property.Name)
+                .ToArray());
+        Assert.Equal(DeleteBehavior.Restrict, connectionOwnership.DeleteBehavior);
+    }
+
+    [Fact]
     public void Mutable_aggregates_use_concurrency_tokens()
     {
         using IngestionDbContext dbContext = CreateDbContext();

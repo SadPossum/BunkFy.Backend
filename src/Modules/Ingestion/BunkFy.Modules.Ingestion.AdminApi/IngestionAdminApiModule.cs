@@ -191,7 +191,7 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
             AdminApiExecutor executor, IRequestDispatcher dispatcher, CancellationToken token) =>
             await executor.ExecuteAsync(context,
                 AdminOperation.Create(IngestionAdminOperationNames.ConnectionCreate, IngestionAdminPermissions.ConnectionsManage), true,
-                ct => dispatcher.SendAsync(new CreateAdapterConnectionCommand(propertyId, request.AdapterType,
+                ct => dispatcher.SendAsync(new CreateAdapterConnectionCommand(request.OperationId, propertyId, request.AdapterType,
                     request.ExecutionMode, request.ConflictPolicy, request.ConfigurationReference, request.SecretReference), ct),
                 token, errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
             .Produces<AdapterConnectionMutationReceiptDto>(StatusCodes.Status200OK);
@@ -900,7 +900,7 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
         return $"admin-api:{identity}";
     }
 
-    public sealed record CreateConnectionRequest(string AdapterType, AdapterExecutionMode ExecutionMode,
+    public sealed record CreateConnectionRequest(Guid OperationId, string AdapterType, AdapterExecutionMode ExecutionMode,
         AdapterConflictPolicy ConflictPolicy, string ConfigurationReference, string? SecretReference);
     public sealed record UpdateConnectionRequest(AdapterExecutionMode ExecutionMode, AdapterConflictPolicy ConflictPolicy,
         string ConfigurationReference, string? SecretReference, bool ClearSecretReference, long ExpectedVersion);
@@ -965,6 +965,8 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
         new(IngestionApplicationErrors.AdapterExecutionModeNotTaskRunnable.Code, StatusCodes.Status400BadRequest),
         new(IngestionApplicationErrors.PollingIntervalBelowAdapterMinimum.Code, StatusCodes.Status400BadRequest),
         new(IngestionApplicationErrors.ConnectionNotFound.Code, StatusCodes.Status404NotFound),
+        new(IngestionApplicationErrors.ConnectionManagementOperationInvalid.Code, StatusCodes.Status400BadRequest),
+        new(IngestionApplicationErrors.ConnectionManagementOperationConflict.Code, StatusCodes.Status409Conflict),
         new(IngestionApplicationErrors.IngressCredentialNotFound.Code, StatusCodes.Status404NotFound),
         new(IngestionApplicationErrors.IngressCredentialLimitReached.Code, StatusCodes.Status409Conflict),
         new(IngestionApplicationErrors.IngressCredentialsRequirePushMode.Code, StatusCodes.Status409Conflict),

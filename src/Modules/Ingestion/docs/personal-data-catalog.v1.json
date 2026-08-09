@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "ingestion.personal-data",
-  "catalogVersion": 12,
+  "catalogVersion": 13,
   "module": "ingestion",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -6057,6 +6057,13 @@
       "approvalState": "engineering-default",
       "bindings": [
         {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionConnectionManagementOperation",
+          "member": "CompletedAtUtc",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
           "assembly": "BunkFy.Adapter.Abstractions",
           "type": "BunkFy.Adapter.Abstractions.AdapterRemoteRunCompletionResponse",
           "member": "CompletedAtUtc",
@@ -6429,6 +6436,20 @@
       ],
       "approvalState": "engineering-default",
       "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionConnectionManagementOperation",
+          "member": "ConnectionId",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.IngestionConnectionManagementOperationTenantExport",
+          "member": "ConnectionId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-tenant-termination-export-fragment"
+        },
         {
           "assembly": "BunkFy.Adapter.Abstractions",
           "type": "BunkFy.Adapter.Abstractions.AdapterRunAssignment",
@@ -8100,6 +8121,7 @@
         "operational-audit"
       ],
       "sources": [
+        "ingestion-persistence",
         "system-workflow"
       ],
       "authoritativeOwner": "ingestion",
@@ -8109,13 +8131,21 @@
       "retentionPolicy": "operations-lifecycle",
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
-        "application-command"
+        "application-command",
+        "persistence"
       ],
       "allowedBoundaries": [
         "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionConnectionManagementOperation",
+          "member": "ExpectedVersion",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
         {
           "assembly": "BunkFy.Modules.Ingestion.Application",
           "type": "BunkFy.Modules.Ingestion.Application.Commands.ClearAdapterConnectionPollingScheduleCommand",
@@ -8797,6 +8827,13 @@
       ],
       "approvalState": "engineering-default",
       "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionConnectionManagementOperation",
+          "member": "Kind",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
         {
           "assembly": "BunkFy.Modules.Ingestion.Application",
           "type": "BunkFy.Modules.Ingestion.Application.Commands.NormalizedReservationObservation",
@@ -10030,6 +10067,7 @@
       "rightsPolicy": "operational-rights",
       "allowedSurfaces": [
         "adapter-ingress",
+        "api-input",
         "application-command",
         "data-rights-export",
         "persistence"
@@ -10037,10 +10075,39 @@
       "allowedBoundaries": [
         "adapter",
         "cross-module",
+        "customer-api",
         "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Application",
+          "type": "BunkFy.Modules.Ingestion.Application.Commands.CreateAdapterConnectionCommand",
+          "member": "OperationId",
+          "surface": "application-command",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Api",
+          "type": "BunkFy.Modules.Ingestion.Api.IngestionModule+CreateConnectionRequest",
+          "member": "OperationId",
+          "surface": "api-input",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionConnectionManagementOperation",
+          "member": "Id",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.IngestionConnectionManagementOperationTenantExport",
+          "member": "OperationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-tenant-termination-export-fragment"
+        },
         {
           "assembly": "BunkFy.Adapter.Abstractions",
           "type": "BunkFy.Adapter.Abstractions.AdapterIngressObservationRequest",
@@ -11179,6 +11246,20 @@
       ],
       "approvalState": "engineering-default",
       "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionConnectionManagementOperation",
+          "member": "PropertyId",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.IngestionConnectionManagementOperationTenantExport",
+          "member": "PropertyId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-tenant-termination-export-fragment"
+        },
         {
           "assembly": "BunkFy.Adapter.Abstractions",
           "type": "BunkFy.Adapter.Abstractions.AdapterRunAssignment",
@@ -13367,6 +13448,41 @@
       ]
     },
     {
+      "id": "ingestion.operations.request-fingerprint",
+      "dataSubject": "account-holder",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": [
+        "integration-configuration",
+        "operational-audit"
+      ],
+      "sources": [
+        "ingestion-persistence"
+      ],
+      "authoritativeOwner": "ingestion",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "operations",
+      "countryPolicyKey": "ingestion.operations",
+      "retentionPolicy": "operations-lifecycle",
+      "rightsPolicy": "operational-rights",
+      "allowedSurfaces": [
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionConnectionManagementOperation",
+          "member": "RequestFingerprint",
+          "surface": "persistence",
+          "retentionPolicy": null
+        }
+      ]
+    },
+    {
       "id": "ingestion.operations.requested-at-utc",
       "dataSubject": "guest",
       "classification": "lifecycle",
@@ -14040,6 +14156,20 @@
       ],
       "approvalState": "engineering-default",
       "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionConnectionManagementOperation",
+          "member": "ScopeId",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.IngestionConnectionManagementOperationTenantExport",
+          "member": "ScopeId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-tenant-termination-export-fragment"
+        },
         {
           "assembly": "BunkFy.Adapter.Abstractions",
           "type": "BunkFy.Adapter.Abstractions.AdapterRunAssignment",
@@ -15932,6 +16062,13 @@
       "approvalState": "engineering-default",
       "bindings": [
         {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.IngestionConnectionManagementOperation",
+          "member": "ResultVersion",
+          "surface": "persistence",
+          "retentionPolicy": null
+        },
+        {
           "assembly": "BunkFy.Modules.Ingestion.Contracts",
           "type": "BunkFy.Modules.Ingestion.Contracts.AdapterConnectionMutationReceiptDto",
           "member": "Version",
@@ -17047,6 +17184,42 @@
           "assembly": "BunkFy.Modules.Ingestion.Persistence",
           "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.IngestionAnonymisationTombstoneTenantExport",
           "member": "AnonymisationProof",
+          "surface": "data-rights-export",
+          "retentionPolicy": "ingestion-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "ingestion.tenant.connection-management-operation",
+      "dataSubject": "account-holder",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": [
+        "integration-configuration",
+        "operational-audit",
+        "tenant-termination-export"
+      ],
+      "sources": [
+        "ingestion-persistence"
+      ],
+      "authoritativeOwner": "ingestion",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "operations",
+      "countryPolicyKey": "ingestion.operations",
+      "retentionPolicy": "operations-lifecycle",
+      "rightsPolicy": "operational-rights",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Persistence",
+          "type": "BunkFy.Modules.Ingestion.Persistence.Repositories.IngestionConnectionManagementOperationTenantExport",
+          "member": "Operation",
           "surface": "data-rights-export",
           "retentionPolicy": "ingestion-tenant-termination-export-fragment"
         }

@@ -220,9 +220,10 @@ internal enum IngestionTenantDestroyStage
     AdapterIngressCredentials = 15,
     LegalHolds = 16,
     RetentionExecutions = 17,
-    AdapterConnections = 18,
-    AdapterIngressTenantControls = 19,
-    PropertyProjections = 20,
-    ProjectionRebuildCheckpoints = 21,
-    Completed = 22
+    ConnectionManagementOperations = 18,
+    AdapterConnections = 19,
+    AdapterIngressTenantControls = 20,
+    PropertyProjections = 21,
+    ProjectionRebuildCheckpoints = 22,
+    Completed = 23
 }

@@ -53,6 +53,7 @@ public sealed class IngestionTenantTerminationContributorTests
         SeedGraph graph = CreateSeedGraph();
         context.AddRange(
             graph.Connection,
+            graph.ConnectionOperation,
             graph.Credential,
             graph.Receipt,
             graph.Proposal);
@@ -89,6 +90,16 @@ public sealed class IngestionTenantTerminationContributorTests
             record => record.RecordType ==
                 IngestionTenantTerminationMetadata
                     .AdapterCredentialRecordType);
+        DataRightsExportRecord connectionOperation = Assert.Single(
+            first.Records,
+            record => record.RecordType ==
+                IngestionTenantTerminationMetadata
+                    .ConnectionManagementOperationRecordType);
+        Assert.Equal(1, connectionOperation.RecordVersion);
+        Assert.DoesNotContain(
+            "requestFingerprint",
+            FieldsJson(connectionOperation),
+            StringComparison.OrdinalIgnoreCase);
         Assert.Contains(
             first.Records,
             record => record.RecordType ==
@@ -338,6 +349,7 @@ public sealed class IngestionTenantTerminationContributorTests
         SeedGraph graph = CreateSeedGraph();
         context.AddRange(
             graph.Connection,
+            graph.ConnectionOperation,
             graph.Credential,
             graph.Receipt,
             graph.Proposal);
@@ -364,7 +376,7 @@ public sealed class IngestionTenantTerminationContributorTests
             TenantTerminationContributionStatus.Completed,
             result.Status);
         Assert.Equal("ingestion.termination.destroyed", result.ResultCode);
-        Assert.True(result.AffectedCount >= 5);
+        Assert.True(result.AffectedCount >= 6);
         Assert.Equal(1, result.SelectedProofRevision);
         Assert.Equal(2, result.ResultingProofRevision);
         Assert.Empty(await context.TenantDestroyOperations.ToListAsync());
@@ -580,10 +592,51 @@ public sealed class IngestionTenantTerminationContributorTests
             StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task Connection_management_operation_receipts_are_append_only()
+    {
+        MutableFenceReader fences = new();
+        await using IngestionDbContext context = CreateContext(fences);
+        Guid connectionId = Guid.NewGuid();
+        IngestionConnectionManagementOperation operation = new(
+            new IngestionConnectionManagementOperationRecord(
+                connectionId,
+                TenantId,
+                PropertyId,
+                connectionId,
+                IngestionConnectionManagementMutationKind.ConnectionCreate,
+                ExpectedVersion: 0,
+                Digest,
+                ResultVersion: 1,
+                Now));
+        context.ConnectionManagementOperations.Add(operation);
+        await context.SaveChangesAsync();
+
+        context.Entry(operation).Property(
+            nameof(IngestionConnectionManagementOperation.ResultVersion))
+            .CurrentValue = 2L;
+        InvalidOperationException failure =
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => context.SaveChangesAsync());
+
+        Assert.Contains("append-only", failure.Message, StringComparison.Ordinal);
+    }
+
     private static SeedGraph CreateSeedGraph()
     {
         Guid connectionId = Guid.NewGuid();
         AdapterConnection connection = CreateConnection(connectionId);
+        IngestionConnectionManagementOperation connectionOperation = new(
+            new IngestionConnectionManagementOperationRecord(
+                connectionId,
+                TenantId,
+                PropertyId,
+                connectionId,
+                IngestionConnectionManagementMutationKind.ConnectionCreate,
+                ExpectedVersion: 0,
+                Digest,
+                ResultVersion: 1,
+                Now));
         byte[] secretHash = Enumerable
             .Repeat((byte)0xa5, AdapterIngressCredential.SecretHashLength)
             .ToArray();
@@ -638,6 +691,7 @@ public sealed class IngestionTenantTerminationContributorTests
             Now).Value;
         return new(
             connection,
+            connectionOperation,
             credential,
             receipt,
             proposal,
@@ -777,6 +831,7 @@ public sealed class IngestionTenantTerminationContributorTests
     private static async Task<bool> HasOwnerRecordsAsync(
         IngestionDbContext context) =>
         await context.AdapterConnections.AnyAsync() ||
+        await context.ConnectionManagementOperations.AnyAsync() ||
         await context.AdapterIngressCredentials.AnyAsync() ||
         await context.AdapterIngressTenantControls.AnyAsync() ||
         await context.PropertyProjections.AnyAsync() ||
@@ -831,6 +886,7 @@ public sealed class IngestionTenantTerminationContributorTests
 
     private sealed record SeedGraph(
         AdapterConnection Connection,
+        IngestionConnectionManagementOperation ConnectionOperation,
         AdapterIngressCredential Credential,
         ObservationReceipt Receipt,
         ChangeProposal Proposal,

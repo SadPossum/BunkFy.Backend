@@ -51,6 +51,25 @@ internal sealed record IngestionAdapterConnectionStateTenantExport(
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset? UpdatedAtUtc);
 
+internal sealed record IngestionConnectionManagementOperationTenantExport(
+    [property: IngestionTenantExportField("ingestion.operations.scope-id")]
+    string ScopeId,
+    [property: IngestionTenantExportField("ingestion.operations.property-id")]
+    Guid PropertyId,
+    [property: IngestionTenantExportField("ingestion.operations.connection-id")]
+    Guid ConnectionId,
+    [property: IngestionTenantExportField("ingestion.operations.operation-id")]
+    Guid OperationId,
+    [property: IngestionTenantExportField(
+        "ingestion.tenant.connection-management-operation")]
+    IngestionConnectionManagementOperationStateTenantExport Operation);
+
+internal sealed record IngestionConnectionManagementOperationStateTenantExport(
+    int Kind,
+    long ExpectedVersion,
+    long ResultVersion,
+    DateTimeOffset CompletedAtUtc);
+
 internal sealed record IngestionAdapterCredentialTenantExport(
     [property: IngestionTenantExportField("ingestion.operations.scope-id")]
     string ScopeId,

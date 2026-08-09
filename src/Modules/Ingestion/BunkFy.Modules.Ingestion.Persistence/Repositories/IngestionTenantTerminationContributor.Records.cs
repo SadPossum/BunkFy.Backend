@@ -20,6 +20,8 @@ internal sealed partial class IngestionTenantTerminationContributor
         long count = 0;
         count = await this.ExportConnectionsAsync(
             tenantId, sink, count, cancellationToken).ConfigureAwait(false);
+        count = await this.ExportConnectionManagementOperationsAsync(
+            tenantId, sink, count, cancellationToken).ConfigureAwait(false);
         count = await this.ExportCredentialsAsync(
             tenantId, sink, count, cancellationToken).ConfigureAwait(false);
         count = await this.ExportIngressControlsAsync(
@@ -145,6 +147,46 @@ internal sealed partial class IngestionTenantTerminationContributor
                     .AdapterCredentialRecordType,
                 credential.Id,
                 recordVersion,
+                record,
+                sink,
+                cancellationToken).ConfigureAwait(false);
+            count = checked(count + 1);
+        }
+
+        return count;
+    }
+
+    private async Task<long> ExportConnectionManagementOperationsAsync(
+        string tenantId,
+        IDataRightsExportSink sink,
+        long count,
+        CancellationToken cancellationToken)
+    {
+        await foreach (IngestionConnectionManagementOperation operation in
+            dbContext.ConnectionManagementOperations
+                .AsNoTracking()
+                .Where(item => item.ScopeId == tenantId)
+                .OrderBy(item => item.ConnectionId)
+                .ThenBy(item => item.Id)
+                .AsAsyncEnumerable()
+                .WithCancellation(cancellationToken)
+                .ConfigureAwait(false))
+        {
+            IngestionConnectionManagementOperationTenantExport record = new(
+                operation.ScopeId,
+                operation.PropertyId,
+                operation.ConnectionId,
+                operation.Id,
+                new IngestionConnectionManagementOperationStateTenantExport(
+                    (int)operation.Kind,
+                    operation.ExpectedVersion,
+                    operation.ResultVersion,
+                    operation.CompletedAtUtc));
+            await WriteAsync(
+                IngestionTenantTerminationMetadata
+                    .ConnectionManagementOperationRecordType,
+                operation.Id,
+                1,
                 record,
                 sink,
                 cancellationToken).ConfigureAwait(false);

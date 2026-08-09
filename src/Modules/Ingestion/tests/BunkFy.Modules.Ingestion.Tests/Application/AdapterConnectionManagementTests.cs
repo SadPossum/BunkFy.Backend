@@ -2,7 +2,6 @@ namespace BunkFy.Modules.Ingestion.Tests.Application;
 
 using BunkFy.DataGovernance;
 using BunkFy.Adapter.Abstractions;
-using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
 using BunkFy.Modules.Ingestion.Application;
@@ -21,10 +20,44 @@ public sealed class AdapterConnectionManagementTests
     private static readonly DateTimeOffset Now = new(2026, 7, 12, 12, 0, 0, TimeSpan.Zero);
 
     [Fact]
+    public async Task Create_requires_a_non_empty_operation_id_without_binding_it()
+    {
+        FakeConnectionRepository connections = new();
+        FakeConnectionManagementOperationRepository operations = new();
+        CreateAdapterConnectionCommandHandler handler = new(
+            connections,
+            operations,
+            TestIngestionExecution.Create(connections),
+            new TestCountryPolicyAdmission(),
+            new TestDescriptors(),
+            new TestScope(),
+            new TestClock());
+
+        var result = await handler.HandleAsync(
+            new(
+                Guid.Empty,
+                Guid.NewGuid(),
+                "fake.http",
+                AdapterExecutionMode.Polling,
+                AdapterConflictPolicy.SuggestionsOnly,
+                "configuration://main",
+                null),
+            CancellationToken.None);
+
+        Assert.Equal(
+            IngestionApplicationErrors.ConnectionManagementOperationInvalid,
+            result.Error);
+        Assert.Empty(connections.Items);
+        Assert.Empty(operations.Items);
+    }
+
+    [Fact]
     public async Task Create_requires_an_active_local_property_projection()
     {
         FakeConnectionRepository connections = new();
+        FakeConnectionManagementOperationRepository operations = new();
         CreateAdapterConnectionCommand command = new(
+            Guid.NewGuid(),
             Guid.NewGuid(),
             "fake.http",
             AdapterExecutionMode.Polling,
@@ -33,12 +66,14 @@ public sealed class AdapterConnectionManagementTests
             null);
 
         var rejected = await new CreateAdapterConnectionCommandHandler(
-            connections, new TestCountryPolicyAdmission(allowed: false), new TestDescriptors(),
-            new TestScope(), new TestIds(), new TestClock())
+            connections, operations, TestIngestionExecution.Create(connections),
+            new TestCountryPolicyAdmission(allowed: false), new TestDescriptors(),
+            new TestScope(), new TestClock())
             .HandleAsync(command, CancellationToken.None);
         var created = await new CreateAdapterConnectionCommandHandler(
-            connections, new TestCountryPolicyAdmission(), new TestDescriptors(),
-            new TestScope(), new TestIds(), new TestClock())
+            connections, operations, TestIngestionExecution.Create(connections),
+            new TestCountryPolicyAdmission(), new TestDescriptors(),
+            new TestScope(), new TestClock())
             .HandleAsync(command, CancellationToken.None);
 
         Assert.Equal(
@@ -47,26 +82,31 @@ public sealed class AdapterConnectionManagementTests
         Assert.True(created.IsSuccess, created.Error.Code);
         Assert.Equal(AdapterConnectionStatus.Enabled, created.Value.Status);
         AdapterConnection stored = Assert.Single(connections.Items);
+        Assert.Equal(command.OperationId, stored.Id);
         Assert.Equal(created.Value.ConnectionId, stored.Id);
         Assert.Equal("fake.http", stored.AdapterType);
+        Assert.Single(operations.Items);
     }
 
     [Fact]
     public async Task Create_is_denied_by_tenant_lifecycle_before_domain_state_is_added()
     {
         FakeConnectionRepository connections = new();
+        FakeConnectionManagementOperationRepository operations = new();
         CreateAdapterConnectionCommandHandler handler = new(
             connections,
+            operations,
+            TestIngestionExecution.Create(connections),
             new TestCountryPolicyAdmission(),
             new TestDescriptors(),
             new TestScope(),
-            new TestIds(),
             new TestClock(),
             [new TestLifecyclePolicy(
                 IngestionTenantLifecycleDecision.Restricted)]);
 
         var result = await handler.HandleAsync(
             new CreateAdapterConnectionCommand(
+                Guid.NewGuid(),
                 Guid.NewGuid(),
                 "fake.http",
                 AdapterExecutionMode.Polling,
@@ -79,6 +119,117 @@ public sealed class AdapterConnectionManagementTests
             IngestionApplicationErrors.TenantLifecycleRestricted,
             result.Error);
         Assert.Empty(connections.Items);
+        Assert.Empty(operations.Items);
+    }
+
+    [Fact]
+    public async Task Create_exact_retry_replays_and_changed_intent_conflicts()
+    {
+        Guid operationId = Guid.NewGuid();
+        Guid propertyId = Guid.NewGuid();
+        FakeConnectionRepository connections = new();
+        FakeConnectionManagementOperationRepository operations = new();
+        CreateAdapterConnectionCommandHandler handler = new(
+            connections,
+            operations,
+            TestIngestionExecution.Create(connections),
+            new TestCountryPolicyAdmission(),
+            new TestDescriptors(),
+            new TestScope(),
+            new TestClock());
+        CreateAdapterConnectionCommand command = new(
+            operationId,
+            propertyId,
+            " FAKE.HTTP ",
+            AdapterExecutionMode.Polling,
+            AdapterConflictPolicy.SuggestionsOnly,
+            " configuration://main ",
+            " secret://main ");
+
+        var created = await handler.HandleAsync(command, CancellationToken.None);
+        var replayed = await handler.HandleAsync(
+            command with
+            {
+                AdapterType = "fake.http",
+                ConfigurationReference = "configuration://main",
+                SecretReference = "secret://main"
+            },
+            CancellationToken.None);
+        AdapterConnection connection = Assert.Single(connections.Items);
+        Assert.True(connection.Configure(
+            AdapterExecutionMode.Continuous,
+            IngestionConflictPolicy.SuggestionsOnly,
+            "configuration://updated-later",
+            "secret://updated-later",
+            connection.Version,
+            Now.AddMinutes(1)).IsSuccess);
+        var replayedAfterUpdate = await handler.HandleAsync(
+            command,
+            CancellationToken.None);
+        var conflicted = await handler.HandleAsync(
+            command with { ConfigurationReference = "configuration://changed" },
+            CancellationToken.None);
+
+        Assert.True(created.IsSuccess, created.Error.Code);
+        Assert.True(replayed.IsSuccess, replayed.Error.Code);
+        Assert.Equal(created.Value, replayed.Value);
+        Assert.True(
+            replayedAfterUpdate.IsSuccess,
+            replayedAfterUpdate.Error.Code);
+        Assert.Equal(2, replayedAfterUpdate.Value.Version);
+        Assert.Equal(
+            IngestionApplicationErrors.ConnectionManagementOperationConflict,
+            conflicted.Error);
+        Assert.Single(connections.Items);
+        IngestionConnectionManagementOperationRecord operation =
+            Assert.Single(operations.Items);
+        Assert.Equal(operationId, operation.OperationId);
+        Assert.Equal(operationId, operation.ConnectionId);
+        Assert.Equal(64, operation.RequestFingerprint.Length);
+    }
+
+    [Fact]
+    public async Task Create_rejects_a_legacy_connection_without_a_matching_receipt()
+    {
+        Guid operationId = Guid.NewGuid();
+        Guid propertyId = Guid.NewGuid();
+        AdapterConnection legacy = AdapterConnection.Create(
+            operationId,
+            "tenant-a",
+            propertyId,
+            "fake.http",
+            AdapterExecutionMode.Polling,
+            IngestionConflictPolicy.SuggestionsOnly,
+            "configuration://legacy",
+            null,
+            Now).Value;
+        FakeConnectionRepository connections = new(legacy);
+        FakeConnectionManagementOperationRepository operations = new();
+        CreateAdapterConnectionCommandHandler handler = new(
+            connections,
+            operations,
+            TestIngestionExecution.Create(connections),
+            new TestCountryPolicyAdmission(),
+            new TestDescriptors(),
+            new TestScope(),
+            new TestClock());
+
+        var result = await handler.HandleAsync(
+            new(
+                operationId,
+                propertyId,
+                "fake.http",
+                AdapterExecutionMode.Polling,
+                AdapterConflictPolicy.SuggestionsOnly,
+                "configuration://legacy",
+                null),
+            CancellationToken.None);
+
+        Assert.Equal(
+            IngestionApplicationErrors.ConnectionManagementOperationConflict,
+            result.Error);
+        Assert.Single(connections.Items);
+        Assert.Empty(operations.Items);
     }
 
     [Fact]
@@ -160,15 +311,17 @@ public sealed class AdapterConnectionManagementTests
     {
         Guid propertyId = Guid.NewGuid();
         FakeConnectionRepository connections = new();
+        FakeConnectionManagementOperationRepository operations = new();
         CreateAdapterConnectionCommandHandler handler = new(
-            connections, new TestCountryPolicyAdmission(), new TestDescriptors(),
-            new TestScope(), new TestIds(), new TestClock());
+            connections, operations, TestIngestionExecution.Create(connections),
+            new TestCountryPolicyAdmission(), new TestDescriptors(),
+            new TestScope(), new TestClock());
 
         var unknown = await handler.HandleAsync(new(
-            propertyId, "missing.adapter", AdapterExecutionMode.Polling, AdapterConflictPolicy.SuggestionsOnly,
+            Guid.NewGuid(), propertyId, "missing.adapter", AdapterExecutionMode.Polling, AdapterConflictPolicy.SuggestionsOnly,
             "configuration://main", null), CancellationToken.None);
         var unsupported = await handler.HandleAsync(new(
-            propertyId, "fake.http", AdapterExecutionMode.Push, AdapterConflictPolicy.SuggestionsOnly,
+            Guid.NewGuid(), propertyId, "fake.http", AdapterExecutionMode.Push, AdapterConflictPolicy.SuggestionsOnly,
             "configuration://main", null), CancellationToken.None);
 
         Assert.Equal(IngestionApplicationErrors.AdapterTypeNotRegistered, unknown.Error);
@@ -232,6 +385,28 @@ public sealed class AdapterConnectionManagementTests
         }
     }
 
+    private sealed class FakeConnectionManagementOperationRepository
+        : IIngestionConnectionManagementOperationRepository
+    {
+        public List<IngestionConnectionManagementOperationRecord> Items { get; } = [];
+
+        public Task<IngestionConnectionManagementOperationRecord?> GetAsync(
+            Guid connectionId,
+            Guid operationId,
+            CancellationToken cancellationToken) => Task.FromResult(
+            this.Items.SingleOrDefault(item =>
+                item.ConnectionId == connectionId &&
+                item.OperationId == operationId));
+
+        public Task AddAsync(
+            IngestionConnectionManagementOperationRecord operation,
+            CancellationToken cancellationToken)
+        {
+            this.Items.Add(operation);
+            return Task.CompletedTask;
+        }
+    }
+
     private sealed class TestScope : IScopeContext
     {
         public bool IsEnabled => true;
@@ -241,11 +416,6 @@ public sealed class AdapterConnectionManagementTests
     private sealed class TestClock : ISystemClock
     {
         public DateTimeOffset UtcNow => Now;
-    }
-
-    private sealed class TestIds : IIdGenerator
-    {
-        public Guid NewId() => Guid.NewGuid();
     }
 
     private sealed class EmptyRunRepository : IIngestionRunRepository

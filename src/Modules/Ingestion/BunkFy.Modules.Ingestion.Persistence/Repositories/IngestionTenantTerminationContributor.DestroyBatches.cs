@@ -114,6 +114,14 @@ internal sealed partial class IngestionTenantTerminationContributor
                     dbContext.RetentionExecutions,
                     execution => execution.Id,
                     cancellationToken),
+            IngestionTenantDestroyStage.ConnectionManagementOperations =>
+                this.RemoveBatchAsync(
+                    operation,
+                    dbContext.ConnectionManagementOperations
+                        .OrderBy(item => item.ConnectionId)
+                        .ThenBy(item => item.Id),
+                    item => $"{item.ConnectionId:N}|{item.Id:N}",
+                    cancellationToken),
             IngestionTenantDestroyStage.AdapterConnections =>
                 this.RemoveGuidBatchAsync(
                     operation,
@@ -298,6 +306,8 @@ internal sealed partial class IngestionTenantTerminationContributor
             .ConfigureAwait(false) ||
         await dbContext.RetentionExecutions.AnyAsync(cancellationToken)
             .ConfigureAwait(false) ||
+        await dbContext.ConnectionManagementOperations
+            .AnyAsync(cancellationToken).ConfigureAwait(false) ||
         await dbContext.AdapterConnections.AnyAsync(cancellationToken)
             .ConfigureAwait(false) ||
         await dbContext.AdapterIngressTenantControls.AnyAsync(cancellationToken)

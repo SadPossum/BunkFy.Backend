@@ -4,7 +4,6 @@ using BunkFy.DataGovernance;
 using BunkFy.Adapter.Abstractions;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
-using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
 using BunkFy.Modules.Ingestion.Application.Commands;
@@ -16,10 +15,11 @@ using BunkFy.Modules.Ingestion.Domain.Connections;
 
 internal sealed class CreateAdapterConnectionCommandHandler(
     IAdapterConnectionRepository connections,
+    IIngestionConnectionManagementOperationRepository operations,
+    IngestionExecutionMutationCoordinator execution,
     IIngestionCountryPolicyAdmission countryPolicy,
     IAdapterDescriptorRegistry descriptors,
     IScopeContext scopeContext,
-    IIdGenerator idGenerator,
     ISystemClock clock,
     IEnumerable<IIngestionTenantLifecyclePolicy>? lifecyclePolicies = null)
     : ICommandHandler<CreateAdapterConnectionCommand, AdapterConnectionMutationReceiptDto>
@@ -31,6 +31,12 @@ internal sealed class CreateAdapterConnectionCommandHandler(
         if (!scopeContext.IsEnabled || string.IsNullOrWhiteSpace(scopeContext.ScopeId))
         {
             return Result.Failure<AdapterConnectionMutationReceiptDto>(IngestionApplicationErrors.ScopeRequired);
+        }
+
+        if (command.OperationId == Guid.Empty)
+        {
+            return Result.Failure<AdapterConnectionMutationReceiptDto>(
+                IngestionApplicationErrors.ConnectionManagementOperationInvalid);
         }
 
         Result lifecycleAdmission =
@@ -57,20 +63,14 @@ internal sealed class CreateAdapterConnectionCommandHandler(
                 IngestionApplicationErrors.CountryPolicyDenied(countryPolicyDecision.Reason));
         }
 
-        Result capability = AdapterCapabilityValidation.Validate(
-            descriptors, command.AdapterType, command.ExecutionMode);
-        if (capability.IsFailure)
-        {
-            return Result.Failure<AdapterConnectionMutationReceiptDto>(capability.Error);
-        }
-
         if (!AdapterConnectionMappings.TryMap(command.ConflictPolicy, out IngestionConflictPolicy conflictPolicy))
         {
             return Result.Failure<AdapterConnectionMutationReceiptDto>(BunkFy.Modules.Ingestion.Domain.Errors.IngestionDomainErrors.ConflictPolicyInvalid);
         }
 
+        DateTimeOffset nowUtc = clock.UtcNow;
         Result<AdapterConnection> created = AdapterConnection.Create(
-            idGenerator.NewId(),
+            command.OperationId,
             scopeContext.ScopeId,
             command.PropertyId,
             command.AdapterType,
@@ -78,13 +78,61 @@ internal sealed class CreateAdapterConnectionCommandHandler(
             conflictPolicy,
             command.ConfigurationReference,
             command.SecretReference,
-            clock.UtcNow);
+            nowUtc);
         if (created.IsFailure)
         {
             return Result.Failure<AdapterConnectionMutationReceiptDto>(created.Error);
         }
 
+        Result capability = AdapterCapabilityValidation.Validate(
+            descriptors,
+            created.Value.AdapterType,
+            created.Value.ExecutionMode);
+        if (capability.IsFailure)
+        {
+            return Result.Failure<AdapterConnectionMutationReceiptDto>(capability.Error);
+        }
+
+        string requestFingerprint =
+            IngestionConnectionMutationFingerprint.ComputeCreate(created.Value);
+        AdapterConnection? existing = await execution.AcquireConnectionWriteAsync(
+            command.OperationId,
+            cancellationToken).ConfigureAwait(false);
+        IngestionConnectionManagementOperationRecord? existingOperation =
+            await operations.GetAsync(
+                command.OperationId,
+                command.OperationId,
+                cancellationToken).ConfigureAwait(false);
+        if (existing is not null || existingOperation is not null)
+        {
+            bool exactReplay = existing is not null &&
+                existing.PropertyId == command.PropertyId &&
+                existingOperation?.Matches(
+                    IngestionConnectionManagementMutationKind.ConnectionCreate,
+                    command.PropertyId,
+                    command.OperationId,
+                    expectedVersion: 0,
+                    requestFingerprint) == true;
+            return exactReplay
+                ? Result.Success(AdapterConnectionMappings.MapReceipt(existing!))
+                : Result.Failure<AdapterConnectionMutationReceiptDto>(
+                    IngestionApplicationErrors
+                        .ConnectionManagementOperationConflict);
+        }
+
         await connections.AddAsync(created.Value, cancellationToken).ConfigureAwait(false);
+        await operations.AddAsync(
+            new IngestionConnectionManagementOperationRecord(
+                command.OperationId,
+                created.Value.ScopeId,
+                created.Value.PropertyId,
+                created.Value.Id,
+                IngestionConnectionManagementMutationKind.ConnectionCreate,
+                ExpectedVersion: 0,
+                requestFingerprint,
+                created.Value.Version,
+                CompletedAtUtc: nowUtc),
+            cancellationToken).ConfigureAwait(false);
         return Result.Success(AdapterConnectionMappings.MapReceipt(created.Value));
     }
 }

@@ -279,6 +279,7 @@ public sealed class IngestionModule : IModule
             IRequestDispatcher dispatcher,
             CancellationToken cancellationToken) =>
             (await dispatcher.SendAsync(new CreateAdapterConnectionCommand(
+                request.OperationId,
                 propertyId,
                 request.AdapterType,
                 request.ExecutionMode,
@@ -1227,6 +1228,7 @@ public sealed class IngestionModule : IModule
     public sealed record RejectProposalRequest(long ExpectedProposalVersion, string Reason);
 
     public sealed record CreateConnectionRequest(
+        Guid OperationId,
         string AdapterType,
         AdapterExecutionMode ExecutionMode,
         AdapterConflictPolicy ConflictPolicy,
@@ -1275,6 +1277,8 @@ public sealed class IngestionModule : IModule
         new(IngestionApplicationErrors.ProposalStatusInvalid.Code, StatusCodes.Status400BadRequest),
         new(IngestionApplicationErrors.ProposalDecisionConflict.Code, StatusCodes.Status409Conflict),
         new(IngestionApplicationErrors.ConnectionNotFound.Code, StatusCodes.Status404NotFound),
+        new(IngestionApplicationErrors.ConnectionManagementOperationInvalid.Code, StatusCodes.Status400BadRequest),
+        new(IngestionApplicationErrors.ConnectionManagementOperationConflict.Code, StatusCodes.Status409Conflict),
         new(IngestionApplicationErrors.IngressCredentialNotFound.Code, StatusCodes.Status404NotFound),
         new(IngestionApplicationErrors.IngressCredentialLimitReached.Code, StatusCodes.Status409Conflict),
         new(IngestionApplicationErrors.AdapterIngressQuotaExceeded.Code, StatusCodes.Status429TooManyRequests),
