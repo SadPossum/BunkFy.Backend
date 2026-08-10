@@ -53,6 +53,10 @@ proved stable.
    build-time image claim.
 10. Deployed evidence excludes passwords, bearer tokens, email addresses,
     verification codes, invitation secrets, QR secrets, and message bodies.
+11. BunkFy's coarse public-IP sensitive-request allowance must accommodate the
+    supported three-identity rehearsal and required projection retries. It is
+    not a replacement for Auth's durable credential throttles or future
+    tenant/actor invitation-delivery quotas.
 
 ## Delivery Slices
 

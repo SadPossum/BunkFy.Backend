@@ -596,6 +596,21 @@ public sealed class HostCompositionGuardTests
     }
 
     [Fact]
+    public void Public_api_rate_limit_allows_the_supported_onboarding_sequence()
+    {
+        using JsonDocument document = JsonDocument.Parse(
+            RepositoryPaths.Read("src", "BunkFy.Host.Api", "appsettings.json"));
+        JsonElement rateLimiting = document.RootElement
+            .GetProperty("Http")
+            .GetProperty("RateLimiting");
+
+        Assert.Equal(60, rateLimiting.GetProperty("SensitivePermitLimit").GetInt32());
+        Assert.True(
+            rateLimiting.GetProperty("GlobalPermitLimit").GetInt32() >=
+            rateLimiting.GetProperty("SensitivePermitLimit").GetInt32());
+    }
+
+    [Fact]
     public void Production_host_defaults_preserve_explicit_deployment_and_storage_safety()
     {
         string[] apiSettingsPaths =
