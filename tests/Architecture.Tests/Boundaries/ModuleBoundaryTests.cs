@@ -947,27 +947,46 @@ public sealed class ModuleBoundaryTests
     }
 
     [Fact]
-    public void MailKit_is_confined_to_the_imap_adapter_package()
+    public void MailKit_is_confined_to_the_product_mail_adapter_packages()
     {
-        ProjectFile adapter = Assert.Single(
+        ProjectFile imapAdapter = Assert.Single(
             ProjectFile.All(),
             project => string.Equals(
                 project.Name,
                 "BunkFy.Adapters.ImapReservationMail",
                 StringComparison.Ordinal));
+        ProjectFile smtpAdapter = Assert.Single(
+            ProjectFile.All(),
+            project => string.Equals(
+                project.Name,
+                "BunkFy.Adapters.SmtpEmail",
+                StringComparison.Ordinal));
 
         Assert.Equal(
             ["MailKit", "Microsoft.Extensions.DependencyInjection.Abstractions"],
-            adapter.PackageReferences.Order(StringComparer.Ordinal).ToArray());
-        Assert.Contains(adapter.ProjectReferences, reference => reference.EndsWith(
+            imapAdapter.PackageReferences.Order(StringComparer.Ordinal).ToArray());
+        Assert.Contains(imapAdapter.ProjectReferences, reference => reference.EndsWith(
             "BunkFy.Adapter.Abstractions\\BunkFy.Adapter.Abstractions.csproj",
             StringComparison.OrdinalIgnoreCase));
-        Assert.Contains(adapter.ProjectReferences, reference => reference.EndsWith(
+        Assert.Contains(imapAdapter.ProjectReferences, reference => reference.EndsWith(
             "BunkFy.Parsers.ReservationMail\\BunkFy.Parsers.ReservationMail.csproj",
+            StringComparison.OrdinalIgnoreCase));
+        Assert.Equal(
+            [
+                "MailKit",
+                "Microsoft.Extensions.Configuration.Binder",
+                "Microsoft.Extensions.DependencyInjection.Abstractions",
+                "Microsoft.Extensions.Options.ConfigurationExtensions",
+                "MimeKit"
+            ],
+            smtpAdapter.PackageReferences.Order(StringComparer.Ordinal).ToArray());
+        Assert.Contains(smtpAdapter.ProjectReferences, reference => reference.EndsWith(
+            "Email\\Gma.Framework.Email\\Gma.Framework.Email.csproj",
             StringComparison.OrdinalIgnoreCase));
 
         string[] otherMailKitOwners = ProjectFile.All()
-            .Where(project => !string.Equals(project.Name, adapter.Name, StringComparison.Ordinal))
+            .Where(project => !string.Equals(project.Name, imapAdapter.Name, StringComparison.Ordinal))
+            .Where(project => !string.Equals(project.Name, smtpAdapter.Name, StringComparison.Ordinal))
             .Where(project => project.PackageReferences.Contains("MailKit", StringComparer.Ordinal))
             .Select(project => project.RepositoryPath)
             .ToArray();
@@ -975,11 +994,14 @@ public sealed class ModuleBoundaryTests
     }
 
     [Fact]
-    public void MimeKit_is_confined_to_the_reservation_mail_parser_package()
+    public void MimeKit_is_confined_to_the_product_mail_parser_and_transport_packages()
     {
         ProjectFile parser = Assert.Single(
             ProjectFile.All(),
             project => string.Equals(project.Name, "BunkFy.Parsers.ReservationMail", StringComparison.Ordinal));
+        ProjectFile smtpAdapter = Assert.Single(
+            ProjectFile.All(),
+            project => string.Equals(project.Name, "BunkFy.Adapters.SmtpEmail", StringComparison.Ordinal));
 
         Assert.Equal(
             ["Microsoft.Extensions.DependencyInjection.Abstractions", "MimeKit"],
@@ -993,6 +1015,7 @@ public sealed class ModuleBoundaryTests
 
         string[] otherOwners = ProjectFile.All()
             .Where(project => !string.Equals(project.Name, parser.Name, StringComparison.Ordinal))
+            .Where(project => !string.Equals(project.Name, smtpAdapter.Name, StringComparison.Ordinal))
             .Where(project => project.PackageReferences.Contains("MimeKit", StringComparer.Ordinal))
             .Select(project => project.RepositoryPath)
             .ToArray();

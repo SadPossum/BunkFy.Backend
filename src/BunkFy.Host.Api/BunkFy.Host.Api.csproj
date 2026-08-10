@@ -46,6 +46,7 @@
     <ProjectReference Include="..\Adapters\BunkFy.Adapters.FakeHttp\BunkFy.Adapters.FakeHttp.csproj" />
     <ProjectReference Include="..\Adapters\BunkFy.Adapters.ImapReservationMail\BunkFy.Adapters.ImapReservationMail.csproj" />
     <ProjectReference Include="..\Adapters\BunkFy.Adapters.JsonFileDrop\BunkFy.Adapters.JsonFileDrop.csproj" />
+    <ProjectReference Include="..\Adapters\BunkFy.Adapters.SmtpEmail\BunkFy.Adapters.SmtpEmail.csproj" />
     <ProjectReference Include="..\Adapters\BunkFy.Parsers.ReservationMail\BunkFy.Parsers.ReservationMail.csproj" />
     <ProjectReference Include="$(GmaModuleTenancyRoot)Gma.Modules.Tenancy.Api\Gma.Modules.Tenancy.Api.csproj" />
     <ProjectReference Include="..\BunkFy.Host.ServiceDefaults\BunkFy.Host.ServiceDefaults.csproj" />

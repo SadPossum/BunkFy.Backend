@@ -114,6 +114,7 @@ public sealed class HostCompositionGuardTests
             "builder.Services.AddBunkFyOperationsNotifications();",
             "builder.Services.AddBunkFyOperationsIngestionNotifications();",
             "builder.Services.AddBunkFyReservationGuestRecords();",
+            "builder.Services.AddBunkFySmtpEmailSender(builder.Configuration, builder.Environment.IsProduction());",
             "builder.Services.AddNotificationEmailAdapter(builder.Configuration);",
             "builder.AddModule<PropertiesModule>();",
             "builder.AddModule<InventoryModule>();",
@@ -127,6 +128,7 @@ public sealed class HostCompositionGuardTests
             "app.UseGmaProductionHttp();",
             "builder.ValidateModuleComposition();",
             "app.MapModules();",
+            "app.MapBunkFyProductCapabilities();",
             "app.MapBunkFyReservationGuestRecordEndpoints();"
         ];
 
@@ -135,6 +137,48 @@ public sealed class HostCompositionGuardTests
             .ToArray();
 
         Assert.Empty(missing);
+    }
+
+    [Fact]
+    public void Smtp_transport_is_opt_in_and_composed_before_notification_email_delivery()
+    {
+        (string Host, string CompositionFile)[] hosts =
+        [
+            ("BunkFy.Host.Api", "Program.cs"),
+            ("BunkFy.Host.Worker", "WorkerHostBuilderExtensions.cs")
+        ];
+
+        foreach ((string host, string compositionFile) in hosts)
+        {
+            string composition = RepositoryPaths.Read("src", host, compositionFile);
+            int transportRegistration = composition.IndexOf(
+                "AddBunkFySmtpEmailSender(",
+                StringComparison.Ordinal);
+            int notificationRegistration = composition.IndexOf(
+                "AddNotificationEmailAdapter(",
+                StringComparison.Ordinal);
+
+            Assert.True(transportRegistration >= 0, $"{host} does not compose the SMTP transport.");
+            Assert.True(
+                transportRegistration < notificationRegistration,
+                $"{host} must compose SMTP before the notification email adapter.");
+
+            using JsonDocument defaults = JsonDocument.Parse(
+                RepositoryPaths.Read("src", host, "appsettings.json"));
+            JsonElement smtp = defaults.RootElement.GetProperty("Email").GetProperty("Smtp");
+            Assert.False(smtp.GetProperty("Enabled").GetBoolean());
+            Assert.Equal("StartTls", smtp.GetProperty("SecurityMode").GetString());
+            Assert.False(smtp.GetProperty("AllowUnauthenticatedInProduction").GetBoolean());
+            Assert.False(smtp.GetProperty("AllowInsecureTransportInProduction").GetBoolean());
+        }
+
+        string capabilities = RepositoryPaths.Read(
+            "src",
+            "BunkFy.Host.Api",
+            "ProductCapabilitiesEndpoints.cs");
+        Assert.Contains("smtp.Value.Enabled && notificationEmail.Value.Enabled", capabilities, StringComparison.Ordinal);
+        Assert.Contains(".AllowAnonymous()", capabilities, StringComparison.Ordinal);
+        Assert.DoesNotContain("VITE_", capabilities, StringComparison.Ordinal);
     }
 
     [Fact]

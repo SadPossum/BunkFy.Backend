@@ -165,6 +165,7 @@
     <File Path="docs/planning/retention-tenant-termination-owner-task.md" />
     <File Path="docs/planning/secure-staff-enrollment-task.md" />
     <File Path="docs/planning/security-signals-and-incident-correlation-task.md" />
+    <File Path="docs/planning/smtp-email-and-preview-onboarding-proof-task.md" />
     <File Path="docs/planning/staff-auth-subject-idempotency-task.md" />
     <File Path="docs/planning/staff-data-rights-anonymisation-task.md" />
     <File Path="docs/planning/staff-data-rights-correction-task.md" />
@@ -575,6 +576,7 @@
     <Project Path="src/Adapters/BunkFy.Adapters.Http/BunkFy.Adapters.Http.csproj" />
     <Project Path="src/Adapters/BunkFy.Adapters.ImapReservationMail/BunkFy.Adapters.ImapReservationMail.csproj" />
     <Project Path="src/Adapters/BunkFy.Adapters.JsonFileDrop/BunkFy.Adapters.JsonFileDrop.csproj" />
+    <Project Path="src/Adapters/BunkFy.Adapters.SmtpEmail/BunkFy.Adapters.SmtpEmail.csproj" />
     <Project Path="src/Adapters/BunkFy.Parsers.ReservationMail/BunkFy.Parsers.ReservationMail.csproj" />
   </Folder>
   <Folder Name="/src/Adapters/docs/">

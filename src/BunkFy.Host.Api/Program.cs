@@ -1,6 +1,7 @@
 using BunkFy.Adapters.FakeHttp;
 using BunkFy.Adapters.ImapReservationMail;
 using BunkFy.Adapters.JsonFileDrop;
+using BunkFy.Adapters.SmtpEmail;
 using BunkFy.Extensions.DataRights.AccessControl;
 using BunkFy.Extensions.DataRights.Organizations;
 using BunkFy.Extensions.DataRights.TenantTermination;
@@ -169,6 +170,7 @@ builder.Services.AddBunkFyTenantTerminationOperatorCatalog();
 builder.Services.AddBunkFyOperationsNotifications();
 builder.Services.AddBunkFyReservationGuestRecords();
 builder.Services.AddBunkFyWorkspaceOwnerNotificationAudience();
+builder.Services.AddBunkFySmtpEmailSender(builder.Configuration, builder.Environment.IsProduction());
 builder.Services.AddNotificationEmailAdapter(builder.Configuration);
 builder.AddModule<PropertiesModule>();
 builder.AddModule<InventoryModule>();
@@ -218,6 +220,7 @@ app.MapGet("/api/smoke", (IOptions<BunkFyDeploymentOptions> deployment) => Resul
         : deployment.Value.ReleaseId,
     TimestampUtc = DateTimeOffset.UtcNow
 }));
+app.MapBunkFyProductCapabilities();
 app.MapModules();
 app.MapBunkFyAccessPermissionEndpoints();
 app.MapBunkFyReservationGuestRecordEndpoints();

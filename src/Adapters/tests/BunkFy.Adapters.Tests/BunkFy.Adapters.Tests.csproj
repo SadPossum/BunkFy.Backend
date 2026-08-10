@@ -20,6 +20,7 @@
     <ProjectReference Include="..\..\BunkFy.Adapters.Http\BunkFy.Adapters.Http.csproj" />
     <ProjectReference Include="..\..\BunkFy.Adapters.ImapReservationMail\BunkFy.Adapters.ImapReservationMail.csproj" />
     <ProjectReference Include="..\..\BunkFy.Adapters.JsonFileDrop\BunkFy.Adapters.JsonFileDrop.csproj" />
+    <ProjectReference Include="..\..\BunkFy.Adapters.SmtpEmail\BunkFy.Adapters.SmtpEmail.csproj" />
     <ProjectReference Include="..\..\BunkFy.Parsers.ReservationMail\BunkFy.Parsers.ReservationMail.csproj" />
     <ProjectReference Include="..\..\..\Shared\BunkFy.Adapter.Abstractions\BunkFy.Adapter.Abstractions.csproj" />
     <ProjectReference Include="..\..\..\Shared\BunkFy.Adapter.Runtime\BunkFy.Adapter.Runtime.csproj" />

@@ -4,6 +4,7 @@ using BunkFy.Adapters.Configuration;
 using BunkFy.Adapters.FakeHttp;
 using BunkFy.Adapters.ImapReservationMail;
 using BunkFy.Adapters.JsonFileDrop;
+using BunkFy.Adapters.SmtpEmail;
 using BunkFy.Extensions.DataRights.AccessControl;
 using BunkFy.Extensions.DataRights.Organizations;
 using BunkFy.Extensions.DataRights.TaskRuntime;
@@ -200,6 +201,9 @@ public static class WorkerHostBuilderExtensions
             builder.SelectModuleProfile(NotificationsProfiles.Default, "BunkFy.Host.Worker/Notifications");
             builder.Services.AddNotificationsApplication(builder.Configuration);
             builder.AddNotificationsPersistence();
+            builder.Services.AddBunkFySmtpEmailSender(
+                builder.Configuration,
+                builder.Environment.IsProduction());
             builder.Services.AddNotificationEmailAdapter(builder.Configuration);
 
             if (workerOptions.Modules.Auth)

@@ -88,6 +88,7 @@ Useful entry points:
 - [Workspace Staff Onboarding Staging Retention Task](planning/workspace-staff-onboarding-staging-retention-task.md)
 - [Workspace Staff Retention Correlation Scrub Task](planning/workspace-staff-retention-correlation-scrub-task.md)
 - [Workspace Onboarding Production Proof](planning/workspace-onboarding-production-proof-task.md)
+- [SMTP Email And Preview Onboarding Proof Task](planning/smtp-email-and-preview-onboarding-proof-task.md)
 - [Workspace Operational Admission Integration Task](planning/workspace-operational-admission-integration-task.md)
 - [Workspaces Personal-Data Catalogue Task](planning/workspaces-personal-data-catalogue-task.md)
 - [Workspaces Operational Surface Hardening Task](planning/workspaces-operational-surface-hardening-task.md)
