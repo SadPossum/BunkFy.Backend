@@ -6,6 +6,7 @@ using Gma.Framework.Administration.Cli;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using System.CommandLine;
+using System.CommandLine.Parsing;
 
 public sealed class BunkFyAdminCliResourceScopeResolver : IAdminCliResourceScopeResolver
 {
@@ -18,20 +19,35 @@ public sealed class BunkFyAdminCliResourceScopeResolver : IAdminCliResourceScope
         ArgumentNullException.ThrowIfNull(parseResult);
         resourceScope = null;
 
-        Guid propertyId;
+        SymbolResult? propertyResult;
         try
         {
-            propertyId = parseResult.GetValue<Guid>(PropertyOptionName);
+            propertyResult = parseResult.GetResult(PropertyOptionName);
         }
         catch (ArgumentException)
         {
             return true;
         }
-        catch (InvalidOperationException)
+
+        if (propertyResult is null)
+        {
+            return true;
+        }
+
+        if (propertyResult is not OptionResult
+            {
+                Option: Option<Guid> typedPropertyOption
+            })
         {
             return false;
         }
-        catch (InvalidCastException)
+
+        Guid propertyId;
+        try
+        {
+            propertyId = parseResult.GetRequiredValue(typedPropertyOption);
+        }
+        catch (InvalidOperationException)
         {
             return false;
         }

@@ -24,6 +24,24 @@ public sealed class BunkFyAdminCliResourceScopeResolverTests
     }
 
     [Fact]
+    public void Unrelated_command_remains_unscoped_when_a_sibling_has_a_property_option()
+    {
+        Option<Guid> propertyOption = new("--property-id") { Required = true };
+        Command propertyCommand = new("property") { propertyOption };
+        Option<Guid> organizationOption = new("--organization-id") { Required = true };
+        Command organizationCommand = new("organization") { organizationOption };
+        RootCommand root = new("admin") { propertyCommand, organizationCommand };
+        ParseResult parseResult = root.Parse(
+            ["organization", "--organization-id", "11111111-1111-4111-8111-111111111111"]);
+        Assert.Empty(parseResult.Errors);
+
+        bool resolved = this.resolver.TryResolve(parseResult, out AdminResourceScope? scope);
+
+        Assert.True(resolved);
+        Assert.Null(scope);
+    }
+
+    [Fact]
     public void Property_option_becomes_an_exact_normalized_resource_scope()
     {
         Option<Guid> propertyOption = new("--property-id") { Required = true };
