@@ -13,8 +13,7 @@ using Gma.Framework.Pagination;
 using Gma.Framework.Results;
 using Gma.Framework.Tenancy;
 using Gma.Framework.Tasks;
-using Gma.Modules.TaskRuntime.Application.Commands;
-using Gma.Modules.TaskRuntime.Application.Queries;
+using Gma.Modules.TaskRuntime.Contracts;
 using BunkFy.Modules.Ingestion.Admin.Contracts;
 using BunkFy.Modules.Ingestion.Application;
 using BunkFy.Modules.Ingestion.Application.Commands;
@@ -348,7 +347,8 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
                 errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
             .Produces<IngestionRunDto>(StatusCodes.Status200OK);
         group.MapPost("", async (Guid propertyId, EnqueueRunRequest request, HttpContext context,
-            AdminApiExecutor executor, IRequestDispatcher dispatcher, ITenantContext tenantContext, CancellationToken token) =>
+            AdminApiExecutor executor, IRequestDispatcher dispatcher, ITaskRunEnqueuer taskRunEnqueuer,
+            ITenantContext tenantContext, CancellationToken token) =>
             await executor.ExecuteAsync(context,
                 AdminOperation.Create(IngestionAdminOperationNames.RunEnqueue, IngestionAdminPermissions.RunsManage), true,
                 async ct =>
@@ -381,8 +381,7 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
                                 : IngestionApplicationErrors.ScopeRequired);
                     }
 
-                    return await dispatcher.SendAsync(new EnqueueTaskRunCommand(
-                        RunId: null,
+                    return await taskRunEnqueuer.EnqueueAsync(new TaskRunEnqueueRequest(
                         IngestionModuleMetadata.Name,
                         RunAdapterTaskPayload.TaskName,
                         JsonSerializer.Serialize(new RunAdapterTaskPayload(request.ConnectionId)),
@@ -393,14 +392,19 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
                         Actor(context),
                         request.MaxAttempts,
                         RunAdapterTaskPayload.PayloadVersion,
-                        request.DeduplicationKey), ct).ConfigureAwait(false);
+                        request.DeduplicationKey,
+                        RunId: null), ct).ConfigureAwait(false);
                 }, token, errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
         group.MapPost("/{runId:guid}/retry", (Guid propertyId, Guid runId, RunControlRequest request,
-            HttpContext context, AdminApiExecutor executor, IRequestDispatcher dispatcher, CancellationToken token) =>
-            ControlRunAsync(propertyId, runId, request, retry: true, context, executor, dispatcher, token));
+            HttpContext context, AdminApiExecutor executor, IRequestDispatcher dispatcher,
+            ITaskRunController taskRunController, CancellationToken token) =>
+            ControlRunAsync(propertyId, runId, request, retry: true, context, executor, dispatcher,
+                taskRunController, token));
         group.MapPost("/{runId:guid}/cancel", (Guid propertyId, Guid runId, RunControlRequest request,
-            HttpContext context, AdminApiExecutor executor, IRequestDispatcher dispatcher, CancellationToken token) =>
-            ControlRunAsync(propertyId, runId, request, retry: false, context, executor, dispatcher, token));
+            HttpContext context, AdminApiExecutor executor, IRequestDispatcher dispatcher,
+            ITaskRunController taskRunController, CancellationToken token) =>
+            ControlRunAsync(propertyId, runId, request, retry: false, context, executor, dispatcher,
+                taskRunController, token));
     }
 
     private static void MapReceipts(IEndpointRouteBuilder endpoints)
@@ -442,6 +446,7 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
             HttpContext context,
             AdminApiExecutor executor,
             IRequestDispatcher dispatcher,
+            ITaskRunEnqueuer taskRunEnqueuer,
             ITenantContext tenantContext,
             CancellationToken token) => await executor.ExecuteAsync(
                 context,
@@ -471,8 +476,7 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
                         request.BatchSize,
                         request.MaxBatches,
                         request.StaleClaimMinutes);
-                    return await dispatcher.SendAsync(new EnqueueTaskRunCommand(
-                        RunId: null,
+                    return await taskRunEnqueuer.EnqueueAsync(new TaskRunEnqueueRequest(
                         IngestionModuleMetadata.Name,
                         PurgeExpiredRawPayloadsPayload.TaskName,
                         JsonSerializer.Serialize(payload),
@@ -483,7 +487,8 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
                         Actor(context),
                         request.MaxAttempts,
                         PurgeExpiredRawPayloadsPayload.PayloadVersion,
-                        request.DeduplicationKey), ct).ConfigureAwait(false);
+                        request.DeduplicationKey,
+                        RunId: null), ct).ConfigureAwait(false);
                 },
                 token,
                 errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
@@ -492,6 +497,7 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
             HttpContext context,
             AdminApiExecutor executor,
             IRequestDispatcher dispatcher,
+            ITaskRunEnqueuer taskRunEnqueuer,
             ITenantContext tenantContext,
             CancellationToken token) => await executor.ExecuteAsync(
                 context,
@@ -518,8 +524,7 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
                     RedactExpiredReservationHistoryPayload payload = new(
                         request.BatchSize,
                         request.MaxBatches);
-                    return await dispatcher.SendAsync(new EnqueueTaskRunCommand(
-                        RunId: null,
+                    return await taskRunEnqueuer.EnqueueAsync(new TaskRunEnqueueRequest(
                         IngestionModuleMetadata.Name,
                         RedactExpiredReservationHistoryPayload.TaskName,
                         JsonSerializer.Serialize(payload),
@@ -530,7 +535,8 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
                         Actor(context),
                         request.MaxAttempts,
                         RedactExpiredReservationHistoryPayload.PayloadVersion,
-                        request.DeduplicationKey), ct).ConfigureAwait(false);
+                        request.DeduplicationKey,
+                        RunId: null), ct).ConfigureAwait(false);
                 },
                 token,
                 errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
@@ -560,7 +566,8 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
                 errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
             .Produces<ObservationReprocessingAttemptDetailsDto>(StatusCodes.Status200OK);
         group.MapPost("", async (Guid propertyId, EnqueueReprocessingRequest request, HttpContext context,
-            AdminApiExecutor executor, IRequestDispatcher dispatcher, ITenantContext tenantContext,
+            AdminApiExecutor executor, IRequestDispatcher dispatcher, ITaskRunEnqueuer taskRunEnqueuer,
+            ITenantContext tenantContext,
             CancellationToken token) => await executor.ExecuteAsync(
                 context,
                 AdminOperation.Create(
@@ -602,8 +609,8 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
                             prepared.Value.ParserType,
                             prepared.Value.ParserVersion,
                             request.MaxAttempts);
-                        Result<TaskRunDetails> enqueued = await dispatcher.SendAsync(new EnqueueTaskRunCommand(
-                            prepared.Value.TaskRunId,
+                        Result<TaskRunDetails> enqueued = await taskRunEnqueuer.EnqueueAsync(
+                            new TaskRunEnqueueRequest(
                             IngestionModuleMetadata.Name,
                             ReprocessObservationPayload.TaskName,
                             JsonSerializer.Serialize(payload),
@@ -614,7 +621,8 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
                             actor,
                             request.MaxAttempts,
                             ReprocessObservationPayload.PayloadVersion,
-                            request.DeduplicationKey ?? $"reprocess:{prepared.Value.AttemptId:N}"), ct)
+                            request.DeduplicationKey ?? $"reprocess:{prepared.Value.AttemptId:N}",
+                            prepared.Value.TaskRunId), ct)
                             .ConfigureAwait(false);
                         if (enqueued.IsFailure)
                         {
@@ -639,7 +647,8 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
                 errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false));
         group.MapPost("/{attemptId:guid}/cancel", async (Guid propertyId, Guid attemptId,
             ReprocessingControlRequest request, HttpContext context, AdminApiExecutor executor,
-            IRequestDispatcher dispatcher, CancellationToken token) => await executor.ExecuteAsync(
+            IRequestDispatcher dispatcher, ITaskRunReader taskRunReader,
+            ITaskRunController taskRunController, CancellationToken token) => await executor.ExecuteAsync(
                 context,
                 AdminOperation.Create(
                     IngestionAdminOperationNames.ReprocessingCancel,
@@ -666,8 +675,8 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
                         return Result.Success(Unit.Value);
                     }
 
-                    Result<TaskRunDetails> task = await dispatcher.QueryAsync(
-                        new GetTaskRunQuery(found.Value.Attempt.TaskRunId), ct).ConfigureAwait(false);
+                    Result<TaskRunDetails> task = await taskRunReader.GetAsync(
+                        found.Value.Attempt.TaskRunId, ct).ConfigureAwait(false);
                     if (task.IsFailure)
                     {
                         return Result.Failure<Unit>(task.Error);
@@ -680,11 +689,11 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
                             new CancelObservationReprocessingCommand(attemptId), ct).ConfigureAwait(false);
                     }
 
-                    Result<Unit> canceled = await dispatcher.SendAsync(
-                        new CancelTaskRunCommand(task.Value.Summary.RunId, Actor(context)), ct).ConfigureAwait(false);
+                    Result canceled = await taskRunController.CancelAsync(
+                        task.Value.Summary.RunId, Actor(context), ct).ConfigureAwait(false);
                     if (canceled.IsFailure)
                     {
-                        return canceled;
+                        return Result.Failure<Unit>(canceled.Error);
                     }
 
                     if (task.Value.Summary.Status is TaskRunStatus.Queued or TaskRunStatus.RetryScheduled)
@@ -879,7 +888,8 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
 
     private static Task<IResult> ControlRunAsync(
         Guid propertyId, Guid runId, RunControlRequest request, bool retry, HttpContext context,
-        AdminApiExecutor executor, IRequestDispatcher dispatcher, CancellationToken token) => executor.ExecuteAsync(
+        AdminApiExecutor executor, IRequestDispatcher dispatcher, ITaskRunController taskRunController,
+        CancellationToken token) => executor.ExecuteAsync(
         context,
         AdminOperation.Create(retry ? IngestionAdminOperationNames.RunRetry : IngestionAdminOperationNames.RunCancel,
             IngestionAdminPermissions.RunsManage),
@@ -903,11 +913,14 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
                 return Result.Failure<Unit>(IngestionApplicationErrors.RunNotTaskManaged);
             }
 
-            return retry
-                ? await dispatcher.SendAsync(new RetryTaskRunCommand(
-                    run.Value.TaskRunId.Value, Actor(context), request.ScheduledAtUtc), ct).ConfigureAwait(false)
-                : await dispatcher.SendAsync(new CancelTaskRunCommand(
-                    run.Value.TaskRunId.Value, Actor(context)), ct).ConfigureAwait(false);
+            Result result = retry
+                ? await taskRunController.RetryAsync(
+                    run.Value.TaskRunId.Value, Actor(context), request.ScheduledAtUtc, ct).ConfigureAwait(false)
+                : await taskRunController.CancelAsync(
+                    run.Value.TaskRunId.Value, Actor(context), ct).ConfigureAwait(false);
+            return result.IsFailure
+                ? Result.Failure<Unit>(result.Error)
+                : Result.Success(Unit.Value);
         },
         token,
         errorStatusCodes: ErrorStatusCodes);

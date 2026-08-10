@@ -17,9 +17,7 @@ using Gma.Framework.Pagination;
 using Gma.Framework.Results;
 using Gma.Framework.Tasks;
 using Gma.Framework.Tenancy;
-using Gma.Modules.TaskRuntime.Application.Commands;
-using Gma.Modules.TaskRuntime.Application.Queries;
-using Gma.Modules.TaskRuntime.Application;
+using Gma.Modules.TaskRuntime.Contracts;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -74,7 +72,8 @@ public sealed class RetentionAdminApiModule : IAdminApiModule
             RetryRetentionRunRequest request,
             HttpContext context,
             AdminApiExecutor executor,
-            IRequestDispatcher dispatcher,
+            ITaskRunReader taskRunReader,
+            ITaskRunController taskRunController,
             ITenantContext tenantContext,
             CancellationToken cancellationToken) =>
             await executor.ExecuteAsync(
@@ -89,7 +88,8 @@ public sealed class RetentionAdminApiModule : IAdminApiModule
                         request.ScheduledAtUtc,
                         Actor(context),
                         tenantContext.TenantId,
-                        dispatcher,
+                        taskRunReader,
+                        taskRunController,
                         token)
                     : Task.FromResult(
                         Result.Failure<RetentionRunRetryReceiptDto>(
@@ -104,11 +104,12 @@ public sealed class RetentionAdminApiModule : IAdminApiModule
         DateTimeOffset? scheduledAtUtc,
         string actor,
         string? tenantId,
-        IRequestDispatcher dispatcher,
+        ITaskRunReader taskRunReader,
+        ITaskRunController taskRunController,
         CancellationToken cancellationToken)
     {
-        Result<TaskRunDetails> loaded = await dispatcher.QueryAsync(
-            new GetTaskRunQuery(runId),
+        Result<TaskRunDetails> loaded = await taskRunReader.GetAsync(
+            runId,
             cancellationToken).ConfigureAwait(false);
         if (loaded.IsFailure)
         {
@@ -131,8 +132,10 @@ public sealed class RetentionAdminApiModule : IAdminApiModule
                 RetentionApplicationErrors.TaskRunUnavailable);
         }
 
-        Result<Unit> retried = await dispatcher.SendAsync(
-            new RetryTaskRunCommand(runId, actor, scheduledAtUtc),
+        Result retried = await taskRunController.RetryAsync(
+            runId,
+            actor,
+            scheduledAtUtc,
             cancellationToken).ConfigureAwait(false);
         return retried.IsFailure
             ? Result.Failure<RetentionRunRetryReceiptDto>(retried.Error)
@@ -162,16 +165,16 @@ public sealed class RetentionAdminApiModule : IAdminApiModule
                 RetentionApplicationErrors.TaskRunUnavailable.Code,
                 StatusCodes.Status404NotFound),
             new(
-                TaskRuntimeApplicationErrors.RunNotFound.Code,
+                TaskRuntimeOperationErrors.RunNotFound.Code,
                 StatusCodes.Status404NotFound),
             new(
-                TaskRuntimeApplicationErrors.RunCannotBeRetried.Code,
+                TaskRuntimeOperationErrors.RunCannotBeRetried.Code,
                 StatusCodes.Status409Conflict),
             new(
-                TaskRuntimeApplicationErrors.ConcurrentMutation.Code,
+                TaskRuntimeOperationErrors.ConcurrentMutation.Code,
                 StatusCodes.Status409Conflict),
             new(
-                TaskRuntimeApplicationErrors.ScopeClosed.Code,
+                TaskRuntimeOperationErrors.ScopeClosed.Code,
                 StatusCodes.Status423Locked));
 
     private static string Actor(HttpContext context)

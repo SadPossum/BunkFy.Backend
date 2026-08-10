@@ -11,8 +11,7 @@ using Gma.Framework.ModuleComposition;
 using Gma.Framework.Pagination;
 using Gma.Framework.Results;
 using Gma.Framework.Tasks;
-using Gma.Modules.TaskRuntime.Application.Commands;
-using Gma.Modules.TaskRuntime.Application.Queries;
+using Gma.Modules.TaskRuntime.Contracts;
 using BunkFy.Modules.Ingestion.Admin.Contracts;
 using BunkFy.Modules.Ingestion.Application;
 using BunkFy.Modules.Ingestion.Application.Commands;
@@ -537,12 +536,13 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
                 }
 
                 Guid connectionId = parse.GetRequiredValue(connection);
-                return await dispatcher.SendAsync(new EnqueueTaskRunCommand(
-                    null, IngestionModuleMetadata.Name, RunAdapterTaskPayload.TaskName,
+                ITaskRunEnqueuer taskRunEnqueuer = provider.GetRequiredService<ITaskRunEnqueuer>();
+                return await taskRunEnqueuer.EnqueueAsync(new TaskRunEnqueueRequest(
+                    IngestionModuleMetadata.Name, RunAdapterTaskPayload.TaskName,
                     JsonSerializer.Serialize(new RunAdapterTaskPayload(connectionId)), parse.GetValue(scheduled),
                     IngestionModuleMetadata.AdapterWorkerGroup, parse.GetValue(globalOptions.TenantOption), connectionId,
                     parse.GetRequiredValue(actor), parse.GetValue(maxAttempts), RunAdapterTaskPayload.PayloadVersion,
-                    parse.GetValue(deduplication)), ct).ConfigureAwait(false);
+                    parse.GetValue(deduplication), RunId: null), ct).ConfigureAwait(false);
             }, token));
         return command;
     }
@@ -588,11 +588,15 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
                     return Result.Failure<Unit>(IngestionApplicationErrors.RunNotTaskManaged);
                 }
 
-                return retry
-                    ? await dispatcher.SendAsync(new RetryTaskRunCommand(found.Value.TaskRunId.Value,
-                        parse.GetRequiredValue(actor), parse.GetValue(scheduled)), ct).ConfigureAwait(false)
-                    : await dispatcher.SendAsync(new CancelTaskRunCommand(found.Value.TaskRunId.Value,
-                        parse.GetRequiredValue(actor)), ct).ConfigureAwait(false);
+                ITaskRunController taskRunController = provider.GetRequiredService<ITaskRunController>();
+                Result result = retry
+                    ? await taskRunController.RetryAsync(found.Value.TaskRunId.Value,
+                        parse.GetRequiredValue(actor), parse.GetValue(scheduled), ct).ConfigureAwait(false)
+                    : await taskRunController.CancelAsync(found.Value.TaskRunId.Value,
+                        parse.GetRequiredValue(actor), ct).ConfigureAwait(false);
+                return result.IsFailure
+                    ? Result.Failure<Unit>(result.Error)
+                    : Result.Success(Unit.Value);
             }, token));
         return command;
     }
@@ -651,8 +655,7 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
                     selectedBatchSize,
                     selectedMaxBatches,
                     selectedStaleClaimMinutes);
-                return await provider.GetRequiredService<IRequestDispatcher>().SendAsync(new EnqueueTaskRunCommand(
-                    RunId: null,
+                return await provider.GetRequiredService<ITaskRunEnqueuer>().EnqueueAsync(new TaskRunEnqueueRequest(
                     IngestionModuleMetadata.Name,
                     PurgeExpiredRawPayloadsPayload.TaskName,
                     JsonSerializer.Serialize(payload),
@@ -663,7 +666,8 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
                     parse.GetRequiredValue(requestedBy),
                     selectedMaxAttempts,
                     PurgeExpiredRawPayloadsPayload.PayloadVersion,
-                    parse.GetValue(deduplication)), ct).ConfigureAwait(false);
+                    parse.GetValue(deduplication),
+                    RunId: null), ct).ConfigureAwait(false);
             },
             token));
         return command;
@@ -719,8 +723,7 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
                 RedactExpiredReservationHistoryPayload payload = new(
                     selectedBatchSize,
                     selectedMaxBatches);
-                return await provider.GetRequiredService<IRequestDispatcher>().SendAsync(new EnqueueTaskRunCommand(
-                    RunId: null,
+                return await provider.GetRequiredService<ITaskRunEnqueuer>().EnqueueAsync(new TaskRunEnqueueRequest(
                     IngestionModuleMetadata.Name,
                     RedactExpiredReservationHistoryPayload.TaskName,
                     JsonSerializer.Serialize(payload),
@@ -731,7 +734,8 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
                     parse.GetRequiredValue(requestedBy),
                     selectedMaxAttempts,
                     RedactExpiredReservationHistoryPayload.PayloadVersion,
-                    parse.GetValue(deduplication)), ct).ConfigureAwait(false);
+                    parse.GetValue(deduplication),
+                    RunId: null), ct).ConfigureAwait(false);
             },
             token));
         return command;
@@ -1006,8 +1010,8 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
                         prepared.Value.ParserType,
                         prepared.Value.ParserVersion,
                         attempts);
-                    Result<TaskRunDetails> enqueued = await dispatcher.SendAsync(new EnqueueTaskRunCommand(
-                        prepared.Value.TaskRunId,
+                    Result<TaskRunDetails> enqueued = await provider.GetRequiredService<ITaskRunEnqueuer>()
+                        .EnqueueAsync(new TaskRunEnqueueRequest(
                         IngestionModuleMetadata.Name,
                         ReprocessObservationPayload.TaskName,
                         JsonSerializer.Serialize(payload),
@@ -1018,7 +1022,8 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
                         requestedBy,
                         attempts,
                         ReprocessObservationPayload.PayloadVersion,
-                        parse.GetValue(deduplication) ?? $"reprocess:{prepared.Value.AttemptId:N}"), ct)
+                        parse.GetValue(deduplication) ?? $"reprocess:{prepared.Value.AttemptId:N}",
+                        prepared.Value.TaskRunId), ct)
                         .ConfigureAwait(false);
                     if (enqueued.IsFailure)
                     {
@@ -1084,8 +1089,8 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
                     return Result.Success(Unit.Value);
                 }
 
-                Result<TaskRunDetails> task = await dispatcher.QueryAsync(
-                    new GetTaskRunQuery(found.Value.Attempt.TaskRunId), ct).ConfigureAwait(false);
+                Result<TaskRunDetails> task = await provider.GetRequiredService<ITaskRunReader>()
+                    .GetAsync(found.Value.Attempt.TaskRunId, ct).ConfigureAwait(false);
                 if (task.IsFailure)
                 {
                     return Result.Failure<Unit>(task.Error);
@@ -1098,12 +1103,12 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
                         parse.GetRequiredValue(attempt)), ct).ConfigureAwait(false);
                 }
 
-                Result<Unit> canceled = await dispatcher.SendAsync(new CancelTaskRunCommand(
+                Result canceled = await provider.GetRequiredService<ITaskRunController>().CancelAsync(
                     task.Value.Summary.RunId,
-                    ResolveActor(parse, globalOptions)), ct).ConfigureAwait(false);
+                    ResolveActor(parse, globalOptions), ct).ConfigureAwait(false);
                 if (canceled.IsFailure)
                 {
-                    return canceled;
+                    return Result.Failure<Unit>(canceled.Error);
                 }
 
                 return task.Value.Summary.Status is TaskRunStatus.Queued or TaskRunStatus.RetryScheduled

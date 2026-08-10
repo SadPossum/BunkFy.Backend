@@ -90,6 +90,40 @@ public sealed class ModuleBoundaryTests
     }
 
     [Fact]
+    public void Product_modules_use_reusable_gma_modules_through_contract_projects()
+    {
+        string[] projectReferenceOffenders = ProjectFile.All()
+            .Where(project => project.RepositoryPath.StartsWith("src/Modules/", StringComparison.Ordinal))
+            .SelectMany(project => project.ProjectReferences.Select(reference => new
+            {
+                project.RepositoryPath,
+                Reference = reference
+            }))
+            .Where(item => item.Reference.Contains("$(GmaModule", StringComparison.Ordinal))
+            .Where(item => !item.Reference.EndsWith(".Contracts.csproj", StringComparison.OrdinalIgnoreCase))
+            .Select(item => $"{item.RepositoryPath} -> {item.Reference}")
+            .ToArray();
+
+        string[] sourceReferenceOffenders = RepositoryPaths.EnumerateFiles("src/Modules", "*.cs")
+            .Select(path => new
+            {
+                Path = RepositoryPaths.ToRepositoryPath(path),
+                Content = File.ReadAllText(path)
+            })
+            .Where(file => !file.Path.Contains("/bin/", StringComparison.Ordinal) &&
+                           !file.Path.Contains("/obj/", StringComparison.Ordinal))
+            .Where(file => System.Text.RegularExpressions.Regex.IsMatch(
+                file.Content,
+                @"Gma\.Modules\.[A-Za-z0-9_.]+\.Application(?:[.;\s])",
+                System.Text.RegularExpressions.RegexOptions.CultureInvariant))
+            .Select(file => file.Path)
+            .ToArray();
+
+        Assert.Empty(projectReferenceOffenders);
+        Assert.Empty(sourceReferenceOffenders);
+    }
+
+    [Fact]
     public void Project_reference_resolution_is_platform_neutral()
     {
         ProjectFile extension = Assert.Single(

@@ -11,6 +11,7 @@ using Gma.Framework.Administration.Api;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Security;
 using Gma.Framework.Tenancy;
+using Gma.Modules.TaskRuntime.Contracts;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Metadata;
@@ -48,6 +49,9 @@ public sealed class IngestionApiSecurityTests
         builder.Services.AddSingleton<IAccessHttpSubjectResolver>(_ => null!);
         builder.Services.AddSingleton<AdminApiExecutor>(_ => null!);
         builder.Services.AddSingleton<ITenantContext>(_ => null!);
+        builder.Services.AddSingleton<ITaskRunEnqueuer>(_ => null!);
+        builder.Services.AddSingleton<ITaskRunReader>(_ => null!);
+        builder.Services.AddSingleton<ITaskRunController>(_ => null!);
         await using WebApplication app = builder.Build();
 
         new IngestionModule().MapEndpoints(app);

@@ -8,6 +8,7 @@ using BunkFy.Modules.Retention.Contracts;
 using Gma.Framework.Administration.Api;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Tenancy;
+using Gma.Modules.TaskRuntime.Contracts;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Metadata;
@@ -44,6 +45,8 @@ public sealed class RetentionApiSecurityTests
         builder.Services.AddSingleton<IRequestDispatcher>(_ => null!);
         builder.Services.AddSingleton<AdminApiExecutor>(_ => null!);
         builder.Services.AddSingleton<ITenantContext>(_ => null!);
+        builder.Services.AddSingleton<ITaskRunReader>(_ => null!);
+        builder.Services.AddSingleton<ITaskRunController>(_ => null!);
         await using WebApplication app = builder.Build();
 
         new RetentionModule().MapEndpoints(app);

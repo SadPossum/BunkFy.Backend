@@ -15,8 +15,7 @@ using Gma.Framework.ModuleComposition;
 using Gma.Framework.Pagination;
 using Gma.Framework.Results;
 using Gma.Framework.Tasks;
-using Gma.Modules.TaskRuntime.Application.Commands;
-using Gma.Modules.TaskRuntime.Application.Queries;
+using Gma.Modules.TaskRuntime.Contracts;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -127,7 +126,8 @@ public sealed class RetentionAdminCliModule : IAdminCliModule
                                 parse.GetValue(scheduledAt),
                                 parse.GetValue(globalOptions.TenantOption),
                                 ResolveActor(parse, globalOptions),
-                                provider.GetRequiredService<IRequestDispatcher>(),
+                                provider.GetRequiredService<ITaskRunReader>(),
+                                provider.GetRequiredService<ITaskRunController>(),
                                 cancellationToken).ConfigureAwait(false)
                             : Result.Failure<RetentionRunRetryReceiptDto>(
                                 AdminErrors.ConfirmationRequired);
@@ -149,11 +149,12 @@ public sealed class RetentionAdminCliModule : IAdminCliModule
         DateTimeOffset? scheduledAtUtc,
         string? tenantId,
         string actor,
-        IRequestDispatcher dispatcher,
+        ITaskRunReader taskRunReader,
+        ITaskRunController taskRunController,
         CancellationToken cancellationToken)
     {
-        Result<TaskRunDetails> loaded = await dispatcher.QueryAsync(
-            new GetTaskRunQuery(runId),
+        Result<TaskRunDetails> loaded = await taskRunReader.GetAsync(
+            runId,
             cancellationToken).ConfigureAwait(false);
         if (loaded.IsFailure)
         {
@@ -176,11 +177,10 @@ public sealed class RetentionAdminCliModule : IAdminCliModule
                 RetentionApplicationErrors.TaskRunUnavailable);
         }
 
-        Result<Unit> retried = await dispatcher.SendAsync(
-            new RetryTaskRunCommand(
-                runId,
-                $"admin-cli:{actor}",
-                scheduledAtUtc),
+        Result retried = await taskRunController.RetryAsync(
+            runId,
+            $"admin-cli:{actor}",
+            scheduledAtUtc,
             cancellationToken).ConfigureAwait(false);
         return retried.IsFailure
             ? Result.Failure<RetentionRunRetryReceiptDto>(retried.Error)
