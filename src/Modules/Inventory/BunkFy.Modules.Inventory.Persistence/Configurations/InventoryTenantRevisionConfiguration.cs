@@ -44,6 +44,7 @@ internal sealed class InventoryTenantRevisionConfiguration
         builder.Property(revision => revision.LifecycleStatus)
             .HasConversion<int>()
             .HasDefaultValue(InventoryTenantLifecycleStatus.Open)
+            .HasSentinel(default)
             .IsRequired();
         builder.Property(revision => revision.DestroyRequestSha256)
             .HasMaxLength(64)

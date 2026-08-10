@@ -47,6 +47,7 @@ internal sealed class GuestPropertyProjectionConfiguration : IEntityTypeConfigur
         builder.Property(property => property.ProcessingStatus)
             .HasConversion<int>()
             .HasDefaultValue(BunkFy.Modules.Properties.Contracts.PropertyProcessingStatus.Unconfigured)
+            .HasSentinel(default)
             .IsRequired();
         builder.HasIndex(property => new { property.ScopeId, property.Status, property.Id });
         builder.OwnsOne(property => property.GovernancePolicy, policy =>

@@ -45,6 +45,7 @@ internal sealed class StaffTenantRevisionConfiguration
         builder.Property(revision => revision.LifecycleStatus)
             .HasConversion<int>()
             .HasDefaultValue(StaffTenantLifecycleStatus.Open)
+            .HasSentinel(default)
             .IsRequired();
         builder.Property(revision => revision.DestroyRequestSha256)
             .HasMaxLength(64)

@@ -43,6 +43,7 @@ internal sealed class RetentionTenantRevisionConfiguration
         builder.Property(revision => revision.LifecycleStatus)
             .HasConversion<int>()
             .HasDefaultValue(RetentionTenantLifecycleStatus.Open)
+            .HasSentinel(default)
             .IsRequired();
         builder.Property(revision => revision.DestroyRequestSha256)
             .HasMaxLength(64)

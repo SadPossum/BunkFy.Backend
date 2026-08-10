@@ -51,6 +51,7 @@ internal sealed class PropertyConfiguration : IEntityTypeConfiguration<Property>
         builder.Property(property => property.ProcessingState)
             .HasConversion<int>()
             .HasDefaultValue(PropertyProcessingState.Unconfigured)
+            .HasSentinel(default)
             .IsRequired();
         builder.Property(property => property.Version)
             .HasDefaultValue(1L)

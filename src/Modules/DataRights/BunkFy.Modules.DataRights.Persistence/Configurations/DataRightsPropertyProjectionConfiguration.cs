@@ -54,6 +54,7 @@ internal sealed class DataRightsPropertyProjectionConfiguration
         builder.Property(property => property.ProcessingStatus)
             .HasConversion<int>()
             .HasDefaultValue(PropertyProcessingStatus.Unconfigured)
+            .HasSentinel(default)
             .IsRequired();
         builder.HasIndex(property => new { property.ScopeId, property.Status, property.Id });
         builder.OwnsOne(property => property.GovernancePolicy, policy =>

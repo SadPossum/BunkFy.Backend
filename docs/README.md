@@ -18,6 +18,7 @@ Useful entry points:
 - [Backend Release-Candidate Publication Task](planning/backend-release-candidate-publication-task.md)
 - [GMA Durable Runtime Alignment](planning/gma-durable-runtime-alignment.md)
 - [Durable Runtime Production Admission Task](planning/durable-runtime-production-admission-task.md)
+- [EF Enum Default Sentinel Hardening Task](planning/ef-enum-default-sentinel-hardening-task.md)
 - [Auth And Organizations Maintenance Production Admission Task](planning/auth-and-organizations-maintenance-production-admission-task.md)
 - [Ingestion Runtime Baseline](operations/ingestion-runtime-baseline.md)
 - [AdapterHost Production Admission](operations/adapter-host-production-admission.md)

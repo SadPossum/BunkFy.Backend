@@ -45,6 +45,7 @@ internal sealed class ReservationPropertyProjectionConfiguration
         builder.Property(property => property.ProcessingStatus)
             .HasConversion<int>()
             .HasDefaultValue(PropertyProcessingStatus.Unconfigured)
+            .HasSentinel(default)
             .IsRequired();
         builder.HasIndex(property => new { property.ScopeId, property.IsActive });
         builder.OwnsOne(property => property.GovernancePolicy, policy =>

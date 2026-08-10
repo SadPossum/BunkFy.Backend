@@ -46,6 +46,7 @@ internal sealed class ReservationsTenantRevisionConfiguration
         builder.Property(revision => revision.LifecycleStatus)
             .HasConversion<int>()
             .HasDefaultValue(ReservationsTenantLifecycleStatus.Open)
+            .HasSentinel(default)
             .IsRequired();
         builder.Property(revision => revision.DestroyRequestSha256)
             .HasMaxLength(64)
