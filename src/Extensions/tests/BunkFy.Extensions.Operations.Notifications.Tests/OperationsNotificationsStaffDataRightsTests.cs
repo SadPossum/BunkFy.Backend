@@ -6,7 +6,6 @@ using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Staff.Contracts;
 using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
-using Gma.Modules.Notifications.Application.Ports;
 using Gma.Modules.Notifications.Contracts;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;

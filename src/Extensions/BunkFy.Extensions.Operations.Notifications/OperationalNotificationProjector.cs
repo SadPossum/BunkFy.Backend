@@ -6,7 +6,6 @@ using System.Text.Json;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Workspaces.Contracts;
 using Gma.Framework.AccessControl;
-using Gma.Modules.Notifications.Application.Ports;
 using Gma.Modules.Notifications.Contracts;
 using Gma.Modules.Organizations.Contracts;
 

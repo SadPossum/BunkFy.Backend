@@ -4,7 +4,6 @@ using System.Text.Json;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Reservations.Contracts;
 using Gma.Framework.Scoping;
-using Gma.Modules.Notifications.Application.Ports;
 using Gma.Modules.Notifications.Contracts;
 
 internal sealed class OperationsNotificationsDataRightsExportContributor(

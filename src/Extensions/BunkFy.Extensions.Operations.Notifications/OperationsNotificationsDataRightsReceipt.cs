@@ -3,7 +3,6 @@ namespace BunkFy.Extensions.Operations.Notifications;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
-using Gma.Modules.Notifications.Application.Ports;
 using Gma.Modules.Notifications.Contracts;
 
 internal static class OperationsNotificationsDataRightsReceipt

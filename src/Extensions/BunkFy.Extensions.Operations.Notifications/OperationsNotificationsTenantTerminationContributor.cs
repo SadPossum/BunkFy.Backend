@@ -5,7 +5,7 @@ using BunkFy.Modules.Workspaces.Contracts;
 using Gma.Framework.Naming;
 using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
-using Gma.Modules.Notifications.Application.Ports;
+using Gma.Modules.Notifications.Contracts;
 
 internal sealed partial class OperationsNotificationsTenantTerminationContributor(
     INotificationScopeLifecycle lifecycle,

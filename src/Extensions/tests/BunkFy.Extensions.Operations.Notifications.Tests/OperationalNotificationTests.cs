@@ -11,7 +11,6 @@ using Gma.Framework.AccessControl;
 using Gma.Framework.Messaging;
 using Gma.Framework.Notifications;
 using Gma.Framework.Tenancy;
-using Gma.Modules.Notifications.Application.Ports;
 using Gma.Modules.Notifications.Contracts;
 using Gma.Modules.Organizations.Contracts;
 using Microsoft.Extensions.DependencyInjection;

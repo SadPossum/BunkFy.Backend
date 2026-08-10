@@ -3,7 +3,6 @@ namespace BunkFy.Extensions.Operations.Notifications;
 using BunkFy.Modules.DataRights.Contracts;
 using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
-using Gma.Modules.Notifications.Application.Ports;
 using Gma.Modules.Notifications.Contracts;
 
 internal sealed class

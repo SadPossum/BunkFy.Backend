@@ -1,7 +1,6 @@
 namespace BunkFy.Extensions.Operations.Notifications;
 
 using System.Text.Json;
-using Gma.Modules.Notifications.Application.Ports;
 using Gma.Modules.Notifications.Contracts;
 
 internal static class OperationsNotificationsTenantExportRecordValidator

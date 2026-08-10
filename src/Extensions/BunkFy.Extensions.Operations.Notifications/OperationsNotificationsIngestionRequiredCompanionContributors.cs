@@ -3,7 +3,6 @@ namespace BunkFy.Extensions.Operations.Notifications;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Ingestion.Contracts;
 using Gma.Framework.Scoping;
-using Gma.Modules.Notifications.Application.Ports;
 using Gma.Modules.Notifications.Contracts;
 using Microsoft.Extensions.Logging;
 

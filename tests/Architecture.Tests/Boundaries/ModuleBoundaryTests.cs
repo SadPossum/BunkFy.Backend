@@ -286,7 +286,7 @@ public sealed class ModuleBoundaryTests
     }
 
     [Fact]
-    public void Operations_notifications_data_rights_adapter_uses_the_generic_notifications_application_boundary()
+    public void Operations_notifications_extension_uses_only_the_generic_notifications_contract_boundary()
     {
         ProjectFile extension = Assert.Single(
             ProjectFile.All(),
@@ -295,16 +295,17 @@ public sealed class ModuleBoundaryTests
                 "BunkFy.Extensions.Operations.Notifications",
                 StringComparison.Ordinal));
 
-        Assert.Contains(
+        string notificationReference = Assert.Single(
             extension.ProjectReferences,
-            reference => reference.EndsWith(
-                "Gma.Modules.Notifications.Application\\Gma.Modules.Notifications.Application.csproj",
-                StringComparison.OrdinalIgnoreCase));
-        Assert.Contains(
-            extension.ProjectReferences,
-            reference => reference.EndsWith(
+            reference =>
+                reference.Contains(
+                    "Gma.Modules.Notifications.",
+                    StringComparison.OrdinalIgnoreCase));
+        Assert.True(
+            notificationReference.EndsWith(
                 "Gma.Modules.Notifications.Contracts\\Gma.Modules.Notifications.Contracts.csproj",
-                StringComparison.OrdinalIgnoreCase));
+                StringComparison.OrdinalIgnoreCase),
+            $"Unexpected Notifications module reference: {notificationReference}");
         Assert.Contains(
             extension.ProjectReferences,
             reference => reference.EndsWith(
@@ -323,12 +324,12 @@ public sealed class ModuleBoundaryTests
 
         string[] forbiddenProjectReferences = extension.ProjectReferences
             .Where(reference =>
-                reference.Contains(
-                    "Gma.Modules.Notifications.Domain",
-                    StringComparison.OrdinalIgnoreCase) ||
-                reference.Contains(
-                    "Gma.Modules.Notifications.Persistence",
-                    StringComparison.OrdinalIgnoreCase) ||
+                (reference.Contains(
+                     "Gma.Modules.Notifications.",
+                     StringComparison.OrdinalIgnoreCase) &&
+                 !reference.Contains(
+                     "Gma.Modules.Notifications.Contracts",
+                     StringComparison.OrdinalIgnoreCase)) ||
                 (reference.Contains(
                      "BunkFy.Modules.Ingestion.",
                      StringComparison.OrdinalIgnoreCase) &&
@@ -344,6 +345,9 @@ public sealed class ModuleBoundaryTests
             {
                 string source = File.ReadAllText(path);
                 return source.Contains(
+                        "Gma.Modules.Notifications.Application",
+                        StringComparison.Ordinal) ||
+                    source.Contains(
                         "Gma.Modules.Notifications.Domain",
                         StringComparison.Ordinal) ||
                     source.Contains(

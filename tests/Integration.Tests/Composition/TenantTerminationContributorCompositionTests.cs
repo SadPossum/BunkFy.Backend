@@ -18,7 +18,7 @@ using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
 using Gma.Modules.AccessControl.Contracts;
 using Gma.Modules.AccessControl.Persistence;
-using Gma.Modules.Notifications.Application.Ports;
+using Gma.Modules.Notifications.Contracts;
 using Gma.Modules.Notifications.Persistence;
 using Gma.Modules.Organizations.Contracts;
 using Gma.Modules.Organizations.Persistence;

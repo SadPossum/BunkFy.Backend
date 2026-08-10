@@ -40,7 +40,7 @@ using Gma.Framework.Tasks.Infrastructure;
 using Gma.Framework.Tenancy;
 using Gma.Modules.Auth.Domain.Services;
 using Gma.Modules.Auth.Persistence;
-using Gma.Modules.Notifications.Application.Ports;
+using Gma.Modules.Notifications.Contracts;
 using Gma.Modules.Notifications.Persistence;
 using Gma.Modules.Organizations.Persistence;
 using Gma.Modules.TaskRuntime.Persistence;
