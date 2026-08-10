@@ -13,6 +13,8 @@ using Gma.Framework.Tenancy;
 using Gma.Framework.Tenancy.Infrastructure;
 using Gma.Framework.Tenancy.Scoping;
 using Gma.Modules.Notifications.Api;
+using Gma.Modules.Notifications.Application;
+using Gma.Modules.Notifications.Application.Ports;
 using Gma.Modules.Notifications.Domain.Aggregates;
 using Gma.Modules.Notifications.Persistence;
 using Gma.Modules.Tenancy.Api;
@@ -35,8 +37,18 @@ internal sealed class NotificationsApiTestApplication : IAsyncDisposable
     private const string JwtSigningKey = "notifications-api-test-signing-key-change-me-000000000000";
 
     private readonly WebApplication app;
+    private readonly ControllableNotificationStreamClock streamClock;
+    private readonly ControllableNotificationStreamPulse streamPulse;
 
-    private NotificationsApiTestApplication(WebApplication app) => this.app = app;
+    private NotificationsApiTestApplication(
+        WebApplication app,
+        ControllableNotificationStreamClock streamClock,
+        ControllableNotificationStreamPulse streamPulse)
+    {
+        this.app = app;
+        this.streamClock = streamClock;
+        this.streamPulse = streamPulse;
+    }
 
     public static async Task<NotificationsApiTestApplication> CreateAsync(
         bool tenancyEnabled = true,
@@ -45,6 +57,8 @@ internal sealed class NotificationsApiTestApplication : IAsyncDisposable
         InMemoryDatabaseRoot databaseRoot = new();
         string databaseName = $"notifications-api-{Guid.NewGuid():N}";
         string tenancyEnabledValue = tenancyEnabled.ToString();
+        ControllableNotificationStreamClock streamClock = new(DateTimeOffset.UtcNow);
+        ControllableNotificationStreamPulse streamPulse = new();
         WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
         {
             EnvironmentName = "Integration"
@@ -59,6 +73,10 @@ internal sealed class NotificationsApiTestApplication : IAsyncDisposable
             ["Tenancy:LocalDefaultScopeId"] = "default",
             ["Notifications:DurableStreams:BatchSize"] = "10",
             ["Notifications:DurableStreams:PollInterval"] = "00:00:01",
+            ["Notifications:DurableStreams:HeartbeatInterval"] = "00:00:05",
+            ["Notifications:DurableStreams:AuthorizationRevalidationInterval"] = "00:00:05",
+            ["Notifications:DurableStreams:MaximumConnectionLifetime"] = "00:01:00",
+            ["Notifications:DurableStreams:MonitorEnabled"] = "false",
             ["Caching:Enabled"] = "false"
         });
 
@@ -86,8 +104,11 @@ internal sealed class NotificationsApiTestApplication : IAsyncDisposable
         builder.Services.AddAuthorization();
         if (scopeAuthorizer is not null)
         {
-            builder.Services.AddSingleton<INotificationUserScopeAuthorizer>(scopeAuthorizer);
+            builder.Services.AddSingleton(scopeAuthorizer);
         }
+
+        builder.Services.AddSingleton<TimeProvider>(streamClock);
+        builder.Services.AddSingleton<INotificationStreamPulse>(streamPulse);
 
         builder.Services.AddDbContext<NotificationsDbContext>(
             options => options.UseInMemoryDatabase(databaseName, databaseRoot));
@@ -105,10 +126,16 @@ internal sealed class NotificationsApiTestApplication : IAsyncDisposable
         app.MapModules();
 
         await app.StartAsync().ConfigureAwait(false);
-        return new NotificationsApiTestApplication(app);
+        return new NotificationsApiTestApplication(app, streamClock, streamPulse);
     }
 
     public HttpClient CreateClient() => this.app.GetTestClient();
+
+    public void RevalidateStreamAccess(NotificationStreamKind streamKind)
+    {
+        this.streamClock.Advance(TimeSpan.FromSeconds(6));
+        this.streamPulse.Pulse(streamKind);
+    }
 
     public static string CreateAccessToken(string scopeId, string userId)
     {

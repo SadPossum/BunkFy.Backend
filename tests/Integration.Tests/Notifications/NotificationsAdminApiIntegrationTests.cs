@@ -5,9 +5,11 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Gma.Framework.Administration;
 using Gma.Modules.Notifications.Admin.Contracts;
+using Gma.Modules.Notifications.Application;
 using Gma.Modules.Notifications.Contracts;
 using Integration.Tests.Support;
 using Xunit;
+using DomainBroadcastAudience = Gma.Modules.Notifications.Domain.ValueObjects.NotificationBroadcastAudience;
 
 public sealed class NotificationsAdminApiIntegrationTests
 {
@@ -124,6 +126,67 @@ public sealed class NotificationsAdminApiIntegrationTests
         Assert.Equal(1, tenantBInbox.UnreadCount);
     }
 
+    [Theory]
+    [InlineData(
+        "/api/admin/notifications/history/stream?afterSequence=0",
+        NotificationsAdminOperationNames.HistoryStream,
+        NotificationStreamKind.History,
+        false)]
+    [InlineData(
+        "/api/admin/notifications/broadcasts/inbox/stream?afterSequence=0",
+        NotificationsAdminOperationNames.BroadcastsInboxStream,
+        NotificationStreamKind.Broadcasts,
+        true)]
+    [Trait("Category", "Integration")]
+    public async Task Admin_sse_streams_close_on_revocation_without_duplicate_operation_audits(
+        string requestUri,
+        string operationName,
+        NotificationStreamKind streamKind,
+        bool broadcast)
+    {
+        RevocableAdminAuthorizationService authorization = new();
+        await using NotificationsAdminApiTestApplication application =
+            await NotificationsAdminApiTestApplication.CreateAsync(authorization);
+        const string expectedTitle = "Admin access lease fixture";
+        if (broadcast)
+        {
+            await application.AddBroadcastAsync(
+                "tenant-a",
+                DomainBroadcastAudience.TenantAdmins,
+                Guid.Parse("67676767-6767-6767-6767-676767676767"),
+                expectedTitle,
+                1);
+        }
+        else
+        {
+            await application.AddNotificationAsync(
+                "tenant-a",
+                "user-a",
+                Guid.Parse("89898989-8989-8989-8989-898989898989"),
+                expectedTitle,
+                1);
+        }
+
+        using HttpClient client = CreateAuthenticatedClient(application, "owner-actor", "tenant-a", "tenant-a");
+        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(10));
+        using HttpResponseMessage response = await client.SendAsync(
+            new HttpRequestMessage(HttpMethod.Get, requestUri),
+            HttpCompletionOption.ResponseHeadersRead,
+            timeout.Token);
+        response.EnsureSuccessStatusCode();
+        await using Stream stream = await response.Content.ReadAsStreamAsync(timeout.Token);
+        using StreamReader reader = new(stream);
+        string firstData = await ReadFirstServerSentEventDataAsync(reader, timeout.Token);
+
+        authorization.Deny();
+        application.RevalidateStreamAccess(streamKind);
+        await ReadServerSentEventStreamToEndAsync(reader, timeout.Token);
+
+        Assert.Contains(expectedTitle, firstData, StringComparison.Ordinal);
+        Assert.True(authorization.AuthorizationCalls >= 2);
+        Assert.Equal(1, await application.CountAuditEntriesAsync(operationName));
+    }
+
     private static HttpClient CreateAuthenticatedClient(
         NotificationsAdminApiTestApplication application,
         string actorId,
@@ -186,5 +249,53 @@ public sealed class NotificationsAdminApiIntegrationTests
         T? result = await response.Content.ReadFromJsonAsync<T>();
         Assert.NotNull(result);
         return result;
+    }
+
+    private static async Task<string> ReadFirstServerSentEventDataAsync(
+        StreamReader reader,
+        CancellationToken cancellationToken)
+    {
+        while (await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false) is { } line)
+        {
+            if (line.StartsWith("data:", StringComparison.Ordinal))
+            {
+                return line;
+            }
+        }
+
+        throw new InvalidOperationException("The notification stream ended before producing an SSE data frame.");
+    }
+
+    private static async Task ReadServerSentEventStreamToEndAsync(
+        StreamReader reader,
+        CancellationToken cancellationToken)
+    {
+        while (await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false) is not null)
+        {
+        }
+    }
+
+    private sealed class RevocableAdminAuthorizationService : IAdminAuthorizationService
+    {
+        private int authorizationCalls;
+        private int denied;
+
+        public int AuthorizationCalls => Volatile.Read(ref this.authorizationCalls);
+
+        public void Deny() => Volatile.Write(ref this.denied, 1);
+
+        public Task<AdminAuthorizationResult> AuthorizeAsync(
+            AdminActor actor,
+            AdminPermission permission,
+            string? tenantId,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Interlocked.Increment(ref this.authorizationCalls);
+            AdminAuthorizationResult result = Volatile.Read(ref this.denied) == 0
+                ? AdminAuthorizationResult.Allowed()
+                : AdminAuthorizationResult.Denied("Access was revoked.");
+            return Task.FromResult(result);
+        }
     }
 }

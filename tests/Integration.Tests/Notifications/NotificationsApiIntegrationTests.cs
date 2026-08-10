@@ -7,6 +7,7 @@ using System.Security.Claims;
 using Gma.Framework.AccessControl;
 using Gma.Framework.Scoping;
 using Gma.Modules.Notifications.Api;
+using Gma.Modules.Notifications.Application;
 using Gma.Modules.Notifications.Contracts;
 using Integration.Tests.Support;
 using Xunit;
@@ -224,6 +225,63 @@ public sealed class NotificationsApiIntegrationTests
         Assert.Contains("Streamed announcement", broadcastData, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(
+        "/api/notifications/history/stream?afterSequence=0",
+        NotificationStreamKind.History,
+        false)]
+    [InlineData(
+        "/api/notifications/broadcasts/stream?afterSequence=0",
+        NotificationStreamKind.Broadcasts,
+        true)]
+    [Trait("Category", "Integration")]
+    public async Task User_sse_streams_close_when_scope_access_is_revoked(
+        string requestUri,
+        NotificationStreamKind streamKind,
+        bool broadcast)
+    {
+        RevocableScopeAuthorizer authorizer = new();
+        await using NotificationsApiTestApplication application = await NotificationsApiTestApplication
+            .CreateAsync(scopeAuthorizer: authorizer);
+        const string expectedTitle = "Access lease fixture";
+        if (broadcast)
+        {
+            await application.AddBroadcastAsync(
+                "tenant-a",
+                DomainBroadcastAudience.TenantUsers,
+                Guid.Parse("45454545-4545-4545-4545-454545454545"),
+                expectedTitle,
+                1);
+        }
+        else
+        {
+            await application.AddNotificationAsync(
+                "tenant-a",
+                "user-a",
+                Guid.Parse("34343434-3434-3434-3434-343434343434"),
+                expectedTitle,
+                1);
+        }
+
+        using HttpClient client = CreateAuthenticatedClient(application, "tenant-a", "user-a");
+        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(10));
+        using HttpResponseMessage response = await client.SendAsync(
+            new HttpRequestMessage(HttpMethod.Get, requestUri),
+            HttpCompletionOption.ResponseHeadersRead,
+            timeout.Token);
+        response.EnsureSuccessStatusCode();
+        await using Stream stream = await response.Content.ReadAsStreamAsync(timeout.Token);
+        using StreamReader reader = new(stream);
+        string firstData = await ReadFirstServerSentEventDataAsync(reader, timeout.Token);
+
+        authorizer.Deny();
+        application.RevalidateStreamAccess(streamKind);
+        await ReadServerSentEventStreamToEndAsync(reader, timeout.Token);
+
+        Assert.Contains(expectedTitle, firstData, StringComparison.Ordinal);
+        Assert.True(authorizer.AuthorizationCalls >= 2);
+    }
+
     [Fact]
     [Trait("Category", "Integration")]
     public async Task User_broadcast_api_uses_default_tenant_scope_when_tenancy_is_disabled()
@@ -311,6 +369,13 @@ public sealed class NotificationsApiIntegrationTests
             .ReadAsStreamAsync(cancellationToken)
             .ConfigureAwait(false);
         using StreamReader reader = new(stream);
+        return await ReadFirstServerSentEventDataAsync(reader, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task<string> ReadFirstServerSentEventDataAsync(
+        StreamReader reader,
+        CancellationToken cancellationToken)
+    {
         while (await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false) is { } line)
         {
             if (line.StartsWith("data:", StringComparison.Ordinal))
@@ -320,6 +385,15 @@ public sealed class NotificationsApiIntegrationTests
         }
 
         throw new InvalidOperationException("The notification stream ended before producing an SSE data frame.");
+    }
+
+    private static async Task ReadServerSentEventStreamToEndAsync(
+        StreamReader reader,
+        CancellationToken cancellationToken)
+    {
+        while (await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false) is not null)
+        {
+        }
     }
 
     private sealed class DelegatedScopeAuthorizer(string allowedScopeId, string allowedSubjectId)
@@ -335,6 +409,27 @@ public sealed class NotificationsApiIntegrationTests
             return Task.FromResult(
                 string.Equals(subject.Id, allowedSubjectId, StringComparison.Ordinal) &&
                 string.Equals(scopeContext.ScopeId, allowedScopeId, StringComparison.Ordinal));
+        }
+    }
+
+    private sealed class RevocableScopeAuthorizer : INotificationUserScopeAuthorizer
+    {
+        private int authorizationCalls;
+        private int denied;
+
+        public int AuthorizationCalls => Volatile.Read(ref this.authorizationCalls);
+
+        public void Deny() => Volatile.Write(ref this.denied, 1);
+
+        public Task<bool> AuthorizeAsync(
+            ClaimsPrincipal principal,
+            AccessSubject subject,
+            IScopeContext scopeContext,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Interlocked.Increment(ref this.authorizationCalls);
+            return Task.FromResult(Volatile.Read(ref this.denied) == 0);
         }
     }
 }

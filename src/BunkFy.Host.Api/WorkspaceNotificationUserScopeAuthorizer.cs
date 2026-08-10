@@ -12,6 +12,13 @@ internal sealed class WorkspaceNotificationUserScopeAuthorizer(
     IAccessControlRoleProvisioner accessControl)
     : INotificationUserScopeAuthorizer
 {
+    private static readonly IReadOnlyCollection<string> WorkspaceMembershipRoles =
+    [
+        WorkspaceAccessRoles.Owner,
+        WorkspaceAccessRoles.MembershipMarker,
+        WorkspaceAccessRoles.LegacyMember
+    ];
+
     public async Task<bool> AuthorizeAsync(
         ClaimsPrincipal principal,
         AccessSubject subject,
@@ -35,19 +42,9 @@ internal sealed class WorkspaceNotificationUserScopeAuthorizer(
 
         AccessScope workspaceScope = AccessScope.Create(
             AccessScopeSegment.Create("tenant", workspaceId));
-        return await accessControl.HasAssignmentAsync(
+        return await accessControl.HasAnyAssignmentAsync(
                 subject,
-                WorkspaceAccessRoles.Owner,
-                workspaceScope,
-                cancellationToken).ConfigureAwait(false) ||
-            await accessControl.HasAssignmentAsync(
-                subject,
-                WorkspaceAccessRoles.MembershipMarker,
-                workspaceScope,
-                cancellationToken).ConfigureAwait(false) ||
-            await accessControl.HasAssignmentAsync(
-                subject,
-                WorkspaceAccessRoles.LegacyMember,
+                WorkspaceMembershipRoles,
                 workspaceScope,
                 cancellationToken).ConfigureAwait(false);
     }

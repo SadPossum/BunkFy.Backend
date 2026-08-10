@@ -23,6 +23,8 @@ using Gma.Modules.Administration.Application;
 using Gma.Modules.Administration.Persistence;
 using Gma.Modules.Administration.Persistence.Entities;
 using Gma.Modules.Notifications.AdminApi;
+using Gma.Modules.Notifications.Application;
+using Gma.Modules.Notifications.Application.Ports;
 using Gma.Modules.Notifications.Contracts;
 using Gma.Modules.Notifications.Domain.Aggregates;
 using Gma.Modules.Notifications.Persistence;
@@ -35,6 +37,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
+using DomainBroadcastAudience = Gma.Modules.Notifications.Domain.ValueObjects.NotificationBroadcastAudience;
 using DomainNotificationSeverity = Gma.Modules.Notifications.Domain.ValueObjects.NotificationSeverity;
 
 internal sealed class NotificationsAdminApiTestApplication : IAsyncDisposable
@@ -44,13 +47,26 @@ internal sealed class NotificationsAdminApiTestApplication : IAsyncDisposable
     private const string JwtSigningKey = "notifications-admin-api-test-signing-key-change-me-000000";
 
     private readonly WebApplication app;
+    private readonly ControllableNotificationStreamClock streamClock;
+    private readonly ControllableNotificationStreamPulse streamPulse;
 
-    private NotificationsAdminApiTestApplication(WebApplication app) => this.app = app;
+    private NotificationsAdminApiTestApplication(
+        WebApplication app,
+        ControllableNotificationStreamClock streamClock,
+        ControllableNotificationStreamPulse streamPulse)
+    {
+        this.app = app;
+        this.streamClock = streamClock;
+        this.streamPulse = streamPulse;
+    }
 
-    public static async Task<NotificationsAdminApiTestApplication> CreateAsync()
+    public static async Task<NotificationsAdminApiTestApplication> CreateAsync(
+        IAdminAuthorizationService? authorizationOverride = null)
     {
         InMemoryDatabaseRoot databaseRoot = new();
         string databaseName = $"notifications-admin-api-{Guid.NewGuid():N}";
+        ControllableNotificationStreamClock streamClock = new(DateTimeOffset.UtcNow);
+        ControllableNotificationStreamPulse streamPulse = new();
         WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
         {
             EnvironmentName = "Integration"
@@ -65,6 +81,10 @@ internal sealed class NotificationsAdminApiTestApplication : IAsyncDisposable
             ["AccessControl:Bootstrap:OwnerRoleName"] = "owner",
             ["Notifications:DurableStreams:BatchSize"] = "10",
             ["Notifications:DurableStreams:PollInterval"] = "00:00:01",
+            ["Notifications:DurableStreams:HeartbeatInterval"] = "00:00:05",
+            ["Notifications:DurableStreams:AuthorizationRevalidationInterval"] = "00:00:05",
+            ["Notifications:DurableStreams:MaximumConnectionLifetime"] = "00:01:00",
+            ["Notifications:DurableStreams:MonitorEnabled"] = "false",
             ["Caching:Enabled"] = "false"
         });
 
@@ -94,6 +114,8 @@ internal sealed class NotificationsAdminApiTestApplication : IAsyncDisposable
                 };
             });
         builder.Services.AddAuthorization();
+        builder.Services.AddSingleton<TimeProvider>(streamClock);
+        builder.Services.AddSingleton<INotificationStreamPulse>(streamPulse);
 
         builder.Services.AddDbContext<AdminDbContext>(
             options => options.UseInMemoryDatabase(databaseName, databaseRoot));
@@ -104,6 +126,10 @@ internal sealed class NotificationsAdminApiTestApplication : IAsyncDisposable
         builder.Services.AddDbContext<NotificationsDbContext>(
             options => options.UseInMemoryDatabase(databaseName, databaseRoot));
         builder.AddAdminApiModule<NotificationsAdminApiModule>();
+        if (authorizationOverride is not null)
+        {
+            builder.Services.AddSingleton(authorizationOverride);
+        }
 
         WebApplication app = builder.Build();
         app.UseAuthentication();
@@ -111,10 +137,16 @@ internal sealed class NotificationsAdminApiTestApplication : IAsyncDisposable
         app.MapAdminApiModules();
 
         await app.StartAsync().ConfigureAwait(false);
-        return new NotificationsAdminApiTestApplication(app);
+        return new NotificationsAdminApiTestApplication(app, streamClock, streamPulse);
     }
 
     public HttpClient CreateClient() => this.app.GetTestClient();
+
+    public void RevalidateStreamAccess(NotificationStreamKind streamKind)
+    {
+        this.streamClock.Advance(TimeSpan.FromSeconds(6));
+        this.streamPulse.Pulse(streamKind);
+    }
 
     public static string CreateAccessToken(string actorId, string? scopeId)
     {
@@ -187,6 +219,39 @@ internal sealed class NotificationsAdminApiTestApplication : IAsyncDisposable
             .SetValue(notification, streamSequence);
 
         dbContext.UserNotifications.Add(notification);
+        await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task AddBroadcastAsync(
+        string scopeId,
+        DomainBroadcastAudience audience,
+        Guid broadcastId,
+        string title,
+        long streamSequence,
+        CancellationToken cancellationToken = default)
+    {
+        using IServiceScope scope = this.app.Services.CreateScope();
+        ITenantContextAccessor tenantContext = scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>();
+        tenantContext.SetTenant(scopeId);
+        NotificationsDbContext dbContext = scope.ServiceProvider.GetRequiredService<NotificationsDbContext>();
+        NotificationBroadcast broadcast = NotificationBroadcast.Create(
+            broadcastId,
+            scopeId,
+            audience,
+            "notifications",
+            "system.notice",
+            1,
+            title,
+            null,
+            DomainNotificationSeverity.Warning,
+            new DateTimeOffset(2026, 7, 5, 13, 0, 0, TimeSpan.Zero).AddMinutes(streamSequence),
+            new DateTimeOffset(2026, 7, 5, 13, 0, 0, TimeSpan.Zero).AddMinutes(streamSequence),
+            $$"""{"title":"{{title}}"}""").Value;
+        typeof(NotificationBroadcast)
+            .GetProperty(nameof(NotificationBroadcast.StreamSequence))!
+            .SetValue(broadcast, streamSequence);
+
+        dbContext.NotificationBroadcasts.Add(broadcast);
         await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
