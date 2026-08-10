@@ -1,35 +1,35 @@
 namespace BunkFy.Extensions.Workspaces;
 
-using Gma.Framework.Results;
 using Gma.Modules.Auth.Contracts;
-using Gma.Modules.Organizations.Application;
-using Gma.Modules.Organizations.Application.Ports;
+using Gma.Modules.Organizations.Contracts;
 using Microsoft.Extensions.Options;
 
 internal sealed class BunkFyWorkspaceAdmissionPolicy(
     IAuthMemberContactReader contacts,
     IOptions<BunkFyWorkspacesOptions> workspaceOptions,
     IOptions<BunkFyWorkspaceAdmissionOptions> admissionOptions)
-    : IOrganizationAdmissionPolicy
+    : IOrganizationCreationAdmissionPolicy
 {
-    public async Task<Result> CanCreateOrganizationAsync(
-        string subjectId,
-        CancellationToken cancellationToken)
+    public async ValueTask<OrganizationCreationAdmissionDecision> EvaluateAsync(
+        OrganizationCreationAdmissionRequest request,
+        CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         BunkFyWorkspaceAdmissionOptions policy = admissionOptions.Value;
         if (policy.WorkspaceCreation != BunkFyWorkspaceCreationMode.SelfService)
         {
-            return Result.Failure(OrganizationApplicationErrors.SelfServiceCreationDisabled);
+            return OrganizationCreationAdmissionDecision.Denied;
         }
 
         if (!policy.RequireVerifiedEmailForWorkspaceCreation)
         {
-            return Result.Success();
+            return OrganizationCreationAdmissionDecision.Allowed;
         }
 
-        if (!Guid.TryParse(subjectId, out Guid memberId))
+        if (!Guid.TryParse(request.SubjectId, out Guid memberId))
         {
-            return Result.Failure(OrganizationApplicationErrors.SubjectVerificationRequired);
+            return OrganizationCreationAdmissionDecision.SubjectVerificationRequired;
         }
 
         string? verifiedEmail = await contacts.GetPreferredVerifiedEmailAsync(
@@ -38,7 +38,7 @@ internal sealed class BunkFyWorkspaceAdmissionPolicy(
             cancellationToken).ConfigureAwait(false);
 
         return string.IsNullOrWhiteSpace(verifiedEmail)
-            ? Result.Failure(OrganizationApplicationErrors.SubjectVerificationRequired)
-            : Result.Success();
+            ? OrganizationCreationAdmissionDecision.SubjectVerificationRequired
+            : OrganizationCreationAdmissionDecision.Allowed;
     }
 }

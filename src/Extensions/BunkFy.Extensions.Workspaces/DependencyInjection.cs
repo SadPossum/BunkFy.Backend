@@ -5,7 +5,6 @@ using Gma.Framework.Messaging;
 using Gma.Framework.Observability;
 using Gma.Modules.AccessControl.Contracts;
 using Gma.Modules.Organizations.Contracts;
-using Gma.Modules.Organizations.Application.Ports;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -129,7 +128,9 @@ public static class DependencyInjection
                 passwordRegistrationEnabled,
                 externalRegistrationEnabled,
                 selfServiceWorkspaceCreationEnabled)));
-        services.Replace(ServiceDescriptor.Scoped<IOrganizationAdmissionPolicy, BunkFyWorkspaceAdmissionPolicy>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<
+            IOrganizationCreationAdmissionPolicy,
+            BunkFyWorkspaceAdmissionPolicy>());
 
         return services;
     }

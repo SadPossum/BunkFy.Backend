@@ -1,7 +1,7 @@
 namespace BunkFy.Extensions.Workspaces.Tests;
 
-using Gma.Framework.Results;
 using Gma.Modules.Auth.Contracts;
+using Gma.Modules.Organizations.Contracts;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -11,7 +11,7 @@ using Xunit;
 public sealed class BunkFyWorkspaceAdmissionTests
 {
     [Fact]
-    public void Registration_binds_explicit_policy_and_replaces_the_organizations_admission_port()
+    public void Registration_composes_explicit_policy_through_organizations_contracts()
     {
         ConfigurationManager configuration = new();
         configuration["Auth:SelfRegistration:PasswordEnabled"] = "true";
@@ -33,8 +33,7 @@ public sealed class BunkFyWorkspaceAdmissionTests
         Assert.Equal(BunkFyWorkspaceCreationMode.SelfService, options.WorkspaceCreation);
         Assert.True(options.RequireVerifiedEmailForWorkspaceCreation);
         Assert.Contains(services, descriptor =>
-            descriptor.ServiceType.FullName ==
-            "Gma.Modules.Organizations.Application.Ports.IOrganizationAdmissionPolicy" &&
+            descriptor.ServiceType == typeof(IOrganizationCreationAdmissionPolicy) &&
             descriptor.ImplementationType == typeof(BunkFyWorkspaceAdmissionPolicy));
     }
 
@@ -132,10 +131,11 @@ public sealed class BunkFyWorkspaceAdmissionTests
             BunkFyWorkspaceCreationMode.Disabled,
             requireVerifiedEmail: true);
 
-        Result result = await policy.CanCreateOrganizationAsync(Guid.NewGuid().ToString("D"), CancellationToken.None);
+        OrganizationCreationAdmissionDecision decision = await policy.EvaluateAsync(
+            Request(Guid.NewGuid().ToString("D")),
+            CancellationToken.None);
 
-        Assert.True(result.IsFailure);
-        Assert.Equal("Organizations.SelfServiceCreationDisabled", result.Error.Code);
+        Assert.Equal(OrganizationCreationAdmissionDecision.Denied, decision);
         Assert.Equal(0, contacts.LookupCount);
     }
 
@@ -148,9 +148,11 @@ public sealed class BunkFyWorkspaceAdmissionTests
             BunkFyWorkspaceCreationMode.SelfService,
             requireVerifiedEmail: false);
 
-        Result result = await policy.CanCreateOrganizationAsync("local-subject", CancellationToken.None);
+        OrganizationCreationAdmissionDecision decision = await policy.EvaluateAsync(
+            Request("local-subject"),
+            CancellationToken.None);
 
-        Assert.True(result.IsSuccess);
+        Assert.Equal(OrganizationCreationAdmissionDecision.Allowed, decision);
         Assert.Equal(0, contacts.LookupCount);
     }
 
@@ -165,10 +167,13 @@ public sealed class BunkFyWorkspaceAdmissionTests
             BunkFyWorkspaceCreationMode.SelfService,
             requireVerifiedEmail: true);
 
-        Result result = await policy.CanCreateOrganizationAsync(subjectId, CancellationToken.None);
+        OrganizationCreationAdmissionDecision decision = await policy.EvaluateAsync(
+            Request(subjectId),
+            CancellationToken.None);
 
-        Assert.True(result.IsFailure);
-        Assert.Equal("Organizations.SubjectVerificationRequired", result.Error.Code);
+        Assert.Equal(
+            OrganizationCreationAdmissionDecision.SubjectVerificationRequired,
+            decision);
     }
 
     [Fact]
@@ -181,9 +186,11 @@ public sealed class BunkFyWorkspaceAdmissionTests
             BunkFyWorkspaceCreationMode.SelfService,
             requireVerifiedEmail: true);
 
-        Result result = await policy.CanCreateOrganizationAsync(memberId.ToString("D"), CancellationToken.None);
+        OrganizationCreationAdmissionDecision decision = await policy.EvaluateAsync(
+            Request(memberId.ToString("D")),
+            CancellationToken.None);
 
-        Assert.True(result.IsSuccess);
+        Assert.Equal(OrganizationCreationAdmissionDecision.Allowed, decision);
         Assert.Equal("bunkfy-auth", contacts.LastScopeId);
         Assert.Equal(memberId, contacts.LastMemberId);
     }
@@ -200,6 +207,14 @@ public sealed class BunkFyWorkspaceAdmissionTests
                 WorkspaceCreation = mode,
                 RequireVerifiedEmailForWorkspaceCreation = requireVerifiedEmail
             }));
+
+    private static OrganizationCreationAdmissionRequest Request(string subjectId) =>
+        new(
+            Guid.Parse("11111111-1111-4111-8111-111111111111"),
+            "Harbor House",
+            "harbor-house",
+            subjectId,
+            $"user:{subjectId}");
 
     private sealed class RecordingContactReader(string? verifiedEmail) : IAuthMemberContactReader
     {

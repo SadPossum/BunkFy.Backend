@@ -135,6 +135,39 @@ public sealed class ModuleBoundaryTests
     }
 
     [Fact]
+    public void Workspace_extension_uses_organizations_through_its_contracts_facade()
+    {
+        ProjectFile extension = Assert.Single(
+            ProjectFile.All(),
+            project => string.Equals(
+                project.Name,
+                "BunkFy.Extensions.Workspaces",
+                StringComparison.Ordinal));
+        string[] organizationReferences = extension.ProjectReferences
+            .Where(reference => reference.Contains(
+                "Gma.Modules.Organizations.",
+                StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        string reference = Assert.Single(organizationReferences);
+        Assert.Contains(
+            "Gma.Modules.Organizations.Contracts",
+            reference,
+            StringComparison.OrdinalIgnoreCase);
+
+        string[] sourceOffenders = RepositoryPaths.EnumerateFiles(
+                "src/Extensions/BunkFy.Extensions.Workspaces",
+                "*.cs")
+            .Where(path => File.ReadAllText(path).Contains(
+                "Gma.Modules.Organizations.Application",
+                StringComparison.Ordinal))
+            .Select(RepositoryPaths.ToRepositoryPath)
+            .ToArray();
+
+        Assert.Empty(sourceOffenders);
+    }
+
+    [Fact]
     public void Reservation_guest_record_extension_uses_only_module_contracts()
     {
         ProjectFile extension = Assert.Single(
