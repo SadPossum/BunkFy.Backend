@@ -2,7 +2,7 @@
 
 Status: implemented and verified
 
-Active-session follow-up: implemented and verified locally.
+Active-session follow-up: published and exact-candidate verified.
 
 ## Objective
 
@@ -111,6 +111,27 @@ AccessControl `3fd0583`, GMA Auth `254c65e`, and GMA-Skeleton composition
 - Organizations and AccessControl repository verification, BunkFy migration/build
   gates, 2,115 non-Docker tests, focused Docker assurance/offboarding tests, OpenAPI
   drift, and preview Compose validation pass locally.
+
+### Active-Session Publication Evidence
+
+The 2026-08-10 active-session candidate passed its owning repository gates at
+the exact published revisions:
+
+- GMA Auth `254c65e4ecdf49f5d888d081b1d4122d6df752c0`: validation run
+  `31404110039` and security-baseline run `31404109907`;
+- GMA Skeleton `f208620c103e459182bbf021d7867375dee0ac6c`: Linux/Windows
+  validation run `31404187814`, CodeQL run `31404187852`, and
+  security-baseline run `31404187819`;
+- BunkFy Backend `e126b389b9b4a931064619b268913d50fa335cc0`:
+  Linux/Windows validation run `31404269579` and security-baseline run
+  `31404265887`; and
+- BunkFy product root `5b4159b0ed4e08cb986344539e956ee9cbc36dd3`:
+  consolidated validation run `31404534473`, C#/TypeScript CodeQL run
+  `31404534266`, and security-baseline run `31404535712`.
+
+The product lifecycle proof also passed once against both PostgreSQL and SQL
+Server, rejecting the same otherwise-unexpired bearer after sign-out. No Docker
+lane was repeated while GitHub validation was running.
 
 ## Deferred
 
