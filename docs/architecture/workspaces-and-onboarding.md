@@ -155,6 +155,15 @@ The current frontend keeps workspace and property selection in one `WorkspacePro
 
 Email values are never used to discover and silently link an existing Staff profile. The current correlation is the server-inspected Organizations source plus authenticated subject; email is only a recipient constraint and display/contact fact verified against Auth-owned state.
 
+Organizations keeps recognized join-source metadata available across terminal
+states for its bounded retention window. Workspaces may use that metadata only
+to locate and return the existing application for the same currently admitted
+subject. A terminal source cannot create or mutate an application or reactivate
+an access plan. While an application is still `Submitted` and the source is
+active, a repeat submission may update the applicant draft; after the process
+advances, retries return its current outcome without retaining a
+PII-derived request fingerprint.
+
 ## Invitation And Enrollment Security
 
 - Invitation and enrollment secrets use at least 256 bits from a cryptographically secure generator.
@@ -176,6 +185,9 @@ A QR code is a transport representation, not a separate authority mechanism. A o
 - Organization suspension blocks ordinary member access while preserving data and platform-admin recovery.
 - Removing a membership revokes workspace access but does not disable the global Auth account or other workspace memberships.
 - Staff suspension/departure triggers an explicit BunkFy offboarding process that suspends/removes the organization membership and scoped grants according to product policy.
+- Ordinary product and rehearsal offboarding uses that Staff lifecycle; direct
+  Organizations membership mutation is denied so it cannot bypass Staff and
+  access convergence.
 - Access removal takes effect before background cleanup is considered complete. Retried events cannot restore a newer suspension/removal decision.
 - Owner departure requires ownership transfer or another active owner. The last owner cannot be removed, suspended, or downgraded accidentally.
 - Sessions remain global. High-risk account compromise uses Auth session revocation; ordinary workspace offboarding uses membership/grant revocation.

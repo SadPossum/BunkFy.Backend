@@ -293,6 +293,182 @@ public sealed class WorkspaceStaffOnboardingFlowTests
         Assert.Empty(applications.Applications);
     }
 
+    [Theory]
+    [InlineData(WorkspaceStaffOnboardingSourceKind.Invitation)]
+    [InlineData(WorkspaceStaffOnboardingSourceKind.EnrollmentLink)]
+    public async Task Terminal_source_replay_returns_the_existing_application_without_reopening_it(
+        WorkspaceStaffOnboardingSourceKind sourceKind)
+    {
+        Guid sourceId = Guid.NewGuid();
+        WorkspaceStaffOnboardingSource domainSource = sourceKind ==
+            WorkspaceStaffOnboardingSourceKind.Invitation
+                ? WorkspaceStaffOnboardingSource.Invitation
+                : WorkspaceStaffOnboardingSource.EnrollmentLink;
+        WorkspaceStaffOnboarding application = WorkspaceStaffOnboarding.Create(
+            Guid.NewGuid(),
+            WorkspaceStaffOnboardingTests.OrganizationId.ToString("D"),
+            domainSource,
+            sourceId,
+            WorkspaceStaffOnboardingTests.SubjectId,
+            "verified@example.test",
+            "Ada Operator",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            WorkspaceStaffOnboardingTests.Now).Value;
+        Result accepted = domainSource == WorkspaceStaffOnboardingSource.Invitation
+            ? application.ObserveInvitationAccepted(
+                WorkspaceStaffOnboardingTests.Now.AddMinutes(1))
+            : application.ObserveClaimAccepted(
+                Guid.NewGuid(),
+                1,
+                WorkspaceStaffOnboardingTests.Now.AddMinutes(1));
+        Assert.True(accepted.IsSuccess, accepted.Error.Code);
+        Assert.True(application.MarkStaffReady(
+            Guid.NewGuid(),
+            WorkspaceStaffOnboardingTests.Now.AddMinutes(2)).IsSuccess);
+        Assert.True(application.Complete(
+            WorkspaceStaffOnboardingTests.Now.AddMinutes(3)).IsSuccess);
+        long completedVersion = application.Version;
+
+        FakeRepository applications = new(application);
+        FakeJoinTokenInspector tokens = new(
+            WorkspaceStaffOnboardingTests.OrganizationId,
+            sourceId,
+            OrganizationInvitationStatus.Accepted,
+            OrganizationEnrollmentLinkStatus.Disabled);
+        using ServiceProvider provider = CreateProvider(
+            applications,
+            new FakeStaffProvisioner(),
+            new FakeAccessControl(),
+            tokens);
+        WorkspaceStaffAccessPlan plan = (await provider
+            .GetRequiredService<IWorkspaceStaffAccessPlanRepository>()
+            .GetAsync(sourceId, CancellationToken.None))!;
+        Assert.True(plan.Supersede(
+            WorkspaceStaffOnboardingTests.Now.AddMinutes(4)).IsSuccess);
+
+        Result<WorkspaceStaffOnboardingDto> replayed = await provider
+            .GetRequiredService<IWorkspaceStaffOnboardingSubmitter>()
+            .SubmitAsync(
+                new SubmitWorkspaceStaffOnboardingCommand(
+                    sourceKind,
+                    "secret-token",
+                    WorkspaceStaffOnboardingTests.SubjectId,
+                    "Changed after completion",
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null),
+                CancellationToken.None);
+
+        Assert.True(replayed.IsSuccess, replayed.Error.Code);
+        Assert.Equal(application.Id, replayed.Value.ApplicationId);
+        Assert.Equal(WorkspaceStaffOnboardingStatus.Completed, replayed.Value.Status);
+        Assert.Equal(completedVersion, application.Version);
+        Assert.Null(application.DisplayName);
+        Assert.Single(applications.Applications);
+        Assert.Equal(WorkspaceStaffAccessPlanState.Superseded, plan.Status);
+    }
+
+    [Theory]
+    [InlineData(WorkspaceStaffOnboardingSourceKind.Invitation)]
+    [InlineData(WorkspaceStaffOnboardingSourceKind.EnrollmentLink)]
+    public async Task Terminal_source_cannot_create_a_new_application(
+        WorkspaceStaffOnboardingSourceKind sourceKind)
+    {
+        Guid sourceId = Guid.NewGuid();
+        FakeRepository applications = new();
+        using ServiceProvider provider = CreateProvider(
+            applications,
+            new FakeStaffProvisioner(),
+            new FakeAccessControl(),
+            new FakeJoinTokenInspector(
+                WorkspaceStaffOnboardingTests.OrganizationId,
+                sourceId,
+                OrganizationInvitationStatus.Accepted,
+                OrganizationEnrollmentLinkStatus.Disabled));
+
+        Result<WorkspaceStaffOnboardingDto> result = await provider
+            .GetRequiredService<IWorkspaceStaffOnboardingSubmitter>()
+            .SubmitAsync(
+                new SubmitWorkspaceStaffOnboardingCommand(
+                    sourceKind,
+                    "secret-token",
+                    WorkspaceStaffOnboardingTests.SubjectId,
+                    "Ada Operator",
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null),
+                CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(
+            WorkspaceStaffOnboardingApplicationErrors.JoinTokenInvalid,
+            result.Error);
+        Assert.Empty(applications.Applications);
+    }
+
+    [Fact]
+    public async Task Terminal_source_replay_still_requires_current_auth_admission()
+    {
+        Guid sourceId = Guid.NewGuid();
+        WorkspaceStaffOnboarding application = WorkspaceStaffOnboarding.Create(
+            Guid.NewGuid(),
+            WorkspaceStaffOnboardingTests.OrganizationId.ToString("D"),
+            WorkspaceStaffOnboardingSource.Invitation,
+            sourceId,
+            WorkspaceStaffOnboardingTests.SubjectId,
+            "verified@example.test",
+            "Ada Operator",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            WorkspaceStaffOnboardingTests.Now).Value;
+        FakeAdmissionReader admissions = new() { Admission = null };
+        using ServiceProvider provider = CreateProvider(
+            new FakeRepository(application),
+            new FakeStaffProvisioner(),
+            new FakeAccessControl(),
+            new FakeJoinTokenInspector(
+                WorkspaceStaffOnboardingTests.OrganizationId,
+                sourceId,
+                OrganizationInvitationStatus.Accepted),
+            admissions);
+
+        Result<WorkspaceStaffOnboardingDto> result = await provider
+            .GetRequiredService<IWorkspaceStaffOnboardingSubmitter>()
+            .SubmitAsync(
+                new SubmitWorkspaceStaffOnboardingCommand(
+                    WorkspaceStaffOnboardingSourceKind.Invitation,
+                    "secret-token",
+                    WorkspaceStaffOnboardingTests.SubjectId,
+                    "Ada Operator",
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null),
+                CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(
+            WorkspaceStaffOnboardingApplicationErrors.VerifiedIdentityRequired,
+            result.Error);
+    }
+
     [Fact]
     public async Task Admission_requires_the_exact_source_subject_and_current_verified_email()
     {
@@ -854,7 +1030,13 @@ public sealed class WorkspaceStaffOnboardingFlowTests
                 0));
     }
 
-    private sealed class FakeJoinTokenInspector(Guid organizationId, Guid sourceId)
+    private sealed class FakeJoinTokenInspector(
+        Guid organizationId,
+        Guid sourceId,
+        OrganizationInvitationStatus invitationStatus =
+            OrganizationInvitationStatus.Pending,
+        OrganizationEnrollmentLinkStatus enrollmentStatus =
+            OrganizationEnrollmentLinkStatus.Active)
         : IOrganizationJoinTokenInspector
     {
         public Guid SourceId => sourceId;
@@ -870,7 +1052,7 @@ public sealed class WorkspaceStaffOnboardingFlowTests
                         "workspace",
                         false,
                         WorkspaceStaffOnboardingTests.Now.AddDays(1),
-                        OrganizationInvitationStatus.Pending),
+                        invitationStatus),
                     null));
 
         public Task<OrganizationJoinTokenInspection<OrganizationEnrollmentPreviewDto>> InspectEnrollmentAsync(
@@ -885,7 +1067,7 @@ public sealed class WorkspaceStaffOnboardingFlowTests
                         WorkspaceStaffOnboardingTests.Now.AddDays(1),
                         5,
                         OrganizationEnrollmentApprovalMode.RequiresApproval,
-                        OrganizationEnrollmentLinkStatus.Active),
+                        enrollmentStatus),
                     null));
     }
 

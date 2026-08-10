@@ -57,6 +57,13 @@ proved stable.
     supported three-identity rehearsal and required projection retries. It is
     not a replacement for Auth's durable credential throttles or future
     tenant/actor invitation-delivery quotas.
+12. A recognized terminal GMA join source may locate only the existing BunkFy
+    Staff-onboarding application for the same currently admitted subject. It
+    cannot create or mutate an application, reactivate an access plan, or
+    restore applicant data after redaction.
+13. Rehearsal cleanup follows BunkFy Staff lifecycle ownership. It must depart
+    synthetic Staff through the product policy instead of bypassing that policy
+    through direct GMA membership mutation.
 
 ## Delivery Slices
 
@@ -75,6 +82,11 @@ proved stable.
    through public APIs, verifies addresses through the captured delivery path,
    invokes the existing deployed invitation and enrollment verifiers, records
    minimized evidence, and performs explicit best-effort cleanup.
+6. Preserve same-subject application replay after GMA accepts or closes the
+   source. Treat source-plus-subject as the stable application identity: a
+   submitted draft remains editable while the source is active, while later
+   retries return the current immutable outcome without retaining a PII-derived
+   request fingerprint.
 
 ## Verification Cadence
 

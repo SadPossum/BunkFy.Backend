@@ -246,6 +246,29 @@ public sealed class WorkspaceStaffOnboardingTests
     }
 
     [Fact]
+    public void Exact_submission_replay_does_not_advance_the_aggregate()
+    {
+        WorkspaceStaffOnboarding application = CreateApplication();
+        long version = application.Version;
+        DateTimeOffset lastChangedAtUtc = application.LastChangedAtUtc;
+
+        Result replayed = application.UpdateSubmission(
+            " verified@example.test ",
+            " Ada Operator ",
+            " Ada Lovelace ",
+            " ada@workspace.test ",
+            " +1 555 0100 ",
+            " EMP-100 ",
+            " Manager ",
+            " Operations ",
+            Now.AddMinutes(1));
+
+        Assert.True(replayed.IsSuccess, replayed.Error.Code);
+        Assert.Equal(version, application.Version);
+        Assert.Equal(lastChangedAtUtc, application.LastChangedAtUtc);
+    }
+
+    [Fact]
     public void Data_rights_correction_normalizes_profile_and_preserves_verified_identity()
     {
         WorkspaceStaffOnboarding application = CreateApplication();

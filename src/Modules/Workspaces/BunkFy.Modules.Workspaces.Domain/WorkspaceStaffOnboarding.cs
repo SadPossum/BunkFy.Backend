@@ -134,6 +134,11 @@ public sealed partial class WorkspaceStaffOnboarding : ScopedAggregateRoot<Guid>
             return Result.Failure(WorkspaceStaffOnboardingErrors.Unavailable);
         }
 
+        if (this.MatchesSubmission(verifiedEmail, profile.Value))
+        {
+            return Result.Success();
+        }
+
         this.VerifiedAccountEmail = verifiedEmail;
         this.ApplyProfile(profile.Value);
         this.Advance(nowUtc);
@@ -311,6 +316,21 @@ public sealed partial class WorkspaceStaffOnboarding : ScopedAggregateRoot<Guid>
         this.JobTitle = profile.JobTitle;
         this.Department = profile.Department;
     }
+
+    private bool MatchesSubmission(
+        string verifiedAccountEmail,
+        WorkspaceStaffApplicantProfile profile) =>
+        string.Equals(
+            this.VerifiedAccountEmail,
+            verifiedAccountEmail,
+            StringComparison.Ordinal) &&
+        string.Equals(this.DisplayName, profile.DisplayName, StringComparison.Ordinal) &&
+        string.Equals(this.LegalName, profile.LegalName, StringComparison.Ordinal) &&
+        string.Equals(this.WorkEmail, profile.WorkEmail, StringComparison.Ordinal) &&
+        string.Equals(this.WorkPhone, profile.WorkPhone, StringComparison.Ordinal) &&
+        string.Equals(this.EmployeeNumber, profile.EmployeeNumber, StringComparison.Ordinal) &&
+        string.Equals(this.JobTitle, profile.JobTitle, StringComparison.Ordinal) &&
+        string.Equals(this.Department, profile.Department, StringComparison.Ordinal);
 
     private void RedactApplicantData()
     {

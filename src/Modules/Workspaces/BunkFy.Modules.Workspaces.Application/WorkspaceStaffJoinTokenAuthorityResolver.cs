@@ -5,7 +5,8 @@ using Gma.Modules.Organizations.Contracts;
 
 internal readonly record struct WorkspaceStaffJoinTokenAuthority(
     Guid OrganizationId,
-    Guid SourceId);
+    Guid SourceId,
+    bool AllowsSubmissionMutation);
 
 internal sealed class WorkspaceStaffJoinTokenAuthorityResolver(
     IOrganizationJoinTokenInspector joinTokens)
@@ -19,8 +20,11 @@ internal sealed class WorkspaceStaffJoinTokenAuthorityResolver(
         {
             OrganizationJoinTokenInspection<OrganizationInvitationPreviewDto> inspected =
                 await joinTokens.InspectInvitationAsync(token, cancellationToken).ConfigureAwait(false);
-            return inspected.Preview is { Status: OrganizationInvitationStatus.Pending } preview
-                ? new WorkspaceStaffJoinTokenAuthority(preview.OrganizationId, preview.InvitationId)
+            return inspected.Preview is { Status: not OrganizationInvitationStatus.Unknown } preview
+                ? new WorkspaceStaffJoinTokenAuthority(
+                    preview.OrganizationId,
+                    preview.InvitationId,
+                    preview.Status == OrganizationInvitationStatus.Pending)
                 : null;
         }
 
@@ -28,8 +32,11 @@ internal sealed class WorkspaceStaffJoinTokenAuthorityResolver(
         {
             OrganizationJoinTokenInspection<OrganizationEnrollmentPreviewDto> inspected =
                 await joinTokens.InspectEnrollmentAsync(token, cancellationToken).ConfigureAwait(false);
-            return inspected.Preview is { Status: OrganizationEnrollmentLinkStatus.Active } preview
-                ? new WorkspaceStaffJoinTokenAuthority(preview.OrganizationId, preview.EnrollmentLinkId)
+            return inspected.Preview is { Status: not OrganizationEnrollmentLinkStatus.Unknown } preview
+                ? new WorkspaceStaffJoinTokenAuthority(
+                    preview.OrganizationId,
+                    preview.EnrollmentLinkId,
+                    preview.Status == OrganizationEnrollmentLinkStatus.Active)
                 : null;
         }
 

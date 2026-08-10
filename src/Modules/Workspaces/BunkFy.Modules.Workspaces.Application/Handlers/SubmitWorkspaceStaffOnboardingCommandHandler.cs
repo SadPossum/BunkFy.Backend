@@ -76,16 +76,6 @@ internal sealed class SubmitWorkspaceStaffOnboardingCommandHandler(
                 WorkspaceStaffOnboardingSourceLockMode.Read,
                 requireOperational: true,
                 cancellationToken).ConfigureAwait(false);
-        WorkspaceStaffAccessPlan? plan = await plans.GetAsync(
-            authority.Value.SourceId,
-            cancellationToken).ConfigureAwait(false);
-        if (plan is null || plan.SourceKind != sourceKind ||
-            plan.Status != WorkspaceStaffAccessPlanState.Active)
-        {
-            return Result.Failure<WorkspaceStaffOnboardingDto>(
-                WorkspaceStaffOnboardingApplicationErrors.AccessPlanUnavailable);
-        }
-
         WorkspaceStaffOnboarding? application = lease.Application;
         if (lease.CoordinateExists && application is null)
         {
@@ -104,6 +94,29 @@ internal sealed class SubmitWorkspaceStaffOnboardingCommandHandler(
         {
             return Result.Failure<WorkspaceStaffOnboardingDto>(
                 WorkspaceStaffOnboardingApplicationErrors.VerifiedIdentityRequired);
+        }
+
+        if (application is not null &&
+            (!authority.Value.AllowsSubmissionMutation ||
+                application.Status != WorkspaceStaffOnboardingState.Submitted))
+        {
+            return Result.Success(application.ToDto());
+        }
+
+        if (application is null && !authority.Value.AllowsSubmissionMutation)
+        {
+            return Result.Failure<WorkspaceStaffOnboardingDto>(
+                WorkspaceStaffOnboardingApplicationErrors.JoinTokenInvalid);
+        }
+
+        WorkspaceStaffAccessPlan? plan = await plans.GetAsync(
+            authority.Value.SourceId,
+            cancellationToken).ConfigureAwait(false);
+        if (plan is null || plan.SourceKind != sourceKind ||
+            plan.Status != WorkspaceStaffAccessPlanState.Active)
+        {
+            return Result.Failure<WorkspaceStaffOnboardingDto>(
+                WorkspaceStaffOnboardingApplicationErrors.AccessPlanUnavailable);
         }
 
         DateTimeOffset nowUtc = clock.UtcNow;
