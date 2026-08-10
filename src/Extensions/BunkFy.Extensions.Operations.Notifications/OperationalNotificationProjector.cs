@@ -8,7 +8,7 @@ using BunkFy.Modules.Workspaces.Contracts;
 using Gma.Framework.AccessControl;
 using Gma.Modules.Notifications.Application.Ports;
 using Gma.Modules.Notifications.Contracts;
-using Gma.Modules.Organizations.Application.Ports;
+using Gma.Modules.Organizations.Contracts;
 
 internal sealed class OperationalNotificationProjector(
     IStaffPropertyAudienceReader audienceReader,
@@ -133,7 +133,8 @@ internal sealed class OperationalNotificationProjector(
         }
 
         List<string> allowed = new(candidates.Length);
-        foreach (string[] batch in candidates.Chunk(IOrganizationAccessCandidateFilter.MaximumCandidateCount))
+        foreach (string[] batch in candidates.Chunk(
+            OrganizationAccessContract.MaximumCandidateCount))
         {
             IReadOnlyList<string> filtered = await organizationAccess
                 .FilterAllowedAsync(organizationId, batch, cancellationToken)

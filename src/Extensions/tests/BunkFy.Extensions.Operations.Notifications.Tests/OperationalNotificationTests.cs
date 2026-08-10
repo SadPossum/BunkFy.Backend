@@ -13,7 +13,7 @@ using Gma.Framework.Notifications;
 using Gma.Framework.Tenancy;
 using Gma.Modules.Notifications.Application.Ports;
 using Gma.Modules.Notifications.Contracts;
-using Gma.Modules.Organizations.Application.Ports;
+using Gma.Modules.Organizations.Contracts;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 using ContractNotificationSeverity =
@@ -371,6 +371,30 @@ public sealed class OperationalNotificationTests
     }
 
     [Fact]
+    public async Task Membership_authority_failure_propagates_without_projecting_notifications()
+    {
+        var notifications = new CapturingProjector();
+        var projector = CreateProjector(
+            new TestAudienceReader(["user-a"]),
+            new TestWorkspaceOwnerAudienceReader([]),
+            new ThrowingOrganizationAccessCandidateFilter(),
+            notifications);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            new ReservationCancelledNotificationHandler(projector).HandleAsync(
+                new ReservationCancelledIntegrationEvent(
+                    Guid.NewGuid(),
+                    ScopeId,
+                    Now,
+                    Guid.NewGuid(),
+                    Guid.NewGuid(),
+                    3),
+                CancellationToken.None));
+
+        Assert.Empty(notifications.Events);
+    }
+
+    [Fact]
     public async Task Invalid_product_scope_fails_before_any_notification_is_projected()
     {
         var notifications = new CapturingProjector();
@@ -708,6 +732,17 @@ public sealed class OperationalNotificationTests
                 : candidates.Where(this.allowed.Contains).ToArray();
             return Task.FromResult(result);
         }
+    }
+
+    private sealed class ThrowingOrganizationAccessCandidateFilter
+        : IOrganizationAccessCandidateFilter
+    {
+        public Task<IReadOnlyList<string>> FilterAllowedAsync(
+            Guid organizationId,
+            IReadOnlyCollection<string> candidateSubjectIds,
+            CancellationToken cancellationToken) =>
+            Task.FromException<IReadOnlyList<string>>(
+                new InvalidOperationException("membership authority unavailable"));
     }
 
     private sealed class TestRecipientResolver(

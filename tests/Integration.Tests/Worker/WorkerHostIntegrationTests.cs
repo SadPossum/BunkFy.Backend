@@ -53,6 +53,8 @@ using Microsoft.Extensions.Logging;
 using MimeKit;
 using Testcontainers.PostgreSql;
 using Xunit;
+using IOrganizationAccessCandidateFilter =
+    Gma.Modules.Organizations.Contracts.IOrganizationAccessCandidateFilter;
 
 public sealed class WorkerHostIntegrationTests
 {
