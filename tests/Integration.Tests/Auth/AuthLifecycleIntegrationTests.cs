@@ -110,6 +110,12 @@ public sealed class AuthLifecycleIntegrationTests
         Assert.Equal(HttpStatusCode.NoContent, signOut.StatusCode);
         Assert.False(string.IsNullOrWhiteSpace(registered.AccessToken));
 
+        using HttpResponseMessage revokedBearer = await GetAuthenticatedAsync(
+            client,
+            "/api/auth/sessions",
+            refreshed.AccessToken).ConfigureAwait(false);
+        Assert.Equal(HttpStatusCode.Unauthorized, revokedBearer.StatusCode);
+
         await VerifyBrowserSessionAsync(client, username).ConfigureAwait(false);
     }
 

@@ -2,6 +2,8 @@
 
 Status: implemented and verified
 
+Active-session follow-up: implemented and verified locally.
+
 ## Objective
 
 Close company-readiness item SP-006 without moving BunkFy product policy into GMA. A hosted deployment must declare who may create accounts and workspaces, verified identity must gate the configured product admissions, and privileged operations must require explicit authentication assurance.
@@ -17,16 +19,19 @@ The published GMA revisions already provide:
 - persisted `acr`, `amr`, and `auth_time` session evidence plus password step-up;
 - provider-neutral endpoint assurance requirements and RFC 9470 challenges;
 - durable database-backed authentication-attempt limiting across API replicas;
+- optional Auth-owned active-session admission for immediate bearer revocation;
 - per-request organization-membership admission for tenant-scoped endpoints;
 - invitation recipient verification through the Auth/Organizations extension.
 
-Those capabilities remain in their current owners. No new Auth abstraction is justified by this task.
+Those capabilities remain in their current owners. The active-session follow-up
+adds only the generic Auth bearer-admission seam needed by products that choose
+immediate session revocation.
 
 ## Ownership
 
 ### GMA Framework and Auth
 
-- Keep generic authentication evidence, step-up enforcement, credentials, authenticators, recovery, throttling, and sessions.
+- Keep generic authentication evidence, step-up enforcement, credentials, authenticators, recovery, throttling, sessions, and optional online bearer-session admission.
 - Do not know BunkFy workspaces, hostel roles, adapter credentials, exports, or launch countries.
 
 ### GMA Organizations
@@ -37,6 +42,7 @@ Those capabilities remain in their current owners. No new Auth abstraction is ju
 ### BunkFy
 
 - Declare account-registration and workspace-creation modes for every Production API deployment.
+- Require active Auth member/session admission in every bearer API host.
 - Verify that declared modes agree with the composed Auth and Organizations settings.
 - Optionally require a verified Auth email before self-service workspace creation.
 - Select authentication contexts and freshness for each privileged product operation.
@@ -72,18 +78,23 @@ Invitation-linked registration remains possible when account registration is pub
 - Invitation registration and acceptance continue to work through their existing verified-recipient boundary.
 - Every currently supported privileged operation is either protected by a documented assurance requirement or explicitly classified as ordinary operational work.
 - Suspended or removed members cannot use an otherwise unexpired token against tenant endpoints.
+- Signed-out sessions and disabled Auth members cannot use an otherwise unexpired bearer against Public or Admin API endpoints.
 - BunkFy consumes only published GMA commits and all repository/submodule guards pass.
 
 ## Implementation Record
 
 Published reusable dependencies: GMA Organizations `5e7ce93`, GMA
-AccessControl `3fd0583`, and GMA-Skeleton composition `85c575c`.
+AccessControl `3fd0583`, GMA Auth `254c65e`, and GMA-Skeleton composition
+`f208620`.
 
 - Production startup now rejects unspecified or contradictory account-registration
   and workspace-creation policy. Development and preview declare their permissive
   local choices explicitly.
 - BunkFy replaces the Organizations admission policy at composition time and can
   require a verified active Auth email before self-service workspace creation.
+- Public and Admin APIs select GMA Auth's `ActiveSession` bearer admission mode,
+  guarded by architecture tests. Each authenticated request performs one bounded,
+  no-tracking Auth lookup; Worker and CLI hosts remain outside bearer admission.
 - GMA Organizations and AccessControl expose opt-in API assurance settings. BunkFy
   applies a ten-minute recent-auth requirement to workspace creation/governance,
   access-profile and assignment mutations, and adapter ingress credential issue/revoke.
@@ -93,6 +104,10 @@ AccessControl `3fd0583`, and GMA-Skeleton composition `85c575c`.
   password step-up produces fresh credentials, and the privileged retry succeeds.
   A separate PostgreSQL scenario proves that suspending membership denies the same
   unexpired token immediately and resuming restores access.
+- The existing Auth lifecycle now proves on SQL Server and PostgreSQL that signing
+  out denies the same unexpired bearer immediately. Synthetic-token fixtures for
+  unrelated Admin API and notification transport tests opt into compatibility mode
+  explicitly instead of weakening product host defaults.
 - Organizations and AccessControl repository verification, BunkFy migration/build
   gates, 2,115 non-Docker tests, focused Docker assurance/offboarding tests, OpenAPI
   drift, and preview Compose validation pass locally.

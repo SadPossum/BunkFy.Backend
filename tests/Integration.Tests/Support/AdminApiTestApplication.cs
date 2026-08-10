@@ -54,6 +54,7 @@ internal sealed class AdminApiTestApplication(
         builder.UseSetting("Auth:Jwt:Audience", JwtAudience);
         builder.UseSetting("Auth:Jwt:SigningKey", JwtSigningKey);
         builder.UseSetting("Auth:Jwt:AccessTokenLifetimeMinutes", "15");
+        builder.UseSetting("Auth:BearerAdmission:Mode", "TokenLifetime");
         builder.UseSetting(
             "Administration:Api:AllowGeneratedPasswordResponses",
             allowGeneratedPasswordResponses.ToString(System.Globalization.CultureInfo.InvariantCulture));
@@ -90,6 +91,7 @@ internal sealed class AdminApiTestApplication(
                 ["Auth:Jwt:Audience"] = JwtAudience,
                 ["Auth:Jwt:SigningKey"] = JwtSigningKey,
                 ["Auth:Jwt:AccessTokenLifetimeMinutes"] = "15",
+                ["Auth:BearerAdmission:Mode"] = "TokenLifetime",
                 ["Administration:Api:AllowGeneratedPasswordResponses"] = allowGeneratedPasswordResponses.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 ["Caching:Enabled"] = "false",
                 ["FileManagement:Enabled"] = "true",

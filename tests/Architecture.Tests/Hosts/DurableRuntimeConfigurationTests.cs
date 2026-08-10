@@ -221,6 +221,23 @@ public sealed class DurableRuntimeConfigurationTests
     }
 
     [Fact]
+    public void Bearer_api_hosts_require_active_auth_session_admission()
+    {
+        foreach (string host in new[] { "BunkFy.Host.Api", "BunkFy.Host.AdminApi" })
+        {
+            using JsonDocument document = JsonDocument.Parse(
+                RepositoryPaths.Read("src", host, "appsettings.json"));
+            Assert.Equal(
+                "ActiveSession",
+                document.RootElement
+                    .GetProperty("Auth")
+                    .GetProperty("BearerAdmission")
+                    .GetProperty("Mode")
+                    .GetString());
+        }
+    }
+
+    [Fact]
     public void Long_running_auth_persistence_hosts_expose_bounded_failure_retention_defaults()
     {
         foreach (string host in AuthRetentionHosts)
