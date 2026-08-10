@@ -5,7 +5,7 @@ using BunkFy.Modules.Workspaces.Contracts;
 using Gma.Framework.Naming;
 using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
-using Gma.Modules.Organizations.Application.Ports;
+using Gma.Modules.Organizations.Contracts;
 
 internal sealed partial class OrganizationsTenantTerminationContributor(
     IOrganizationScopeLifecycle lifecycle,

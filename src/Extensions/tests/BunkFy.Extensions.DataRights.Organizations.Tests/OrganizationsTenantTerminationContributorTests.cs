@@ -4,7 +4,6 @@ using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Workspaces.Contracts;
 using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
-using Gma.Modules.Organizations.Application.Ports;
 using Gma.Modules.Organizations.Contracts;
 using Xunit;
 

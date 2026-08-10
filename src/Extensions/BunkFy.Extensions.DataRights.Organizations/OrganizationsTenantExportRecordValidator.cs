@@ -1,6 +1,6 @@
 namespace BunkFy.Extensions.DataRights.Organizations;
 
-using Gma.Modules.Organizations.Application.Ports;
+using Gma.Modules.Organizations.Contracts;
 
 internal static class OrganizationsTenantExportRecordValidator
 {

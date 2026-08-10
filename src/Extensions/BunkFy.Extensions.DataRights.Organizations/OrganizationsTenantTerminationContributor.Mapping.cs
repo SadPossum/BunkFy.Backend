@@ -1,7 +1,7 @@
 namespace BunkFy.Extensions.DataRights.Organizations;
 
 using BunkFy.Modules.DataRights.Contracts;
-using Gma.Modules.Organizations.Application.Ports;
+using Gma.Modules.Organizations.Contracts;
 
 internal sealed partial class OrganizationsTenantTerminationContributor
 {

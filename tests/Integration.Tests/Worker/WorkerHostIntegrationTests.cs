@@ -42,7 +42,6 @@ using Gma.Modules.Auth.Domain.Services;
 using Gma.Modules.Auth.Persistence;
 using Gma.Modules.Notifications.Application.Ports;
 using Gma.Modules.Notifications.Persistence;
-using Gma.Modules.Organizations.Application.Ports;
 using Gma.Modules.Organizations.Persistence;
 using Gma.Modules.TaskRuntime.Persistence;
 using Integration.Tests.Support;
