@@ -125,9 +125,10 @@ public sealed class BunkFyWorkspaceAdmissionTests
     [Fact]
     public async Task Disabled_workspace_creation_is_denied_before_contact_lookup()
     {
-        RecordingContactReader contacts = new("verified@example.test");
+        RecordingAdmissionReader admissions = new(
+            new AuthMemberAdmission("verified@example.test"));
         BunkFyWorkspaceAdmissionPolicy policy = CreatePolicy(
-            contacts,
+            admissions,
             BunkFyWorkspaceCreationMode.Disabled,
             requireVerifiedEmail: true);
 
@@ -136,24 +137,41 @@ public sealed class BunkFyWorkspaceAdmissionTests
             CancellationToken.None);
 
         Assert.Equal(OrganizationCreationAdmissionDecision.Denied, decision);
-        Assert.Equal(0, contacts.LookupCount);
+        Assert.Equal(0, admissions.LookupCount);
     }
 
     [Fact]
-    public async Task Local_self_service_can_explicitly_skip_email_verification()
+    public async Task Local_self_service_can_skip_email_verification_but_still_requires_an_active_member()
     {
-        RecordingContactReader contacts = new(null);
+        RecordingAdmissionReader admissions = new(new AuthMemberAdmission(null));
         BunkFyWorkspaceAdmissionPolicy policy = CreatePolicy(
-            contacts,
+            admissions,
             BunkFyWorkspaceCreationMode.SelfService,
             requireVerifiedEmail: false);
 
         OrganizationCreationAdmissionDecision decision = await policy.EvaluateAsync(
-            Request("local-subject"),
+            Request(Guid.NewGuid().ToString("D")),
             CancellationToken.None);
 
         Assert.Equal(OrganizationCreationAdmissionDecision.Allowed, decision);
-        Assert.Equal(0, contacts.LookupCount);
+        Assert.Equal(1, admissions.LookupCount);
+    }
+
+    [Fact]
+    public async Task Inactive_member_cannot_create_a_workspace_when_email_verification_is_optional()
+    {
+        BunkFyWorkspaceAdmissionPolicy policy = CreatePolicy(
+            new RecordingAdmissionReader(null),
+            BunkFyWorkspaceCreationMode.SelfService,
+            requireVerifiedEmail: false);
+
+        OrganizationCreationAdmissionDecision decision = await policy.EvaluateAsync(
+            Request(Guid.NewGuid().ToString("D")),
+            CancellationToken.None);
+
+        Assert.Equal(
+            OrganizationCreationAdmissionDecision.SubjectVerificationRequired,
+            decision);
     }
 
     [Theory]
@@ -163,7 +181,7 @@ public sealed class BunkFyWorkspaceAdmissionTests
     public async Task Verified_email_policy_denies_unverified_subjects(string subjectId, string? verifiedEmail)
     {
         BunkFyWorkspaceAdmissionPolicy policy = CreatePolicy(
-            new RecordingContactReader(verifiedEmail),
+            new RecordingAdmissionReader(new AuthMemberAdmission(verifiedEmail)),
             BunkFyWorkspaceCreationMode.SelfService,
             requireVerifiedEmail: true);
 
@@ -180,9 +198,10 @@ public sealed class BunkFyWorkspaceAdmissionTests
     public async Task Verified_member_can_create_a_self_service_workspace()
     {
         Guid memberId = Guid.NewGuid();
-        RecordingContactReader contacts = new("verified@example.test");
+        RecordingAdmissionReader admissions = new(
+            new AuthMemberAdmission("verified@example.test"));
         BunkFyWorkspaceAdmissionPolicy policy = CreatePolicy(
-            contacts,
+            admissions,
             BunkFyWorkspaceCreationMode.SelfService,
             requireVerifiedEmail: true);
 
@@ -191,15 +210,15 @@ public sealed class BunkFyWorkspaceAdmissionTests
             CancellationToken.None);
 
         Assert.Equal(OrganizationCreationAdmissionDecision.Allowed, decision);
-        Assert.Equal("bunkfy-auth", contacts.LastScopeId);
-        Assert.Equal(memberId, contacts.LastMemberId);
+        Assert.Equal("bunkfy-auth", admissions.LastScopeId);
+        Assert.Equal(memberId, admissions.LastMemberId);
     }
 
     private static BunkFyWorkspaceAdmissionPolicy CreatePolicy(
-        IAuthMemberContactReader contacts,
+        IAuthMemberAdmissionReader admissions,
         BunkFyWorkspaceCreationMode mode,
         bool requireVerifiedEmail) => new(
-            contacts,
+            admissions,
             Options.Create(new BunkFyWorkspacesOptions { GlobalAuthScopeId = "bunkfy-auth" }),
             Options.Create(new BunkFyWorkspaceAdmissionOptions
             {
@@ -216,7 +235,8 @@ public sealed class BunkFyWorkspaceAdmissionTests
             subjectId,
             $"user:{subjectId}");
 
-    private sealed class RecordingContactReader(string? verifiedEmail) : IAuthMemberContactReader
+    private sealed class RecordingAdmissionReader(AuthMemberAdmission? admission)
+        : IAuthMemberAdmissionReader
     {
         public int LookupCount { get; private set; }
 
@@ -224,7 +244,7 @@ public sealed class BunkFyWorkspaceAdmissionTests
 
         public Guid LastMemberId { get; private set; }
 
-        public ValueTask<string?> GetPreferredVerifiedEmailAsync(
+        public ValueTask<AuthMemberAdmission?> FindActiveAsync(
             string scopeId,
             Guid memberId,
             CancellationToken cancellationToken = default)
@@ -233,7 +253,7 @@ public sealed class BunkFyWorkspaceAdmissionTests
             this.LookupCount++;
             this.LastScopeId = scopeId;
             this.LastMemberId = memberId;
-            return ValueTask.FromResult(verifiedEmail);
+            return ValueTask.FromResult(admission);
         }
     }
 }

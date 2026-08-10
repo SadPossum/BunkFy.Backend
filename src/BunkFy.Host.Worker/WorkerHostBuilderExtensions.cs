@@ -204,7 +204,8 @@ public static class WorkerHostBuilderExtensions
 
             if (workerOptions.Modules.Auth)
             {
-                builder.Services.AddAuthNotificationsExtension();
+                builder.Services.AddAuthNotificationsExtension(
+                    options => options.FixedAuthScopeId = authScopeId);
             }
 
             if (workerOptions.Modules.Staff && workerOptions.Modules.Organizations)

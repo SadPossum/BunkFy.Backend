@@ -55,6 +55,8 @@ Auth owns global identity and authentication:
 - sessions, refresh rotation, sign-out, account disablement, and later MFA;
 - a generic controlled account-provisioning/admission seam for composition extensions.
 
+Auth exposes a narrow active-member admission snapshot to trusted in-process consumers. The snapshot proves current activity in one explicit Auth scope and may include the preferred verified email; it does not expose credentials, sessions, roles, or disablement details. Auth's separate contact reader intentionally remains usable for Auth-owned security delivery after account disablement.
+
 Auth does not own workspaces, memberships, invitations, Staff profiles, roles, or tenant/property permissions. `AuthProfile.ScopeAware()` remains supported for projects that intentionally want separate identities per scope. BunkFy uses a global identity profile that can coexist with enabled tenant resolution.
 
 ### GMA Organizations
@@ -120,7 +122,7 @@ The existing Staff aggregate remains the source of employment truth. The BunkFy 
 
 1. A visitor registers one global account or signs in through an enabled external provider.
 2. Password confirmation is a client concern; Auth remains the authoritative password-policy and account-creation boundary.
-3. The account verifies a usable email before creating a workspace or accepting an email-bound invitation. A provider-verified email can satisfy the same Auth-owned fact.
+3. The Auth member must still be active and verifies a usable email before creating a workspace or accepting an email-bound invitation. A provider-verified email can satisfy the same Auth-owned fact.
 4. An account with no active memberships sees only onboarding, account-security, sign-out, invitation acceptance, and workspace-creation surfaces.
 5. Workspace creation creates the organization and first owner membership in the Organizations transaction.
 6. Durable BunkFy composition provisions tenant-scoped owner access and the BunkFy owner Staff profile idempotently.
@@ -144,7 +146,7 @@ The current frontend keeps workspace and property selection in one `WorkspacePro
 1. An authorized manager creates a single-use invitation or a separately governed reusable enrollment link.
 2. The recipient opens the link or QR and sees a sanitized preview: workspace, inviter, enrollment mode, and expiry.
 3. An existing account signs in; a new person registers a global account. Invitation intent survives redirects in tab-scoped storage while the URL fragment is scrubbed immediately.
-4. The authenticated applicant submits the original token plus a proposed Staff profile. BunkFy derives the organization/source identifiers and verified Auth email on the server.
+4. The authenticated applicant submits the original token plus a proposed Staff profile. BunkFy derives the organization/source identifiers and the current active-member/verified-email facts from Auth on the server.
 5. Organizations admits only the exact subject and source for which the BunkFy process is ready. Automatic enrollment may create membership immediately; approval enrollment first creates a pending claim bound to the process.
 6. An owner approves or rejects a bound claim. Organizations atomically creates or restores membership only on acceptance.
 7. Accepted invitation/claim facts drive the Workspaces process to provision one idempotent Staff identity and then install the constrained member assignment.

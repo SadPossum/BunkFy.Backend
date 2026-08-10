@@ -21,7 +21,7 @@ internal sealed class SubmitWorkspaceStaffOnboardingCommandHandler(
     WorkspaceStaffOnboardingMutationCoordinator mutations,
     IWorkspaceStaffAccessPlanRepository plans,
     WorkspaceStaffJoinTokenAuthorityResolver authorityResolver,
-    IAuthMemberContactReader contacts,
+    IAuthMemberAdmissionReader admissions,
     IOptions<WorkspaceStaffOnboardingOptions> options,
     WorkspaceOperationalAdmissionEvaluator operationalAdmission,
     IScopeContext scopeContext,
@@ -94,10 +94,12 @@ internal sealed class SubmitWorkspaceStaffOnboardingCommandHandler(
                     .ProcessingRestricted);
         }
 
-        string? verifiedEmail = await contacts.GetPreferredVerifiedEmailAsync(
-            options.Value.GlobalAuthScopeId,
-            memberId,
-            cancellationToken).ConfigureAwait(false);
+        AuthMemberAdmission? admission = await admissions.FindActiveAsync(
+                options.Value.GlobalAuthScopeId,
+                memberId,
+                cancellationToken)
+            .ConfigureAwait(false);
+        string? verifiedEmail = admission?.PreferredVerifiedEmail;
         if (string.IsNullOrWhiteSpace(verifiedEmail))
         {
             return Result.Failure<WorkspaceStaffOnboardingDto>(

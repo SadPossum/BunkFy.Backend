@@ -5,7 +5,7 @@ using Gma.Modules.Organizations.Contracts;
 using Microsoft.Extensions.Options;
 
 internal sealed class BunkFyWorkspaceAdmissionPolicy(
-    IAuthMemberContactReader contacts,
+    IAuthMemberAdmissionReader admissions,
     IOptions<BunkFyWorkspacesOptions> workspaceOptions,
     IOptions<BunkFyWorkspaceAdmissionOptions> admissionOptions)
     : IOrganizationCreationAdmissionPolicy
@@ -22,22 +22,24 @@ internal sealed class BunkFyWorkspaceAdmissionPolicy(
             return OrganizationCreationAdmissionDecision.Denied;
         }
 
-        if (!policy.RequireVerifiedEmailForWorkspaceCreation)
-        {
-            return OrganizationCreationAdmissionDecision.Allowed;
-        }
-
         if (!Guid.TryParse(request.SubjectId, out Guid memberId))
         {
             return OrganizationCreationAdmissionDecision.SubjectVerificationRequired;
         }
 
-        string? verifiedEmail = await contacts.GetPreferredVerifiedEmailAsync(
-            workspaceOptions.Value.GlobalAuthScopeId,
-            memberId,
-            cancellationToken).ConfigureAwait(false);
+        AuthMemberAdmission? admission = await admissions.FindActiveAsync(
+                workspaceOptions.Value.GlobalAuthScopeId,
+                memberId,
+                cancellationToken)
+            .ConfigureAwait(false);
 
-        return string.IsNullOrWhiteSpace(verifiedEmail)
+        if (admission is null)
+        {
+            return OrganizationCreationAdmissionDecision.SubjectVerificationRequired;
+        }
+
+        return policy.RequireVerifiedEmailForWorkspaceCreation &&
+            string.IsNullOrWhiteSpace(admission.PreferredVerifiedEmail)
             ? OrganizationCreationAdmissionDecision.SubjectVerificationRequired
             : OrganizationCreationAdmissionDecision.Allowed;
     }

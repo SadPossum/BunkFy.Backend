@@ -312,7 +312,7 @@ public sealed class
         RecordingSubmissionRepository applications =
             new(existingApplicationId);
         RecordingOperationLock operationLock = new([]);
-        RecordingContactReader contacts = new();
+        RecordingAdmissionReader admissions = new();
         RecordingProjectionRepository projections = new(null, []);
         WorkspaceStaffAccessPlan plan = CreateActivePlan(sourceId);
         SubmitWorkspaceStaffOnboardingCommandHandler handler = new(
@@ -324,7 +324,7 @@ public sealed class
             new RecordingPlanRepository(plan),
             new WorkspaceStaffJoinTokenAuthorityResolver(
                 new EnrollmentTokenInspector(OrganizationId, sourceId)),
-            contacts,
+            admissions,
             Options.Create(new WorkspaceStaffOnboardingOptions
             {
                 GlobalAuthScopeId = "global"
@@ -356,7 +356,7 @@ public sealed class
         Assert.Equal(1, operationLock.CallCount);
         Assert.Equal(1, applications.OperationalGetCount);
         Assert.Equal(0, applications.AddCount);
-        Assert.Equal(0, contacts.CallCount);
+        Assert.Equal(0, admissions.CallCount);
         Assert.Equal(0, projections.AddCount);
     }
 
@@ -778,18 +778,18 @@ public sealed class
         }
     }
 
-    private sealed class RecordingContactReader : IAuthMemberContactReader
+    private sealed class RecordingAdmissionReader : IAuthMemberAdmissionReader
     {
         public int CallCount { get; private set; }
 
-        public ValueTask<string?> GetPreferredVerifiedEmailAsync(
+        public ValueTask<AuthMemberAdmission?> FindActiveAsync(
             string scopeId,
             Guid memberId,
             CancellationToken cancellationToken = default)
         {
             this.CallCount++;
-            return ValueTask.FromResult<string?>(
-                "verified@example.test");
+            return ValueTask.FromResult<AuthMemberAdmission?>(
+                new AuthMemberAdmission("verified@example.test"));
         }
     }
 

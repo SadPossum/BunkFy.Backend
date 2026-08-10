@@ -256,15 +256,53 @@ public sealed class WorkspaceStaffOnboardingFlowTests
     }
 
     [Fact]
+    public async Task Submission_rejects_a_member_without_current_auth_admission()
+    {
+        Guid sourceId = Guid.NewGuid();
+        FakeRepository applications = new();
+        FakeAdmissionReader admissions = new() { Admission = null };
+        using ServiceProvider provider = CreateProvider(
+            applications,
+            new FakeStaffProvisioner(),
+            new FakeAccessControl(),
+            new FakeJoinTokenInspector(
+                WorkspaceStaffOnboardingTests.OrganizationId,
+                sourceId),
+            admissions);
+        IWorkspaceStaffOnboardingSubmitter submitter = provider
+            .GetRequiredService<IWorkspaceStaffOnboardingSubmitter>();
+
+        Result<WorkspaceStaffOnboardingDto> result = await submitter.SubmitAsync(
+            new SubmitWorkspaceStaffOnboardingCommand(
+                WorkspaceStaffOnboardingSourceKind.EnrollmentLink,
+                "secret-token",
+                WorkspaceStaffOnboardingTests.SubjectId,
+                "Ada Operator",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null),
+            CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(
+            WorkspaceStaffOnboardingApplicationErrors.VerifiedIdentityRequired,
+            result.Error);
+        Assert.Empty(applications.Applications);
+    }
+
+    [Fact]
     public async Task Admission_requires_the_exact_source_subject_and_current_verified_email()
     {
         WorkspaceStaffOnboarding application = WorkspaceStaffOnboardingTests.CreateApplication();
-        FakeContactReader contacts = new();
+        FakeAdmissionReader admissions = new();
         using ServiceProvider provider = CreateProvider(
             new FakeRepository(application),
             new FakeStaffProvisioner(),
             new FakeAccessControl(),
-            contacts: contacts);
+            admissions: admissions);
         IOrganizationJoinAdmissionPolicy policy = provider
             .GetServices<IOrganizationJoinAdmissionPolicy>()
             .Single();
@@ -291,7 +329,12 @@ public sealed class WorkspaceStaffOnboardingFlowTests
                 ApplicantSubjectId = Guid.NewGuid().ToString("D")
             }));
 
-        contacts.VerifiedEmail = "changed@example.test";
+        admissions.Admission = new AuthMemberAdmission("changed@example.test");
+        Assert.Equal(
+            OrganizationJoinAdmissionDecision.Denied,
+            await policy.EvaluateAsync(valid));
+
+        admissions.Admission = null;
         Assert.Equal(
             OrganizationJoinAdmissionDecision.Denied,
             await policy.EvaluateAsync(valid));
@@ -399,7 +442,7 @@ public sealed class WorkspaceStaffOnboardingFlowTests
         FakeStaffProvisioner staff,
         FakeAccessControl access,
         FakeJoinTokenInspector? tokens = null,
-        FakeContactReader? contacts = null,
+        FakeAdmissionReader? admissions = null,
         WorkspaceTerminationFenceSnapshot? terminationFence = null)
     {
         HostApplicationBuilder builder = new(new HostApplicationBuilderSettings
@@ -441,7 +484,8 @@ public sealed class WorkspaceStaffOnboardingFlowTests
         services.AddSingleton<IAccessAuthorizationService>(new AllowAllAuthorizationService());
         services.AddSingleton<IWorkspacePropertyProjectionRepository>(new FakePropertyProjectionRepository());
         services.AddSingleton<IOrganizationJoinTokenInspector>(tokenInspector);
-        services.AddSingleton<IAuthMemberContactReader>(contacts ?? new FakeContactReader());
+        services.AddSingleton<IAuthMemberAdmissionReader>(
+            admissions ?? new FakeAdmissionReader());
         services.AddSingleton<IWorkspaceTerminationFenceReader>(
             new FakeTerminationFenceReader(terminationFence));
         services.AddSingleton<IScopeContextAccessor>(new FakeScopeContext(
@@ -864,14 +908,16 @@ public sealed class WorkspaceStaffOnboardingFlowTests
             CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
-    private sealed class FakeContactReader : IAuthMemberContactReader
+    private sealed class FakeAdmissionReader : IAuthMemberAdmissionReader
     {
-        public string? VerifiedEmail { get; set; } = "verified@example.test";
+        public AuthMemberAdmission? Admission { get; set; } =
+            new("verified@example.test");
 
-        public ValueTask<string?> GetPreferredVerifiedEmailAsync(
+        public ValueTask<AuthMemberAdmission?> FindActiveAsync(
             string scopeId,
             Guid memberId,
-            CancellationToken cancellationToken = default) => ValueTask.FromResult(this.VerifiedEmail);
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(this.Admission);
     }
 
     private sealed class FakeTerminationFenceReader(

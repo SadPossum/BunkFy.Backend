@@ -4,6 +4,8 @@ BunkFy mounts the published GMA Auth, Notifications, and Extensions `dev` source
 
 `Gma.Extensions.Auth.Notifications` maps Auth security events into mandatory tagged notifications. Email delivery is also optional: the adapter is registered but disabled until the application supplies an `IEmailSender` and sender configuration. Verification must not be enabled operationally before that transport exists.
 
+Auth-owned security delivery may use a retained verified contact after account disablement. Email for every non-Auth notification revalidates a current active Auth member at attempt time and uses BunkFy's configured fixed Auth identity scope rather than the notification's workspace scope.
+
 ## Product Notifications
 
 `BunkFy.Extensions.Operations.Notifications` owns BunkFy-specific recipient policy. It consumes public product integration events, asks Staff and workspace-owner readers for candidate authenticated recipients, excludes the initiating user, then intersects each bounded candidate batch with authoritative active Organizations access. Only that final set is projected as V2 notification requests into Notifications. Product modules do not reference Notifications application or persistence projects.

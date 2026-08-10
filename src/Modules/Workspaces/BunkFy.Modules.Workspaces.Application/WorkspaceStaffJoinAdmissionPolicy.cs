@@ -87,12 +87,14 @@ internal sealed class WorkspaceStaffJoinAdmissionPolicy(
                     return OrganizationJoinAdmissionDecision.Denied;
                 }
 
-                IAuthMemberContactReader contacts = services
-                    .GetRequiredService<IAuthMemberContactReader>();
-                string? verifiedEmail = await contacts.GetPreferredVerifiedEmailAsync(
-                    options.Value.GlobalAuthScopeId,
-                    memberId,
-                    cancellationToken).ConfigureAwait(false);
+                IAuthMemberAdmissionReader admissions = services
+                    .GetRequiredService<IAuthMemberAdmissionReader>();
+                AuthMemberAdmission? admission = await admissions.FindActiveAsync(
+                        options.Value.GlobalAuthScopeId,
+                        memberId,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                string? verifiedEmail = admission?.PreferredVerifiedEmail;
                 bool emailMatches = !string.IsNullOrWhiteSpace(verifiedEmail) &&
                     string.Equals(
                         application.VerifiedAccountEmail,
