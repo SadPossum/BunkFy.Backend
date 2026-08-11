@@ -331,6 +331,7 @@ public sealed class
             new WorkspaceStaffJoinTokenAuthorityResolver(
                 new EnrollmentTokenInspector(OrganizationId, sourceId)),
             admissions,
+            new FakeOrganizationEnrollmentClaimInspector(),
             Options.Create(new WorkspaceStaffOnboardingOptions
             {
                 GlobalAuthScopeId = "global"

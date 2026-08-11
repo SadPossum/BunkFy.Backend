@@ -3,6 +3,7 @@ namespace BunkFy.Modules.Workspaces.Tests;
 using BunkFy.Modules.Workspaces.Application.Handlers;
 using BunkFy.Modules.Workspaces.Application.Ports;
 using BunkFy.Modules.Workspaces.Domain;
+using Gma.Modules.Organizations.Contracts;
 
 internal static class WorkspaceStaffOnboardingMutationTestSupport
 {
@@ -33,6 +34,28 @@ internal static class WorkspaceStaffOnboardingMutationTestSupport
         public Task<bool> TryAcquireAsync(
             Guid applicationId,
             CancellationToken cancellationToken) => Task.FromResult(true);
+    }
+}
+
+internal sealed class FakeOrganizationEnrollmentClaimInspector(
+    OrganizationEnrollmentClaimDto? claim = null)
+    : IOrganizationEnrollmentClaimInspector
+{
+    public OrganizationEnrollmentClaimDto? Claim { get; set; } = claim;
+
+    public List<(Guid OrganizationId, Guid EnrollmentLinkId, string SubjectId)>
+        Requests
+    { get; } = [];
+
+    public Task<OrganizationEnrollmentClaimDto?> FindAsync(
+        Guid organizationId,
+        Guid enrollmentLinkId,
+        string subjectId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        this.Requests.Add((organizationId, enrollmentLinkId, subjectId));
+        return Task.FromResult(this.Claim);
     }
 }
 

@@ -130,6 +130,21 @@ provisioning. Workspaces records an append-only replay receipt, exports its
 bounded accountability proof without the request fingerprint, and completes
 the central case through its own durable outbox.
 
+Enrollment-link resubmission and correction POST recheck the authoritative
+Organizations claim while holding the existing source/application lease.
+Only no retained claim or one exact-coordinate `Pending` claim with a strictly
+future decision deadline remains editable. A retained `Pending` claim with a
+missing or elapsed deadline, or unknown, terminal, or coordinate-mismatched
+authority, returns conflict without changing staged profile data. Ordinary
+invitation resubmission still relies on the local
+invitation-token lifecycle, but an approved invitation Data Rights
+correction has only the local `Submitted`/version fence because the current
+Organizations contracts do not publish an invitation-status inspector. The
+correction-target GET also remains an optimistic local preview; the
+enrollment-link correction POST is the authoritative external fence. A future
+invitation inspector must use the same lease ordering before closing that
+residual; it must not introduce a Staff-to-Workspaces reverse lock edge.
+
 An approved Staff Rights restriction may independently suspend ordinary
 processing of one exact `staff-onboarding` record while Workspaces still owns
 its applicant data. Operational reads, resubmission, admission, actionable

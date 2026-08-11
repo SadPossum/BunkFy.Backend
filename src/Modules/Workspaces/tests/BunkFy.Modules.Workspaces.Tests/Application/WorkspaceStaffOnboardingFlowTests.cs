@@ -349,6 +349,163 @@ public sealed class WorkspaceStaffOnboardingFlowTests
             provider.GetRequiredService<IScopeContextAccessor>().ScopeId);
     }
 
+    [Theory]
+    [InlineData(OrganizationEnrollmentClaimStatus.Unknown)]
+    [InlineData(OrganizationEnrollmentClaimStatus.Accepted)]
+    [InlineData(OrganizationEnrollmentClaimStatus.Rejected)]
+    [InlineData(OrganizationEnrollmentClaimStatus.Expired)]
+    [InlineData(OrganizationEnrollmentClaimStatus.Withdrawn)]
+    public async Task Terminal_or_unknown_enrollment_claim_fences_resubmission(
+        OrganizationEnrollmentClaimStatus status)
+    {
+        WorkspaceStaffOnboarding application = CreateApplication(
+            Guid.NewGuid(),
+            WorkspaceStaffOnboardingSource.EnrollmentLink,
+            Guid.NewGuid(),
+            "Profile A");
+        FakeOrganizationEnrollmentClaimInspector claims = new(
+            Claim(application, Guid.NewGuid(), status));
+        using ServiceProvider provider = CreateProvider(
+            new FakeRepository(application),
+            new FakeStaffProvisioner(),
+            new FakeAccessControl(),
+            new FakeJoinTokenInspector(
+                WorkspaceStaffOnboardingTests.OrganizationId,
+                application.SourceId),
+            claims: claims);
+
+        Result<WorkspaceStaffOnboardingDto> result = await SubmitAsync(
+            provider,
+            WorkspaceStaffOnboardingSourceKind.EnrollmentLink,
+            application,
+            "Profile B");
+
+        Assert.Equal(
+            WorkspaceStaffOnboardingApplicationErrors
+                .ProfileMutationAuthorityUnavailable,
+            result.Error);
+        Assert.Equal("Profile A", application.DisplayName);
+        Assert.Equal(1, application.Version);
+        Assert.Single(claims.Requests);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Missing_or_exact_pending_enrollment_claim_allows_resubmission(
+        bool hasPendingClaim)
+    {
+        WorkspaceStaffOnboarding application = CreateApplication(
+            Guid.NewGuid(),
+            WorkspaceStaffOnboardingSource.EnrollmentLink,
+            Guid.NewGuid(),
+            "Profile A");
+        FakeOrganizationEnrollmentClaimInspector claims = new(
+            hasPendingClaim
+                ? Claim(
+                    application,
+                    Guid.NewGuid(),
+                    OrganizationEnrollmentClaimStatus.Pending)
+                : null);
+        using ServiceProvider provider = CreateProvider(
+            new FakeRepository(application),
+            new FakeStaffProvisioner(),
+            new FakeAccessControl(),
+            new FakeJoinTokenInspector(
+                WorkspaceStaffOnboardingTests.OrganizationId,
+                application.SourceId),
+            claims: claims);
+
+        Result<WorkspaceStaffOnboardingDto> result = await SubmitAsync(
+            provider,
+            WorkspaceStaffOnboardingSourceKind.EnrollmentLink,
+            application,
+            "Profile B");
+
+        Assert.True(result.IsSuccess, result.Error.Code);
+        Assert.Equal("Profile B", application.DisplayName);
+        Assert.Equal(2, application.Version);
+        Assert.Single(claims.Requests);
+    }
+
+    [Theory]
+    [InlineData("organization")]
+    [InlineData("source")]
+    [InlineData("subject")]
+    public async Task Mismatched_pending_enrollment_claim_fences_resubmission(
+        string coordinate)
+    {
+        WorkspaceStaffOnboarding application = CreateApplication(
+            Guid.NewGuid(),
+            WorkspaceStaffOnboardingSource.EnrollmentLink,
+            Guid.NewGuid(),
+            "Profile A");
+        OrganizationEnrollmentClaimDto claim = Claim(
+            application,
+            Guid.NewGuid(),
+            OrganizationEnrollmentClaimStatus.Pending);
+        claim = coordinate switch
+        {
+            "organization" => claim with { OrganizationId = Guid.NewGuid() },
+            "source" => claim with { EnrollmentLinkId = Guid.NewGuid() },
+            _ => claim with { SubjectId = Guid.NewGuid().ToString("D") }
+        };
+        FakeOrganizationEnrollmentClaimInspector claims = new(claim);
+        using ServiceProvider provider = CreateProvider(
+            new FakeRepository(application),
+            new FakeStaffProvisioner(),
+            new FakeAccessControl(),
+            new FakeJoinTokenInspector(
+                WorkspaceStaffOnboardingTests.OrganizationId,
+                application.SourceId),
+            claims: claims);
+
+        Result<WorkspaceStaffOnboardingDto> result = await SubmitAsync(
+            provider,
+            WorkspaceStaffOnboardingSourceKind.EnrollmentLink,
+            application,
+            "Profile B");
+
+        Assert.Equal(
+            WorkspaceStaffOnboardingApplicationErrors
+                .ProfileMutationAuthorityUnavailable,
+            result.Error);
+        Assert.Equal("Profile A", application.DisplayName);
+    }
+
+    [Fact]
+    public async Task Invitation_resubmission_does_not_query_enrollment_claims()
+    {
+        WorkspaceStaffOnboarding application = CreateApplication(
+            Guid.NewGuid(),
+            WorkspaceStaffOnboardingSource.Invitation,
+            Guid.NewGuid(),
+            "Profile A");
+        FakeOrganizationEnrollmentClaimInspector claims = new(
+            Claim(
+                application,
+                Guid.NewGuid(),
+                OrganizationEnrollmentClaimStatus.Accepted));
+        using ServiceProvider provider = CreateProvider(
+            new FakeRepository(application),
+            new FakeStaffProvisioner(),
+            new FakeAccessControl(),
+            new FakeJoinTokenInspector(
+                WorkspaceStaffOnboardingTests.OrganizationId,
+                application.SourceId),
+            claims: claims);
+
+        Result<WorkspaceStaffOnboardingDto> result = await SubmitAsync(
+            provider,
+            WorkspaceStaffOnboardingSourceKind.Invitation,
+            application,
+            "Profile B");
+
+        Assert.True(result.IsSuccess, result.Error.Code);
+        Assert.Equal("Profile B", application.DisplayName);
+        Assert.Empty(claims.Requests);
+    }
+
     [Fact]
     public async Task Submission_rejects_a_member_without_current_auth_admission()
     {
@@ -707,6 +864,69 @@ public sealed class WorkspaceStaffOnboardingFlowTests
         Assert.Equal(OrganizationJoinAdmissionDecision.Unavailable, decision);
     }
 
+    private static WorkspaceStaffOnboarding CreateApplication(
+        Guid applicationId,
+        WorkspaceStaffOnboardingSource sourceKind,
+        Guid sourceId,
+        string displayName) =>
+        WorkspaceStaffOnboarding.Create(
+            applicationId,
+            WorkspaceStaffOnboardingTests.OrganizationId.ToString("D"),
+            sourceKind,
+            sourceId,
+            WorkspaceStaffOnboardingTests.SubjectId,
+            "verified@example.test",
+            displayName,
+            "Ada Lovelace",
+            "ada@workspace.test",
+            "+1 555 0100",
+            "EMP-100",
+            "Manager",
+            "Operations",
+            WorkspaceStaffOnboardingTests.Now).Value;
+
+    private static OrganizationEnrollmentClaimDto Claim(
+        WorkspaceStaffOnboarding application,
+        Guid claimId,
+        OrganizationEnrollmentClaimStatus status) => new(
+        claimId,
+        application.SourceId,
+        WorkspaceStaffOnboardingTests.OrganizationId,
+        application.SubjectId,
+        status,
+        status == OrganizationEnrollmentClaimStatus.Accepted
+            ? Guid.NewGuid()
+            : null,
+        Version: 2,
+        WorkspaceStaffOnboardingTests.Now,
+        WorkspaceStaffOnboardingTests.Now.AddMinutes(1))
+        {
+            DecisionExpiresAtUtc =
+            status == OrganizationEnrollmentClaimStatus.Pending
+                ? WorkspaceStaffOnboardingTests.Now.AddMinutes(5)
+                : null
+        };
+
+    private static Task<Result<WorkspaceStaffOnboardingDto>> SubmitAsync(
+        ServiceProvider provider,
+        WorkspaceStaffOnboardingSourceKind sourceKind,
+        WorkspaceStaffOnboarding application,
+        string displayName) =>
+        provider.GetRequiredService<IWorkspaceStaffOnboardingSubmitter>()
+            .SubmitAsync(
+                new SubmitWorkspaceStaffOnboardingCommand(
+                    sourceKind,
+                    "secret-token",
+                    application.SubjectId,
+                    displayName,
+                    application.LegalName,
+                    application.WorkEmail,
+                    application.WorkPhone,
+                    application.EmployeeNumber,
+                    application.JobTitle,
+                    application.Department),
+                CancellationToken.None);
+
     private static ServiceProvider CreateProvider(
         FakeRepository applications,
         FakeStaffProvisioner staff,
@@ -715,7 +935,8 @@ public sealed class WorkspaceStaffOnboardingFlowTests
         FakeAdmissionReader? admissions = null,
         WorkspaceTerminationFenceSnapshot? terminationFence = null,
         FakeWorkspaceStaffDeferredClaimWithdrawalRepository?
-            deferredWithdrawals = null)
+            deferredWithdrawals = null,
+        FakeOrganizationEnrollmentClaimInspector? claims = null)
     {
         HostApplicationBuilder builder = new(new HostApplicationBuilderSettings
         {
@@ -759,6 +980,8 @@ public sealed class WorkspaceStaffOnboardingFlowTests
         services.AddSingleton<IAccessAuthorizationService>(new AllowAllAuthorizationService());
         services.AddSingleton<IWorkspacePropertyProjectionRepository>(new FakePropertyProjectionRepository());
         services.AddSingleton<IOrganizationJoinTokenInspector>(tokenInspector);
+        services.AddSingleton<IOrganizationEnrollmentClaimInspector>(
+            claims ?? new FakeOrganizationEnrollmentClaimInspector());
         services.AddSingleton<IAuthMemberAdmissionReader>(
             admissions ?? new FakeAdmissionReader());
         services.AddSingleton<IWorkspaceTerminationFenceReader>(
