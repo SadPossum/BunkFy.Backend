@@ -64,14 +64,18 @@ public sealed class IngestionModule : IModule
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
     {
-        AuthenticationAssuranceRequirement? credentialManagementAssurance = endpoints.ServiceProvider
+        IngestionApiSecurityOptions securityOptions = endpoints.ServiceProvider
             .GetRequiredService<IOptions<IngestionApiSecurityOptions>>()
-            .Value
-            .CredentialManagementAssurance;
+            .Value;
         this.MapAdapterTypeEndpoints(endpoints);
         this.MapParserTypeEndpoints(endpoints);
-        this.MapConnectionEndpoints(endpoints, credentialManagementAssurance);
-        this.MapIngressControlEndpoints(endpoints);
+        this.MapConnectionEndpoints(
+            endpoints,
+            securityOptions.CredentialManagementAssurance,
+            securityOptions.CheckpointResetAssurance);
+        this.MapIngressControlEndpoints(
+            endpoints,
+            securityOptions.IngressResumeAssurance);
         this.MapIngressEndpoints(endpoints);
         this.MapRunEndpoints(endpoints);
         this.MapReceiptEndpoints(endpoints);
@@ -218,7 +222,8 @@ public sealed class IngestionModule : IModule
 
     private void MapConnectionEndpoints(
         IEndpointRouteBuilder endpoints,
-        AuthenticationAssuranceRequirement? credentialManagementAssurance)
+        AuthenticationAssuranceRequirement? credentialManagementAssurance,
+        AuthenticationAssuranceRequirement? checkpointResetAssurance)
     {
         RouteGroupBuilder group = endpoints.MapGroup("/api/ingestion/properties/{propertyId:guid}/connections")
             .WithModuleName(this.Name)
@@ -388,23 +393,25 @@ public sealed class IngestionModule : IModule
                 IngestionAdminPermissionCodes.ConnectionsManage,
                 IngestionPropertyAccessScopeResolver.ResolverName);
 
-        group.MapPost("/{connectionId:guid}/reset-checkpoint", async (
+        RouteHandlerBuilder resetCheckpoint = group.MapPost("/{connectionId:guid}/reset-checkpoint", async (
             Guid propertyId,
             Guid connectionId,
-            ConnectionControlRequest request,
+            ResetConnectionCheckpointRequest request,
             IRequestDispatcher dispatcher,
             CancellationToken cancellationToken) =>
             (await dispatcher.SendAsync(new ResetAdapterConnectionCheckpointCommand(
                 request.OperationId,
                 propertyId,
                 connectionId,
-                request.ExpectedVersion), cancellationToken).ConfigureAwait(false))
+                request.ExpectedVersion,
+                request.Confirmed), cancellationToken).ConfigureAwait(false))
             .ToHttpResult(ErrorStatusCodes))
             .Produces<AdapterConnectionMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(
                 IngestionAdminPermissionCodes.ConnectionsManage,
                 IngestionPropertyAccessScopeResolver.ResolverName);
+        RequireAssuranceWhenConfigured(resetCheckpoint, checkpointResetAssurance);
 
         group.MapGet("/{connectionId:guid}/credentials", async (
             Guid propertyId,
@@ -900,7 +907,9 @@ public sealed class IngestionModule : IModule
         return Results.Problem(title: title, detail: detail, statusCode: statusCode);
     }
 
-    private void MapIngressControlEndpoints(IEndpointRouteBuilder endpoints)
+    private void MapIngressControlEndpoints(
+        IEndpointRouteBuilder endpoints,
+        AuthenticationAssuranceRequirement? ingressResumeAssurance)
     {
         RouteGroupBuilder group = endpoints.MapGroup("/api/ingestion/adapter-ingress-control")
             .WithModuleName(this.Name)
@@ -939,7 +948,7 @@ public sealed class IngestionModule : IModule
             .RequireTenant()
             .RequireTenantPermission(IngestionAdminPermissionCodes.IngressControlManage);
 
-        group.MapPost("/resume", async (
+        RouteHandlerBuilder resume = group.MapPost("/resume", async (
             AdapterIngressControlDecisionRequest request,
             HttpContext context,
             IAccessHttpSubjectResolver subjects,
@@ -961,6 +970,7 @@ public sealed class IngestionModule : IModule
         })
             .RequireTenant()
             .RequireTenantPermission(IngestionAdminPermissionCodes.IngressControlManage);
+        RequireAssuranceWhenConfigured(resume, ingressResumeAssurance);
     }
 
     private static string SubjectActor(AccessSubject subject) =>
@@ -1276,6 +1286,11 @@ public sealed class IngestionModule : IModule
         Guid OperationId,
         long ExpectedVersion);
 
+    public sealed record ResetConnectionCheckpointRequest(
+        Guid OperationId,
+        long ExpectedVersion,
+        bool Confirmed);
+
     public sealed record ConfigurePollingScheduleRequest(
         Guid OperationId,
         int IntervalSeconds,
@@ -1302,6 +1317,7 @@ public sealed class IngestionModule : IModule
         new(IngestionApplicationErrors.ConnectionNotFound.Code, StatusCodes.Status404NotFound),
         new(IngestionApplicationErrors.ConnectionManagementOperationInvalid.Code, StatusCodes.Status400BadRequest),
         new(IngestionApplicationErrors.ConnectionManagementOperationConflict.Code, StatusCodes.Status409Conflict),
+        new(IngestionApplicationErrors.ConfirmationRequired.Code, StatusCodes.Status400BadRequest),
         new(IngestionApplicationErrors.IngressCredentialNotFound.Code, StatusCodes.Status404NotFound),
         new(IngestionApplicationErrors.IngressCredentialLimitReached.Code, StatusCodes.Status409Conflict),
         new(IngestionApplicationErrors.AdapterIngressQuotaExceeded.Code, StatusCodes.Status429TooManyRequests),

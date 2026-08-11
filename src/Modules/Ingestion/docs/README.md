@@ -93,6 +93,17 @@ policy, schedule configuration rechecks adapter capability, and a disable
 replay returns before it can inspect or cancel a later remote run. See
 [Ingestion Connection Control Idempotency Task](../../../docs/planning/ingestion-connection-control-idempotency-task.md).
 
+Checkpoint reset additionally requires explicit confirmation at the application
+command boundary and configured recent-authentication assurance at the public
+API. The confirmation check runs before admission or journal access and does not
+become part of mutation identity, so an unconfirmed attempt reserves nothing and
+a browser can retry the exact operation after step-up. Tenant ingress resume is
+independently assurance-protected because it releases an emergency stop;
+suspension remains immediately available for containment. Credential issuance
+and revocation keep their existing assurance, while ordinary connection controls
+remain unchanged. See
+[Ingestion Sensitive-Control Assurance Task](../../../docs/planning/ingestion-sensitive-control-assurance-task.md).
+
 Polling minimum/recommended intervals remain provider capability metadata, while each polling connection may separately own an explicit interval and retry limit. Ingestion persists that desired schedule and exposes it through a dynamic GMA `ITaskScheduleProvider`; TaskRuntime owns occurrence deduplication, leases, retries, and multi-worker execution. The trusted schedule reader crosses tenant query filters only to project enabled connection ids, tenant ids, cadence, and retry limits into tenant-scoped tasks. It does not expose adapter configuration or secret references.
 
 Disabling a connection pauses schedule emission without deleting its configuration; re-enabling resumes it. Clearing is an explicit optimistic operation, and a schedule must be cleared before changing away from polling mode. Ingestion permits only one active source run per connection, guarded both before start and by a filtered PostgreSQL unique index so concurrent scheduler/manual starts fail closed.

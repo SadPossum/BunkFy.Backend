@@ -177,6 +177,7 @@ Useful entry points:
 - [Ingestion Connection Creation Idempotency Task](planning/ingestion-connection-create-idempotency-task.md)
 - [Ingestion Connection Update Idempotency Task](planning/ingestion-connection-update-idempotency-task.md)
 - [Ingestion Connection Control Idempotency Task](planning/ingestion-connection-control-idempotency-task.md)
+- [Ingestion Sensitive-Control Assurance Task](planning/ingestion-sensitive-control-assurance-task.md)
 - [Ingestion Credential Mutation Idempotency Task](planning/ingestion-credential-mutation-idempotency-task.md)
 - [Ingestion Execution Mutation Serialization Task](planning/ingestion-execution-mutation-serialization-task.md)
 - [Ingestion Source Graph Mutation Serialization Task](planning/ingestion-source-graph-mutation-serialization-task.md)

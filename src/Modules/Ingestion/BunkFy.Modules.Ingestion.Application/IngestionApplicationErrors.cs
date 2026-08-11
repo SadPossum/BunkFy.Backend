@@ -16,6 +16,9 @@ public static class IngestionApplicationErrors
     public static readonly Error ConnectionManagementOperationConflict = new(
         "Ingestion.ConnectionManagementOperationConflict",
         "The connection management operation id was already used for different intent.");
+    public static readonly Error ConfirmationRequired = new(
+        "Ingestion.ConfirmationRequired",
+        "Confirmation is required.");
     public static readonly Error PropertyNotFound = new("Ingestion.PropertyNotFound", "The property was not found in Ingestion's local projection.");
     public static Error CountryPolicyDenied(CountryPolicyDecisionReason reason) => new(
         $"Ingestion.CountryPolicyDenied.{reason}",

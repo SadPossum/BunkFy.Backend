@@ -318,6 +318,12 @@ internal sealed class ResetAdapterConnectionCheckpointCommandHandler(
         ResetAdapterConnectionCheckpointCommand command,
         CancellationToken cancellationToken)
     {
+        if (!command.Confirmed)
+        {
+            return Result.Failure<AdapterConnectionMutationReceiptDto>(
+                IngestionApplicationErrors.ConfirmationRequired);
+        }
+
         Result<string> admission =
             await IngestionManagementAdmission.AuthorizeAsync(
                 scopeContext,

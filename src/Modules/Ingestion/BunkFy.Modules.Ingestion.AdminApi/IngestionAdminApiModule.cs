@@ -255,7 +255,8 @@ public sealed class IngestionAdminApiModule : IAdminApiModule
                         request.OperationId,
                         propertyId,
                         connectionId,
-                        request.ExpectedVersion), ct).ConfigureAwait(false)
+                        request.ExpectedVersion,
+                        Confirmed: true), ct).ConfigureAwait(false)
                     : Result.Failure<AdapterConnectionMutationReceiptDto>(AdminErrors.ConfirmationRequired),
                 token, errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false))
             .Produces<AdapterConnectionMutationReceiptDto>(StatusCodes.Status200OK);

@@ -732,7 +732,8 @@ public sealed class AdapterConnectionManagementTests
                 clearCommand.OperationId,
                 propertyId,
                 connection.Id,
-                clearCommand.ExpectedVersion),
+                clearCommand.ExpectedVersion,
+                Confirmed: true),
             CancellationToken.None);
         var noChangeClear = await clear.HandleAsync(
             clearCommand with
@@ -841,7 +842,18 @@ public sealed class AdapterConnectionManagementTests
             new TestScope(),
             new TestClock());
         ResetAdapterConnectionCheckpointCommand command = new(
-            Guid.NewGuid(), propertyId, connection.Id, connection.Version);
+            Guid.NewGuid(),
+            propertyId,
+            connection.Id,
+            connection.Version,
+            Confirmed: true);
+
+        var unconfirmed = await handler.HandleAsync(
+            command with { Confirmed = false },
+            CancellationToken.None);
+        Assert.Equal(IngestionApplicationErrors.ConfirmationRequired, unconfirmed.Error);
+        Assert.Empty(operations.Items);
+        Assert.NotNull(connection.Checkpoint);
 
         var reset = await handler.HandleAsync(command, CancellationToken.None);
         var replayed = await handler.HandleAsync(command, CancellationToken.None);
