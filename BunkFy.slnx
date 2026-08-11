@@ -156,6 +156,7 @@
     <File Path="docs/planning/properties-topology-lifecycle-task.md" />
     <File Path="docs/planning/remote-adapter-lease-task.md" />
     <File Path="docs/planning/reservation-guest-record-convergence-task.md" />
+    <File Path="docs/planning/reservation-guest-record-resume-attribution-task.md" />
     <File Path="docs/planning/reservation-record-retention-task.md" />
     <File Path="docs/planning/reservations-aggregate-query-shape-task.md" />
     <File Path="docs/planning/reservations-correction-assurance-task.md" />

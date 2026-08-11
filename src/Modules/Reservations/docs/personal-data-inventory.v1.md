@@ -590,6 +590,7 @@ Engineering metadata is not legal or country-launch approval.
 | reservation.audit.actor-id | BunkFy.Modules.Reservations.Contracts | BunkFy.Modules.Reservations.Contracts.ReservationDto | CheckedOutBy | api-response | transient-response |
 | reservation.audit.actor-id | BunkFy.Modules.Reservations.Contracts | BunkFy.Modules.Reservations.Contracts.ReservationDto | NoShowBy | api-response | transient-response |
 | reservation.audit.actor-id | BunkFy.Modules.Reservations.Contracts | BunkFy.Modules.Reservations.Contracts.ReservationDto | PendingStayActorId | api-response | transient-response |
+| reservation.audit.actor-id | BunkFy.Modules.Reservations.Contracts | BunkFy.Modules.Reservations.Contracts.ReservationGuestRecordLinkPreparationDto | GuestCreationActorId | api-response | transient-response |
 | reservation.audit.actor-id | BunkFy.Modules.Reservations.Contracts | BunkFy.Modules.Reservations.Contracts.ReservationNoShowIntegrationEvent | ActorId | integration-event | integration-message-journal |
 | reservation.audit.actor-id | BunkFy.Modules.Reservations.Domain | BunkFy.Modules.Reservations.Domain.Aggregates.Reservation | CheckedInBy | persistence | reservation-record-lifecycle |
 | reservation.audit.actor-id | BunkFy.Modules.Reservations.Domain | BunkFy.Modules.Reservations.Domain.Aggregates.Reservation | CheckedOutBy | persistence | reservation-record-lifecycle |

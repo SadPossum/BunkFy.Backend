@@ -103,6 +103,7 @@ public sealed class ReservationGuestRecordLinkProcessHandlerTests
         Assert.Equal(
             process.CreationConfirmationId,
             resumed.Value.CreationConfirmationId);
+        Assert.Equal("user:staff", resumed.Value.GuestCreationActorId);
         Assert.Equal(0, processes.AddCount);
     }
 

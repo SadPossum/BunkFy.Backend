@@ -58,6 +58,12 @@ internal sealed class ReservationGuestRecordWorkflow(
                 ReservationGuestRecordWorkflowErrors.ProcessStateInvalid);
         }
 
+        if (string.IsNullOrWhiteSpace(prepared.Value.GuestCreationActorId))
+        {
+            return Result.Failure<ReservationGuestRecordLinkProcessDto>(
+                ReservationGuestRecordWorkflowErrors.ProcessStateInvalid);
+        }
+
         Result<GuestMutationReceiptDto> guest = await guests.EnsureCreatedAsync(
             new(
                 operationId,
@@ -70,7 +76,7 @@ internal sealed class ReservationGuestRecordWorkflow(
                 request.NationalityCountryCode,
                 request.PreferredLanguageTag,
                 request.Notes,
-                actorId,
+                prepared.Value.GuestCreationActorId,
                 prepared.Value.CreationConfirmationId),
             cancellationToken).ConfigureAwait(false);
         if (guest.IsFailure)

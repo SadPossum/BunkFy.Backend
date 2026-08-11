@@ -76,6 +76,49 @@ public sealed class ReservationGuestRecordWorkflowTests
     }
 
     [Fact]
+    public async Task Resumed_process_preserves_original_guest_creation_attribution()
+    {
+        const string originalActorId = "user:operator-a";
+        const string resumingActorId = "user:operator-b";
+        RecordingGuests guests = new();
+        RecordingReservations reservations = new(
+            Process(ReservationGuestRecordLinkStatus.Prepared),
+            originalActorId);
+        ReservationGuestRecordWorkflow workflow = new(guests, reservations);
+
+        Result<ReservationGuestRecordLinkProcessDto> result =
+            await workflow.ExecuteAsync(
+                Request(),
+                resumingActorId,
+                CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(
+            resumingActorId,
+            Assert.Single(reservations.Preparations).ActorId);
+        Assert.Equal(originalActorId, Assert.Single(guests.Requests).ActorId);
+    }
+
+    [Fact]
+    public async Task Prepared_process_without_original_actor_fails_before_guest_creation()
+    {
+        RecordingGuests guests = new();
+        RecordingReservations reservations = new(
+            Process(ReservationGuestRecordLinkStatus.Prepared),
+            guestCreationActorId: null);
+        ReservationGuestRecordWorkflow workflow = new(guests, reservations);
+
+        Result<ReservationGuestRecordLinkProcessDto> result =
+            await workflow.ExecuteAsync(Request(), ActorId, CancellationToken.None);
+
+        Assert.Equal(
+            ReservationGuestRecordWorkflowErrors.ProcessStateInvalid,
+            result.Error);
+        Assert.Empty(guests.Requests);
+        Assert.Empty(reservations.Confirmations);
+    }
+
+    [Fact]
     public async Task Completed_replay_does_not_recreate_or_redispatch()
     {
         RecordingGuests guests = new();
@@ -157,6 +200,19 @@ public sealed class ReservationGuestRecordWorkflowTests
         Assert.DoesNotContain(processMembers, prohibited.Contains);
     }
 
+    [Fact]
+    public void Public_process_status_does_not_expose_actor_attribution()
+    {
+        string[] members = typeof(ReservationGuestRecordLinkProcessDto)
+            .GetProperties()
+            .Select(property => property.Name)
+            .ToArray();
+
+        Assert.DoesNotContain("GuestCreationActorId", members);
+        Assert.DoesNotContain("RequestedBy", members);
+        Assert.DoesNotContain("ActorId", members);
+    }
+
     private static ReservationGuestRecordWorkflowRequest Request() => new(
         OperationId,
         PropertyId,
@@ -207,7 +263,8 @@ public sealed class ReservationGuestRecordWorkflowTests
     }
 
     private sealed class RecordingReservations(
-        ReservationGuestRecordLinkProcessDto preparedProcess)
+        ReservationGuestRecordLinkProcessDto preparedProcess,
+        string? guestCreationActorId = ActorId)
         : IReservationGuestRecordLinkCapability
     {
         public List<PrepareReservationGuestRecordLinkRequest> Preparations
@@ -231,7 +288,8 @@ public sealed class ReservationGuestRecordWorkflowTests
             return Task.FromResult(Result.Success(
                 new ReservationGuestRecordLinkPreparationDto(
                     preparedProcess,
-                    ConfirmationId)));
+                    ConfirmationId,
+                    guestCreationActorId)));
         }
 
         public Task<Result<ReservationGuestRecordLinkProcessDto>>

@@ -4435,6 +4435,13 @@
         },
         {
           "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationGuestRecordLinkPreparationDto",
+          "member": "GuestCreationActorId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
           "type": "BunkFy.Modules.Reservations.Contracts.ReservationDto",
           "member": "CheckedInBy",
           "surface": "api-response",

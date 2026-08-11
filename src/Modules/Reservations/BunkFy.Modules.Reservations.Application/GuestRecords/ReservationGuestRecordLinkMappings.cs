@@ -9,7 +9,10 @@ internal static class ReservationGuestRecordLinkMappings
 {
     public static ReservationGuestRecordLinkPreparationDto ToPreparationDto(
         this ReservationGuestRecordLinkProcess process) =>
-        new(process.ToDto(), process.CreationConfirmationId);
+        new(
+            process.ToDto(),
+            process.CreationConfirmationId,
+            process.RequestedBy);
 
     public static ReservationGuestRecordLinkProcessDto ToDto(
         this ReservationGuestRecordLinkProcess process) =>

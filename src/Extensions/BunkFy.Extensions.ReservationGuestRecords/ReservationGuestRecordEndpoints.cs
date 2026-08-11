@@ -141,8 +141,14 @@ public static class ReservationGuestRecordEndpoints
             ReservationGuestRecordPropertyAccessScopeResolver.ResolverName,
         requireScope: true);
 
-    private static readonly ApiErrorStatusCodeMap ErrorStatusCodes =
+    internal static readonly ApiErrorStatusCodeMap ErrorStatusCodes =
         CreateErrorStatusCodes(
+            new(
+                ReservationGuestRecordWorkflowErrors.ProcessStateInvalid.Code,
+                StatusCodes.Status500InternalServerError),
+            new(
+                ReservationGuestRecordWorkflowErrors.GuestIdentityMismatch.Code,
+                StatusCodes.Status500InternalServerError),
             new(
                 "Reservations.ReservationNotFound",
                 StatusCodes.Status404NotFound),
