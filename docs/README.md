@@ -193,6 +193,7 @@ Useful entry points:
 - [Ingestion Legal Holds Task](planning/ingestion-legal-holds-task.md)
 - [Standalone Adapter Host Task](planning/standalone-adapter-host-task.md)
 - [Adapter Host Production Admission Task](planning/adapter-host-production-admission-task.md)
+- [AdapterHost Container Artifact Task](planning/adapter-host-container-artifact-task.md)
 - [Migrations Host Production Safety Task](planning/migrations-host-production-safety-task.md)
 - [IMAP Reservation Mail Adapter Task](planning/imap-reservation-mail-adapter-task.md)
 - [IMAP Reservation Mail Authentication Task](planning/imap-reservation-mail-authentication-task.md)

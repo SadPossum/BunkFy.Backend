@@ -21,6 +21,20 @@ coordination mode, and local status exposure are explicitly approved.
 mapped when exposure is `Disabled`; when `LoopbackOnly` is approved it retains
 the bounded factual snapshot described by the adapter runtime docs.
 
+## Container Artifact
+
+The BunkFy backend OCI image packages the AdapterHost publish output at
+`/opt/bunkfy/adapter-host`. A container deployment starts
+`dotnet /opt/bunkfy/adapter-host/BunkFy.AdapterHost.dll` from the same reviewed
+backend digest used by the other product hosts and supplies connection-bound
+configuration and secrets at runtime.
+
+This is an artifact contract, not a singleton topology. Each AdapterHost still
+owns exactly one configured connection and receives its own worker identity,
+ingress credential, material mounts, lifecycle, and network policy. A future
+dedicated image may replace this packaging only by extending the product image,
+promotion, rollback, and admission evidence as one coherent change.
+
 ## Approval Configuration
 
 Use deployment configuration or environment variables, not a committed live

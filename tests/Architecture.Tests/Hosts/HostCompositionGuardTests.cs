@@ -1196,6 +1196,27 @@ public sealed class HostCompositionGuardTests
     }
 
     [Fact]
+    public void Backend_container_packages_every_deployable_host()
+    {
+        string dockerfile = RepositoryPaths.Read("Dockerfile");
+        string[] requiredTokens =
+        [
+            "src/BunkFy.Host.Api/BunkFy.Host.Api.csproj -c Release -o /out/api",
+            "src/BunkFy.Host.Worker/BunkFy.Host.Worker.csproj -c Release -o /out/worker",
+            "src/BunkFy.Host.AdminApi/BunkFy.Host.AdminApi.csproj -c Release -o /out/admin-api",
+            "src/BunkFy.Host.AdminCli/BunkFy.Host.AdminCli.csproj -c Release -o /out/admin-cli",
+            "src/BunkFy.AdapterHost/BunkFy.AdapterHost.csproj -c Release -o /out/adapter-host",
+            "src/BunkFy.Host.Migrations/BunkFy.Host.Migrations.csproj -c Release -o /out/migrations",
+            "COPY --from=publish --chown=app:app /out /opt/bunkfy"
+        ];
+
+        foreach (string token in requiredTokens)
+        {
+            Assert.Contains(token, dockerfile, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
     public void Adapter_host_production_admission_is_fail_closed_and_status_is_gated()
     {
         string program = RepositoryPaths.Read(
