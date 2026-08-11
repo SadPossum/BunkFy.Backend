@@ -71,6 +71,14 @@ and duplicate-code attempts do not reserve the operation id. The append-only
 operation journal stores only coordinates, a canonical digest, and the minimal
 result; it is included in tenant export and bounded destruction.
 
+Public processing activation or policy rebinding and terminal property
+retirement may be protected by host-configured authentication assurance.
+BunkFy's public host requires a recent sign-in for both and the browser retries
+the same idempotent lifecycle attempt after step-up. Processing suspension
+remains immediately available so protective containment is never delayed.
+Authentication policy stays outside the domain model; see
+[Properties Sensitive-Control Assurance Task](../../../docs/planning/properties-sensitive-control-assurance-task.md).
+
 Multi-bed creation is one atomic room command. The complete label set is
 validated before mutation, is limited to 100 beds, and publishes the existing
 bed-added fact once per created bed. The single-bed command remains available

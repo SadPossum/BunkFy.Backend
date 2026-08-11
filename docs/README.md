@@ -41,6 +41,7 @@ Useful entry points:
 - [Properties Management Create Idempotency Task](planning/properties-management-create-idempotency-task.md)
 - [Properties Details Update Idempotency Task](planning/properties-details-update-idempotency-task.md)
 - [Properties Lifecycle Idempotency Task](planning/properties-lifecycle-idempotency-task.md)
+- [Properties Sensitive-Control Assurance Task](planning/properties-sensitive-control-assurance-task.md)
 - [Properties Room Mutation Idempotency Task](planning/properties-room-mutation-idempotency-task.md)
 - [Properties Bed Mutation Idempotency Task](planning/properties-bed-mutation-idempotency-task.md)
 - [Properties Personal-Data Catalogue Task](planning/properties-personal-data-catalogue-task.md)

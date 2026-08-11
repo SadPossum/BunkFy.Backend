@@ -134,6 +134,11 @@ builder.Services.Configure<OrganizationsApiSecurityOptions>(
 builder.Services.Configure<WorkspacesApiSecurityOptions>(
     options => options.StaffOnboardingManagementAssurance =
         privilegedOperationAssurance);
+builder.Services.Configure<PropertiesApiSecurityOptions>(options =>
+{
+    options.ProcessingActivationAssurance = privilegedOperationAssurance;
+    options.PropertyRetirementAssurance = privilegedOperationAssurance;
+});
 builder.Services.Configure<IngestionApiSecurityOptions>(options =>
 {
     options.CredentialManagementAssurance = privilegedOperationAssurance;
