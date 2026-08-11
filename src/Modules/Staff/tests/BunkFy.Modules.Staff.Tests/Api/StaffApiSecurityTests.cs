@@ -27,6 +27,7 @@ public sealed class StaffApiSecurityTests
     [InlineData(typeof(StaffProfileWriteRequest))]
     [InlineData(typeof(StaffAdminApiModule.StaffProfileWriteRequest))]
     [InlineData(typeof(BunkFy.Modules.Staff.Api.Requests.StaffProfileUpdateRequest))]
+    [InlineData(typeof(StaffSelfProfileUpdateRequest))]
     [InlineData(typeof(StaffAdminApiModule.StaffProfileUpdateRequest))]
     [InlineData(typeof(BunkFy.Modules.Staff.Api.Requests.StaffLifecycleRequest))]
     [InlineData(typeof(StaffAdminApiModule.StaffLifecycleRequest))]
@@ -52,6 +53,20 @@ public sealed class StaffApiSecurityTests
         Assert.Equal(typeof(Guid), parameter.ParameterType);
         Assert.False(parameter.HasDefaultValue);
         Assert.Null(requestType.GetProperty("ActorId"));
+    }
+
+    [Fact]
+    public void Self_service_profile_request_excludes_management_owned_fields()
+    {
+        Type request = typeof(StaffSelfProfileUpdateRequest);
+
+        Assert.Null(request.GetProperty("EmployeeNumber"));
+        Assert.NotNull(request.GetProperty("DisplayName"));
+        Assert.NotNull(request.GetProperty("LegalName"));
+        Assert.NotNull(request.GetProperty("WorkEmail"));
+        Assert.NotNull(request.GetProperty("WorkPhone"));
+        Assert.NotNull(request.GetProperty("JobTitle"));
+        Assert.NotNull(request.GetProperty("Department"));
     }
 
     [Fact]

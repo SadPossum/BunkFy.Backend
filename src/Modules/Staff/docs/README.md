@@ -39,6 +39,13 @@ profile they mutate. Canonical profile/create/update/lifecycle routes require
 tenant scope. Property discovery and assignment routes require
 `tenant/property` scope. Property grants do not satisfy tenant operations.
 
+The self-service profile contract allowlists display name, legal name, work
+email, work phone, job title, and department. Employee number remains
+management-owned: self-service requests cannot supply it, and Staff preserves
+the current value under the identity-bound member lock. Self-service retry
+equivalence covers only that allowlist and is namespace-separated from manager
+profile updates.
+
 Ordinary profile creation, profile updates, account-link changes, employment
 lifecycle transitions, and direct property-assignment changes use a
 caller-owned operation id. Creation returns its original directory-safe result;

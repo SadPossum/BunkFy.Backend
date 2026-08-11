@@ -1,4 +1,4 @@
-# staff Personal-Data Inventory v17
+# staff Personal-Data Inventory v18
 
 Generated from `staff.personal-data` schema v1.
 Catalogue approval: `engineering-default`.
@@ -567,6 +567,7 @@ Engineering metadata is not legal or country-launch approval.
 | staff.department | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffDataRightsCorrectionRequest | Department | api-input | transient-request |
 | staff.department | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffProfileUpdateRequest | Department | api-input | transient-request |
 | staff.department | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffProfileWriteRequest | Department | api-input | transient-request |
+| staff.department | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffSelfProfileUpdateRequest | Department | api-input | transient-request |
 | staff.department | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.ApplyStaffDataRightsCorrectionCommand | Department | application-command | transient-request |
 | staff.department | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.AssignStaffPropertyCommand | OperationId | application-command | transient-request |
 | staff.department | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.CreateStaffMemberCommand | Department | application-command | transient-request |
@@ -599,6 +600,7 @@ Engineering metadata is not legal or country-launch approval.
 | staff.display-name | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffDataRightsCorrectionRequest | DisplayName | api-input | transient-request |
 | staff.display-name | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffProfileUpdateRequest | DisplayName | api-input | transient-request |
 | staff.display-name | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffProfileWriteRequest | DisplayName | api-input | transient-request |
+| staff.display-name | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffSelfProfileUpdateRequest | DisplayName | api-input | transient-request |
 | staff.display-name | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.ApplyStaffDataRightsCorrectionCommand | DisplayName | application-command | transient-request |
 | staff.display-name | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.BootstrapStaffIdentityCommand | DisplayName | application-command | transient-request |
 | staff.display-name | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.CreateStaffMemberCommand | DisplayName | application-command | transient-request |
@@ -643,7 +645,6 @@ Engineering metadata is not legal or country-launch approval.
 | staff.employee-number | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.ApplyStaffDataRightsCorrectionCommand | EmployeeNumber | application-command | transient-request |
 | staff.employee-number | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.CreateStaffMemberCommand | EmployeeNumber | application-command | transient-request |
 | staff.employee-number | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.ProvisionStaffOnboardingCommand | EmployeeNumber | application-command | transient-request |
-| staff.employee-number | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.UpdateCurrentStaffMemberCommand | EmployeeNumber | application-command | transient-request |
 | staff.employee-number | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.UpdateStaffMemberCommand | EmployeeNumber | application-command | transient-request |
 | staff.employee-number | BunkFy.Modules.Staff.Contracts | BunkFy.Modules.Staff.Contracts.StaffMemberDto | EmployeeNumber | api-response | transient-response |
 | staff.employee-number | BunkFy.Modules.Staff.Contracts | BunkFy.Modules.Staff.Contracts.StaffMemberDto | EmployeeNumber | admin-output | transient-response |
@@ -889,6 +890,7 @@ Engineering metadata is not legal or country-launch approval.
 | staff.job-title | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffDataRightsCorrectionRequest | JobTitle | api-input | transient-request |
 | staff.job-title | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffProfileUpdateRequest | JobTitle | api-input | transient-request |
 | staff.job-title | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffProfileWriteRequest | JobTitle | api-input | transient-request |
+| staff.job-title | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffSelfProfileUpdateRequest | JobTitle | api-input | transient-request |
 | staff.job-title | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.ApplyStaffDataRightsCorrectionCommand | JobTitle | application-command | transient-request |
 | staff.job-title | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.CreateStaffMemberCommand | JobTitle | application-command | transient-request |
 | staff.job-title | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.ProvisionStaffOnboardingCommand | JobTitle | application-command | transient-request |
@@ -910,6 +912,7 @@ Engineering metadata is not legal or country-launch approval.
 | staff.legal-name | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffDataRightsCorrectionRequest | LegalName | api-input | transient-request |
 | staff.legal-name | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffProfileUpdateRequest | LegalName | api-input | transient-request |
 | staff.legal-name | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffProfileWriteRequest | LegalName | api-input | transient-request |
+| staff.legal-name | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffSelfProfileUpdateRequest | LegalName | api-input | transient-request |
 | staff.legal-name | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.ApplyStaffDataRightsCorrectionCommand | LegalName | application-command | transient-request |
 | staff.legal-name | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.CreateStaffMemberCommand | LegalName | application-command | transient-request |
 | staff.legal-name | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.ProvisionStaffOnboardingCommand | LegalName | application-command | transient-request |
@@ -939,6 +942,7 @@ Engineering metadata is not legal or country-launch approval.
 | staff.member-mutation-operation.id | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffDepartureRequest | OperationId | api-input | transient-request |
 | staff.member-mutation-operation.id | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffLifecycleRequest | OperationId | api-input | transient-request |
 | staff.member-mutation-operation.id | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffProfileUpdateRequest | OperationId | api-input | transient-request |
+| staff.member-mutation-operation.id | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffSelfProfileUpdateRequest | OperationId | api-input | transient-request |
 | staff.member-mutation-operation.id | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.DepartStaffMemberCommand | OperationId | application-command | transient-request |
 | staff.member-mutation-operation.id | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.ProvisionStaffOnboardingCommand | OperationId | application-command | transient-request |
 | staff.member-mutation-operation.id | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.ResumeStaffMemberCommand | OperationId | application-command | transient-request |
@@ -1027,6 +1031,7 @@ Engineering metadata is not legal or country-launch approval.
 | staff.record-version | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffDepartureRequest | ExpectedVersion | api-input | transient-request |
 | staff.record-version | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffLifecycleRequest | ExpectedVersion | api-input | transient-request |
 | staff.record-version | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffProfileUpdateRequest | ExpectedVersion | api-input | transient-request |
+| staff.record-version | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffSelfProfileUpdateRequest | ExpectedVersion | api-input | transient-request |
 | staff.record-version | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffUnassignmentRequest | ExpectedVersion | api-input | transient-request |
 | staff.record-version | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.ApplyStaffDataRightsCorrectionCommand | ExpectedVersion | application-command | transient-request |
 | staff.record-version | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.AssignStaffPropertyCommand | ExpectedVersion | application-command | transient-request |
@@ -1306,6 +1311,7 @@ Engineering metadata is not legal or country-launch approval.
 | staff.work-email | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffDataRightsCorrectionRequest | WorkEmail | api-input | transient-request |
 | staff.work-email | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffProfileUpdateRequest | WorkEmail | api-input | transient-request |
 | staff.work-email | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffProfileWriteRequest | WorkEmail | api-input | transient-request |
+| staff.work-email | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffSelfProfileUpdateRequest | WorkEmail | api-input | transient-request |
 | staff.work-email | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.ApplyStaffDataRightsCorrectionCommand | WorkEmail | application-command | transient-request |
 | staff.work-email | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.BootstrapStaffIdentityCommand | WorkEmail | application-command | transient-request |
 | staff.work-email | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.CreateStaffMemberCommand | WorkEmail | application-command | transient-request |
@@ -1325,6 +1331,7 @@ Engineering metadata is not legal or country-launch approval.
 | staff.work-phone | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffDataRightsCorrectionRequest | WorkPhone | api-input | transient-request |
 | staff.work-phone | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffProfileUpdateRequest | WorkPhone | api-input | transient-request |
 | staff.work-phone | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffProfileWriteRequest | WorkPhone | api-input | transient-request |
+| staff.work-phone | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffSelfProfileUpdateRequest | WorkPhone | api-input | transient-request |
 | staff.work-phone | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.ApplyStaffDataRightsCorrectionCommand | WorkPhone | application-command | transient-request |
 | staff.work-phone | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.CreateStaffMemberCommand | WorkPhone | application-command | transient-request |
 | staff.work-phone | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.ProvisionStaffOnboardingCommand | WorkPhone | application-command | transient-request |

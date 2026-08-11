@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "staff.personal-data",
-  "catalogVersion": 17,
+  "catalogVersion": 18,
   "module": "staff",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -4470,6 +4470,13 @@
         },
         {
           "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffSelfProfileUpdateRequest",
+          "member": "Department",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
           "type": "BunkFy.Modules.Staff.Api.Requests.StaffProfileWriteRequest",
           "member": "Department",
           "surface": "api-input",
@@ -4787,6 +4794,13 @@
         {
           "assembly": "BunkFy.Modules.Staff.Api",
           "type": "BunkFy.Modules.Staff.Api.Requests.StaffProfileUpdateRequest",
+          "member": "DisplayName",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffSelfProfileUpdateRequest",
           "member": "DisplayName",
           "surface": "api-input",
           "retentionPolicy": "transient-request"
@@ -5207,13 +5221,6 @@
         {
           "assembly": "BunkFy.Modules.Staff.Application",
           "type": "BunkFy.Modules.Staff.Application.Commands.ProvisionStaffOnboardingCommand",
-          "member": "EmployeeNumber",
-          "surface": "application-command",
-          "retentionPolicy": "transient-request"
-        },
-        {
-          "assembly": "BunkFy.Modules.Staff.Application",
-          "type": "BunkFy.Modules.Staff.Application.Commands.UpdateCurrentStaffMemberCommand",
           "member": "EmployeeNumber",
           "surface": "application-command",
           "retentionPolicy": "transient-request"
@@ -8223,6 +8230,13 @@
         },
         {
           "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffSelfProfileUpdateRequest",
+          "member": "JobTitle",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
           "type": "BunkFy.Modules.Staff.Api.Requests.StaffProfileWriteRequest",
           "member": "JobTitle",
           "surface": "api-input",
@@ -8401,6 +8415,13 @@
         {
           "assembly": "BunkFy.Modules.Staff.Api",
           "type": "BunkFy.Modules.Staff.Api.Requests.StaffProfileUpdateRequest",
+          "member": "LegalName",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffSelfProfileUpdateRequest",
           "member": "LegalName",
           "surface": "api-input",
           "retentionPolicy": "transient-request"
@@ -9251,6 +9272,13 @@
         {
           "assembly": "BunkFy.Modules.Staff.Api",
           "type": "BunkFy.Modules.Staff.Api.Requests.StaffProfileUpdateRequest",
+          "member": "ExpectedVersion",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffSelfProfileUpdateRequest",
           "member": "ExpectedVersion",
           "surface": "api-input",
           "retentionPolicy": "transient-request"
@@ -12047,6 +12075,13 @@
         },
         {
           "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffSelfProfileUpdateRequest",
+          "member": "WorkEmail",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
           "type": "BunkFy.Modules.Staff.Api.Requests.StaffProfileWriteRequest",
           "member": "WorkEmail",
           "surface": "api-input",
@@ -12209,6 +12244,13 @@
         {
           "assembly": "BunkFy.Modules.Staff.Api",
           "type": "BunkFy.Modules.Staff.Api.Requests.StaffProfileUpdateRequest",
+          "member": "WorkPhone",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffSelfProfileUpdateRequest",
           "member": "WorkPhone",
           "surface": "api-input",
           "retentionPolicy": "transient-request"
@@ -12816,6 +12858,13 @@
         {
           "assembly": "BunkFy.Modules.Staff.Api",
           "type": "BunkFy.Modules.Staff.Api.Requests.StaffProfileUpdateRequest",
+          "member": "OperationId",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Api",
+          "type": "BunkFy.Modules.Staff.Api.Requests.StaffSelfProfileUpdateRequest",
           "member": "OperationId",
           "surface": "api-input",
           "retentionPolicy": "transient-request"

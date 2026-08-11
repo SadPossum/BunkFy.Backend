@@ -11,7 +11,6 @@ public sealed record UpdateCurrentStaffMemberCommand(
     string? LegalName,
     string? WorkEmail,
     string? WorkPhone,
-    string? EmployeeNumber,
     string? JobTitle,
     string? Department,
     long ExpectedVersion,

@@ -76,6 +76,7 @@ Useful entry points:
 - [Staff Retired Property Operational Visibility Task](planning/staff-retired-property-operational-visibility-task.md)
 - [Staff Management Create Idempotency And Lock Ordering Task](planning/staff-management-create-idempotency-task.md)
 - [Staff Profile Update Idempotency Task](planning/staff-profile-update-idempotency-task.md)
+- [Staff Self-Service Profile Ownership Task](planning/staff-self-service-profile-ownership-task.md)
 - [Staff Auth-Subject Idempotency Task](planning/staff-auth-subject-idempotency-task.md)
 - [Staff Employment Lifecycle Idempotency Task](planning/staff-employment-lifecycle-idempotency-task.md)
 - [Staff Immediate Effective-Date Integrity Task](planning/staff-immediate-effective-date-integrity-task.md)

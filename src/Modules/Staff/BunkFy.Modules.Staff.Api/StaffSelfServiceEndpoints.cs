@@ -42,7 +42,7 @@ internal static class StaffSelfServiceEndpoints
         }).Produces<StaffMemberDto>(StatusCodes.Status200OK).RequireTenant();
 
         self.MapPut("", async (
-            StaffProfileUpdateRequest request,
+            StaffSelfProfileUpdateRequest request,
             HttpContext context,
             IAccessHttpSubjectResolver subjects,
             IRequestDispatcher dispatcher,
@@ -63,7 +63,6 @@ internal static class StaffSelfServiceEndpoints
                     request.LegalName,
                     request.WorkEmail,
                     request.WorkPhone,
-                    request.EmployeeNumber,
                     request.JobTitle,
                     request.Department,
                     request.ExpectedVersion,

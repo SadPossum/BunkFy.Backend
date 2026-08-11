@@ -29,8 +29,11 @@ fails closed.
 1. An operation id is scoped to one tenant and Staff member. The existing
    Staff member mutation coordinate serializes first execution and replay.
 2. Input is normalized and validated before the member lock or replay lookup.
-   The update fingerprint covers the Staff member id, expected version, and all
-   normalized writable profile values, but never stores the profile payload.
+   Each update surface fingerprints the Staff member id, expected version, and
+   all normalized values writable through that surface, but never stores the
+   profile payload. The later
+   [self-service ownership slice](staff-self-service-profile-ownership-task.md)
+   separated its narrower fingerprint from management updates.
 3. Under the member lock, an equivalent receipt returns the original status,
    version, and completion timestamp. Reusing the operation id with another
    target, expected version, or normalized profile returns HTTP 409.
@@ -52,9 +55,10 @@ fails closed.
 
 ## Response And Surfaces
 
-- Add `OperationId` to both profile-update commands and the shared public and
+- Add `OperationId` to both profile-update commands and the public and
   administrative request contracts. Require `--operation-id` for Admin CLI
-  update.
+  update. The self-service request later became a dedicated allowlisted
+  contract while management retained the full profile request.
 - Return a small mutation receipt containing Staff member id, status, resulting
   version, and completion time. Its current shared name is
   `StaffMemberMutationReceiptDto`; do not duplicate profile PII in an immutable

@@ -31,7 +31,7 @@ internal sealed class UpdateCurrentStaffMemberCommandHandler(
                 command.LegalName,
                 command.WorkEmail,
                 command.WorkPhone,
-                command.EmployeeNumber,
+                employeeNumber: null,
                 command.JobTitle,
                 command.Department,
                 command.ActorId);
@@ -72,7 +72,7 @@ internal sealed class UpdateCurrentStaffMemberCommandHandler(
                 StaffApplicationErrors.StaffMemberNotFound);
         }
 
-        return await updates.ExecuteAsync(
+        return await updates.ExecuteSelfServiceAsync(
                 member,
                 command.OperationId,
                 command.ExpectedVersion,

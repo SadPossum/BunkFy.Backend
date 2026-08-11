@@ -897,7 +897,6 @@ public sealed class StaffCommandHandlerTests
                 member.LegalName,
                 member.WorkEmail,
                 member.WorkPhone,
-                member.EmployeeNumber,
                 member.JobTitle,
                 member.Department,
                 member.Version,
@@ -909,6 +908,164 @@ public sealed class StaffCommandHandlerTests
         Assert.Equal((member.ScopeId, member.Id), Assert.Single(operationLock.Acquisitions));
         Assert.Equal(0, operations.GetCount);
         Assert.Empty(operations.Records);
+    }
+
+    [Fact]
+    public async Task Self_service_profile_update_preserves_employee_number()
+    {
+        StaffMember member = CreateMember("user-100");
+        RecordingMemberMutationOperations operations = new();
+        using ServiceProvider provider = CreateProvider(
+            new FakeStaffMemberRepository(member),
+            new FakePropertyProjectionRepository(),
+            memberMutationOperations: operations);
+        var handler = provider.GetRequiredService<
+            ICommandHandler<UpdateCurrentStaffMemberCommand, StaffMemberMutationReceiptDto>>();
+
+        Result<StaffMemberMutationReceiptDto> result = await handler.HandleAsync(
+            new UpdateCurrentStaffMemberCommand(
+                Guid.NewGuid(),
+                "user-100",
+                "Self Edited",
+                member.LegalName,
+                member.WorkEmail,
+                member.WorkPhone,
+                member.JobTitle,
+                member.Department,
+                member.Version,
+                "user:user-100"),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.Code);
+        Assert.Equal("Self Edited", member.DisplayName);
+        Assert.Equal("EMP-100", member.EmployeeNumber);
+        Assert.Single(operations.Records);
+    }
+
+    [Fact]
+    public async Task Self_service_profile_replay_survives_a_later_management_owned_change()
+    {
+        StaffMember member = CreateMember("user-100");
+        RecordingMemberMutationOperations operations = new();
+        using ServiceProvider provider = CreateProvider(
+            new FakeStaffMemberRepository(member),
+            new FakePropertyProjectionRepository(),
+            memberMutationOperations: operations);
+        var handler = provider.GetRequiredService<
+            ICommandHandler<UpdateCurrentStaffMemberCommand, StaffMemberMutationReceiptDto>>();
+        Guid operationId = Guid.NewGuid();
+        long expectedVersion = member.Version;
+        UpdateCurrentStaffMemberCommand command = new(
+            operationId,
+            "user-100",
+            "Self Edited",
+            member.LegalName,
+            member.WorkEmail,
+            member.WorkPhone,
+            member.JobTitle,
+            member.Department,
+            expectedVersion,
+            "user:user-100");
+
+        Result<StaffMemberMutationReceiptDto> first = await handler.HandleAsync(
+            command,
+            CancellationToken.None);
+        Result managementChange = member.UpdateProfile(
+            member.DisplayName,
+            member.LegalName,
+            member.WorkEmail,
+            member.WorkPhone,
+            "EMP-200",
+            member.JobTitle,
+            member.Department,
+            member.Version,
+            "user:manager",
+            Guid.NewGuid(),
+            TestClock.Now.AddMinutes(1));
+        Result<StaffMemberMutationReceiptDto> replay = await handler.HandleAsync(
+            command,
+            CancellationToken.None);
+
+        Assert.True(first.IsSuccess, first.Error.Code);
+        Assert.True(managementChange.IsSuccess, managementChange.Error.Code);
+        Assert.True(replay.IsSuccess, replay.Error.Code);
+        Assert.Equal(first.Value, replay.Value);
+        Assert.Equal("EMP-200", member.EmployeeNumber);
+        Assert.Single(operations.Records);
+    }
+
+    [Fact]
+    public async Task Self_service_profile_operation_rejects_changed_or_management_reuse()
+    {
+        StaffMember member = CreateMember("user-100");
+        RecordingMemberMutationOperations operations = new();
+        using ServiceProvider provider = CreateProvider(
+            new FakeStaffMemberRepository(member),
+            new FakePropertyProjectionRepository(),
+            memberMutationOperations: operations);
+        var selfHandler = provider.GetRequiredService<
+            ICommandHandler<UpdateCurrentStaffMemberCommand, StaffMemberMutationReceiptDto>>();
+        var managementHandler = provider.GetRequiredService<
+            ICommandHandler<UpdateStaffMemberCommand, StaffMemberMutationReceiptDto>>();
+        Guid selfOperationId = Guid.NewGuid();
+        long selfVersion = member.Version;
+
+        Result<StaffMemberMutationReceiptDto> first = await selfHandler.HandleAsync(
+            new UpdateCurrentStaffMemberCommand(
+                selfOperationId,
+                "user-100",
+                "Self Edited",
+                member.LegalName,
+                member.WorkEmail,
+                member.WorkPhone,
+                member.JobTitle,
+                member.Department,
+                selfVersion,
+                "user:user-100"),
+            CancellationToken.None);
+        Result<StaffMemberMutationReceiptDto> changed = await selfHandler.HandleAsync(
+            new UpdateCurrentStaffMemberCommand(
+                selfOperationId,
+                "user-100",
+                "Different Edit",
+                member.LegalName,
+                member.WorkEmail,
+                member.WorkPhone,
+                member.JobTitle,
+                member.Department,
+                selfVersion,
+                "user:user-100"),
+            CancellationToken.None);
+        Guid managementOperationId = Guid.NewGuid();
+        long managementVersion = member.Version;
+        Result<StaffMemberMutationReceiptDto> management = await managementHandler.HandleAsync(
+            UpdateCommand(
+                member,
+                managementOperationId,
+                managementVersion,
+                "Manager Edited"),
+            CancellationToken.None);
+        Result<StaffMemberMutationReceiptDto> crossSurface = await selfHandler.HandleAsync(
+            new UpdateCurrentStaffMemberCommand(
+                managementOperationId,
+                "user-100",
+                "Manager Edited",
+                member.LegalName,
+                member.WorkEmail,
+                member.WorkPhone,
+                member.JobTitle,
+                member.Department,
+                managementVersion,
+                "user:user-100"),
+            CancellationToken.None);
+
+        Assert.True(first.IsSuccess, first.Error.Code);
+        Assert.Equal(StaffApplicationErrors.ProfileUpdateOperationConflict, changed.Error);
+        Assert.True(management.IsSuccess, management.Error.Code);
+        Assert.Equal(
+            StaffApplicationErrors.ProfileUpdateOperationConflict,
+            crossSurface.Error);
+        Assert.Equal(2, operations.Records.Count);
     }
 
     [Fact]

@@ -24,7 +24,7 @@ internal sealed class UpdateCurrentStaffMemberCommandValidator : ICommandValidat
             command.LegalName,
             command.WorkEmail,
             command.WorkPhone,
-            command.EmployeeNumber,
+            employeeNumber: null,
             command.JobTitle,
             command.Department,
             null,

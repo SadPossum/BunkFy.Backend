@@ -16,7 +16,7 @@ internal sealed class StaffProfileUpdateCoordinator(
     ISystemClock clock,
     IIdGenerator ids)
 {
-    public async Task<Result<StaffMemberMutationReceiptDto>> ExecuteAsync(
+    public Task<Result<StaffMemberMutationReceiptDto>> ExecuteAsync(
         StaffMember member,
         Guid operationId,
         long expectedVersion,
@@ -29,6 +29,60 @@ internal sealed class StaffProfileUpdateCoordinator(
             member.Id,
             expectedVersion,
             values.Profile);
+        return this.ExecuteCoreAsync(
+            member,
+            operationId,
+            expectedVersion,
+            values,
+            fingerprint,
+            cancellationToken);
+    }
+
+    public Task<Result<StaffMemberMutationReceiptDto>> ExecuteSelfServiceAsync(
+        StaffMember member,
+        Guid operationId,
+        long expectedVersion,
+        StaffProfileUpdateValues values,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(member);
+        ArgumentNullException.ThrowIfNull(values);
+        Result<StaffProfile> profile = StaffProfile.Create(
+            values.Profile.DisplayName,
+            values.Profile.LegalName,
+            values.Profile.WorkEmail,
+            values.Profile.WorkPhone,
+            member.EmployeeNumber,
+            values.Profile.JobTitle,
+            values.Profile.Department,
+            authSubjectId: null);
+        if (profile.IsFailure)
+        {
+            return Task.FromResult(
+                Result.Failure<StaffMemberMutationReceiptDto>(profile.Error));
+        }
+
+        string fingerprint = StaffSelfProfileUpdateFingerprint.Compute(
+            member.Id,
+            expectedVersion,
+            values.Profile);
+        return this.ExecuteCoreAsync(
+            member,
+            operationId,
+            expectedVersion,
+            new StaffProfileUpdateValues(profile.Value, values.Actor),
+            fingerprint,
+            cancellationToken);
+    }
+
+    private async Task<Result<StaffMemberMutationReceiptDto>> ExecuteCoreAsync(
+        StaffMember member,
+        Guid operationId,
+        long expectedVersion,
+        StaffProfileUpdateValues values,
+        string fingerprint,
+        CancellationToken cancellationToken)
+    {
         StaffMemberMutationOperationRecord? existing =
             await operations.GetAsync(
                 member.Id,
