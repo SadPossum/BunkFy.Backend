@@ -316,7 +316,10 @@ public sealed class StaffApiSecurityTests
     public async Task Directory_and_sensitive_profile_routes_have_distinct_permissions()
     {
         WebApplicationBuilder builder = WebApplication.CreateBuilder();
-        builder.Services.AddOptions<StaffApiSecurityOptions>();
+        builder.Services.Configure<StaffApiSecurityOptions>(options =>
+            options.AccountLinkManagementAssurance =
+                new AuthenticationAssuranceRequirement(
+                    maxAuthenticationAge: TimeSpan.FromMinutes(10)));
         builder.Services.AddSingleton<IRequestDispatcher>(_ => null!);
         builder.Services.AddSingleton<IAccessHttpSubjectResolver>(_ => null!);
         await using WebApplication app = builder.Build();
@@ -348,8 +351,13 @@ public sealed class StaffApiSecurityTests
             endpoints,
             HttpMethods.Put,
             $"{member}/auth-subject",
-            StaffAdminPermissionCodes.Manage,
+            StaffAdminPermissionCodes.AccountLinksManage,
             StaffAdminPermissionCodes.SensitiveProfileRead);
+        AssertAssurance(
+            endpoints,
+            HttpMethods.Put,
+            $"{member}/auth-subject",
+            true);
 
         AssertResponse<StaffDirectoryListResponse>(endpoints, HttpMethods.Get, "/api/staff/members");
         AssertResponse<StaffDirectoryMemberDto>(endpoints, HttpMethods.Get, member);

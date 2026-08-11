@@ -169,6 +169,7 @@
     <File Path="docs/planning/secure-staff-enrollment-task.md" />
     <File Path="docs/planning/security-signals-and-incident-correlation-task.md" />
     <File Path="docs/planning/smtp-email-and-preview-onboarding-proof-task.md" />
+    <File Path="docs/planning/staff-account-link-authorization-task.md" />
     <File Path="docs/planning/staff-auth-subject-idempotency-task.md" />
     <File Path="docs/planning/staff-auth-subject-transition-safety-task.md" />
     <File Path="docs/planning/staff-data-rights-anonymisation-task.md" />

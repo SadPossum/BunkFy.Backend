@@ -125,9 +125,10 @@ public sealed class WorkspaceAccessProfileSeedTests
     }
 
     [Theory]
+    [InlineData(StaffAdminPermissionCodes.AccountLinksManage)]
     [InlineData(StaffAdminPermissionCodes.EmploymentGovernanceManage)]
     [InlineData(StaffAdminPermissionCodes.DataHoldsManage)]
-    public void Staff_governance_permissions_are_delegable_sensitive_and_never_seeded(
+    public void Sensitive_staff_permissions_are_delegable_and_never_seeded(
         string permissionCode)
     {
         Assert.Contains(
@@ -168,6 +169,7 @@ public sealed class WorkspaceAccessProfileSeedTests
         Assert.DoesNotContain(ceiling, permission => !delegable.Contains(permission));
         Assert.DoesNotContain(AccessControlPermissionGrants.OwnerWildcard, ceiling);
         Assert.DoesNotContain(StaffAdminPermissionCodes.SensitiveProfileRead, ceiling);
+        Assert.DoesNotContain(StaffAdminPermissionCodes.AccountLinksManage, ceiling);
         Assert.DoesNotContain(IngestionAdminPermissionCodes.CredentialsManage, ceiling);
         Assert.DoesNotContain(IngestionAdminPermissionCodes.RawPayloadsRead, ceiling);
         Assert.DoesNotContain(IngestionAdminPermissionCodes.SensitiveHistoryRead, ceiling);

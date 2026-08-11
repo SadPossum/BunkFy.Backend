@@ -63,6 +63,8 @@ The supported relink sequence is:
   linking grants permissions.
 - Keep the wire contract, persistence schema, integration events, and GMA
   source unchanged.
+- The later account-link authorization slice gives this dedicated mutation its
+  own high-assurance permission instead of inheriting profile-edit authority.
 
 ## Verification
 

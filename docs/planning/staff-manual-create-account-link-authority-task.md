@@ -30,6 +30,8 @@ workflow.
   performs no Auth-subject uniqueness lookup.
 - A manager links an account only after creation through the dedicated
   expected-version account-link command and its transition-safety rules.
+- The later account-link authorization slice protects that command with its
+  own permission and privileged-operation assurance.
 - Onboarding provisioning and owner identity bootstrap may still create or
   reconcile their already-authorized subject correlation.
 - Existing Staff links are not rewritten. Persistence schema, integration

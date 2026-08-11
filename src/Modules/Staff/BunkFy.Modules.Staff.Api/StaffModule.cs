@@ -29,15 +29,16 @@ public sealed class StaffModule : IModule
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
     {
+        StaffApiSecurityOptions security = endpoints.ServiceProvider
+            .GetRequiredService<IOptions<StaffApiSecurityOptions>>()
+            .Value;
         StaffSelfServiceEndpoints.Map(endpoints, this.Name);
-        StaffMemberEndpoints.Map(endpoints, this.Name);
+        StaffMemberEndpoints.Map(endpoints, this.Name, security);
         StaffPropertyAssignmentEndpoints.Map(endpoints, this.Name);
         StaffDataRightsEndpoints.Map(endpoints, this.Name);
         StaffGovernanceEndpoints.Map(
             endpoints,
             this.Name,
-            endpoints.ServiceProvider
-                .GetRequiredService<IOptions<StaffApiSecurityOptions>>()
-                .Value);
+            security);
     }
 }

@@ -40,8 +40,9 @@ resource scope used for each authorized or denied operation.
 Company identities may receive only the dedicated
 `bunkfy-company-support` role. Its product-owned permission ceiling excludes
 owner access, Data Rights and export operations, raw ingestion payloads,
-ingestion credentials and sensitive history, sensitive staff profiles, and
-privacy or retention controls. The role is not provisioned automatically; the
+ingestion credentials and sensitive history, sensitive staff profiles, manual
+Staff account correlation, and privacy or retention controls. The role is not
+provisioned automatically; the
 private operator plane must provision a narrower role definition and the
 evaluated definition cannot expand during an active lease.
 

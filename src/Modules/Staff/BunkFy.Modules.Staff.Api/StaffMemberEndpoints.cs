@@ -7,6 +7,8 @@ using Gma.Framework.Api.Results;
 using Gma.Framework.Api.Tenancy;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Pagination;
+using Gma.Framework.Security;
+using Gma.Framework.Security.AspNetCore;
 using Gma.Framework.Tenancy.AccessControl.AspNetCore;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -18,7 +20,10 @@ using BunkFy.Modules.Staff.Contracts;
 
 internal static class StaffMemberEndpoints
 {
-    public static void Map(IEndpointRouteBuilder endpoints, string moduleName)
+    public static void Map(
+        IEndpointRouteBuilder endpoints,
+        string moduleName,
+        StaffApiSecurityOptions security)
     {
         RouteGroupBuilder members = endpoints.MapGroup("/api/staff/members")
             .WithModuleName(moduleName).WithTags("Staff").RequireAuthorization();
@@ -68,7 +73,7 @@ internal static class StaffMemberEndpoints
             .RequireTenant()
             .RequireTenantPermission(StaffAdminPermissionCodes.Manage)
             .RequireTenantPermission(StaffAdminPermissionCodes.SensitiveProfileRead);
-        members.MapPut("/{staffMemberId:guid}/auth-subject", async (Guid staffMemberId,
+        RouteHandlerBuilder accountLink = members.MapPut("/{staffMemberId:guid}/auth-subject", async (Guid staffMemberId,
             StaffAuthSubjectRequest request, HttpContext context, IAccessHttpSubjectResolver subjects,
             IRequestDispatcher dispatcher, CancellationToken token) =>
         {
@@ -81,8 +86,10 @@ internal static class StaffMemberEndpoints
                 .ConfigureAwait(false)).ToHttpResult(StaffApiEndpointSupport.ErrorStatusCodes);
         }).Produces<StaffMemberMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
-            .RequireTenantPermission(StaffAdminPermissionCodes.Manage)
+            .RequireTenantPermission(StaffAdminPermissionCodes.AccountLinksManage)
             .RequireTenantPermission(StaffAdminPermissionCodes.SensitiveProfileRead);
+        accountLink.RequireAssuranceWhenConfigured(
+            security.AccountLinkManagementAssurance);
         members.MapPost("/{staffMemberId:guid}/suspend", async (Guid staffMemberId,
             StaffLifecycleRequest request, HttpContext context, IAccessHttpSubjectResolver subjects,
             IRequestDispatcher dispatcher, CancellationToken token) =>
@@ -112,4 +119,11 @@ internal static class StaffMemberEndpoints
             .Produces<StaffMemberMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant().RequireTenantPermission(StaffAdminPermissionCodes.ManageLifecycle);
     }
+
+    private static RouteHandlerBuilder RequireAssuranceWhenConfigured(
+        this RouteHandlerBuilder endpoint,
+        AuthenticationAssuranceRequirement? requirement) =>
+        requirement is null
+            ? endpoint
+            : endpoint.RequireAuthenticationAssurance(requirement);
 }

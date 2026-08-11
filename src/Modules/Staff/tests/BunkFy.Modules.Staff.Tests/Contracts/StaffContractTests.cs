@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.Staff.Tests;
 
 using BunkFy.Modules.DataRights.Contracts;
+using BunkFy.Modules.Staff.Admin.Contracts;
 using Gma.Framework.Messaging;
 using Gma.Framework.ModuleComposition;
 using Gma.Framework.Permissions;
@@ -24,11 +25,13 @@ public sealed class StaffContractTests
     public void Descriptor_exposes_scoped_permissions_property_subscriptions_and_rebuild_task()
     {
         IReadOnlyCollection<ModulePermissionDescriptor> permissions = StaffModuleMetadata.Descriptor.GetPermissions();
-        Assert.Equal(8, permissions.Count);
+        Assert.Equal(9, permissions.Count);
         Assert.All(permissions, permission => Assert.Equal(PermissionScopeRequirement.Scoped,
             permission.ScopeRequirement));
         Assert.Contains(permissions, permission =>
             permission.Code == StaffAdminPermissionCodes.SensitiveProfileRead);
+        Assert.Contains(permissions, permission =>
+            permission.Code == StaffAdminPermissionCodes.AccountLinksManage);
         Assert.Contains(permissions, permission =>
             permission.Code ==
                 StaffAdminPermissionCodes.EmploymentGovernanceManage);
@@ -44,6 +47,9 @@ public sealed class StaffContractTests
                     DataRightsTenantCorrectionAppliedIntegrationEvent.EventType);
         Assert.Single(StaffModuleMetadata.Descriptor.GetTasks());
         Assert.Single(StaffModuleMetadata.Descriptor.GetCompositionProfiles());
+        Assert.Equal(
+            StaffAdminPermissionCodes.AccountLinksManage,
+            StaffAdminPermissions.AccountLinksManage.Code);
     }
 
     [Fact]

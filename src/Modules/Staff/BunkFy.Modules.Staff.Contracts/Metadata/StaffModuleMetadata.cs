@@ -27,6 +27,7 @@ public static class StaffModuleMetadata
             new ModulePermissionDescriptor(StaffAdminPermissionCodes.SensitiveProfileRead, "Read sensitive staff employment profiles.", PermissionScopeRequirement.Scoped, PermissionScopeGrantPolicy.Descendants),
             new ModulePermissionDescriptor(StaffAdminPermissionCodes.Create, "Create staff profiles.", PermissionScopeRequirement.Scoped, PermissionScopeGrantPolicy.Descendants),
             new ModulePermissionDescriptor(StaffAdminPermissionCodes.Manage, "Manage staff profiles.", PermissionScopeRequirement.Scoped, PermissionScopeGrantPolicy.Descendants),
+            new ModulePermissionDescriptor(StaffAdminPermissionCodes.AccountLinksManage, "Manage Staff account links.", PermissionScopeRequirement.Scoped, PermissionScopeGrantPolicy.Descendants),
             new ModulePermissionDescriptor(StaffAdminPermissionCodes.AssignProperties, "Manage staff property assignments.", PermissionScopeRequirement.Scoped, PermissionScopeGrantPolicy.Descendants),
             new ModulePermissionDescriptor(StaffAdminPermissionCodes.ManageLifecycle, "Manage staff employment lifecycle.", PermissionScopeRequirement.Scoped, PermissionScopeGrantPolicy.Descendants),
             new ModulePermissionDescriptor(StaffAdminPermissionCodes.EmploymentGovernanceManage, "Manage Staff employment-governance policy bindings.", PermissionScopeRequirement.Scoped, PermissionScopeGrantPolicy.Descendants),

@@ -129,7 +129,7 @@ public sealed class StaffAdminCliModule : IAdminCliModule
         Command command = new("set-auth-subject", "Link or safely clear an Auth user subject.")
             { operationId, member, subject, version, yes };
         command.SetAction((parse, token) => ExecuteMemberMutationAsync(services, global, parse,
-            StaffAdminOperationNames.SetAuthSubject, StaffAdminPermissions.Manage,
+            StaffAdminOperationNames.SetAuthSubject, StaffAdminPermissions.AccountLinksManage,
             (provider, ct) => parse.GetValue(yes)
                 ? provider.GetRequiredService<IRequestDispatcher>().SendAsync(
                     new SetStaffAuthSubjectCommand(

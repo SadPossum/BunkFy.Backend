@@ -28,12 +28,19 @@ the dedicated account-link mutation afterward; only workspace onboarding and
 owner identity bootstrap may correlate their already-authorized subject while
 creating or reconciling a profile.
 
+Manual account-link changes require the dedicated
+`staff.account-links.manage` capability and configured privileged-operation
+assurance. The capability is available to custom roles but is absent from
+ordinary operational seeds and the company-support ceiling. Workspace
+onboarding remains the normal account-correlation path.
+
 ## Permissions
 
 - `staff.read`
 - `staff.sensitive-profile.read`
 - `staff.create`
 - `staff.manage`
+- `staff.account-links.manage`
 - `staff.assign-properties`
 - `staff.manage-lifecycle`
 - `staff.employment-governance.manage`
@@ -47,8 +54,10 @@ one-row look-ahead for `HasMore`. Full profile reads require
 `staff.sensitive-profile.read`; the identity-bound self-service route remains
 available to the current Staff subject. Profile, account-link, lifecycle, and
 assignment writes return directory-safe results rather than the sensitive
-profile they mutate. Canonical profile/create/update/lifecycle routes require
-tenant scope. Property discovery and assignment routes require
+profile they mutate. Profile editing and manual account correlation are
+separate capabilities; the latter also requires sensitive-profile read access.
+Canonical profile/create/update/lifecycle routes require tenant scope.
+Property discovery and assignment routes require
 `tenant/property` scope. Property grants do not satisfy tenant operations.
 
 The self-service profile contract allowlists display name, legal name, work

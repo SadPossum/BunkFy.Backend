@@ -79,7 +79,8 @@ public sealed class StaffAdminApiModule : IAdminApiModule
             IRequestDispatcher dispatcher, CancellationToken token) =>
         {
             return await executor.ExecuteAsync(context,
-                AdminOperation.Create(StaffAdminOperationNames.SetAuthSubject, StaffAdminPermissions.Manage), true,
+                AdminOperation.Create(StaffAdminOperationNames.SetAuthSubject,
+                    StaffAdminPermissions.AccountLinksManage), true,
                 ct => request.Confirmed ? dispatcher.SendAsync(new SetStaffAuthSubjectCommand(
                     request.OperationId,
                     staffMemberId,

@@ -80,6 +80,7 @@ Useful entry points:
 - [Staff Auth-Subject Idempotency Task](planning/staff-auth-subject-idempotency-task.md)
 - [Staff Auth-Subject Transition Safety Task](planning/staff-auth-subject-transition-safety-task.md)
 - [Staff Manual-Create Account-Link Authority Task](planning/staff-manual-create-account-link-authority-task.md)
+- [Staff Account-Link Authorization Task](planning/staff-account-link-authorization-task.md)
 - [Staff Employment Lifecycle Idempotency Task](planning/staff-employment-lifecycle-idempotency-task.md)
 - [Staff Immediate Effective-Date Integrity Task](planning/staff-immediate-effective-date-integrity-task.md)
 - [Staff Identity Bootstrap Replay Envelope Task](planning/staff-identity-bootstrap-replay-envelope-task.md)

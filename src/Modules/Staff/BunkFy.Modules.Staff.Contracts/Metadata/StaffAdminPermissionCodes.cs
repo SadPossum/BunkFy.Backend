@@ -6,6 +6,7 @@ public static class StaffAdminPermissionCodes
     public const string SensitiveProfileRead = "staff.sensitive-profile.read";
     public const string Create = "staff.create";
     public const string Manage = "staff.manage";
+    public const string AccountLinksManage = "staff.account-links.manage";
     public const string AssignProperties = "staff.assign-properties";
     public const string ManageLifecycle = "staff.manage-lifecycle";
     public const string EmploymentGovernanceManage =

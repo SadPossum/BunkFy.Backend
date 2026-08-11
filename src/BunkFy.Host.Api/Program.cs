@@ -136,6 +136,8 @@ builder.Services.Configure<IngestionApiSecurityOptions>(
 builder.Services.Configure<StaffApiSecurityOptions>(
     options =>
     {
+        options.AccountLinkManagementAssurance =
+            privilegedOperationAssurance;
         options.EmploymentGovernanceAssurance =
             privilegedOperationAssurance;
         options.DataHoldReleaseAssurance =
