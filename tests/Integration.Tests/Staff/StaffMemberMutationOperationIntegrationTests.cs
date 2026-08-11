@@ -34,6 +34,106 @@ public sealed class StaffMemberMutationOperationIntegrationTests
     [DockerFact]
     [Trait("Category", "Docker")]
     [Trait("Category", "Integration")]
+    public async Task Owner_identity_bootstrap_converges_under_exact_replay_and_competing_operations()
+    {
+        await using PostgreSqlContainer postgreSql =
+            new PostgreSqlBuilder("postgres:16-alpine")
+                .WithDatabase("bunkfy_staff_identity_bootstrap_tests")
+                .Build();
+        await postgreSql.StartAsync().ConfigureAwait(false);
+
+        MutableScopeContext scopeContext = new(TenantId);
+        await using ServiceProvider services = CreateProvider(
+            postgreSql.GetConnectionString(),
+            scopeContext);
+        await MigrateAsync(services).ConfigureAwait(false);
+
+        Guid replayOperationId = Guid.NewGuid();
+        const string replaySubjectId = "account-owner-replay";
+        BootstrapStaffIdentityCommand replay = new(
+            replayOperationId,
+            replaySubjectId,
+            "Workspace Owner",
+            "owner-replay@example.test",
+            "integration:organizations");
+
+        Result<Unit>[] replayResults = await Task.WhenAll(
+            SendAsync(services, replay),
+            SendAsync(services, replay)).ConfigureAwait(false);
+        Assert.All(
+            replayResults,
+            result => Assert.True(result.IsSuccess, result.Error.Code));
+
+        Guid competingOperationIdA = Guid.NewGuid();
+        Guid competingOperationIdB = Guid.NewGuid();
+        const string competingSubjectId = "account-owner-competing";
+        Result<Unit>[] competingResults = await Task.WhenAll(
+            SendAsync(
+                services,
+                new BootstrapStaffIdentityCommand(
+                    competingOperationIdA,
+                    competingSubjectId,
+                    "Competing Owner A",
+                    "owner-competing@example.test",
+                    "integration:organizations")),
+            SendAsync(
+                services,
+                new BootstrapStaffIdentityCommand(
+                    competingOperationIdB,
+                    competingSubjectId,
+                    "Competing Owner B",
+                    "owner-competing@example.test",
+                    "integration:organizations"))).ConfigureAwait(false);
+        Assert.All(
+            competingResults,
+            result => Assert.True(result.IsSuccess, result.Error.Code));
+
+        using IServiceScope scope = services.CreateScope();
+        StaffDbContext dbContext = scope.ServiceProvider
+            .GetRequiredService<StaffDbContext>();
+        StaffMember[] members = await dbContext.StaffMembers
+            .AsNoTracking()
+            .Where(member =>
+                member.AuthSubjectId == replaySubjectId ||
+                member.AuthSubjectId == competingSubjectId)
+            .OrderBy(member => member.AuthSubjectId)
+            .ToArrayAsync()
+            .ConfigureAwait(false);
+
+        Assert.Equal(2, members.Length);
+        StaffMember replayMember = Assert.Single(
+            members,
+            member => member.AuthSubjectId == replaySubjectId);
+        Assert.Equal(replayOperationId, replayMember.Id);
+
+        StaffMember competingMember = Assert.Single(
+            members,
+            member => member.AuthSubjectId == competingSubjectId);
+        Assert.Contains(
+            competingMember.Id,
+            new[] { competingOperationIdA, competingOperationIdB });
+
+        OutboxMessage[] createdMessages = await dbContext.OutboxMessages
+            .AsNoTracking()
+            .Where(message => message.EventType.Contains(
+                nameof(StaffMemberCreatedIntegrationEvent)))
+            .ToArrayAsync()
+            .ConfigureAwait(false);
+        Assert.Single(
+            createdMessages,
+            message => message.Payload.Contains(
+                replaySubjectId,
+                StringComparison.Ordinal));
+        Assert.Single(
+            createdMessages,
+            message => message.Payload.Contains(
+                competingSubjectId,
+                StringComparison.Ordinal));
+    }
+
+    [DockerFact]
+    [Trait("Category", "Docker")]
+    [Trait("Category", "Integration")]
     public async Task Member_mutation_receipts_preserve_legacy_data_and_are_atomic_replayable_scoped_and_immutable()
     {
         await using PostgreSqlContainer postgreSql =

@@ -954,7 +954,6 @@ public sealed class StaffCommandHandlerTests
     [InlineData(typeof(UnassignStaffPropertyCommandHandler))]
     [InlineData(typeof(DepartStaffMemberCommandHandler))]
     [InlineData(typeof(StaffOnboardingProvisioningCoordinator))]
-    [InlineData(typeof(ReconcileStaffIdentityCommandHandler))]
     [InlineData(typeof(ReconcileStaffPropertyAssignmentsCommandHandler))]
     public void Existing_member_mutations_use_the_shared_serialization_boundary(
         Type handlerType)
@@ -972,15 +971,23 @@ public sealed class StaffCommandHandlerTests
     }
 
     [Fact]
-    public async Task Identity_reconciliation_creates_one_active_staff_profile_for_the_auth_subject()
+    public async Task Identity_bootstrap_creates_one_active_staff_profile_for_the_source_operation()
     {
         FakeStaffMemberRepository members = new();
-        using ServiceProvider provider = CreateProvider(members, new FakePropertyProjectionRepository());
-        ICommandHandler<ReconcileStaffIdentityCommand, Unit> handler = provider
-            .GetRequiredService<ICommandHandler<ReconcileStaffIdentityCommand, Unit>>();
-        ReconcileStaffIdentityCommand command = new(
-            "member-100", "ada@example.test", "ada@example.test", true,
-            "integration:organizations", "Workspace membership changed.");
+        RecordingCreationOperationLock creationLock = new();
+        using ServiceProvider provider = CreateProvider(
+            members,
+            new FakePropertyProjectionRepository(),
+            creationLock: creationLock);
+        var handler = provider.GetRequiredService<
+            ICommandHandler<BootstrapStaffIdentityCommand, Unit>>();
+        Guid operationId = Guid.NewGuid();
+        BootstrapStaffIdentityCommand command = new(
+            operationId,
+            "member-100",
+            "ada@example.test",
+            "ada@example.test",
+            "integration:organizations");
 
         Result<Unit> first = await handler.HandleAsync(command, CancellationToken.None);
         Result<Unit> repeated = await handler.HandleAsync(command, CancellationToken.None);
@@ -988,34 +995,59 @@ public sealed class StaffCommandHandlerTests
         Assert.True(first.IsSuccess, first.Error.Code);
         Assert.True(repeated.IsSuccess, repeated.Error.Code);
         Assert.NotNull(members.AddedMember);
+        Assert.Equal(operationId, members.AddedMember.Id);
         Assert.Equal("member-100", members.AddedMember.AuthSubjectId);
         Assert.Equal(StaffMemberState.Active, members.AddedMember.Status);
+        Assert.Equal(1, members.AddCount);
+        Assert.Equal(2, creationLock.Acquisitions.Count);
     }
 
     [Fact]
-    public async Task Identity_reconciliation_suspends_and_resumes_an_existing_staff_profile()
+    public async Task Identity_bootstrap_preserves_existing_profile_and_employment_state()
     {
         StaffMember member = CreateMember("member-100");
+        Assert.True(member.UpdateProfile(
+            "Operator Edited Name",
+            member.LegalName,
+            member.WorkEmail,
+            member.WorkPhone,
+            member.EmployeeNumber,
+            member.JobTitle,
+            member.Department,
+            member.Version,
+            "user:operator",
+            Guid.NewGuid(),
+            TestClock.Now.AddMinutes(1)).IsSuccess);
+        Assert.True(member.Suspend(
+            member.Version,
+            "user:operator",
+            "Approved leave.",
+            Guid.NewGuid(),
+            TestClock.Now.AddMinutes(2)).IsSuccess);
+        long version = member.Version;
         FakeStaffMemberRepository members = new(member);
         using ServiceProvider provider = CreateProvider(members, new FakePropertyProjectionRepository());
-        ICommandHandler<ReconcileStaffIdentityCommand, Unit> handler = provider
-            .GetRequiredService<ICommandHandler<ReconcileStaffIdentityCommand, Unit>>();
+        var handler = provider.GetRequiredService<
+            ICommandHandler<BootstrapStaffIdentityCommand, Unit>>();
 
-        Result<Unit> suspended = await handler.HandleAsync(new(
-            "member-100", "Ada Operator", "ada@example.test", false,
-            "integration:organizations", "Workspace membership changed."), CancellationToken.None);
-        Result<Unit> resumed = await handler.HandleAsync(new(
-            "member-100", "Ada Operator", "ada@example.test", true,
-            "integration:organizations", "Workspace membership changed."), CancellationToken.None);
+        Result<Unit> result = await handler.HandleAsync(
+            new BootstrapStaffIdentityCommand(
+                Guid.NewGuid(),
+                "member-100",
+                "Stale Owner Name",
+                "stale@example.test",
+                "integration:organizations"),
+            CancellationToken.None);
 
-        Assert.True(suspended.IsSuccess, suspended.Error.Code);
-        Assert.True(resumed.IsSuccess, resumed.Error.Code);
-        Assert.Equal(StaffMemberState.Active, member.Status);
-        Assert.Equal(3, member.Version);
+        Assert.True(result.IsSuccess, result.Error.Code);
+        Assert.Equal("Operator Edited Name", member.DisplayName);
+        Assert.Equal(StaffMemberState.Suspended, member.Status);
+        Assert.Equal(version, member.Version);
+        Assert.Equal(0, members.AddCount);
     }
 
     [Fact]
-    public async Task Identity_reconciliation_rejects_a_hidden_existing_staff_profile()
+    public async Task Identity_bootstrap_acknowledges_a_hidden_existing_staff_profile()
     {
         StaffMember member = CreateMember("member-100");
         FakeStaffMemberRepository members = new(member)
@@ -1026,20 +1058,46 @@ public sealed class StaffCommandHandlerTests
             members,
             new FakePropertyProjectionRepository());
         var handler = provider.GetRequiredService<
-            ICommandHandler<ReconcileStaffIdentityCommand, Unit>>();
+            ICommandHandler<BootstrapStaffIdentityCommand, Unit>>();
 
         Result<Unit> result = await handler.HandleAsync(
-            new ReconcileStaffIdentityCommand(
+            new BootstrapStaffIdentityCommand(
+                Guid.NewGuid(),
                 "member-100",
                 "Ada Operator",
                 "ada@example.test",
-                IsActive: true,
-                "integration:organizations",
-                "Workspace membership changed."),
+                "integration:organizations"),
             CancellationToken.None);
 
-        Assert.Equal(StaffApplicationErrors.StaffMemberNotFound, result.Error);
+        Assert.True(result.IsSuccess, result.Error.Code);
         Assert.Null(members.AddedMember);
+    }
+
+    [Fact]
+    public async Task Identity_bootstrap_rejects_source_operation_reuse_for_another_subject()
+    {
+        Guid operationId = Guid.NewGuid();
+        StaffMember operationOwner = CreateMemberWithId(
+            operationId,
+            "member-original");
+        using ServiceProvider provider = CreateProvider(
+            new FakeStaffMemberRepository(operationOwner),
+            new FakePropertyProjectionRepository());
+        var handler = provider.GetRequiredService<
+            ICommandHandler<BootstrapStaffIdentityCommand, Unit>>();
+
+        Result<Unit> result = await handler.HandleAsync(
+            new BootstrapStaffIdentityCommand(
+                operationId,
+                "member-different",
+                "Different Owner",
+                "different@example.test",
+                "integration:organizations"),
+            CancellationToken.None);
+
+        Assert.Equal(
+            StaffApplicationErrors.CreationOperationConflict,
+            result.Error);
     }
 
     [Fact]

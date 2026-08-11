@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "staff.personal-data",
-  "catalogVersion": 15,
+  "catalogVersion": 16,
   "module": "staff",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -2383,7 +2383,7 @@
         },
         {
           "assembly": "BunkFy.Modules.Staff.Application",
-          "type": "BunkFy.Modules.Staff.Application.Commands.ReconcileStaffIdentityCommand",
+          "type": "BunkFy.Modules.Staff.Application.Commands.BootstrapStaffIdentityCommand",
           "member": "ActorId",
           "surface": "application-command",
           "retentionPolicy": "transient-request"
@@ -2439,7 +2439,7 @@
         },
         {
           "assembly": "BunkFy.Modules.Staff.Contracts",
-          "type": "BunkFy.Modules.Staff.Contracts.StaffIdentityReconciliationRequest",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffIdentityBootstrapRequest",
           "member": "ActorId",
           "surface": "integration-command",
           "retentionPolicy": "transient-request"
@@ -2565,7 +2565,7 @@
         },
         {
           "assembly": "BunkFy.Modules.Staff.Application",
-          "type": "BunkFy.Modules.Staff.Application.Commands.ReconcileStaffIdentityCommand",
+          "type": "BunkFy.Modules.Staff.Application.Commands.BootstrapStaffIdentityCommand",
           "member": "AuthSubjectId",
           "surface": "application-command",
           "retentionPolicy": "transient-request"
@@ -2593,7 +2593,7 @@
         },
         {
           "assembly": "BunkFy.Modules.Staff.Contracts",
-          "type": "BunkFy.Modules.Staff.Contracts.StaffIdentityReconciliationRequest",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffIdentityBootstrapRequest",
           "member": "AuthSubjectId",
           "surface": "integration-command",
           "retentionPolicy": "transient-request"
@@ -2723,13 +2723,6 @@
         },
         {
           "assembly": "BunkFy.Modules.Staff.Application",
-          "type": "BunkFy.Modules.Staff.Application.Commands.ReconcileStaffIdentityCommand",
-          "member": "Reason",
-          "surface": "application-command",
-          "retentionPolicy": "transient-request"
-        },
-        {
-          "assembly": "BunkFy.Modules.Staff.Application",
           "type": "BunkFy.Modules.Staff.Application.Commands.ReconcileStaffPropertyAssignmentsCommand",
           "member": "Reason",
           "surface": "application-command",
@@ -2747,13 +2740,6 @@
           "type": "BunkFy.Modules.Staff.Application.Commands.SuspendStaffMemberCommand",
           "member": "Reason",
           "surface": "application-command",
-          "retentionPolicy": "transient-request"
-        },
-        {
-          "assembly": "BunkFy.Modules.Staff.Contracts",
-          "type": "BunkFy.Modules.Staff.Contracts.StaffIdentityReconciliationRequest",
-          "member": "Reason",
-          "surface": "integration-command",
           "retentionPolicy": "transient-request"
         },
         {
@@ -4849,7 +4835,7 @@
         },
         {
           "assembly": "BunkFy.Modules.Staff.Application",
-          "type": "BunkFy.Modules.Staff.Application.Commands.ReconcileStaffIdentityCommand",
+          "type": "BunkFy.Modules.Staff.Application.Commands.BootstrapStaffIdentityCommand",
           "member": "DisplayName",
           "surface": "application-command",
           "retentionPolicy": "transient-request"
@@ -4884,7 +4870,7 @@
         },
         {
           "assembly": "BunkFy.Modules.Staff.Contracts",
-          "type": "BunkFy.Modules.Staff.Contracts.StaffIdentityReconciliationRequest",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffIdentityBootstrapRequest",
           "member": "DisplayName",
           "surface": "integration-command",
           "retentionPolicy": "transient-request"
@@ -11628,6 +11614,13 @@
         },
         {
           "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.BootstrapStaffIdentityCommand",
+          "member": "OperationId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
           "type": "BunkFy.Modules.Staff.Application.Commands.CreateStaffMemberCommand",
           "member": "OperationId",
           "surface": "application-command",
@@ -11730,6 +11723,13 @@
           "member": "StaffMemberId",
           "surface": "api-response",
           "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffIdentityBootstrapRequest",
+          "member": "OperationId",
+          "surface": "integration-command",
+          "retentionPolicy": "transient-request"
         },
         {
           "assembly": "BunkFy.Modules.Staff.Contracts",
@@ -11869,10 +11869,8 @@
       "allowedSurfaces": [
         "admin-output",
         "api-response",
-        "application-command",
         "application-query",
         "data-rights-export",
-        "integration-command",
         "persistence",
         "projection-export"
       ],
@@ -11897,13 +11895,6 @@
           "member": "Status",
           "surface": "api-response",
           "retentionPolicy": "transient-response"
-        },
-        {
-          "assembly": "BunkFy.Modules.Staff.Application",
-          "type": "BunkFy.Modules.Staff.Application.Commands.ReconcileStaffIdentityCommand",
-          "member": "IsActive",
-          "surface": "application-command",
-          "retentionPolicy": "transient-request"
         },
         {
           "assembly": "BunkFy.Modules.Staff.Application",
@@ -11932,13 +11923,6 @@
           "member": "Status",
           "surface": "api-response",
           "retentionPolicy": "transient-response"
-        },
-        {
-          "assembly": "BunkFy.Modules.Staff.Contracts",
-          "type": "BunkFy.Modules.Staff.Contracts.StaffIdentityReconciliationRequest",
-          "member": "IsActive",
-          "surface": "integration-command",
-          "retentionPolicy": "transient-request"
         },
         {
           "assembly": "BunkFy.Modules.Staff.Contracts",
@@ -12105,7 +12089,7 @@
         },
         {
           "assembly": "BunkFy.Modules.Staff.Application",
-          "type": "BunkFy.Modules.Staff.Application.Commands.ReconcileStaffIdentityCommand",
+          "type": "BunkFy.Modules.Staff.Application.Commands.BootstrapStaffIdentityCommand",
           "member": "WorkEmail",
           "surface": "application-command",
           "retentionPolicy": "transient-request"
@@ -12126,7 +12110,7 @@
         },
         {
           "assembly": "BunkFy.Modules.Staff.Contracts",
-          "type": "BunkFy.Modules.Staff.Contracts.StaffIdentityReconciliationRequest",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffIdentityBootstrapRequest",
           "member": "WorkEmail",
           "surface": "integration-command",
           "retentionPolicy": "transient-request"

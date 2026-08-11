@@ -63,8 +63,8 @@ public sealed class StaffPersonalDataCatalogTests
         [typeof(StaffDataHoldListResponse)] = new(
             [nameof(StaffDataHoldListResponse.Page), nameof(StaffDataHoldListResponse.PageSize)],
             StringComparer.Ordinal),
-        [typeof(StaffIdentityReconciliationResult)] = new(
-            [nameof(StaffIdentityReconciliationResult.IsSuccess), nameof(StaffIdentityReconciliationResult.ErrorCode)],
+        [typeof(StaffIdentityBootstrapResult)] = new(
+            [nameof(StaffIdentityBootstrapResult.IsSuccess), nameof(StaffIdentityBootstrapResult.ErrorCode)],
             StringComparer.Ordinal),
         [typeof(StaffOnboardingProvisioningResult)] = new(
             [nameof(StaffOnboardingProvisioningResult.IsSuccess), nameof(StaffOnboardingProvisioningResult.ErrorCode)],
@@ -83,6 +83,14 @@ public sealed class StaffPersonalDataCatalogTests
             [nameof(ReleaseStaffDataHoldRequest.Confirmed)],
             StringComparer.Ordinal)
     };
+
+    [Fact]
+    public void Catalogue_version_matches_tenant_termination_contract()
+    {
+        Assert.Equal(
+            StaffTenantTerminationMetadata.PersonalDataCatalogVersion,
+            Catalogue.CatalogVersion);
+    }
 
     [Fact]
     public void Every_catalogue_binding_resolves_to_a_real_member()
@@ -336,8 +344,8 @@ public sealed class StaffPersonalDataCatalogTests
                                     type.Name.EndsWith("Dto", StringComparison.Ordinal) ||
                                     type == typeof(StaffDirectoryListResponse) ||
                                     type == typeof(StaffPropertyDirectoryListResponse) ||
-                                    type == typeof(StaffIdentityReconciliationRequest) ||
-                                    type == typeof(StaffIdentityReconciliationResult) ||
+                                    type == typeof(StaffIdentityBootstrapRequest) ||
+                                    type == typeof(StaffIdentityBootstrapResult) ||
                                     type == typeof(StaffAnonymisationRestoreState) ||
                                     type == typeof(
                                         StaffDataRightsAuthorityState) ||
@@ -355,7 +363,7 @@ public sealed class StaffPersonalDataCatalogTests
             {
                 yield return (PersonalDataSurface.IntegrationEvent, type);
             }
-            else if (type == typeof(StaffIdentityReconciliationRequest) ||
+            else if (type == typeof(StaffIdentityBootstrapRequest) ||
                      type == typeof(
                          StaffRetentionAnonymisationPrerequisiteRequest) ||
                      type == typeof(StaffOnboardingProvisioningRequest) ||
@@ -363,7 +371,7 @@ public sealed class StaffPersonalDataCatalogTests
             {
                 yield return (PersonalDataSurface.IntegrationCommand, type);
             }
-            else if (type == typeof(StaffIdentityReconciliationResult) ||
+            else if (type == typeof(StaffIdentityBootstrapResult) ||
                      type == typeof(StaffOnboardingProvisioningResult) ||
                      type == typeof(StaffPropertyAssignmentProvisioningResult))
             {

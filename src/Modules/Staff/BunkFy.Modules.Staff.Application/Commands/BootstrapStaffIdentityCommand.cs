@@ -3,11 +3,10 @@ namespace BunkFy.Modules.Staff.Application.Commands;
 using BunkFy.Modules.Staff.Application.Ports;
 using Gma.Framework.Cqrs;
 
-public sealed record ReconcileStaffIdentityCommand(
+public sealed record BootstrapStaffIdentityCommand(
+    Guid OperationId,
     string AuthSubjectId,
     string DisplayName,
     string? WorkEmail,
-    bool IsActive,
-    string ActorId,
-    string Reason) : ITransactionalCommand<Unit>,
+    string ActorId) : ITransactionalCommand<Unit>,
     IStaffPersistenceRetryableCommand;

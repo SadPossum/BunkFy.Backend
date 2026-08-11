@@ -55,7 +55,7 @@ desired-state integration contract.
 
 Approved tenant-scoped Staff data-rights cases can apply or release processing restrictions. Staff owns the reference-counted effective state and append-only transition receipts; Data Rights owns approval and orchestration. Missing or future projection contracts fail closed.
 
-Restricted staff members are excluded from directory/detail/self-service reads, profile and assignment writes, identity reconciliation, onboarding reconciliation, and operational notification audiences. Data-rights discovery, export, correction, and restriction execution remain available. Suspend, depart, and unassign remain available as safety-reducing transitions; resume and access-link changes remain blocked. Restriction does not mutate Auth credentials or AccessControl grants.
+Restricted staff members are excluded from directory/detail/self-service reads, profile and assignment writes, identity bootstrap, onboarding provisioning, and operational notification audiences. Data-rights discovery, export, correction, and restriction execution remain available. Suspend, depart, and unassign remain available as safety-reducing transitions; resume and access-link changes remain blocked. Restriction does not mutate Auth credentials or AccessControl grants.
 
 ## Data rights and retention
 

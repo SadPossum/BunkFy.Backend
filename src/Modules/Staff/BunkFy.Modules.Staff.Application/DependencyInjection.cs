@@ -35,7 +35,7 @@ public static class DependencyInjection
                 IValidateOptions<StaffRetentionOptions>,
                 StaffRetentionOptionsValidator>());
         services.AddApplicationServicesFromAssembly(typeof(DependencyInjection).Assembly);
-        services.TryAddScoped<IStaffIdentityReconciler, StaffIdentityReconciler>();
+        services.TryAddScoped<IStaffIdentityBootstrapper, StaffIdentityBootstrapper>();
         services.TryAddScoped<IStaffOnboardingProvisioner, StaffOnboardingProvisioner>();
         services.TryAddScoped<
             IStaffPropertyAssignmentProvisioner,

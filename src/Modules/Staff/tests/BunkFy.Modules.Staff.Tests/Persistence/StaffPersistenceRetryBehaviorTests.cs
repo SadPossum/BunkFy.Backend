@@ -24,7 +24,7 @@ public sealed class StaffPersistenceRetryBehaviorTests
     [InlineData(typeof(AssignStaffPropertyCommand))]
     [InlineData(typeof(UnassignStaffPropertyCommand))]
     [InlineData(typeof(ProvisionStaffOnboardingCommand))]
-    [InlineData(typeof(ReconcileStaffIdentityCommand))]
+    [InlineData(typeof(BootstrapStaffIdentityCommand))]
     [InlineData(typeof(ReconcileStaffPropertyAssignmentsCommand))]
     public void Profile_identity_commands_are_explicitly_retryable(
         Type commandType) => Assert.True(

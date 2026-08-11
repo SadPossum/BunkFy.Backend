@@ -9,8 +9,9 @@ using Microsoft.Extensions.Options;
 
 [IntegrationEventHandler(HandlerName, RequiresExplicitProducerBinding = true)]
 internal sealed class OrganizationOwnerStaffBootstrapHandler(
-    IStaffIdentityReconciler staff,
+    IStaffIdentityBootstrapper staff,
     IAuthMemberContactReader contacts,
+    IOrganizationAccessDecisionReader organizationAccess,
     IWorkspaceOperationalAdmissionPolicy operationalAdmission,
     IOptions<BunkFyWorkspacesOptions> options)
     : IIntegrationEventHandler<OrganizationMembershipChangedIntegrationEvent>
@@ -38,24 +39,41 @@ internal sealed class OrganizationOwnerStaffBootstrapHandler(
                 "Workspace operational admission did not allow owner Staff bootstrap.");
         }
 
+        OrganizationAccessDecision access = await organizationAccess.ReadAsync(
+            integrationEvent.OrganizationId,
+            integrationEvent.SubjectId,
+            cancellationToken).ConfigureAwait(false);
+        if (access is OrganizationAccessDecision.OrganizationNotFound or
+            OrganizationAccessDecision.OrganizationInactive or
+            OrganizationAccessDecision.MembershipNotFound or
+            OrganizationAccessDecision.MembershipInactive)
+        {
+            return;
+        }
+
+        if (access != OrganizationAccessDecision.Allowed)
+        {
+            throw new InvalidOperationException(
+                "Organizations access is unavailable for owner Staff bootstrap.");
+        }
+
         string? verifiedEmail = await this.GetVerifiedEmailAsync(
             integrationEvent.SubjectId,
             cancellationToken).ConfigureAwait(false);
         string displayName = verifiedEmail ?? DefaultDisplayName(integrationEvent.SubjectId);
-        StaffIdentityReconciliationResult result = await staff.ReconcileAsync(
-            new StaffIdentityReconciliationRequest(
+        StaffIdentityBootstrapResult result = await staff.BootstrapAsync(
+            new StaffIdentityBootstrapRequest(
+                integrationEvent.EventId,
                 integrationEvent.SubjectId,
                 displayName,
                 verifiedEmail,
-                true,
-                "integration:organizations",
-                "Workspace owner profile bootstrap."),
+                "integration:organizations"),
             cancellationToken).ConfigureAwait(false);
 
         if (!result.IsSuccess)
         {
             throw new InvalidOperationException(
-                $"Staff identity reconciliation failed with '{result.ErrorCode}'.");
+                $"Staff identity bootstrap failed with '{result.ErrorCode}'.");
         }
     }
 

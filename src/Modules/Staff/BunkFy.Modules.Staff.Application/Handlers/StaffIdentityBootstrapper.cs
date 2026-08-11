@@ -5,27 +5,26 @@ using BunkFy.Modules.Staff.Contracts;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
 
-internal sealed class StaffIdentityReconciler(IRequestDispatcher dispatcher)
-    : IStaffIdentityReconciler
+internal sealed class StaffIdentityBootstrapper(IRequestDispatcher dispatcher)
+    : IStaffIdentityBootstrapper
 {
-    public async Task<StaffIdentityReconciliationResult> ReconcileAsync(
-        StaffIdentityReconciliationRequest request,
+    public async Task<StaffIdentityBootstrapResult> BootstrapAsync(
+        StaffIdentityBootstrapRequest request,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
 
         Result<Unit> result = await dispatcher.SendAsync(
-            new ReconcileStaffIdentityCommand(
+            new BootstrapStaffIdentityCommand(
+                request.OperationId,
                 request.AuthSubjectId,
                 request.DisplayName,
                 request.WorkEmail,
-                request.IsActive,
-                request.ActorId,
-                request.Reason),
+                request.ActorId),
             cancellationToken).ConfigureAwait(false);
 
         return result.IsSuccess
-            ? new StaffIdentityReconciliationResult(true, null)
-            : new StaffIdentityReconciliationResult(false, result.Error.Code);
+            ? new StaffIdentityBootstrapResult(true, null)
+            : new StaffIdentityBootstrapResult(false, result.Error.Code);
     }
 }
