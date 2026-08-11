@@ -61,6 +61,9 @@ Guests owns BunkFy's tenant-wide canonical guest profiles and staff-facing stay 
 - independently releasable tenant/property/Guest data holds with stable reason
   codes, exact optimistic versions, immutable idempotent receipts, bounded
   listing and a dedicated permission absent from ordinary workspace roles;
+- host-configurable authentication assurance on public correction execution,
+  processing-restriction transitions, and data-hold release, while hold
+  placement and read-only investigation surfaces remain immediately available;
 - a versioned internal anonymisation-eligibility contract that resolves the
   bounded Guest property set from Guests-owned projections, checks every
   active hold, operational stay, property state and current erasure policy,

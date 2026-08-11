@@ -92,6 +92,7 @@ public sealed class HostCompositionGuardTests
             "options => options.GovernanceOperationsAssurance = privilegedOperationAssurance",
             "options => options.StaffOnboardingManagementAssurance =",
             "options => options.CredentialManagementAssurance = privilegedOperationAssurance",
+            "builder.Services.Configure<GuestsApiSecurityOptions>",
             "builder.AddModule<AccessControlApiModule>();",
             "builder.Services.AddGmaTenantAccessControlAspNetCore();",
             "AuthProfile authProfile = AuthProfile.Global(authScopeId);",
@@ -138,6 +139,28 @@ public sealed class HostCompositionGuardTests
             .ToArray();
 
         Assert.Empty(missing);
+
+        int guestsSecurityStart = program.IndexOf(
+            "builder.Services.Configure<GuestsApiSecurityOptions>",
+            StringComparison.Ordinal);
+        int dataRightsSecurityStart = program.IndexOf(
+            "builder.Services.Configure<DataRightsApiSecurityOptions>",
+            StringComparison.Ordinal);
+        Assert.True(guestsSecurityStart >= 0);
+        Assert.True(dataRightsSecurityStart > guestsSecurityStart);
+        string guestsSecurity = program[guestsSecurityStart..dataRightsSecurityStart];
+        Assert.Contains(
+            "options.CorrectionExecutionAssurance =",
+            guestsSecurity,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "options.RestrictionExecutionAssurance =",
+            guestsSecurity,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "options.DataHoldReleaseAssurance =",
+            guestsSecurity,
+            StringComparison.Ordinal);
     }
 
     [Fact]

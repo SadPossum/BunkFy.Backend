@@ -146,6 +146,16 @@ builder.Services.Configure<StaffApiSecurityOptions>(
         options.DataHoldReleaseAssurance =
             privilegedOperationAssurance;
     });
+builder.Services.Configure<GuestsApiSecurityOptions>(
+    options =>
+    {
+        options.CorrectionExecutionAssurance =
+            privilegedOperationAssurance;
+        options.RestrictionExecutionAssurance =
+            privilegedOperationAssurance;
+        options.DataHoldReleaseAssurance =
+            privilegedOperationAssurance;
+    });
 builder.Services.Configure<DataRightsApiSecurityOptions>(
     options =>
     {

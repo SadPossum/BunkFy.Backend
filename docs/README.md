@@ -168,6 +168,7 @@ Useful entry points:
 - [Guest Data Rights Restriction Task](planning/guest-data-rights-restriction-task.md)
 - [Guest Record Retention Task](planning/guest-record-retention-task.md)
 - [Guests Operational Surface Hardening Task](planning/guests-operational-surface-hardening-task.md)
+- [Guests Sensitive-Mutation Assurance Task](planning/guests-sensitive-mutation-assurance-task.md)
 - [Data Rights Module](../src/Modules/DataRights/docs/README.md)
 - [Ingestion Module Task](planning/ingestion-module-task.md)
 - [Ingestion Data Rights Workflow Task](planning/ingestion-data-rights-workflow-task.md)

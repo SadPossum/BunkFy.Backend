@@ -23,6 +23,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 
 public sealed class GuestsModule : IModule
 {
@@ -33,12 +34,16 @@ public sealed class GuestsModule : IModule
         builder.SelectModuleProfile(GuestsProfiles.Default, "BunkFy.Modules.Guests.Api");
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Scoped<IAccessHttpScopeResolver, GuestsPropertyAccessScopeResolver>());
+        builder.Services.AddOptions<GuestsApiSecurityOptions>();
         builder.Services.AddGuestsApplication();
         builder.AddGuestsPersistence();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
     {
+        GuestsApiSecurityOptions security = endpoints.ServiceProvider
+            .GetRequiredService<IOptions<GuestsApiSecurityOptions>>()
+            .Value;
         RouteGroupBuilder group = endpoints.MapGroup("/api/guests/properties/{propertyId:guid}")
             .WithModuleName(this.Name)
             .WithTags("Guests")
@@ -167,7 +172,9 @@ public sealed class GuestsModule : IModule
             .RequireTenant()
             .RequireResolvedScopePermission(
                 DataRightsAdminPermissionCodes.Execute,
-                GuestsPropertyAccessScopeResolver.ResolverName);
+                GuestsPropertyAccessScopeResolver.ResolverName)
+            .RequireAssuranceWhenConfigured(
+                security.CorrectionExecutionAssurance);
 
         group.MapPost("/data-rights-restrictions", async (
             Guid propertyId,
@@ -196,7 +203,9 @@ public sealed class GuestsModule : IModule
             .RequireTenant()
             .RequireResolvedScopePermission(
                 DataRightsAdminPermissionCodes.Restrict,
-                GuestsPropertyAccessScopeResolver.ResolverName);
+                GuestsPropertyAccessScopeResolver.ResolverName)
+            .RequireAssuranceWhenConfigured(
+                security.RestrictionExecutionAssurance);
 
         group.MapPost("/data-rights-restrictions/{restrictionId:guid}/release", async (
             Guid propertyId,
@@ -228,7 +237,9 @@ public sealed class GuestsModule : IModule
             .RequireTenant()
             .RequireResolvedScopePermission(
                 DataRightsAdminPermissionCodes.Restrict,
-                GuestsPropertyAccessScopeResolver.ResolverName);
+                GuestsPropertyAccessScopeResolver.ResolverName)
+            .RequireAssuranceWhenConfigured(
+                security.RestrictionExecutionAssurance);
 
         group.MapGet("/{guestId:guid}/data-rights-restrictions", async (
             Guid propertyId,
@@ -311,7 +322,9 @@ public sealed class GuestsModule : IModule
             .RequireTenant()
             .RequireResolvedScopePermission(
                 GuestsAdminPermissionCodes.DataHoldsManage,
-                GuestsPropertyAccessScopeResolver.ResolverName);
+                GuestsPropertyAccessScopeResolver.ResolverName)
+            .RequireAssuranceWhenConfigured(
+                security.DataHoldReleaseAssurance);
 
         group.MapGet("/{guestId:guid}/data-holds", async (
             Guid propertyId,
