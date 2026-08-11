@@ -72,7 +72,7 @@ internal sealed class StaffMemberRepository(StaffDbContext dbContext)
 
     public Task<StaffDirectoryMemberDto?> GetDirectoryAsync(
         Guid staffMemberId,
-        CancellationToken cancellationToken) => ProjectDirectory(
+        CancellationToken cancellationToken) => this.ProjectDirectory(
             this.OperationalMembers()
                 .AsNoTracking()
                 .Where(member => member.Id == staffMemberId),
@@ -82,7 +82,7 @@ internal sealed class StaffMemberRepository(StaffDbContext dbContext)
     public Task<StaffDirectoryMemberDto?> GetDirectoryAtPropertyAsync(
         Guid propertyId,
         Guid staffMemberId,
-        CancellationToken cancellationToken) => ProjectDirectory(
+        CancellationToken cancellationToken) => this.ProjectDirectory(
             this.OperationalMembers().AsNoTracking().Where(member =>
                 member.Id == staffMemberId &&
                 member.Assignments.Any(assignment =>
@@ -97,7 +97,7 @@ internal sealed class StaffMemberRepository(StaffDbContext dbContext)
         string? search,
         StaffStatus? status,
         PageRequest pageRequest,
-        CancellationToken cancellationToken) => ListDirectoryAsync(
+        CancellationToken cancellationToken) => this.ListDirectoryAsync(
             ApplyDirectoryFilters(this.OperationalMembers().AsNoTracking(), search, status),
             pageRequest,
             cancellationToken);
@@ -177,7 +177,7 @@ internal sealed class StaffMemberRepository(StaffDbContext dbContext)
         return query;
     }
 
-    private static async Task<StaffDirectoryListResponse> ListDirectoryAsync(
+    private async Task<StaffDirectoryListResponse> ListDirectoryAsync(
         IQueryable<StaffMember> query,
         PageRequest pageRequest,
         CancellationToken cancellationToken)
@@ -194,7 +194,12 @@ internal sealed class StaffMemberRepository(StaffDbContext dbContext)
                 member.Department,
                 (StaffStatus)member.Status,
                 member.Version,
-                member.Assignments.Count(assignment => assignment.IsCurrent)))
+                member.Assignments.Count(assignment =>
+                    assignment.IsCurrent &&
+                    dbContext.PropertyProjections.Any(property =>
+                        property.Id == assignment.PropertyId &&
+                        property.Status ==
+                            BunkFy.Modules.Properties.Contracts.PropertyStatus.Active))))
             .ToArrayAsync(cancellationToken).ConfigureAwait(false);
         bool hasMore = rows.Length > pageRequest.PageSize;
         return new(rows.Take(pageRequest.PageSize).ToArray(), pageRequest.Page,
@@ -234,7 +239,7 @@ internal sealed class StaffMemberRepository(StaffDbContext dbContext)
             pageRequest.PageSize, hasMore);
     }
 
-    private static IQueryable<StaffDirectoryMemberDto> ProjectDirectory(
+    private IQueryable<StaffDirectoryMemberDto> ProjectDirectory(
         IQueryable<StaffMember> query,
         Guid? visiblePropertyId) => query.Select(member => new StaffDirectoryMemberDto(
         member.Id,
@@ -244,9 +249,14 @@ internal sealed class StaffMemberRepository(StaffDbContext dbContext)
         (StaffStatus)member.Status,
         member.Version,
         member.Assignments
-            .Where(assignment => assignment.IsCurrent &&
-                                 (!visiblePropertyId.HasValue ||
-                                  assignment.PropertyId == visiblePropertyId.Value))
+            .Where(assignment =>
+                assignment.IsCurrent &&
+                dbContext.PropertyProjections.Any(property =>
+                    property.Id == assignment.PropertyId &&
+                    property.Status ==
+                        BunkFy.Modules.Properties.Contracts.PropertyStatus.Active) &&
+                (!visiblePropertyId.HasValue ||
+                    assignment.PropertyId == visiblePropertyId.Value))
             .OrderByDescending(assignment => assignment.IsPrimary)
             .ThenBy(assignment => assignment.PropertyId)
             .Select(assignment => new StaffDirectoryAssignmentDto(

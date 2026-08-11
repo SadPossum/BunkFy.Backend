@@ -15,20 +15,23 @@ using Xunit;
 public sealed class StaffDirectoryRepositoryTests
 {
     [Fact]
-    public async Task Directory_projection_is_current_property_scoped_and_searches_display_name_only()
+    public async Task Directory_projection_is_active_property_scoped_and_searches_display_name_only()
     {
         await using StaffDbContext dbContext = CreateDbContext();
         Guid firstPropertyId = Guid.NewGuid();
         Guid secondPropertyId = Guid.NewGuid();
+        Guid retiredPropertyId = Guid.NewGuid();
         StaffMember member = CreateMember();
         Assign(member, firstPropertyId, isPrimary: true);
         Assign(member, secondPropertyId, isPrimary: false);
+        Assign(member, retiredPropertyId, isPrimary: false);
         dbContext.StaffMembers.Add(member);
         dbContext.ProcessingRestrictionProjections.Add(
             CreateRestrictionProjection(member));
         dbContext.PropertyProjections.AddRange(
             new StaffPropertyProjection("tenant-a", firstPropertyId, "First", PropertyStatus.Active, 1),
-            new StaffPropertyProjection("tenant-a", secondPropertyId, "Second", PropertyStatus.Active, 1));
+            new StaffPropertyProjection("tenant-a", secondPropertyId, "Second", PropertyStatus.Active, 1),
+            new StaffPropertyProjection("tenant-a", retiredPropertyId, string.Empty, PropertyStatus.Retired, 2));
         await dbContext.SaveChangesAsync();
         StaffMemberRepository repository = new(dbContext);
 
@@ -39,6 +42,10 @@ public sealed class StaffDirectoryRepositoryTests
             firstPropertyId,
             member.Id,
             CancellationToken.None))!;
+        StaffDirectoryMemberDto? retiredPropertyDirectory = await repository.GetDirectoryAtPropertyAsync(
+            retiredPropertyId,
+            member.Id,
+            CancellationToken.None);
         StaffDirectoryListResponse displayNameSearch = await repository.ListDirectoryAsync(
             "Ada",
             status: null,
@@ -55,12 +62,24 @@ public sealed class StaffDirectoryRepositoryTests
             status: null,
             new PageRequest(PageRequest.DefaultPage, PageRequest.DefaultPageSize),
             CancellationToken.None);
+        StaffPropertyDirectoryListResponse retiredPropertyList = await repository.ListDirectoryAtPropertyAsync(
+            retiredPropertyId,
+            search: null,
+            status: null,
+            new PageRequest(PageRequest.DefaultPage, PageRequest.DefaultPageSize),
+            CancellationToken.None);
 
+        Assert.Equal(3, member.Assignments.Count);
         Assert.Equal(2, tenantDirectory.Assignments.Count);
+        Assert.DoesNotContain(
+            tenantDirectory.Assignments,
+            assignment => assignment.PropertyId == retiredPropertyId);
         Assert.Equal(firstPropertyId, Assert.Single(propertyDirectory.Assignments).PropertyId);
+        Assert.Null(retiredPropertyDirectory);
         StaffDirectoryListItemDto listItem = Assert.Single(displayNameSearch.Items);
         Assert.Equal(2, listItem.CurrentPropertyCount);
         Assert.Equal(firstPropertyId, Assert.Single(propertyList.Items).Assignment.PropertyId);
+        Assert.Empty(retiredPropertyList.Items);
         Assert.False(displayNameSearch.HasMore);
         Assert.False(propertyList.HasMore);
         Assert.Empty(emailSearch.Items);
