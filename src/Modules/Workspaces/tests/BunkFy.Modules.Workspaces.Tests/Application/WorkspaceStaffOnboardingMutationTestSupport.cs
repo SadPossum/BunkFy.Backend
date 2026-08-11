@@ -2,6 +2,7 @@ namespace BunkFy.Modules.Workspaces.Tests;
 
 using BunkFy.Modules.Workspaces.Application.Handlers;
 using BunkFy.Modules.Workspaces.Application.Ports;
+using BunkFy.Modules.Workspaces.Domain;
 
 internal static class WorkspaceStaffOnboardingMutationTestSupport
 {
@@ -32,5 +33,48 @@ internal static class WorkspaceStaffOnboardingMutationTestSupport
         public Task<bool> TryAcquireAsync(
             Guid applicationId,
             CancellationToken cancellationToken) => Task.FromResult(true);
+    }
+}
+
+internal sealed class FakeWorkspaceStaffDeferredClaimWithdrawalRepository(
+    params WorkspaceStaffDeferredClaimWithdrawal[] seed)
+    : IWorkspaceStaffDeferredClaimWithdrawalRepository
+{
+    private readonly List<WorkspaceStaffDeferredClaimWithdrawal> withdrawals =
+        [.. seed];
+
+    public IReadOnlyList<WorkspaceStaffDeferredClaimWithdrawal> Items =>
+        this.withdrawals;
+
+    public Task<WorkspaceStaffDeferredClaimWithdrawal?> GetAsync(
+        Guid claimId,
+        CancellationToken cancellationToken) =>
+        Task.FromResult(this.withdrawals.SingleOrDefault(item =>
+            item.Id == claimId));
+
+    public Task<bool> AnyBySourceAsync(
+        Guid enrollmentLinkId,
+        CancellationToken cancellationToken) =>
+        Task.FromResult(this.withdrawals.Any(item =>
+            item.EnrollmentLinkId == enrollmentLinkId));
+
+    public Task AddAsync(
+        WorkspaceStaffDeferredClaimWithdrawal withdrawal,
+        CancellationToken cancellationToken)
+    {
+        this.withdrawals.Add(withdrawal);
+        return Task.CompletedTask;
+    }
+
+    public void Remove(WorkspaceStaffDeferredClaimWithdrawal withdrawal) =>
+        this.withdrawals.Remove(withdrawal);
+
+    public Task<int> RemoveBySourceAsync(
+        Guid enrollmentLinkId,
+        CancellationToken cancellationToken)
+    {
+        int removed = this.withdrawals.RemoveAll(item =>
+            item.EnrollmentLinkId == enrollmentLinkId);
+        return Task.FromResult(removed);
     }
 }

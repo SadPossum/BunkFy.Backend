@@ -67,6 +67,25 @@ redaction and reports an operational failure instead of deleting data when
 the authoritative history window has lapsed. Sensitive API and Admin API
 responses are explicitly non-cacheable.
 
+Withdrawal observations that arrive before the corresponding claim-request
+event are retained in a bounded Workspaces-owned correlation table. Claim
+request binding and withdrawal consumption share one exclusive source
+coordinate, so neither subscription can miss the other's commit. Exact
+duplicates replay, divergent coordinates fail closed, and the observation is
+removed only after authoritative terminalization, source terminal cleanup, or
+tenant destruction. This v12 persistence/export shape advances both the
+personal-data catalogue and tenant-termination manifest; rollout evidence and
+frozen owner approvals must use the new catalog version and digest.
+Organizations admission permits a claim on a BunkFy-owned link only while a
+matching admissible Workspaces application exists. The table is lifecycle-
+bounded by link terminalization and tenant destruction, but it is not count-
+bounded by `MaximumClaims`: withdrawal releases that concurrent reservation.
+Operational capacity is therefore the link lifetime multiplied by admitted
+claim rate and worst-case claim-request consumer lag. Source cleanup uses one
+set-based delete inside the serialized transaction; rollout must load-test that
+duration/rate envelope within the 30-second consumer timeout and alert on
+deferred-row age and count while a source remains active.
+
 Automatic Staff retention also asks Workspaces to close access and remove the
 departed person's Auth subject from terminal onboarding and access history.
 Workspaces blocks while a person-linked onboarding or access workflow is

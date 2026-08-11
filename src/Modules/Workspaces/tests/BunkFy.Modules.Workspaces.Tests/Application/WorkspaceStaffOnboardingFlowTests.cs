@@ -29,6 +29,52 @@ using Xunit;
 public sealed class WorkspaceStaffOnboardingFlowTests
 {
     [Fact]
+    public async Task Requested_claim_consumes_a_newer_durable_withdrawal_and_redacts_staging()
+    {
+        WorkspaceStaffOnboarding application =
+            WorkspaceStaffOnboardingTests.CreateApplication();
+        Guid claimId = Guid.NewGuid();
+        FakeRepository applications = new(application);
+        FakeWorkspaceStaffDeferredClaimWithdrawalRepository deferred = new(
+            WorkspaceStaffDeferredClaimWithdrawal.Create(
+                WorkspaceStaffOnboardingTests.OrganizationId.ToString("D"),
+                WorkspaceStaffOnboardingTests.OrganizationId,
+                application.SourceId,
+                claimId,
+                claimVersion: 2,
+                Guid.NewGuid(),
+                WorkspaceStaffOnboardingTests.Now.AddMinutes(2)).Value);
+        using ServiceProvider provider = CreateProvider(
+            applications,
+            new FakeStaffProvisioner(),
+            new FakeAccessControl(),
+            deferredWithdrawals: deferred);
+        OrganizationEnrollmentClaimStaffOnboardingHandler handler = provider
+            .GetRequiredService<OrganizationEnrollmentClaimStaffOnboardingHandler>();
+
+        await handler.HandleAsync(
+            new OrganizationEnrollmentClaimChangedIntegrationEvent(
+                Guid.NewGuid(),
+                WorkspaceStaffOnboardingTests.Now.AddMinutes(1),
+                WorkspaceStaffOnboardingTests.OrganizationId.ToString("D"),
+                WorkspaceStaffOnboardingTests.OrganizationId,
+                application.SourceId,
+                claimId,
+                application.SubjectId,
+                OrganizationEnrollmentClaimChange.Requested,
+                OrganizationEnrollmentClaimStatus.Pending,
+                null,
+                1),
+            CancellationToken.None);
+
+        Assert.Equal(WorkspaceStaffOnboardingState.Withdrawn, application.Status);
+        Assert.Equal(2, application.ClaimVersion);
+        Assert.Null(application.VerifiedAccountEmail);
+        Assert.Null(application.DisplayName);
+        Assert.Empty(deferred.Items);
+    }
+
+    [Fact]
     public async Task Accepted_claim_event_records_its_version_before_provisioning()
     {
         WorkspaceStaffOnboarding application = WorkspaceStaffOnboardingTests.CreateApplication();
@@ -210,6 +256,49 @@ public sealed class WorkspaceStaffOnboardingFlowTests
         Assert.Equal(staffMemberId, retried.Value.StaffMemberId);
         Assert.Null(retried.Value.VerifiedAccountEmail);
         Assert.Null(retried.Value.DisplayName);
+    }
+
+    [Fact]
+    public async Task Restriction_release_recovery_completes_the_last_application_and_finalizes_its_expired_source()
+    {
+        WorkspaceStaffOnboarding application =
+            WorkspaceStaffOnboardingTests.CreateApplication();
+        Assert.True(application.ObserveClaimAccepted(
+            Guid.NewGuid(),
+            1,
+            WorkspaceStaffOnboardingTests.Now.AddMinutes(1)).IsSuccess);
+        Assert.True(application.BeginProvisioning(
+            WorkspaceStaffOnboardingTests.Now.AddMinutes(2)).IsSuccess);
+        FakeRepository applications = new(application);
+        using ServiceProvider provider = CreateProvider(
+            applications,
+            new FakeStaffProvisioner(),
+            new FakeAccessControl());
+        WorkspaceStaffAccessPlan plan = (await provider
+            .GetRequiredService<IWorkspaceStaffAccessPlanRepository>()
+            .GetAsync(application.SourceId, CancellationToken.None))!;
+        Assert.True(plan.ObserveSourceExpired(
+            WorkspaceStaffOnboardingTests.Now.AddMinutes(2),
+            WorkspaceStaffOnboardingTests.Now.AddMinutes(2)).IsSuccess);
+        WorkspaceStaffOnboardingProcessingRestrictionRecoveryHandler handler =
+            provider.GetRequiredService<
+                WorkspaceStaffOnboardingProcessingRestrictionRecoveryHandler>();
+
+        await handler.HandleAsync(
+            new WorkspaceStaffOnboardingProcessingRestrictionChangedIntegrationEvent(
+                Guid.NewGuid(),
+                application.ScopeId,
+                WorkspaceStaffOnboardingTests.Now.AddMinutes(3),
+                application.Id,
+                WorkspaceStaffOnboardingProcessingRestrictionContract
+                    .CurrentVersion,
+                projectionRevision: 1,
+                isRestricted: false),
+            CancellationToken.None);
+
+        Assert.Equal(WorkspaceStaffOnboardingState.Completed, application.Status);
+        Assert.Equal(WorkspaceStaffAccessPlanState.Expired, plan.Status);
+        Assert.Null(application.DisplayName);
     }
 
     private static void AssertProvisionerAssignment(
@@ -624,7 +713,9 @@ public sealed class WorkspaceStaffOnboardingFlowTests
         FakeAccessControl access,
         FakeJoinTokenInspector? tokens = null,
         FakeAdmissionReader? admissions = null,
-        WorkspaceTerminationFenceSnapshot? terminationFence = null)
+        WorkspaceTerminationFenceSnapshot? terminationFence = null,
+        FakeWorkspaceStaffDeferredClaimWithdrawalRepository?
+            deferredWithdrawals = null)
     {
         HostApplicationBuilder builder = new(new HostApplicationBuilderSettings
         {
@@ -657,6 +748,9 @@ public sealed class WorkspaceStaffOnboardingFlowTests
         services.AddSingleton<IWorkspaceStaffOnboardingOperationLock>(
             new FakeOperationLock());
         services.AddSingleton<IWorkspaceStaffAccessPlanRepository>(new FakeAccessPlanRepository(plans));
+        services.AddSingleton<IWorkspaceStaffDeferredClaimWithdrawalRepository>(
+            deferredWithdrawals ??
+                new FakeWorkspaceStaffDeferredClaimWithdrawalRepository());
         services.AddSingleton<IStaffOnboardingProvisioner>(staff);
         services.AddSingleton<IStaffPropertyAssignmentProvisioner>(new FakeStaffPropertyProvisioner());
         services.AddSingleton<IAccessControlRoleProvisioner>(access);

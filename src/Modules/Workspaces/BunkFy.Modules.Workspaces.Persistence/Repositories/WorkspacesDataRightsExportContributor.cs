@@ -17,6 +17,8 @@ internal sealed class WorkspacesDataRightsExportContributor(
         "staff-access-plan-property";
     public const string StaffOnboardingCorrectionReceiptRecordType =
         "staff-onboarding-correction-receipt";
+    public const string StaffDeferredClaimWithdrawalRecordType =
+        "staff-deferred-claim-withdrawal";
     public const string StaffOnboardingProcessingRestrictionRecordType =
         "staff-onboarding-processing-restriction";
     public const string
