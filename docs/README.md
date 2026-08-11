@@ -116,6 +116,7 @@ Useful entry points:
 - [Operations Notifications Data Rights Owner Capability Task](planning/operations-notifications-data-rights-owner-capability-task.md)
 - [Operations Notifications Staff Data Rights Task](planning/operations-notifications-staff-data-rights-task.md)
 - [Operations Notifications Ingestion Data Rights Task](planning/operations-notifications-ingestion-data-rights-task.md)
+- [Operations Notifications Least-Privilege Audience Task](planning/operations-notifications-least-privilege-audience-task.md)
 - [Operations Notifications Production Admission Task](planning/operations-notifications-production-admission-task.md)
 - [Backend Architecture Cleanup Task](planning/architecture-cleanup-task.md)
 - [Workspaces Module](../src/Modules/Workspaces/docs/README.md)

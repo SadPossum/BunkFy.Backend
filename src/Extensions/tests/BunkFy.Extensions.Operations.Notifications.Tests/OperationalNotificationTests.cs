@@ -4,6 +4,7 @@ using System.Text.Json;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Ingestion.Contracts;
 using BunkFy.Modules.Inventory.Contracts;
+using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Workspaces.Contracts;
@@ -127,6 +128,90 @@ public sealed class OperationalNotificationTests
                 "owner-a",
                 "reservation-cancelled"));
         Assert.Equal([["owner-a", "user-a", "user-b"]], access.Requests);
+    }
+
+    [Fact]
+    public async Task Property_event_fanout_requires_the_destination_domain_read_permission()
+    {
+        TestAuthorizationService authorization = new(["user-a"]);
+        CapturingProjector notifications = new();
+        OperationalNotificationProjector projector = CreateProjector(
+            new TestAudienceReader(["user-a", "user-b"]),
+            new TestWorkspaceOwnerAudienceReader(["owner-a"]),
+            new TestOrganizationAccessCandidateFilter(),
+            notifications,
+            authorization: authorization);
+        Guid propertyId = Guid.NewGuid();
+
+        await new ReservationCancelledNotificationHandler(projector)
+            .HandleAsync(
+                new ReservationCancelledIntegrationEvent(
+                    Guid.NewGuid(),
+                    ScopeId,
+                    Now,
+                    Guid.NewGuid(),
+                    propertyId,
+                    3),
+                CancellationToken.None);
+
+        UserNotificationRequestedIntegrationEventV3 projected =
+            Assert.Single(notifications.Events);
+        Assert.Equal("user-a", projected.UserId);
+        AccessRequirement[] requirements = Assert.Single(
+            authorization.Requests);
+        Assert.Equal(3, requirements.Length);
+        Assert.All(requirements, requirement =>
+        {
+            Assert.Equal(
+                ReservationsAdminPermissionCodes.Read,
+                requirement.Permission.Value);
+            Assert.Equal(
+                WorkspaceAccessScopes.CreateProperty(ScopeId, propertyId),
+                requirement.Scope);
+        });
+    }
+
+    [Fact]
+    public void Audience_permission_catalog_matches_notification_destinations()
+    {
+        Assert.Equal(
+            PropertiesAdminPermissionCodes.Read,
+            OperationalNotificationAudiencePermissions.PropertiesRead.Value);
+        Assert.Equal(
+            InventoryAdminPermissionCodes.Read,
+            OperationalNotificationAudiencePermissions.InventoryRead.Value);
+        Assert.Equal(
+            ReservationsAdminPermissionCodes.Read,
+            OperationalNotificationAudiencePermissions.ReservationsRead.Value);
+        Assert.Equal(
+            IngestionAdminPermissionCodes.Read,
+            OperationalNotificationAudiencePermissions.IngestionRead.Value);
+        Assert.Equal(
+            DataRightsAdminPermissionCodes.Read,
+            OperationalNotificationAudiencePermissions.DataRightsRead.Value);
+    }
+
+    [Fact]
+    public void Operational_delivery_catalog_remains_web_only_until_delivery_time_reauthorization_exists()
+    {
+        IReadOnlyList<NotificationTag>[] tagSets =
+        [
+            BunkFyNotificationTags.PropertyActivity,
+            BunkFyNotificationTags.InventoryActivity,
+            BunkFyNotificationTags.ReservationActivity,
+            BunkFyNotificationTags.ProviderAttention,
+            BunkFyNotificationTags.StaffActivity,
+            BunkFyNotificationTags.DataRightsAttention
+        ];
+
+        Assert.All(tagSets, tags =>
+            Assert.Equal(
+                [NotificationTags.Web],
+                tags
+                    .Where(tag =>
+                        tag.Kind == NotificationTagKind.Delivery)
+                    .Select(tag => tag.Key)
+                    .ToArray()));
     }
 
     [Fact]
@@ -351,12 +436,14 @@ public sealed class OperationalNotificationTests
             .ToArray();
         var access = new TestOrganizationAccessCandidateFilter();
         var recipientResolver = new TestRecipientResolver();
+        var authorization = new TestAuthorizationService();
         var projector = CreateProjector(
             new TestAudienceReader(candidates),
             new TestWorkspaceOwnerAudienceReader([]),
             access,
             new CapturingProjector(),
-            recipientResolver);
+            recipientResolver,
+            authorization);
 
         await new ReservationCancelledNotificationHandler(projector).HandleAsync(
             new ReservationCancelledIntegrationEvent(
@@ -364,6 +451,11 @@ public sealed class OperationalNotificationTests
             CancellationToken.None);
 
         Assert.Equal([500, 500, 1], access.Requests.Select(request => request.Count).ToArray());
+        Assert.Equal(
+            [500, 500, 1],
+            authorization.Requests
+                .Select(request => request.Length)
+                .ToArray());
         Assert.Equal(
             [200, 200, 200, 200, 200, 1],
             recipientResolver.Requests.Select(request => request.Count).ToArray());
@@ -389,6 +481,32 @@ public sealed class OperationalNotificationTests
                     Guid.NewGuid(),
                     3),
                 CancellationToken.None));
+
+        Assert.Empty(notifications.Events);
+    }
+
+    [Fact]
+    public async Task Authorization_authority_failure_propagates_without_projecting_notifications()
+    {
+        CapturingProjector notifications = new();
+        OperationalNotificationProjector projector = CreateProjector(
+            new TestAudienceReader(["user-a"]),
+            new TestWorkspaceOwnerAudienceReader([]),
+            new TestOrganizationAccessCandidateFilter(),
+            notifications,
+            authorization: new ThrowingAuthorizationService());
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            new ReservationCancelledNotificationHandler(projector)
+                .HandleAsync(
+                    new ReservationCancelledIntegrationEvent(
+                        Guid.NewGuid(),
+                        ScopeId,
+                        Now,
+                        Guid.NewGuid(),
+                        Guid.NewGuid(),
+                        3),
+                    CancellationToken.None));
 
         Assert.Empty(notifications.Events);
     }
@@ -800,6 +918,24 @@ public sealed class OperationalNotificationTests
             this.allowed is null || this.allowed.Contains(requirement.Subject.Id)
                 ? AccessDecision.Allowed()
                 : AccessDecision.Denied("test.denied");
+    }
+
+    private sealed class ThrowingAuthorizationService
+        : IAccessAuthorizationService
+    {
+        public Task<AccessDecision> AuthorizeAsync(
+            AccessRequirement requirement,
+            CancellationToken cancellationToken) =>
+            Task.FromException<AccessDecision>(
+                new InvalidOperationException(
+                    "authorization authority unavailable"));
+
+        public Task<IReadOnlyList<AccessDecision>> AuthorizeManyAsync(
+            IReadOnlyList<AccessRequirement> requirements,
+            CancellationToken cancellationToken) =>
+            Task.FromException<IReadOnlyList<AccessDecision>>(
+                new InvalidOperationException(
+                    "authorization authority unavailable"));
     }
 
     private sealed class TestIngestionSourceLinkResolver(

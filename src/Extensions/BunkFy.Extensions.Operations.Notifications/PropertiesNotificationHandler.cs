@@ -14,6 +14,7 @@ internal sealed class PropertyRetiredNotificationHandler(OperationalNotification
             integrationEvent.TenantId,
             integrationEvent.OccurredAtUtc,
             integrationEvent.PropertyId,
+            OperationalNotificationAudiencePermissions.PropertiesRead,
             new OperationalNotification(
                 PropertiesModuleMetadata.Name,
                 "property-retired",

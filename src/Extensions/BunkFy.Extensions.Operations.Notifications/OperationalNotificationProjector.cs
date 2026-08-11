@@ -6,6 +6,7 @@ using System.Text.Json;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Workspaces.Contracts;
 using Gma.Framework.AccessControl;
+using Gma.Framework.Permissions;
 using Gma.Modules.Notifications.Contracts;
 using Gma.Modules.Organizations.Contracts;
 
@@ -24,9 +25,13 @@ internal sealed class OperationalNotificationProjector(
         string scopeId,
         DateTimeOffset occurredAtUtc,
         Guid propertyId,
+        PermissionCode requiredPermission,
         OperationalNotification notification,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(requiredPermission);
+        ArgumentNullException.ThrowIfNull(notification);
+
         IReadOnlyList<string> propertyStaffRecipients = await audienceReader
             .ListActiveAuthSubjectIdsAsync(scopeId, propertyId, cancellationToken)
             .ConfigureAwait(false);
@@ -49,7 +54,7 @@ internal sealed class OperationalNotificationProjector(
                 scopeId,
                 propertyId,
                 recipients,
-                notification.RequiredPermission,
+                requiredPermission,
                 cancellationToken)
             .ConfigureAwait(false);
         IReadOnlyList<StaffNotificationRecipient> staffRecipients =
@@ -203,10 +208,10 @@ internal sealed class OperationalNotificationProjector(
         string scopeId,
         Guid propertyId,
         IReadOnlyList<string> recipients,
-        Gma.Framework.Permissions.PermissionCode? requiredPermission,
+        PermissionCode requiredPermission,
         CancellationToken cancellationToken)
     {
-        if (requiredPermission is null || recipients.Count == 0)
+        if (recipients.Count == 0)
         {
             return recipients;
         }
