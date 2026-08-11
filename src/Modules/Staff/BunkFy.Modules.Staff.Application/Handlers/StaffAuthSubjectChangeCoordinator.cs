@@ -44,16 +44,27 @@ internal sealed class StaffAuthSubjectChangeCoordinator(
                     StaffApplicationErrors.AuthSubjectOperationConflict);
         }
 
-        Result uniqueness = await StaffMemberUniqueness.EnsureAsync(
-            members,
-            member.EmployeeNumber,
-            values.AuthSubject.Value,
-            member.Id,
-            cancellationToken).ConfigureAwait(false);
-        if (uniqueness.IsFailure)
+        Result<bool> transition = member.EvaluateAuthSubjectChange(
+            values.AuthSubject,
+            expectedVersion);
+        if (transition.IsFailure)
         {
             return Result.Failure<StaffMemberMutationReceiptDto>(
-                uniqueness.Error);
+                transition.Error);
+        }
+
+        if (transition.Value)
+        {
+            Result uniqueness = await StaffMemberUniqueness.EnsureAuthSubjectAsync(
+                members,
+                values.AuthSubject.Value,
+                member.Id,
+                cancellationToken).ConfigureAwait(false);
+            if (uniqueness.IsFailure)
+            {
+                return Result.Failure<StaffMemberMutationReceiptDto>(
+                    uniqueness.Error);
+            }
         }
 
         DateTimeOffset nowUtc = StaffMutationTime.Normalize(clock.UtcNow);

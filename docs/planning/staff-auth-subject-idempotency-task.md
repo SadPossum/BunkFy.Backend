@@ -6,9 +6,10 @@ Date: 2026-08-07
 ## Goal
 
 Make Staff account-link changes safe to retry after an uncertain response. One
-logical link, replacement, or unlink must produce at most one Staff version and
-one integration event, while reuse of its operation id for different input
-fails closed.
+logical link or lifecycle-safe unlink must produce at most one Staff version
+and one integration event, while reuse of its operation id for different input
+fails closed. Direct replacement is now rejected by the later
+[transition-safety contract](staff-auth-subject-transition-safety-task.md).
 
 ## Boundary Decision
 
@@ -79,6 +80,8 @@ fails closed.
   and expected version are retried, and clears it after success, cancellation,
   target change, or changed input. It refetches the current member after the
   receipt is accepted.
+- The later transition-safety slice constrains which new operations are valid;
+  exact receipts created under this contract retain their replay semantics.
 
 ## Verification
 

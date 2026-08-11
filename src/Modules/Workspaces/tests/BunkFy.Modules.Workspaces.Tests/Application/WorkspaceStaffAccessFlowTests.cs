@@ -173,6 +173,34 @@ public sealed class WorkspaceStaffAccessFlowTests
     }
 
     [Fact]
+    public async Task Unlinked_resume_does_not_restore_previous_subject_access()
+    {
+        UnexpectedRequestDispatcher dispatcher = new();
+        WorkspaceStaffLifecyclePolicy policy = new(
+            dispatcher,
+            NullLogger<WorkspaceStaffLifecyclePolicy>.Instance);
+        StaffLifecyclePolicyContext context = new(
+            Guid.NewGuid(),
+            ScopeId,
+            StaffId,
+            authSubjectId: null,
+            StaffLifecycleTransition.Resume,
+            StaffStatus.Suspended,
+            StaffStatus.Active,
+            new DateOnly(2026, 7, 21),
+            expectedVersion: 3,
+            targetVersion: 4,
+            "user:owner");
+
+        StaffLifecyclePolicyDecision decision = await policy.PrepareAsync(
+            context,
+            CancellationToken.None);
+
+        Assert.Equal(StaffLifecyclePolicyDecision.Allowed, decision);
+        Assert.Equal(0, dispatcher.SendCount);
+    }
+
+    [Fact]
     public async Task Immediate_resume_uses_the_observed_suspension_without_a_stale_persistence_read()
     {
         Guid profileId = Guid.NewGuid();
@@ -1410,6 +1438,26 @@ public sealed class WorkspaceStaffAccessFlowTests
             IQuery<TResponse> query,
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
+    }
+
+    private sealed class UnexpectedRequestDispatcher : IRequestDispatcher
+    {
+        public int SendCount { get; private set; }
+
+        public Task<Result<TResponse>> SendAsync<TResponse>(
+            ICommand<TResponse> command,
+            CancellationToken cancellationToken = default)
+        {
+            this.SendCount++;
+            throw new InvalidOperationException(
+                $"Unexpected command '{command.GetType().Name}'.");
+        }
+
+        public Task<Result<TResponse>> QueryAsync<TResponse>(
+            IQuery<TResponse> query,
+            CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException(
+                $"Unexpected query '{query.GetType().Name}'.");
     }
 
     private sealed class FakeRoles(List<string> operations) : IAccessControlRoleProvisioner

@@ -7,11 +7,14 @@ using BunkFy.Modules.Staff.AdminApi;
 using BunkFy.Modules.Staff.AdminCli;
 using BunkFy.Modules.Staff.Api;
 using BunkFy.Modules.Staff.Api.Requests;
+using BunkFy.Modules.Staff.Application;
 using BunkFy.Modules.Staff.Contracts;
 using Gma.Framework.AccessControl;
 using Gma.Framework.AccessControl.AspNetCore;
 using Gma.Framework.Administration.Cli;
+using Gma.Framework.Api.Results;
 using Gma.Framework.Cqrs;
+using Gma.Framework.Results;
 using Gma.Framework.Security;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -67,6 +70,34 @@ public sealed class StaffApiSecurityTests
         Assert.NotNull(request.GetProperty("WorkPhone"));
         Assert.NotNull(request.GetProperty("JobTitle"));
         Assert.NotNull(request.GetProperty("Department"));
+    }
+
+    [Fact]
+    public void Unsafe_account_link_transitions_are_http_conflicts()
+    {
+        Type publicSupport = typeof(StaffModule).Assembly.GetType(
+            "BunkFy.Modules.Staff.Api.StaffApiEndpointSupport",
+            throwOnError: true)!;
+        ApiErrorStatusCodeMap publicMap = Assert.IsType<ApiErrorStatusCodeMap>(
+            publicSupport.GetField(
+                "ErrorStatusCodes",
+                BindingFlags.Public | BindingFlags.Static)!.GetValue(null));
+        ApiErrorStatusCodeMap adminMap = Assert.IsType<ApiErrorStatusCodeMap>(
+            typeof(StaffAdminApiModule).GetField(
+                "ErrorStatusCodes",
+                BindingFlags.NonPublic | BindingFlags.Static)!.GetValue(null));
+        Error[] errors =
+        [
+            StaffApplicationErrors.AuthSubjectUnlinkRequiresSuspension,
+            StaffApplicationErrors.AuthSubjectReplacementRequiresUnlink,
+            StaffApplicationErrors.AuthSubjectLinkRequiresActive
+        ];
+
+        foreach (Error error in errors)
+        {
+            Assert.Equal(StatusCodes.Status409Conflict, publicMap.GetStatusCode(error));
+            Assert.Equal(StatusCodes.Status409Conflict, adminMap.GetStatusCode(error));
+        }
     }
 
     [Fact]

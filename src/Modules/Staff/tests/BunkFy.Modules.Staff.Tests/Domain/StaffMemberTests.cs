@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Staff.Tests;
 
+using Gma.Framework.Results;
 using BunkFy.Modules.Staff.Domain.Aggregates;
 using BunkFy.Modules.Staff.Domain.Models;
 using BunkFy.Modules.Staff.Domain.ValueObjects;
@@ -23,6 +24,138 @@ public sealed class StaffMemberTests
         Assert.Equal(StaffMemberState.Active, member.Status);
         Assert.Equal(1, member.Version);
         Assert.Empty(member.Assignments);
+    }
+
+    [Fact]
+    public void Active_link_cannot_be_cleared_or_replaced()
+    {
+        StaffMember member = Create("Ada", null, "user-1");
+        long version = member.Version;
+        int eventCount = member.DomainEvents.Count;
+
+        Result unlink = member.SetAuthSubject(
+            null,
+            version,
+            "user:owner",
+            Guid.NewGuid(),
+            Now.AddMinutes(1));
+        Result replacement = member.SetAuthSubject(
+            "user-2",
+            version,
+            "user:owner",
+            Guid.NewGuid(),
+            Now.AddMinutes(2));
+
+        Assert.Equal(
+            "Staff.AuthSubjectUnlinkRequiresSuspension",
+            unlink.Error.Code);
+        Assert.Equal(
+            "Staff.AuthSubjectReplacementRequiresUnlink",
+            replacement.Error.Code);
+        Assert.Equal("user-1", member.AuthSubjectId);
+        Assert.Equal(version, member.Version);
+        Assert.Equal(eventCount, member.DomainEvents.Count);
+    }
+
+    [Fact]
+    public void Relink_requires_suspend_clear_resume_then_link()
+    {
+        StaffMember member = Create("Ada", null, "user-1");
+
+        Assert.True(member.Suspend(
+            member.Version,
+            "user:owner",
+            "Preparing an account transition",
+            Guid.NewGuid(),
+            Now.AddMinutes(1)).IsSuccess);
+
+        long suspendedVersion = member.Version;
+        int suspendedEventCount = member.DomainEvents.Count;
+        Result replacement = member.SetAuthSubject(
+            "user-2",
+            member.Version,
+            "user:owner",
+            Guid.NewGuid(),
+            Now.AddMinutes(2));
+
+        Assert.Equal(
+            "Staff.AuthSubjectReplacementRequiresUnlink",
+            replacement.Error.Code);
+        Assert.Equal(suspendedVersion, member.Version);
+        Assert.Equal(suspendedEventCount, member.DomainEvents.Count);
+
+        Assert.True(member.SetAuthSubject(
+            null,
+            member.Version,
+            "user:owner",
+            Guid.NewGuid(),
+            Now.AddMinutes(3)).IsSuccess);
+        Assert.Null(member.AuthSubjectId);
+
+        long unlinkedVersion = member.Version;
+        int unlinkedEventCount = member.DomainEvents.Count;
+        Result linkWhileSuspended = member.SetAuthSubject(
+            "user-2",
+            member.Version,
+            "user:owner",
+            Guid.NewGuid(),
+            Now.AddMinutes(4));
+
+        Assert.Equal(
+            "Staff.AuthSubjectLinkRequiresActive",
+            linkWhileSuspended.Error.Code);
+        Assert.Equal(unlinkedVersion, member.Version);
+        Assert.Equal(unlinkedEventCount, member.DomainEvents.Count);
+
+        Assert.True(member.Resume(
+            member.Version,
+            "user:owner",
+            "Account link cleared",
+            Guid.NewGuid(),
+            Now.AddMinutes(5)).IsSuccess);
+        Assert.True(member.SetAuthSubject(
+            " user-2 ",
+            member.Version,
+            "user:owner",
+            Guid.NewGuid(),
+            Now.AddMinutes(6)).IsSuccess);
+        Assert.Equal(StaffMemberState.Active, member.Status);
+        Assert.Equal("user-2", member.AuthSubjectId);
+    }
+
+    [Fact]
+    public void Exact_auth_subject_no_op_remains_valid_in_active_and_suspended_states()
+    {
+        StaffMember member = Create("Ada", null, "user-1");
+        long activeVersion = member.Version;
+        int activeEventCount = member.DomainEvents.Count;
+
+        Assert.True(member.SetAuthSubject(
+            " user-1 ",
+            activeVersion,
+            "user:owner",
+            Guid.NewGuid(),
+            Now.AddMinutes(1)).IsSuccess);
+        Assert.Equal(activeVersion, member.Version);
+        Assert.Equal(activeEventCount, member.DomainEvents.Count);
+
+        Assert.True(member.Suspend(
+            member.Version,
+            "user:owner",
+            "Temporary suspension",
+            Guid.NewGuid(),
+            Now.AddMinutes(2)).IsSuccess);
+        long suspendedVersion = member.Version;
+        int suspendedEventCount = member.DomainEvents.Count;
+
+        Assert.True(member.SetAuthSubject(
+            "user-1",
+            suspendedVersion,
+            "user:owner",
+            Guid.NewGuid(),
+            Now.AddMinutes(3)).IsSuccess);
+        Assert.Equal(suspendedVersion, member.Version);
+        Assert.Equal(suspendedEventCount, member.DomainEvents.Count);
     }
 
     [Fact]

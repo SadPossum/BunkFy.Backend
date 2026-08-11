@@ -179,6 +179,12 @@ public static class StaffApplicationErrors
     public static Error VersionConflict => StaffDomainErrors.VersionConflict;
     public static Error StaffSuspended => StaffDomainErrors.StaffSuspended;
     public static Error StaffDeparted => StaffDomainErrors.StaffDeparted;
+    public static Error AuthSubjectUnlinkRequiresSuspension =>
+        StaffDomainErrors.AuthSubjectUnlinkRequiresSuspension;
+    public static Error AuthSubjectReplacementRequiresUnlink =>
+        StaffDomainErrors.AuthSubjectReplacementRequiresUnlink;
+    public static Error AuthSubjectLinkRequiresActive =>
+        StaffDomainErrors.AuthSubjectLinkRequiresActive;
     public static Error AssignmentNotFound => StaffDomainErrors.AssignmentNotFound;
     public static Error AssignmentAlreadyExists => StaffDomainErrors.AssignmentAlreadyExists;
     public static Error PrimaryAssignmentExists => StaffDomainErrors.PrimaryAssignmentExists;

@@ -111,7 +111,7 @@ filtering materialized pages.
 | Ordinary profile or self-service update | Reject |
 | Add property assignment | Reject |
 | Resume employment | Reject |
-| Attach, replace, or remove Auth subject link | Reject |
+| Attach or remove Auth subject link | Reject |
 | Onboarding and identity/assignment reconciliation | Reject for the existing restricted record |
 | Operational notification audience | Exclude |
 | Suspend employment | Allow as a safety-reducing transition |

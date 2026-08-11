@@ -22,7 +22,7 @@ Staff owns:
 
 GMA Auth owns member registration, credentials, login, sessions, enable/disable state, and account recovery. GMA AccessControl owns principals, roles, grants, permission evaluation, and access scopes. Properties owns property identity and lifecycle. There are no cross-module foreign keys or cross-schema writes.
 
-An Auth user can exist without a Staff profile for administration, automation, or setup. A Staff profile can exist without a linked Auth user for pre-provisioning and historical employment records. Linking a user does not grant access. Assigning a property does not grant access. Suspending or departing a staff member does not silently disable Auth or revoke AccessControl grants; coordinated offboarding is a later explicit workflow.
+An Auth user can exist without a Staff profile for administration, automation, or setup. A Staff profile can exist without a linked Auth user for pre-provisioning and historical employment records. Linking a user does not grant access. Assigning a property does not grant access. Later Workspaces lifecycle coordination denies and restores workspace access around Staff suspension and departure without changing Auth credentials or making Staff own AccessControl grants.
 
 ## Profile Model
 
@@ -39,7 +39,7 @@ The initial `StaffMember` aggregate is tenant scoped and has:
 
 Employee number, work email, and work phone are not global identities. Employee number may be tenant-unique when present, but contact values must not be used for automatic identity matching. A departed profile remains a durable historical record and cannot be reactivated in the first slice. Suspension is reversible through an explicit resume operation.
 
-The Auth user link may be attached, replaced, or removed through an expected-version command. Because the link cannot grant permissions and Auth intentionally has separate ownership, Staff does not reach into Auth persistence or require synchronous Auth availability. The UI/administrative workflow is responsible for selecting a real user; later orchestration may validate or provision both sides without changing Staff's aggregate boundary.
+The Auth user link may be attached or removed through an expected-version command. A linked active profile must first be suspended so Workspaces can deny the old subject's access; the link may then be cleared while suspended, and a new subject may be linked only after the unlinked profile is resumed. Direct replacement is rejected. Because linking cannot grant permissions and Auth intentionally has separate ownership, Staff does not reach into Auth persistence or require synchronous Auth availability. Access for a newly linked account is provisioned separately through Workspaces and AccessControl.
 
 ## Property Assignments
 
@@ -71,7 +71,7 @@ Public management API, Admin API, and Admin CLI use the same application command
 
 Create, canonical profile updates, Auth-link changes, and employment lifecycle operations require tenant scope. Property list/get and assignment/unassignment operations require the target property scope. Tenant grants may satisfy descendant property scopes according to the module descriptor; a property grant must not satisfy a tenant operation.
 
-Admin departure and Auth-link replacement/removal are confirmation gated. Lifecycle and unassignment commands require a bounded reason. All write commands use expected aggregate versions.
+Admin departure and Auth-link changes are confirmation gated. Lifecycle and unassignment commands require a bounded reason. All write commands use expected aggregate versions.
 
 ## Events And Consumers
 

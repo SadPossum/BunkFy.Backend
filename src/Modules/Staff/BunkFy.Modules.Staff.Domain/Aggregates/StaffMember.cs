@@ -53,6 +53,17 @@ public sealed partial class StaffMember : ScopedAggregateRoot<Guid>
 
     private Result EnsureMutable(long expectedVersion, Guid eventId)
     {
+        Result mutable = this.EnsureMutableState(expectedVersion);
+        if (mutable.IsFailure)
+        {
+            return mutable;
+        }
+
+        return eventId == Guid.Empty ? Result.Failure(StaffDomainErrors.EventIdRequired) : Result.Success();
+    }
+
+    private Result EnsureMutableState(long expectedVersion)
+    {
         if (expectedVersion != this.Version)
         {
             return Result.Failure(StaffDomainErrors.VersionConflict);
@@ -68,7 +79,7 @@ public sealed partial class StaffMember : ScopedAggregateRoot<Guid>
             return Result.Failure(StaffDomainErrors.StaffAnonymised);
         }
 
-        return eventId == Guid.Empty ? Result.Failure(StaffDomainErrors.EventIdRequired) : Result.Success();
+        return Result.Success();
     }
 
     private Result EnsureActive(long expectedVersion, Guid eventId)

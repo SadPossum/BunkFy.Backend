@@ -653,9 +653,128 @@ public sealed class StaffCommandHandlerTests
     }
 
     [Fact]
-    public async Task Auth_subject_change_replays_normalized_input_without_a_second_event()
+    public async Task Unsafe_auth_subject_transitions_record_no_receipt_or_event()
     {
         StaffMember member = CreateMember("user-100");
+        FakeStaffMemberRepository members = new(member);
+        RecordingMemberMutationOperations operations = new();
+        using ServiceProvider provider = CreateProvider(
+            members,
+            new FakePropertyProjectionRepository(),
+            memberMutationOperations: operations);
+        var handler = provider.GetRequiredService<
+            ICommandHandler<SetStaffAuthSubjectCommand, StaffMemberMutationReceiptDto>>();
+        long version = member.Version;
+        int eventCount = member.DomainEvents.Count;
+
+        Result<StaffMemberMutationReceiptDto> unlink = await handler.HandleAsync(
+            new SetStaffAuthSubjectCommand(
+                Guid.NewGuid(),
+                member.Id,
+                null,
+                version,
+                "user:owner"),
+            CancellationToken.None);
+        Result<StaffMemberMutationReceiptDto> replace = await handler.HandleAsync(
+            new SetStaffAuthSubjectCommand(
+                Guid.NewGuid(),
+                member.Id,
+                "user-200",
+                version,
+                "user:owner"),
+            CancellationToken.None);
+
+        Assert.Equal(
+            StaffApplicationErrors.AuthSubjectUnlinkRequiresSuspension,
+            unlink.Error);
+        Assert.Equal(
+            StaffApplicationErrors.AuthSubjectReplacementRequiresUnlink,
+            replace.Error);
+        Assert.Equal("user-100", member.AuthSubjectId);
+        Assert.Equal(version, member.Version);
+        Assert.Equal(eventCount, member.DomainEvents.Count);
+        Assert.Equal(0, members.EmployeeNumberExistsCount);
+        Assert.Equal(0, members.AuthSubjectExistsCount);
+        Assert.Empty(operations.Records);
+    }
+
+    [Fact]
+    public async Task Auth_subject_change_supports_suspend_clear_resume_then_link()
+    {
+        StaffMember member = CreateMember("user-100");
+        FakeStaffMemberRepository members = new(member);
+        RecordingMemberMutationOperations operations = new();
+        RecordingLifecyclePolicy policy = new(StaffLifecyclePolicyDecision.Allowed);
+        using ServiceProvider provider = CreateProvider(
+            members,
+            new FakePropertyProjectionRepository(),
+            lifecyclePolicy: policy,
+            memberMutationOperations: operations);
+        var authHandler = provider.GetRequiredService<
+            ICommandHandler<SetStaffAuthSubjectCommand, StaffMemberMutationReceiptDto>>();
+        var suspendHandler = provider.GetRequiredService<
+            ICommandHandler<SuspendStaffMemberCommand, StaffMemberMutationReceiptDto>>();
+        var resumeHandler = provider.GetRequiredService<
+            ICommandHandler<ResumeStaffMemberCommand, StaffMemberMutationReceiptDto>>();
+
+        Result<StaffMemberMutationReceiptDto> suspended = await suspendHandler.HandleAsync(
+            new SuspendStaffMemberCommand(
+                Guid.NewGuid(),
+                member.Id,
+                "Preparing an account transition",
+                member.Version,
+                "user:owner"),
+            CancellationToken.None);
+        Assert.True(suspended.IsSuccess, suspended.Error.Code);
+
+        Result<StaffMemberMutationReceiptDto> cleared = await authHandler.HandleAsync(
+            new SetStaffAuthSubjectCommand(
+                Guid.NewGuid(),
+                member.Id,
+                null,
+                member.Version,
+                "user:owner"),
+            CancellationToken.None);
+
+        Assert.True(cleared.IsSuccess, cleared.Error.Code);
+        Assert.Null(member.AuthSubjectId);
+        Result<StaffMemberMutationReceiptDto> resumed = await resumeHandler.HandleAsync(
+            new ResumeStaffMemberCommand(
+                Guid.NewGuid(),
+                member.Id,
+                "Account link cleared",
+                member.Version,
+                "user:owner"),
+            CancellationToken.None);
+        Assert.True(resumed.IsSuccess, resumed.Error.Code);
+
+        Result<StaffMemberMutationReceiptDto> linked = await authHandler.HandleAsync(
+            new SetStaffAuthSubjectCommand(
+                Guid.NewGuid(),
+                member.Id,
+                "user-200",
+                member.Version,
+                "user:owner"),
+            CancellationToken.None);
+
+        Assert.True(linked.IsSuccess, linked.Error.Code);
+        Assert.Equal("user-200", member.AuthSubjectId);
+        Assert.Equal(
+            [StaffMemberMutationKind.Suspend,
+             StaffMemberMutationKind.AuthSubjectChange,
+             StaffMemberMutationKind.Resume,
+             StaffMemberMutationKind.AuthSubjectChange],
+            operations.Records.Select(operation => operation.Kind));
+        Assert.Equal("user-100", policy.Contexts[0].AuthSubjectId);
+        Assert.Null(policy.Contexts[1].AuthSubjectId);
+        Assert.Equal(0, members.EmployeeNumberExistsCount);
+        Assert.Equal(1, members.AuthSubjectExistsCount);
+    }
+
+    [Fact]
+    public async Task Auth_subject_change_replays_normalized_input_without_a_second_event()
+    {
+        StaffMember member = CreateMember();
         RecordingMemberMutationOperations operations = new();
         using ServiceProvider provider = CreateProvider(
             new FakeStaffMemberRepository(member),
@@ -700,7 +819,7 @@ public sealed class StaffCommandHandlerTests
     [Fact]
     public async Task Auth_subject_change_rejects_changed_or_cross_kind_operation_reuse()
     {
-        StaffMember member = CreateMember("user-100");
+        StaffMember member = CreateMember();
         RecordingMemberMutationOperations operations = new();
         using ServiceProvider provider = CreateProvider(
             new FakeStaffMemberRepository(member),
@@ -787,10 +906,10 @@ public sealed class StaffCommandHandlerTests
         Assert.Equal(selectedVersion, member.Version);
         Assert.Equal(eventCount, member.DomainEvents.Count);
 
-        Result changed = member.SetAuthSubject(
-            "user-200",
+        Result changed = member.Suspend(
             member.Version,
             "system:identity-sync",
+            "Advance the profile version",
             Guid.NewGuid(),
             TestClock.Now.AddMinutes(1));
         Result<StaffMemberMutationReceiptDto> staleNoOp =
@@ -798,7 +917,7 @@ public sealed class StaffCommandHandlerTests
                 new SetStaffAuthSubjectCommand(
                     Guid.NewGuid(),
                     member.Id,
-                    "user-200",
+                    "user-100",
                     selectedVersion,
                     "user:owner"),
                 CancellationToken.None);
@@ -873,13 +992,34 @@ public sealed class StaffCommandHandlerTests
         RecordingMemberMutationOperations operations = new();
         RecordingOperationLock operationLock = new(() =>
         {
-            Result changed = member.SetAuthSubject(
+            Result suspended = member.Suspend(
+                member.Version,
+                "system:identity-sync",
+                "Preparing an account transition",
+                Guid.NewGuid(),
+                TestClock.Now.AddMinutes(1));
+            Assert.True(suspended.IsSuccess, suspended.Error.Code);
+            Result cleared = member.SetAuthSubject(
+                null,
+                member.Version,
+                "system:identity-sync",
+                Guid.NewGuid(),
+                TestClock.Now.AddMinutes(2));
+            Assert.True(cleared.IsSuccess, cleared.Error.Code);
+            Result resumed = member.Resume(
+                member.Version,
+                "system:identity-sync",
+                "Account link cleared",
+                Guid.NewGuid(),
+                TestClock.Now.AddMinutes(3));
+            Assert.True(resumed.IsSuccess, resumed.Error.Code);
+            Result linked = member.SetAuthSubject(
                 "user-200",
                 member.Version,
                 "system:identity-sync",
                 Guid.NewGuid(),
-                TestClock.Now.AddMinutes(1));
-            Assert.True(changed.IsSuccess, changed.Error.Code);
+                TestClock.Now.AddMinutes(4));
+            Assert.True(linked.IsSuccess, linked.Error.Code);
         });
         using ServiceProvider provider = CreateProvider(
             new FakeStaffMemberRepository(member),
@@ -2145,6 +2285,8 @@ public sealed class StaffCommandHandlerTests
         public bool OperationallyVisible { get; set; } = true;
         public int OperationalGetCount { get; private set; }
         public int SafetyGetCount { get; private set; }
+        public int EmployeeNumberExistsCount { get; private set; }
+        public int AuthSubjectExistsCount { get; private set; }
         public List<string>? Calls { get; init; }
 
         public Task AddAsync(StaffMember value, CancellationToken cancellationToken)
@@ -2213,24 +2355,32 @@ public sealed class StaffCommandHandlerTests
                 [], pageRequest.Page, pageRequest.PageSize, false));
 
         public Task<bool> EmployeeNumberExistsAsync(string employeeNumber, Guid? exceptStaffMemberId,
-            CancellationToken cancellationToken) => Task.FromResult(
-            string.Equals(employeeNumber, this.ExistingEmployeeNumber, StringComparison.Ordinal) ||
-            this.Candidates().Any(candidate =>
-                candidate.Id != exceptStaffMemberId &&
-                string.Equals(
-                    candidate.EmployeeNumber,
-                    employeeNumber,
-                    StringComparison.OrdinalIgnoreCase)));
+            CancellationToken cancellationToken)
+        {
+            this.EmployeeNumberExistsCount++;
+            return Task.FromResult(
+                string.Equals(employeeNumber, this.ExistingEmployeeNumber, StringComparison.Ordinal) ||
+                this.Candidates().Any(candidate =>
+                    candidate.Id != exceptStaffMemberId &&
+                    string.Equals(
+                        candidate.EmployeeNumber,
+                        employeeNumber,
+                        StringComparison.OrdinalIgnoreCase)));
+        }
 
         public Task<bool> AuthSubjectExistsAsync(string authSubjectId, Guid? exceptStaffMemberId,
-            CancellationToken cancellationToken) => Task.FromResult(
-            string.Equals(authSubjectId, this.ExistingAuthSubjectId, StringComparison.Ordinal) ||
-            this.Candidates().Any(candidate =>
-                candidate.Id != exceptStaffMemberId &&
-                string.Equals(
-                    candidate.AuthSubjectId,
-                    authSubjectId,
-                    StringComparison.Ordinal)));
+            CancellationToken cancellationToken)
+        {
+            this.AuthSubjectExistsCount++;
+            return Task.FromResult(
+                string.Equals(authSubjectId, this.ExistingAuthSubjectId, StringComparison.Ordinal) ||
+                this.Candidates().Any(candidate =>
+                    candidate.Id != exceptStaffMemberId &&
+                    string.Equals(
+                        candidate.AuthSubjectId,
+                        authSubjectId,
+                        StringComparison.Ordinal)));
+        }
 
         private IEnumerable<StaffMember> Candidates() =>
             new[] { member, this.AddedMember }.OfType<StaffMember>().Distinct();

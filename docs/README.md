@@ -78,6 +78,7 @@ Useful entry points:
 - [Staff Profile Update Idempotency Task](planning/staff-profile-update-idempotency-task.md)
 - [Staff Self-Service Profile Ownership Task](planning/staff-self-service-profile-ownership-task.md)
 - [Staff Auth-Subject Idempotency Task](planning/staff-auth-subject-idempotency-task.md)
+- [Staff Auth-Subject Transition Safety Task](planning/staff-auth-subject-transition-safety-task.md)
 - [Staff Employment Lifecycle Idempotency Task](planning/staff-employment-lifecycle-idempotency-task.md)
 - [Staff Immediate Effective-Date Integrity Task](planning/staff-immediate-effective-date-integrity-task.md)
 - [Staff Identity Bootstrap Replay Envelope Task](planning/staff-identity-bootstrap-replay-envelope-task.md)

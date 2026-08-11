@@ -14,6 +14,15 @@ public static class StaffDomainErrors
     public static readonly Error JobTitleInvalid = new("Staff.JobTitleInvalid", "The job title is invalid.");
     public static readonly Error DepartmentInvalid = new("Staff.DepartmentInvalid", "The department is invalid.");
     public static readonly Error AuthSubjectInvalid = new("Staff.AuthSubjectInvalid", "The Auth subject id is invalid.");
+    public static readonly Error AuthSubjectUnlinkRequiresSuspension = new(
+        "Staff.AuthSubjectUnlinkRequiresSuspension",
+        "Suspend the staff member before clearing the Auth subject.");
+    public static readonly Error AuthSubjectReplacementRequiresUnlink = new(
+        "Staff.AuthSubjectReplacementRequiresUnlink",
+        "Suspend the staff member and clear the existing Auth subject before linking another.");
+    public static readonly Error AuthSubjectLinkRequiresActive = new(
+        "Staff.AuthSubjectLinkRequiresActive",
+        "An Auth subject can be linked only while the staff member is active.");
     public static readonly Error ActorInvalid = new("Staff.ActorInvalid", "The actor id is invalid.");
     public static readonly Error ReasonInvalid = new("Staff.ReasonInvalid", "A valid reason is required.");
     public static readonly Error EventIdRequired = new("Staff.EventIdRequired", "A domain event id is required.");

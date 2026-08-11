@@ -234,10 +234,13 @@ public sealed partial class StaffMember
             return ready;
         }
 
-        if (string.Equals(
-                this.AuthSubjectId,
-                authSubject.Value,
-                StringComparison.Ordinal))
+        Result<bool> transition = this.EvaluateAuthSubjectTransition(authSubject);
+        if (transition.IsFailure)
+        {
+            return Result.Failure(transition.Error);
+        }
+
+        if (!transition.Value)
         {
             return Result.Success();
         }
@@ -247,6 +250,51 @@ public sealed partial class StaffMember
         this.RaiseDomainEvent(new StaffAuthSubjectChangedDomainEvent(eventId, nowUtc, this.ScopeId,
             this.Id, this.AuthSubjectId, this.Version));
         return Result.Success();
+    }
+
+    public Result<bool> EvaluateAuthSubjectChange(
+        StaffAuthSubject authSubject,
+        long expectedVersion)
+    {
+        ArgumentNullException.ThrowIfNull(authSubject);
+        Result mutable = this.EnsureMutableState(expectedVersion);
+        return mutable.IsSuccess
+            ? this.EvaluateAuthSubjectTransition(authSubject)
+            : Result.Failure<bool>(mutable.Error);
+    }
+
+    private Result<bool> EvaluateAuthSubjectTransition(
+        StaffAuthSubject authSubject)
+    {
+        if (string.Equals(
+                this.AuthSubjectId,
+                authSubject.Value,
+                StringComparison.Ordinal))
+        {
+            return Result.Success(false);
+        }
+
+        bool currentlyLinked = this.AuthSubjectId is not null;
+        bool requestedLinked = authSubject.Value is not null;
+        if (currentlyLinked && requestedLinked)
+        {
+            return Result.Failure<bool>(
+                StaffDomainErrors.AuthSubjectReplacementRequiresUnlink);
+        }
+
+        if (currentlyLinked && this.Status != StaffMemberState.Suspended)
+        {
+            return Result.Failure<bool>(
+                StaffDomainErrors.AuthSubjectUnlinkRequiresSuspension);
+        }
+
+        if (requestedLinked && this.Status != StaffMemberState.Active)
+        {
+            return Result.Failure<bool>(
+                StaffDomainErrors.AuthSubjectLinkRequiresActive);
+        }
+
+        return Result.Success(true);
     }
 
     private StaffProfileField[] GetChangedFields(StaffProfile profile)

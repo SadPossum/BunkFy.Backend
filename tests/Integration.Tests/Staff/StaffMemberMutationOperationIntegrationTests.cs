@@ -163,7 +163,7 @@ public sealed class StaffMemberMutationOperationIntegrationTests
                 "EMP-42",
                 "Manager",
                 "Operations",
-                "account-maya",
+                null,
                 "user:operator")).ConfigureAwait(false);
         Assert.True(created.IsSuccess, created.Error.Code);
 
@@ -290,9 +290,7 @@ public sealed class StaffMemberMutationOperationIntegrationTests
             authReceipt.Version).ConfigureAwait(false);
         await AssertFailedAuthSubjectOutboxWriteRollsBackAsync(
             services,
-            postgreSql.GetConnectionString(),
-            staffMemberId,
-            authReceipt.Version).ConfigureAwait(false);
+            postgreSql.GetConnectionString()).ConfigureAwait(false);
 
         Guid propertyId = Guid.NewGuid();
         await SeedActivePropertyAsync(services, propertyId).ConfigureAwait(false);
@@ -865,10 +863,24 @@ public sealed class StaffMemberMutationOperationIntegrationTests
 
     private static async Task AssertFailedAuthSubjectOutboxWriteRollsBackAsync(
         ServiceProvider services,
-        string connectionString,
-        Guid staffMemberId,
-        long expectedVersion)
+        string connectionString)
     {
+        Guid staffMemberId = Guid.NewGuid();
+        Result<StaffDirectoryMemberDto> created = await SendAsync(
+            services,
+            new CreateStaffMemberCommand(
+                staffMemberId,
+                "Outbox Rollback",
+                null,
+                "rollback@example.test",
+                null,
+                null,
+                null,
+                null,
+                null,
+                "user:operator")).ConfigureAwait(false);
+        Assert.True(created.IsSuccess, created.Error.Code);
+
         const string functionName =
             "staff.fail_auth_subject_outbox_insert";
         await ExecuteSqlAsync(
@@ -898,7 +910,7 @@ public sealed class StaffMemberMutationOperationIntegrationTests
                     failedOperationId,
                     staffMemberId,
                     "account-must-roll-back",
-                    expectedVersion,
+                    created.Value.Version,
                     "user:operator")));
         }
         finally
@@ -928,8 +940,8 @@ public sealed class StaffMemberMutationOperationIntegrationTests
                     CancellationToken.None)
                 .ConfigureAwait(false);
 
-        Assert.Equal("account-maya-updated", persisted.AuthSubjectId);
-        Assert.Equal(expectedVersion, persisted.Version);
+        Assert.Null(persisted.AuthSubjectId);
+        Assert.Equal(created.Value.Version, persisted.Version);
         Assert.Null(operation);
     }
 

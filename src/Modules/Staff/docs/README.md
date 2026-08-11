@@ -16,6 +16,13 @@ assignments while retaining their history until Data Rights or automatic
 retention performs the terminal scrub. A profile may be unlinked from Auth,
 and an Auth user may exist without a Staff profile.
 
+Account-link transitions preserve the Workspaces access boundary. Link a
+subject directly only to an active, currently unlinked Staff profile. To move a
+linked profile to another account, suspend the Staff member first so Workspaces
+can deny the old subject's access, clear the link while suspended, resume the
+unlinked profile, and then link the new subject. Linking the new subject does
+not copy or grant membership, roles, or permissions.
+
 ## Permissions
 
 - `staff.read`

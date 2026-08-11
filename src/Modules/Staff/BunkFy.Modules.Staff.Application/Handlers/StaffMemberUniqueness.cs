@@ -15,6 +15,19 @@ internal static class StaffMemberUniqueness
             return Result.Failure(StaffApplicationErrors.EmployeeNumberConflict);
         }
 
+        return await EnsureAuthSubjectAsync(
+            members,
+            authSubjectId,
+            exceptStaffMemberId,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public static async Task<Result> EnsureAuthSubjectAsync(
+        IStaffMemberRepository members,
+        string? authSubjectId,
+        Guid? exceptStaffMemberId,
+        CancellationToken cancellationToken)
+    {
         if (!string.IsNullOrWhiteSpace(authSubjectId) && await members.AuthSubjectExistsAsync(
             authSubjectId.Trim(), exceptStaffMemberId, cancellationToken).ConfigureAwait(false))
         {
