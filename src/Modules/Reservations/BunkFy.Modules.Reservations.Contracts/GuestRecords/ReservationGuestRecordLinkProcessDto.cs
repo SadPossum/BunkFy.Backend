@@ -2,7 +2,8 @@ namespace BunkFy.Modules.Reservations.Contracts;
 
 public sealed record ReservationGuestRecordLinkPreparationDto(
     ReservationGuestRecordLinkProcessDto Process,
-    Guid CreationConfirmationId);
+    Guid CreationConfirmationId,
+    string? GuestCreationActorId);
 
 public sealed record ReservationGuestRecordLinkProcessDto(
     Guid OperationId,

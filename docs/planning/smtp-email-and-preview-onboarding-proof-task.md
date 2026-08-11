@@ -1,7 +1,9 @@
 # SMTP Email And Preview Onboarding Proof Task
 
-Status: active
+Status: public implementation and hardened Preview proof complete; private
+browser and real-provider evidence pending
 Date: 2026-08-10
+Updated: 2026-08-11
 
 ## Goal
 
@@ -99,6 +101,37 @@ proved stable.
 - Publish exact dependency and product commits before building one fresh
   retained candidate and executing the deployed rehearsal.
 
+## Outcome
+
+- `BunkFy.Adapters.SmtpEmail` provides the opt-in MailKit transport behind
+  GMA's provider-neutral `IEmailSender` contract; BunkFy-specific composition
+  and Preview policy remain outside GMA.
+- API and Worker composition fail closed for incomplete or unsafe enabled
+  settings, while disabled hosts retain the existing no-transport behavior.
+- Preview Mailpit stays private in the base topology. The operator overlay is
+  loopback-only, and rehearsal cleanup purges captured messages before closing
+  that window.
+- The browser obtains email-verification availability from the runtime product
+  capability rather than a compile-time frontend switch.
+- Same-subject onboarding replay is correlated by source and subject without
+  retaining a PII-derived request fingerprint.
+
+## Current Preview Evidence
+
+The 2026-08-11 rehearsal against release
+`preview-runtime-hardening-20260811` passed all 12 umbrella checks through the
+public origin on the hardened read-only container topology. Its child evidence
+passed recipient-bound invitation, approval-required QR enrollment, Operations
+Notifications, and Reservations/Inventory lifecycle verification under the
+same release identity.
+
+Cleanup removed both non-owner memberships, retired both synthetic properties
+and room fixtures, archived the workspace, revoked all three sessions, purged
+Mailpit, and closed its loopback operator port. The scrubbed local evidence is
+retained under `.tmp/deployment-probes`; it deliberately records that synthetic
+global identities remain signed out because Auth has no public deletion
+contract.
+
 ## Done When
 
 - disabled hosts do not require SMTP configuration or an `IEmailSender`;
@@ -110,3 +143,8 @@ proved stable.
 - temporary join sources and identities have a reviewed cleanup outcome; and
 - real-provider/browser delivery remains visibly pending until exercised by the
   private release process.
+
+All public implementation and Preview proof criteria are satisfied. A real
+provider's domain authentication, suppression behavior, inbox placement, and
+alerts, plus browser redirect and rendering behavior, remain private release
+gates and are not claimed by this task.

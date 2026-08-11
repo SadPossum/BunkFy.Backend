@@ -809,6 +809,7 @@ public sealed class InventoryAuthorizationIntegrationTests
                 PropertyB,
                 RoomB,
                 BedB,
+                true,
                 "Replace damaged bed frame",
                 "integration-test"),
             CancellationToken.None).ConfigureAwait(false);
@@ -843,6 +844,7 @@ public sealed class InventoryAuthorizationIntegrationTests
                     Guid.NewGuid(),
                     PropertyB,
                     RoomB,
+                    true,
                     "Permanently repurpose room",
                     "integration-test"),
                 CancellationToken.None).ConfigureAwait(false);
@@ -881,6 +883,7 @@ public sealed class InventoryAuthorizationIntegrationTests
                     PropertyB,
                     RoomB,
                     BedB2,
+                    true,
                     "Should be covered by room retirement",
                     "integration-test"),
                 CancellationToken.None).ConfigureAwait(false);

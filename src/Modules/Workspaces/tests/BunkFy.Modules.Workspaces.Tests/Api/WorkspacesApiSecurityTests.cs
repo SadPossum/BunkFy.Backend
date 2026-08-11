@@ -2,7 +2,6 @@ namespace BunkFy.Modules.Workspaces.Tests.Api;
 
 using System.Reflection;
 using BunkFy.Modules.DataRights.Contracts;
-using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Workspaces.AdminApi;
 using BunkFy.Modules.Workspaces.Api;
 using BunkFy.Modules.Workspaces.Application;
@@ -13,6 +12,7 @@ using Gma.Framework.Administration.Api;
 using Gma.Framework.Api.Results;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Scoping;
+using Gma.Framework.Security;
 using Gma.Modules.AccessControl.Contracts;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -65,9 +65,13 @@ public sealed class WorkspacesApiSecurityTests
     }
 
     [Fact]
-    public async Task Join_source_issuance_requires_staff_management_and_returns_the_one_time_result()
+    public async Task Operator_onboarding_routes_require_workspace_authority_and_assurance()
     {
         WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        builder.Services.Configure<WorkspacesApiSecurityOptions>(options =>
+            options.StaffOnboardingManagementAssurance =
+                new AuthenticationAssuranceRequirement(
+                    maxAuthenticationAge: TimeSpan.FromMinutes(10)));
         builder.Services.AddSingleton<IRequestDispatcher>(_ => null!);
         builder.Services.AddSingleton<IAccessHttpSubjectResolver>(_ => null!);
         builder.Services.AddSingleton<IWorkspaceStaffJoinSourceIssuer>(_ => null!);
@@ -84,47 +88,60 @@ public sealed class WorkspacesApiSecurityTests
             .SelectMany(dataSource => dataSource.Endpoints)
             .OfType<RouteEndpoint>()];
 
-        AssertProtectedIssuanceRoute(
+        AssertProtectedOnboardingRoute(
             endpoints,
-            "/api/workspace-staff-enrollment/sources/invitations");
-        AssertProtectedIssuanceRoute(
+            "/api/workspace-staff-enrollment/sources/invitations",
+            HttpMethods.Post,
+            typeof(WorkspaceStaffJoinSourceIssuanceDto),
+            assuranceExpected: true);
+        AssertProtectedOnboardingRoute(
             endpoints,
-            "/api/workspace-staff-enrollment/sources/enrollment-links");
-        AssertProtectedRoute(
+            "/api/workspace-staff-enrollment/sources/enrollment-links",
+            HttpMethods.Post,
+            typeof(WorkspaceStaffJoinSourceIssuanceDto),
+            assuranceExpected: true);
+        AssertProtectedOnboardingRoute(
             endpoints,
             "/api/workspace-staff-enrollment/sources",
             HttpMethods.Get,
-            StaffAdminPermissionCodes.Manage,
             typeof(WorkspaceStaffJoinSourceListResponse),
-            StatusCodes.Status200OK);
-        AssertProtectedRoute(
+            assuranceExpected: false);
+        AssertProtectedOnboardingRoute(
             endpoints,
             "/api/workspace-staff-enrollment/sources/invitations/{sourceId:guid}/revoke",
             HttpMethods.Post,
-            StaffAdminPermissionCodes.Manage,
             typeof(WorkspaceStaffJoinSourceDto),
-            StatusCodes.Status200OK);
-        AssertProtectedRoute(
+            assuranceExpected: true);
+        AssertProtectedOnboardingRoute(
             endpoints,
             "/api/workspace-staff-enrollment/sources/enrollment-links/{sourceId:guid}/disable",
             HttpMethods.Post,
-            StaffAdminPermissionCodes.Manage,
             typeof(WorkspaceStaffJoinSourceDto),
-            StatusCodes.Status200OK);
-        AssertProtectedRoute(
+            assuranceExpected: true);
+        AssertProtectedOnboardingRoute(
             endpoints,
             "/api/workspace-staff-enrollment/sources/invitations/{sourceId:guid}/replace",
             HttpMethods.Post,
-            StaffAdminPermissionCodes.Manage,
             typeof(WorkspaceStaffJoinSourceReplacementDto),
-            StatusCodes.Status200OK);
-        AssertProtectedRoute(
+            assuranceExpected: true);
+        AssertProtectedOnboardingRoute(
             endpoints,
             "/api/workspace-staff-enrollment/sources/enrollment-links/{sourceId:guid}/replace",
             HttpMethods.Post,
-            StaffAdminPermissionCodes.Manage,
             typeof(WorkspaceStaffJoinSourceReplacementDto),
-            StatusCodes.Status200OK);
+            assuranceExpected: true);
+        AssertProtectedOnboardingRoute(
+            endpoints,
+            "/api/workspace-staff-enrollment/applications",
+            HttpMethods.Get,
+            typeof(WorkspaceStaffOnboardingListResponse),
+            assuranceExpected: false);
+        AssertProtectedOnboardingRoute(
+            endpoints,
+            "/api/workspace-staff-enrollment/applications/{applicationId:guid}/retry",
+            HttpMethods.Post,
+            typeof(WorkspaceStaffOnboardingDto),
+            assuranceExpected: true);
     }
 
     [Fact]
@@ -266,9 +283,12 @@ public sealed class WorkspacesApiSecurityTests
             "/api/admin/workspaces/staff-access-processes/{processId:guid}/retry");
     }
 
-    private static void AssertProtectedIssuanceRoute(
+    private static void AssertProtectedOnboardingRoute(
         IEnumerable<RouteEndpoint> endpoints,
-        string route)
+        string route,
+        string method,
+        Type responseType,
+        bool assuranceExpected)
     {
         RouteEndpoint endpoint = Assert.Single(endpoints, candidate =>
             string.Equals(
@@ -276,17 +296,32 @@ public sealed class WorkspacesApiSecurityTests
                 route.Trim('/'),
                 StringComparison.Ordinal) &&
             candidate.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods.Contains(
-                HttpMethods.Post,
+                method,
                 StringComparer.Ordinal) == true);
-        AccessPermissionMetadata permission = Assert.Single(
-            endpoint.Metadata.OfType<AccessPermissionMetadata>());
+        AccessPermissionMetadata[] permissions = endpoint.Metadata
+            .OfType<AccessPermissionMetadata>()
+            .OrderBy(metadata => metadata.Permission.Value, StringComparer.Ordinal)
+            .ToArray();
         IProducesResponseTypeMetadata response = Assert.Single(
             endpoint.Metadata.OfType<IProducesResponseTypeMetadata>(),
             metadata => metadata.StatusCode == StatusCodes.Status200OK);
 
-        Assert.Equal(StaffAdminPermissionCodes.Manage, permission.Permission.Value);
-        Assert.Equal("tenant", permission.ScopeResolverName);
-        Assert.Equal(typeof(WorkspaceStaffJoinSourceIssuanceDto), response.Type);
+        Assert.Equal(
+            [
+                AccessControlProfilePermissionCodes.Read,
+                WorkspacesPermissionCodes.StaffOnboardingManage
+            ],
+            permissions.Select(permission => permission.Permission.Value));
+        Assert.All(
+            permissions,
+            permission => Assert.Equal("tenant", permission.ScopeResolverName));
+        Assert.Equal(responseType, response.Type);
+        Assert.Equal(
+            assuranceExpected,
+            endpoint.Metadata.Any(metadata => string.Equals(
+                metadata.GetType().Name,
+                "AuthenticationAssuranceMetadata",
+                StringComparison.Ordinal)));
     }
 
     private static void AssertNoStore(HttpContext context)

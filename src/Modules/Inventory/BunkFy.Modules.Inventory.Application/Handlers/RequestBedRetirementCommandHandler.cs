@@ -34,6 +34,12 @@ internal sealed class RequestBedRetirementCommandHandler(
                 InventoryApplicationErrors.ManagementOperationInvalid);
         }
 
+        if (!command.Confirmed)
+        {
+            return Result.Failure<BedRetirementDto>(
+                InventoryApplicationErrors.ConfirmationRequired);
+        }
+
         string? scopeId = scopeContext.ScopeId;
         if (!scopeContext.IsEnabled || string.IsNullOrWhiteSpace(scopeId))
         {

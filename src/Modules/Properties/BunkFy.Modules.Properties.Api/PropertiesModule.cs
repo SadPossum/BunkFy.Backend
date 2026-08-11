@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using Gma.Framework.AccessControl;
 using Gma.Framework.AccessControl.AspNetCore;
 using Gma.Framework.Api.Modules;
@@ -21,6 +22,8 @@ using Gma.Framework.Cqrs;
 using Gma.Framework.ModuleComposition;
 using Gma.Framework.Pagination;
 using Gma.Framework.Results;
+using Gma.Framework.Security;
+using Gma.Framework.Security.AspNetCore;
 using Gma.Framework.Tenancy.AccessControl.AspNetCore;
 
 public sealed class PropertiesModule : IModule
@@ -30,6 +33,7 @@ public sealed class PropertiesModule : IModule
     public void AddServices(IHostApplicationBuilder builder)
     {
         builder.SelectModuleProfile(PropertiesProfiles.Default, "BunkFy.Modules.Properties.Api");
+        builder.Services.AddOptions<PropertiesApiSecurityOptions>();
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Scoped<IAccessHttpScopeResolver, PropertyAccessScopeResolver>());
         builder.Services.AddPropertiesApplication();
@@ -38,6 +42,9 @@ public sealed class PropertiesModule : IModule
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
     {
+        PropertiesApiSecurityOptions security = endpoints.ServiceProvider
+            .GetRequiredService<IOptions<PropertiesApiSecurityOptions>>()
+            .Value;
         RouteGroupBuilder properties = endpoints.MapGroup("/api/properties")
             .WithModuleName(this.Name)
             .WithTags("Properties")
@@ -135,7 +142,7 @@ public sealed class PropertiesModule : IModule
             .RequireTenant()
             .RequireResolvedScopePermission(PropertiesAdminPermissionCodes.PropertiesManage, PropertyAccessScopeResolver.ResolverName);
 
-        properties.MapPost("/{propertyId:guid}/retire", async (
+        RouteHandlerBuilder retireProperty = properties.MapPost("/{propertyId:guid}/retire", async (
             Guid propertyId,
             RetirePropertyRequest request,
             HttpContext httpContext,
@@ -163,8 +170,11 @@ public sealed class PropertiesModule : IModule
             .Produces<PropertyMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(PropertiesAdminPermissionCodes.PropertiesManage, PropertyAccessScopeResolver.ResolverName);
+        RequireAssuranceWhenConfigured(
+            retireProperty,
+            security.PropertyRetirementAssurance);
 
-        properties.MapPost("/{propertyId:guid}/processing/activate", async (
+        RouteHandlerBuilder activateProcessing = properties.MapPost("/{propertyId:guid}/processing/activate", async (
             Guid propertyId,
             ActivatePropertyProcessingRequest request,
             HttpContext httpContext,
@@ -199,6 +209,9 @@ public sealed class PropertiesModule : IModule
             .Produces<PropertyMutationReceiptDto>(StatusCodes.Status200OK)
             .RequireTenant()
             .RequireResolvedScopePermission(PropertiesAdminPermissionCodes.PropertiesManage, PropertyAccessScopeResolver.ResolverName);
+        RequireAssuranceWhenConfigured(
+            activateProcessing,
+            security.ProcessingActivationAssurance);
 
         properties.MapPost("/{propertyId:guid}/processing/suspend", async (
             Guid propertyId,
@@ -477,6 +490,13 @@ public sealed class PropertiesModule : IModule
             ? null
             : $"{AccessSubjectKindNames.GetName(subject.Kind)}:{subject.Id}";
     }
+
+    private static RouteHandlerBuilder RequireAssuranceWhenConfigured(
+        RouteHandlerBuilder endpoint,
+        AuthenticationAssuranceRequirement? requirement) =>
+        requirement is null
+            ? endpoint
+            : endpoint.RequireAuthenticationAssurance(requirement);
 
     private static readonly ApiErrorStatusCodeMap PublicErrorStatusCodes = CreateErrorStatusCodes(
         new(PropertiesApplicationErrors.AccessDenied.Code, StatusCodes.Status403Forbidden),

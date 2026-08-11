@@ -90,7 +90,15 @@ public sealed class HostCompositionGuardTests
             "builder.Services.AddAccessProfilePermissionAllowlist(WorkspaceAccessRoles.DelegablePermissions);",
             "options => options.ProfileManagementAssurance = privilegedOperationAssurance",
             "options => options.GovernanceOperationsAssurance = privilegedOperationAssurance",
-            "options => options.CredentialManagementAssurance = privilegedOperationAssurance",
+            "options => options.StaffOnboardingManagementAssurance =",
+            "options.ProcessingActivationAssurance = privilegedOperationAssurance",
+            "options.PropertyRetirementAssurance = privilegedOperationAssurance",
+            "options.TopologyRetirementAssurance = privilegedOperationAssurance",
+            "options.CredentialManagementAssurance = privilegedOperationAssurance",
+            "options.CheckpointResetAssurance = privilegedOperationAssurance",
+            "options.IngressResumeAssurance = privilegedOperationAssurance",
+            "builder.Services.Configure<ReservationsApiSecurityOptions>",
+            "builder.Services.Configure<GuestsApiSecurityOptions>",
             "builder.AddModule<AccessControlApiModule>();",
             "builder.Services.AddGmaTenantAccessControlAspNetCore();",
             "AuthProfile authProfile = AuthProfile.Global(authScopeId);",
@@ -137,6 +145,37 @@ public sealed class HostCompositionGuardTests
             .ToArray();
 
         Assert.Empty(missing);
+
+        int reservationsSecurityStart = program.IndexOf(
+            "builder.Services.Configure<ReservationsApiSecurityOptions>",
+            StringComparison.Ordinal);
+        int guestsSecurityStart = program.IndexOf(
+            "builder.Services.Configure<GuestsApiSecurityOptions>",
+            StringComparison.Ordinal);
+        int dataRightsSecurityStart = program.IndexOf(
+            "builder.Services.Configure<DataRightsApiSecurityOptions>",
+            StringComparison.Ordinal);
+        Assert.True(reservationsSecurityStart >= 0);
+        Assert.True(guestsSecurityStart > reservationsSecurityStart);
+        Assert.True(dataRightsSecurityStart > guestsSecurityStart);
+        string reservationsSecurity = program[reservationsSecurityStart..guestsSecurityStart];
+        Assert.Contains(
+            "options.CorrectionExecutionAssurance = privilegedOperationAssurance",
+            reservationsSecurity,
+            StringComparison.Ordinal);
+        string guestsSecurity = program[guestsSecurityStart..dataRightsSecurityStart];
+        Assert.Contains(
+            "options.CorrectionExecutionAssurance =",
+            guestsSecurity,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "options.RestrictionExecutionAssurance =",
+            guestsSecurity,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "options.DataHoldReleaseAssurance =",
+            guestsSecurity,
+            StringComparison.Ordinal);
     }
 
     [Fact]

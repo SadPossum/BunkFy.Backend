@@ -10,6 +10,8 @@ public sealed record RoomRetirementDto(
     string RequestedBy,
     InventoryRetirementStatus Status,
     RoomRetirementFinalizationRejectionReason? RejectionReason,
+    string? CancellationReason,
+    string? CanceledBy,
     int ActiveAllocationCount,
     int ActiveManualBlockCount,
     int ActiveBedRetirementCount,
@@ -18,4 +20,5 @@ public sealed record RoomRetirementDto(
     long Version,
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset? UpdatedAtUtc,
-    DateTimeOffset? CompletedAtUtc);
+    DateTimeOffset? CompletedAtUtc,
+    DateTimeOffset? CanceledAtUtc);

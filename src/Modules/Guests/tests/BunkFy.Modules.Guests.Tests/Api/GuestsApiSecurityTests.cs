@@ -11,6 +11,7 @@ using Gma.Framework.AccessControl.AspNetCore;
 using Gma.Framework.Administration.Cli;
 using Gma.Framework.Administration.Api;
 using Gma.Framework.Cqrs;
+using Gma.Framework.Security;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Metadata;
@@ -123,7 +124,7 @@ public sealed class GuestsApiSecurityTests
     [Fact]
     public async Task Operational_routes_publish_explicit_response_contracts()
     {
-        WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        WebApplicationBuilder builder = CreateApiBuilder();
         builder.Services.AddSingleton<IRequestDispatcher>(_ => null!);
         builder.Services.AddSingleton<IAccessHttpSubjectResolver>(_ => null!);
         builder.Services.AddSingleton<AdminApiExecutor>(_ => null!);
@@ -143,7 +144,7 @@ public sealed class GuestsApiSecurityTests
     [Fact]
     public async Task Data_rights_correction_requires_execute_at_guest_property_scope()
     {
-        WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        WebApplicationBuilder builder = CreateApiBuilder();
         builder.Services.AddSingleton<IRequestDispatcher>(_ => null!);
         builder.Services.AddSingleton<IAccessHttpSubjectResolver>(_ => null!);
         await using WebApplication app = builder.Build();
@@ -164,6 +165,7 @@ public sealed class GuestsApiSecurityTests
             Assert.Single(endpoint.Metadata.OfType<AccessPermissionMetadata>());
         Assert.Equal(DataRightsAdminPermissionCodes.Execute, permission.Permission.Value);
         Assert.Equal("guests-property", permission.ScopeResolverName);
+        AssertAssurance(endpoint, expected: true);
 
         IProducesResponseTypeMetadata response = Assert.Single(
             endpoint.Metadata.OfType<IProducesResponseTypeMetadata>(),
@@ -175,21 +177,25 @@ public sealed class GuestsApiSecurityTests
     [InlineData(
         "api/guests/properties/{propertyId:guid}/data-rights-restrictions",
         "POST",
-        typeof(GuestProcessingRestrictionReceiptDto))]
+        typeof(GuestProcessingRestrictionReceiptDto),
+        true)]
     [InlineData(
         "api/guests/properties/{propertyId:guid}/data-rights-restrictions/{restrictionId:guid}/release",
         "POST",
-        typeof(GuestProcessingRestrictionReceiptDto))]
+        typeof(GuestProcessingRestrictionReceiptDto),
+        true)]
     [InlineData(
         "api/guests/properties/{propertyId:guid}/{guestId:guid}/data-rights-restrictions",
         "GET",
-        typeof(GuestProcessingRestrictionListResponse))]
+        typeof(GuestProcessingRestrictionListResponse),
+        false)]
     public async Task Data_rights_restrictions_require_restrict_at_guest_property_scope(
         string route,
         string method,
-        Type responseType)
+        Type responseType,
+        bool assuranceExpected)
     {
-        WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        WebApplicationBuilder builder = CreateApiBuilder();
         builder.Services.AddSingleton<IRequestDispatcher>(_ => null!);
         builder.Services.AddSingleton<IAccessHttpSubjectResolver>(_ => null!);
         await using WebApplication app = builder.Build();
@@ -210,6 +216,7 @@ public sealed class GuestsApiSecurityTests
             Assert.Single(endpoint.Metadata.OfType<AccessPermissionMetadata>());
         Assert.Equal(DataRightsAdminPermissionCodes.Restrict, permission.Permission.Value);
         Assert.Equal("guests-property", permission.ScopeResolverName);
+        AssertAssurance(endpoint, assuranceExpected);
 
         IProducesResponseTypeMetadata response = Assert.Single(
             endpoint.Metadata.OfType<IProducesResponseTypeMetadata>(),
@@ -221,21 +228,25 @@ public sealed class GuestsApiSecurityTests
     [InlineData(
         "api/guests/properties/{propertyId:guid}/{guestId:guid}/data-holds",
         "POST",
-        typeof(GuestDataHoldReceiptDto))]
+        typeof(GuestDataHoldReceiptDto),
+        false)]
     [InlineData(
         "api/guests/properties/{propertyId:guid}/{guestId:guid}/data-holds/{holdId:guid}/release",
         "POST",
-        typeof(GuestDataHoldReceiptDto))]
+        typeof(GuestDataHoldReceiptDto),
+        true)]
     [InlineData(
         "api/guests/properties/{propertyId:guid}/{guestId:guid}/data-holds",
         "GET",
-        typeof(GuestDataHoldListResponse))]
+        typeof(GuestDataHoldListResponse),
+        false)]
     public async Task Data_holds_require_dedicated_permission_at_guest_property_scope(
         string route,
         string method,
-        Type responseType)
+        Type responseType,
+        bool assuranceExpected)
     {
-        WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        WebApplicationBuilder builder = CreateApiBuilder();
         builder.Services.AddSingleton<IRequestDispatcher>(_ => null!);
         builder.Services.AddSingleton<IAccessHttpSubjectResolver>(_ => null!);
         await using WebApplication app = builder.Build();
@@ -256,6 +267,7 @@ public sealed class GuestsApiSecurityTests
             Assert.Single(endpoint.Metadata.OfType<AccessPermissionMetadata>());
         Assert.Equal(GuestsAdminPermissionCodes.DataHoldsManage, permission.Permission.Value);
         Assert.Equal("guests-property", permission.ScopeResolverName);
+        AssertAssurance(endpoint, assuranceExpected);
 
         IProducesResponseTypeMetadata response = Assert.Single(
             endpoint.Metadata.OfType<IProducesResponseTypeMetadata>(),
@@ -285,6 +297,31 @@ public sealed class GuestsApiSecurityTests
             endpoints,
             HttpMethods.Post,
             $"{routeBase}/{{guestId:guid}}/archive");
+    }
+
+    private static WebApplicationBuilder CreateApiBuilder()
+    {
+        WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        builder.Services.Configure<GuestsApiSecurityOptions>(options =>
+        {
+            AuthenticationAssuranceRequirement assurance = new(
+                maxAuthenticationAge: TimeSpan.FromMinutes(10));
+            options.CorrectionExecutionAssurance = assurance;
+            options.RestrictionExecutionAssurance = assurance;
+            options.DataHoldReleaseAssurance = assurance;
+        });
+        return builder;
+    }
+
+    private static void AssertAssurance(RouteEndpoint endpoint, bool expected)
+    {
+        bool configured = endpoint.Metadata.Any(metadata =>
+            string.Equals(
+                metadata.GetType().Name,
+                "AuthenticationAssuranceMetadata",
+                StringComparison.Ordinal));
+
+        Assert.Equal(expected, configured);
     }
 
     private static void AssertResponse<TResponse>(

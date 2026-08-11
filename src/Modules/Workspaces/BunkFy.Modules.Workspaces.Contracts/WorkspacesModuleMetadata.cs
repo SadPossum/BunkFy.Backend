@@ -6,6 +6,7 @@ using BunkFy.Modules.Staff.Contracts;
 using Gma.Framework.Messaging;
 using Gma.Framework.ModuleComposition;
 using Gma.Framework.Modules;
+using Gma.Framework.Permissions;
 using Gma.Framework.Tasks;
 using Gma.Modules.AccessControl.Contracts;
 using Gma.Modules.Auth.Contracts;
@@ -40,6 +41,13 @@ public static class WorkspacesModuleMetadata
     public static ModuleDescriptor Descriptor { get; } = ModuleDescriptor
         .Create(Name)
         .WithSchema(Schema)
+        .WithPermissions([
+            new ModulePermissionDescriptor(
+                WorkspacesPermissionCodes.StaffOnboardingManage,
+                "Manage Workspaces-owned Staff onboarding sources and decisions.",
+                PermissionScopeRequirement.Scoped,
+                PermissionScopeGrantPolicy.Descendants)
+        ])
         .WithSubscription<OrganizationInvitationChangedIntegrationEvent>(
             OrganizationsModuleMetadata.Name,
             InvitationChangedHandlerName)

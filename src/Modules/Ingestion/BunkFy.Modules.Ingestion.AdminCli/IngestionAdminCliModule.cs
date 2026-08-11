@@ -455,7 +455,8 @@ public sealed class IngestionAdminCliModule : IAdminCliModule
                         parse.GetRequiredValue(operation),
                         parse.GetRequiredValue(property),
                         parse.GetRequiredValue(connection),
-                        parse.GetRequiredValue(version)), ct)
+                        parse.GetRequiredValue(version),
+                        Confirmed: true), ct)
                 : Task.FromResult(Result.Failure<AdapterConnectionMutationReceiptDto>(
                     AdminErrors.ConfirmationRequired)), token));
         return command;

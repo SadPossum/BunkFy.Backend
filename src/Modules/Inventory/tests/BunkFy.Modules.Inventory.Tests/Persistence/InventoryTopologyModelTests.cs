@@ -4,6 +4,7 @@ using BunkFy.Modules.Inventory.Application.Ports;
 using BunkFy.Modules.Inventory.Contracts;
 using BunkFy.Modules.Inventory.Domain.Aggregates;
 using BunkFy.Modules.Inventory.Persistence;
+using BunkFy.Modules.Inventory.Persistence.Repositories;
 using BunkFy.Modules.Inventory.Persistence.TenantTermination;
 using BunkFy.Modules.Properties.Contracts;
 using Gma.Framework.Scoping;
@@ -267,17 +268,27 @@ public sealed class InventoryTopologyModelTests
     }
 
     [Fact]
-    public void Bed_retirement_process_has_concurrency_and_one_process_per_scoped_bed()
+    public void Bed_retirement_process_has_concurrency_and_active_history_indexes()
     {
         using InventoryDbContext dbContext = CreateDbContext();
 
         IEntityType process = dbContext.Model.FindEntityType(typeof(BedRetirementProcess))!;
 
         Assert.True(process.FindProperty(nameof(BedRetirementProcess.Version))!.IsConcurrencyToken);
+        Assert.Equal(
+            BedRetirementProcess.ReasonMaxLength,
+            process.FindProperty(nameof(BedRetirementProcess.CancellationReason))!.GetMaxLength());
+        Assert.Equal(
+            BedRetirementProcess.ActorIdMaxLength,
+            process.FindProperty(nameof(BedRetirementProcess.CanceledBy))!.GetMaxLength());
         Assert.Contains(
             process.GetIndexes(),
-            index => index.IsUnique && index.Properties.Select(property => property.Name)
-                .SequenceEqual([nameof(BedRetirementProcess.ScopeId), nameof(BedRetirementProcess.BedId)]));
+            index => !index.IsUnique && index.Properties.Select(property => property.Name)
+                .SequenceEqual([
+                    nameof(BedRetirementProcess.ScopeId),
+                    nameof(BedRetirementProcess.BedId),
+                    nameof(BedRetirementProcess.State)
+                ]));
         Assert.Contains(
             process.GetIndexes(),
             index => index.Properties.Select(property => property.Name).SequenceEqual([
@@ -289,17 +300,27 @@ public sealed class InventoryTopologyModelTests
     }
 
     [Fact]
-    public void Room_retirement_process_has_concurrency_and_one_process_per_scoped_room()
+    public void Room_retirement_process_has_concurrency_and_active_history_indexes()
     {
         using InventoryDbContext dbContext = CreateDbContext();
 
         IEntityType process = dbContext.Model.FindEntityType(typeof(RoomRetirementProcess))!;
 
         Assert.True(process.FindProperty(nameof(RoomRetirementProcess.Version))!.IsConcurrencyToken);
+        Assert.Equal(
+            RoomRetirementProcess.ReasonMaxLength,
+            process.FindProperty(nameof(RoomRetirementProcess.CancellationReason))!.GetMaxLength());
+        Assert.Equal(
+            RoomRetirementProcess.ActorIdMaxLength,
+            process.FindProperty(nameof(RoomRetirementProcess.CanceledBy))!.GetMaxLength());
         Assert.Contains(
             process.GetIndexes(),
-            index => index.IsUnique && index.Properties.Select(property => property.Name)
-                .SequenceEqual([nameof(RoomRetirementProcess.ScopeId), nameof(RoomRetirementProcess.RoomId)]));
+            index => !index.IsUnique && index.Properties.Select(property => property.Name)
+                .SequenceEqual([
+                    nameof(RoomRetirementProcess.ScopeId),
+                    nameof(RoomRetirementProcess.RoomId),
+                    nameof(RoomRetirementProcess.State)
+                ]));
         Assert.Contains(
             process.GetIndexes(),
             index => index.Properties.Select(property => property.Name).SequenceEqual([
@@ -307,6 +328,111 @@ public sealed class InventoryTopologyModelTests
                 nameof(RoomRetirementProcess.PropertyId),
                 nameof(RoomRetirementProcess.State)
             ]));
+    }
+
+    [Fact]
+    public async Task Bed_target_lookup_ignores_canceled_history_but_process_lookup_retains_it()
+    {
+        await using InventoryDbContext dbContext = CreateDbContext();
+        Guid propertyId = Guid.NewGuid();
+        Guid roomId = Guid.NewGuid();
+        Guid bedId = Guid.NewGuid();
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        BedRetirementProcess historical = BedRetirementProcess.Create(
+            Guid.NewGuid(),
+            "tenant-a",
+            propertyId,
+            roomId,
+            bedId,
+            "Replace bed",
+            "user:operator",
+            now).Value;
+        Assert.True(historical.Cancel(
+            historical.Version,
+            "Keep bed",
+            "user:manager",
+            now.AddMinutes(1)).IsSuccess);
+        BedRetirementProcess active = BedRetirementProcess.Create(
+            Guid.NewGuid(),
+            "tenant-a",
+            propertyId,
+            roomId,
+            bedId,
+            "Replace bed later",
+            "user:operator",
+            now.AddMinutes(2)).Value;
+        dbContext.BedRetirements.AddRange(historical, active);
+        await dbContext.SaveChangesAsync();
+        dbContext.ChangeTracker.Clear();
+        BedRetirementRepository repository = new(dbContext);
+
+        BedRetirementProcess? byTarget = await repository.GetByBedAsync(
+            propertyId,
+            bedId,
+            CancellationToken.None);
+        BedRetirementProcess? byProcess = await repository.GetAsync(
+            propertyId,
+            historical.Id,
+            CancellationToken.None);
+
+        Assert.Equal(active.Id, byTarget?.Id);
+        Assert.Equal(active.Id, await repository.GetTopologyChangeIdByBedAsync(
+            propertyId,
+            bedId,
+            CancellationToken.None));
+        Assert.Equal(historical.Id, byProcess?.Id);
+        Assert.Equal(InventoryRetirementProcessState.Canceled, byProcess?.State);
+    }
+
+    [Fact]
+    public async Task Room_target_lookup_ignores_canceled_history_but_process_lookup_retains_it()
+    {
+        await using InventoryDbContext dbContext = CreateDbContext();
+        Guid propertyId = Guid.NewGuid();
+        Guid roomId = Guid.NewGuid();
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        RoomRetirementProcess historical = RoomRetirementProcess.Create(
+            Guid.NewGuid(),
+            "tenant-a",
+            propertyId,
+            roomId,
+            "Repurpose room",
+            "user:operator",
+            now).Value;
+        Assert.True(historical.Cancel(
+            historical.Version,
+            "Keep room",
+            "user:manager",
+            now.AddMinutes(1)).IsSuccess);
+        RoomRetirementProcess active = RoomRetirementProcess.Create(
+            Guid.NewGuid(),
+            "tenant-a",
+            propertyId,
+            roomId,
+            "Repurpose room later",
+            "user:operator",
+            now.AddMinutes(2)).Value;
+        dbContext.RoomRetirements.AddRange(historical, active);
+        await dbContext.SaveChangesAsync();
+        dbContext.ChangeTracker.Clear();
+        RoomRetirementRepository repository = new(dbContext);
+
+        RoomRetirementProcess? byTarget = await repository.GetByRoomAsync(
+            propertyId,
+            roomId,
+            CancellationToken.None);
+        RoomRetirementProcess? byProcess = await repository.GetAsync(
+            propertyId,
+            historical.Id,
+            CancellationToken.None);
+
+        Assert.Equal(active.Id, byTarget?.Id);
+        Assert.Equal(active.Id, await repository.GetTopologyChangeIdByRoomAsync(
+            propertyId,
+            roomId,
+            CancellationToken.None));
+        Assert.Equal(historical.Id, byProcess?.Id);
+        Assert.Equal(InventoryRetirementProcessState.Canceled, byProcess?.State);
     }
 
     private static InventoryDbContext CreateDbContext()

@@ -7,5 +7,6 @@ public enum InventoryRetirementProcessState
     FinalizationRequested = 2,
     FinalizedAwaitingTopology = 3,
     Completed = 4,
-    Rejected = 5
+    Rejected = 5,
+    Canceled = 6
 }

@@ -2,7 +2,6 @@ namespace BunkFy.Extensions.Operations.Notifications;
 
 using BunkFy.Modules.DataRights.Contracts;
 using Gma.Framework.Messaging;
-using Gma.Framework.Permissions;
 using Gma.Modules.Notifications.Contracts;
 
 [IntegrationEventHandler(
@@ -26,6 +25,7 @@ internal sealed class DataRightsResponseDeadlineNotificationHandler(
             integrationEvent.TenantId,
             integrationEvent.OccurredAtUtc,
             integrationEvent.PropertyId,
+            OperationalNotificationAudiencePermissions.DataRightsRead,
             CreateNotification(integrationEvent),
             cancellationToken);
 
@@ -60,8 +60,6 @@ internal sealed class DataRightsResponseDeadlineNotificationHandler(
                 integrationEvent.CaseId),
             BunkFyNotificationTags.DataRightsAttention)
         {
-            RequiredPermission = PermissionCode.Create(
-                DataRightsAdminPermissionCodes.Read),
             DeliveryPolicy = NotificationDeliveryPolicy.Mandatory
         };
     }

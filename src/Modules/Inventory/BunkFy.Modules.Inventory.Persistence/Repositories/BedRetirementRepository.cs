@@ -7,6 +7,14 @@ using Microsoft.EntityFrameworkCore;
 
 internal sealed class BedRetirementRepository(InventoryDbContext dbContext) : IBedRetirementRepository
 {
+    private static readonly InventoryRetirementProcessState[] ActiveStates =
+    [
+        InventoryRetirementProcessState.Draining,
+        InventoryRetirementProcessState.FinalizationRequested,
+        InventoryRetirementProcessState.FinalizedAwaitingTopology,
+        InventoryRetirementProcessState.Rejected
+    ];
+
     public Task<BedRetirementProcess?> GetAsync(
         Guid propertyId,
         Guid topologyChangeId,
@@ -18,29 +26,63 @@ internal sealed class BedRetirementRepository(InventoryDbContext dbContext) : IB
                 process => process.Id == topologyChangeId && process.PropertyId == propertyId,
                 cancellationToken);
 
-    public Task<Guid?> GetTopologyChangeIdByBedAsync(
+    public async Task<Guid?> GetTopologyChangeIdByBedAsync(
         Guid propertyId,
         Guid bedId,
-        CancellationToken cancellationToken) =>
-        dbContext.BedRetirements.Local.FirstOrDefault(
-            process => process.BedId == bedId && process.PropertyId == propertyId) is { } tracked
-            ? Task.FromResult<Guid?>(tracked.Id)
-            : dbContext.BedRetirements
-                .AsNoTracking()
-                .Where(process => process.BedId == bedId && process.PropertyId == propertyId)
-                .Select(process => (Guid?)process.Id)
-                .SingleOrDefaultAsync(cancellationToken);
+        CancellationToken cancellationToken)
+    {
+        BedRetirementProcess? local = dbContext.BedRetirements.Local.SingleOrDefault(
+            process =>
+                process.BedId == bedId &&
+                process.PropertyId == propertyId &&
+                BedRetirementProcess.IsDrainActive(process.State));
+        if (local is not null)
+        {
+            return local.Id;
+        }
 
-    public Task<BedRetirementProcess?> GetByBedAsync(
+        Guid[] trackedIds = dbContext.BedRetirements.Local
+            .Select(process => process.Id)
+            .ToArray();
+        return await dbContext.BedRetirements
+            .AsNoTracking()
+            .Where(process =>
+                !trackedIds.Contains(process.Id) &&
+                process.BedId == bedId &&
+                process.PropertyId == propertyId &&
+                ActiveStates.Contains(process.State))
+            .Select(process => (Guid?)process.Id)
+            .SingleOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    public async Task<BedRetirementProcess?> GetByBedAsync(
         Guid propertyId,
         Guid bedId,
-        CancellationToken cancellationToken) =>
-        dbContext.BedRetirements.Local.FirstOrDefault(
-            process => process.BedId == bedId && process.PropertyId == propertyId) is { } tracked
-            ? Task.FromResult<BedRetirementProcess?>(tracked)
-            : dbContext.BedRetirements.FirstOrDefaultAsync(
-                process => process.BedId == bedId && process.PropertyId == propertyId,
-                cancellationToken);
+        CancellationToken cancellationToken)
+    {
+        BedRetirementProcess? local = dbContext.BedRetirements.Local.SingleOrDefault(
+            process =>
+                process.BedId == bedId &&
+                process.PropertyId == propertyId &&
+                BedRetirementProcess.IsDrainActive(process.State));
+        if (local is not null)
+        {
+            return local;
+        }
+
+        Guid[] trackedIds = dbContext.BedRetirements.Local
+            .Select(process => process.Id)
+            .ToArray();
+        return await dbContext.BedRetirements.SingleOrDefaultAsync(
+                process =>
+                    !trackedIds.Contains(process.Id) &&
+                    process.BedId == bedId &&
+                    process.PropertyId == propertyId &&
+                    ActiveStates.Contains(process.State),
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
 
     public async Task<IReadOnlyCollection<BedRetirementProcess>> ListActiveForUnitsAsync(
         Guid propertyId,
@@ -64,22 +106,33 @@ internal sealed class BedRetirementRepository(InventoryDbContext dbContext) : IB
             .Select(unit => unit.Id)
             .Distinct()
             .ToArray();
-        InventoryRetirementProcessState[] activeStates =
-        [
-            InventoryRetirementProcessState.Draining,
-            InventoryRetirementProcessState.FinalizationRequested,
-            InventoryRetirementProcessState.FinalizedAwaitingTopology,
-            InventoryRetirementProcessState.Rejected
-        ];
-        return await dbContext.BedRetirements
+        BedRetirementProcess[] local = dbContext.BedRetirements.Local
             .Where(process =>
                 process.PropertyId == propertyId &&
-                activeStates.Contains(process.State) &&
+                BedRetirementProcess.IsDrainActive(process.State) &&
                 (roomIds.Contains(process.RoomId) || bedIds.Contains(process.BedId)))
-            .OrderBy(process => process.Id)
+            .ToArray();
+        Guid[] trackedIds = dbContext.BedRetirements.Local
+            .Select(process => process.Id)
+            .ToArray();
+        BedRetirementProcess[] persisted = await dbContext.BedRetirements
+            .Where(process =>
+                !trackedIds.Contains(process.Id) &&
+                process.PropertyId == propertyId &&
+                ActiveStates.Contains(process.State) &&
+                (roomIds.Contains(process.RoomId) || bedIds.Contains(process.BedId)))
             .ToArrayAsync(cancellationToken)
             .ConfigureAwait(false);
+        return persisted
+            .Concat(local)
+            .OrderBy(process => process.Id)
+            .ToArray();
     }
+
+    public Task ReloadAsync(
+        BedRetirementProcess process,
+        CancellationToken cancellationToken) =>
+        dbContext.Entry(process).ReloadAsync(cancellationToken);
 
     public Task AddAsync(BedRetirementProcess process, CancellationToken cancellationToken)
     {

@@ -8,6 +8,7 @@ using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
 
 internal sealed class RoomRetirementCoordinator(
+    InventoryManagementMutationCoordinator mutations,
     IRoomRetirementRepository retirements,
     IInventoryAvailabilityRepository availability,
     ISystemClock clock,
@@ -50,6 +51,15 @@ internal sealed class RoomRetirementCoordinator(
             .ConfigureAwait(false);
         foreach (RoomRetirementProcess process in processes.Where(item => item.State == InventoryRetirementProcessState.Draining))
         {
+            await mutations.AcquireRoomRetirementAsync(process.Id, cancellationToken)
+                .ConfigureAwait(false);
+            await retirements.ReloadAsync(process, cancellationToken)
+                .ConfigureAwait(false);
+            if (process.State != InventoryRetirementProcessState.Draining)
+            {
+                continue;
+            }
+
             await this.TryAdvanceAsync(
                 process,
                 excludedAllocationId,

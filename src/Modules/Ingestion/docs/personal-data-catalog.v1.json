@@ -6341,6 +6341,40 @@
       ]
     },
     {
+      "id": "ingestion.operations.confirmed",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "operational-audit"
+      ],
+      "sources": [
+        "system-workflow"
+      ],
+      "authoritativeOwner": "ingestion",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "operations",
+      "countryPolicyKey": "ingestion.operations",
+      "retentionPolicy": "operations-lifecycle",
+      "rightsPolicy": "audit-rights",
+      "allowedSurfaces": [
+        "application-command"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Ingestion.Application",
+          "type": "BunkFy.Modules.Ingestion.Application.Commands.ResetAdapterConnectionCheckpointCommand",
+          "member": "Confirmed",
+          "surface": "application-command",
+          "retentionPolicy": null
+        }
+      ]
+    },
+    {
       "id": "ingestion.operations.conflict-policy",
       "dataSubject": "guest",
       "classification": "linked-operational",

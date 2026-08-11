@@ -17,6 +17,7 @@ internal sealed class ReservationConfirmedNotificationHandler(OperationalNotific
             integrationEvent.TenantId,
             integrationEvent.OccurredAtUtc,
             integrationEvent.PropertyId,
+            OperationalNotificationAudiencePermissions.ReservationsRead,
             Reservation(
                 integrationEvent,
                 "reservation-confirmed",
@@ -99,6 +100,7 @@ internal static class ReservationArrivalReminderNotification
             tenantId,
             occurredAtUtc,
             propertyId,
+            OperationalNotificationAudiencePermissions.ReservationsRead,
             new OperationalNotification(
                 ReservationsModuleMetadata.Name,
                 "reservation-arrival-soon",
@@ -122,6 +124,7 @@ internal sealed class ReservationAllocationRejectedNotificationHandler(Operation
             integrationEvent.TenantId,
             integrationEvent.OccurredAtUtc,
             integrationEvent.PropertyId,
+            OperationalNotificationAudiencePermissions.ReservationsRead,
             new OperationalNotification(
                 ReservationsModuleMetadata.Name,
                 "reservation-allocation-rejected",
@@ -148,6 +151,7 @@ internal sealed class ReservationCancelledNotificationHandler(OperationalNotific
             integrationEvent.TenantId,
             integrationEvent.OccurredAtUtc,
             integrationEvent.PropertyId,
+            OperationalNotificationAudiencePermissions.ReservationsRead,
             new OperationalNotification(
                 ReservationsModuleMetadata.Name,
                 "reservation-cancelled",
@@ -174,6 +178,7 @@ internal sealed class ReservationNoShowNotificationHandler(OperationalNotificati
             integrationEvent.TenantId,
             integrationEvent.OccurredAtUtc,
             integrationEvent.PropertyId,
+            OperationalNotificationAudiencePermissions.ReservationsRead,
             new OperationalNotification(
                 ReservationsModuleMetadata.Name,
                 "reservation-no-show",
@@ -225,6 +230,7 @@ internal sealed class ExternalReservationOperationAttentionNotificationHandler(
                 integrationEvent.TenantId,
                 integrationEvent.OccurredAtUtc,
                 integrationEvent.PropertyId,
+                OperationalNotificationAudiencePermissions.IngestionRead,
                 new OperationalNotification(
                 ReservationsModuleMetadata.Name,
                 "provider-reservation-operation-needs-attention",

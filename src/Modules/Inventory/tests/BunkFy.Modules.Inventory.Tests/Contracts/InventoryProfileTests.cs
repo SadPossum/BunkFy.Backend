@@ -33,7 +33,10 @@ public sealed class InventoryProfileTests
         Assert.Single(InventoryModuleMetadata.Descriptor.GetCompositionProfiles());
         IReadOnlyCollection<ModulePermissionDescriptor> permissions = InventoryModuleMetadata.Descriptor.GetPermissions();
 
-        Assert.Equal(3, permissions.Count);
+        Assert.Equal(4, permissions.Count);
+        Assert.Contains(
+            permissions,
+            permission => permission.Code == InventoryAdminPermissionCodes.Retire);
         Assert.All(permissions, permission => Assert.Equal(PermissionScopeRequirement.Scoped, permission.ScopeRequirement));
         Assert.All(permissions, permission => Assert.Equal(PermissionScopeGrantPolicy.Descendants, permission.ScopeGrantPolicy));
         Assert.Equal(12, InventoryModuleMetadata.Descriptor.GetPublishedEvents().Count);

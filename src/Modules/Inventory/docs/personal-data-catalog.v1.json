@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "inventory.personal-data",
-  "catalogVersion": 4,
+  "catalogVersion": 6,
   "module": "inventory",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -37,11 +37,13 @@
       "readers": [
         "permission:inventory.configure",
         "permission:inventory.read",
+        "permission:inventory.retire",
         "system:authorized-module-consumer"
       ],
       "writers": [
         "permission:inventory.blocks.manage",
-        "permission:inventory.configure"
+        "permission:inventory.configure",
+        "permission:inventory.retire"
       ]
     },
     {
@@ -49,11 +51,13 @@
       "scope": "tenant-property-authorized-unstructured-operational-note",
       "readers": [
         "permission:inventory.configure",
-        "permission:inventory.read"
+        "permission:inventory.read",
+        "permission:inventory.retire"
       ],
       "writers": [
         "permission:inventory.blocks.manage",
-        "permission:inventory.configure"
+        "permission:inventory.configure",
+        "permission:inventory.retire"
       ]
     },
     {
@@ -657,6 +661,308 @@
           "assembly": "BunkFy.Modules.Inventory.Domain",
           "type": "BunkFy.Modules.Inventory.Domain.DataRights.InventoryAllocationAnonymisationTombstone",
           "member": "ScopeId",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "inventory.canceled-at",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "audit-attribution",
+        "topology-change-coordination"
+      ],
+      "sources": [
+        "system-generated"
+      ],
+      "authoritativeOwner": "inventory",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "inventory-staff-operations",
+      "countryPolicyKey": "inventory.canceled-at",
+      "retentionPolicy": "inventory-change-history",
+      "rightsPolicy": "staff-audit-attribution",
+      "allowedSurfaces": [
+        "admin-output",
+        "api-response",
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryBedRetirementTenantExport",
+          "member": "CanceledAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryRoomRetirementTenantExport",
+          "member": "CanceledAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.BedRetirementDto",
+          "member": "CanceledAtUtc",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.BedRetirementDto",
+          "member": "CanceledAtUtc",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomRetirementDto",
+          "member": "CanceledAtUtc",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomRetirementDto",
+          "member": "CanceledAtUtc",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.BedRetirementProcess",
+          "member": "CanceledAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.RoomRetirementProcess",
+          "member": "CanceledAtUtc",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "inventory.cancellation-actor-reference",
+      "dataSubject": "staff",
+      "classification": "audit-attribution",
+      "sensitivity": "standard",
+      "purposes": [
+        "audit-attribution",
+        "topology-change-coordination"
+      ],
+      "sources": [
+        "authenticated-subject"
+      ],
+      "authoritativeOwner": "inventory",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "inventory-staff-operations",
+      "countryPolicyKey": "inventory.cancellation-actor-reference",
+      "retentionPolicy": "inventory-change-history",
+      "rightsPolicy": "staff-audit-attribution",
+      "allowedSurfaces": [
+        "admin-output",
+        "api-response",
+        "application-command",
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryBedRetirementTenantExport",
+          "member": "CanceledBy",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryRoomRetirementTenantExport",
+          "member": "CanceledBy",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.CancelBedRetirementCommand",
+          "member": "CanceledBy",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.CancelRoomRetirementCommand",
+          "member": "CanceledBy",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.BedRetirementDto",
+          "member": "CanceledBy",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.BedRetirementDto",
+          "member": "CanceledBy",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomRetirementDto",
+          "member": "CanceledBy",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomRetirementDto",
+          "member": "CanceledBy",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.BedRetirementProcess",
+          "member": "CanceledBy",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.RoomRetirementProcess",
+          "member": "CanceledBy",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "inventory.cancellation-reason",
+      "dataSubject": "staff",
+      "classification": "free-text",
+      "sensitivity": "unstructured",
+      "purposes": [
+        "audit-attribution",
+        "topology-change-coordination"
+      ],
+      "sources": [
+        "staff-entry"
+      ],
+      "authoritativeOwner": "inventory",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "inventory-unstructured-reason",
+      "countryPolicyKey": "inventory.cancellation-reason",
+      "retentionPolicy": "inventory-change-history",
+      "rightsPolicy": "operational-free-text",
+      "allowedSurfaces": [
+        "admin-output",
+        "api-input",
+        "api-response",
+        "application-command",
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module",
+        "support"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryBedRetirementTenantExport",
+          "member": "CancellationReason",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Persistence",
+          "type": "BunkFy.Modules.Inventory.Persistence.Repositories.InventoryRoomRetirementTenantExport",
+          "member": "CancellationReason",
+          "surface": "data-rights-export",
+          "retentionPolicy": "inventory-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Api",
+          "type": "BunkFy.Modules.Inventory.Api.InventoryModule+CancelRetirementRequest",
+          "member": "Reason",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.CancelBedRetirementCommand",
+          "member": "Reason",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.CancelRoomRetirementCommand",
+          "member": "Reason",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.BedRetirementDto",
+          "member": "CancellationReason",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.BedRetirementDto",
+          "member": "CancellationReason",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomRetirementDto",
+          "member": "CancellationReason",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Contracts",
+          "type": "BunkFy.Modules.Inventory.Contracts.RoomRetirementDto",
+          "member": "CancellationReason",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.BedRetirementProcess",
+          "member": "CancellationReason",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Domain",
+          "type": "BunkFy.Modules.Inventory.Domain.Aggregates.RoomRetirementProcess",
+          "member": "CancellationReason",
           "surface": "persistence"
         }
       ]
@@ -4447,6 +4753,34 @@
           "member": "TopologyChangeId",
           "surface": "integration-event",
           "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.CancelBedRetirementCommand",
+          "member": "PropertyId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.CancelBedRetirementCommand",
+          "member": "TopologyChangeId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.CancelRoomRetirementCommand",
+          "member": "PropertyId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Inventory.Application",
+          "type": "BunkFy.Modules.Inventory.Application.Commands.CancelRoomRetirementCommand",
+          "member": "TopologyChangeId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
         }
       ]
     },

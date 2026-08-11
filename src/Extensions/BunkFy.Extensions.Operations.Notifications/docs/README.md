@@ -14,6 +14,14 @@ Payloads are a closed set of typed navigation records. Product source events may
 contain richer audit or workflow data, but the inbox receives only the minimal
 resource identifiers and dates needed to understand or open the affected item.
 
+Property fan-out is least-privilege as well as membership-scoped. Every
+property notification declares the read permission for the destination it
+opens; candidate Staff and workspace-owner recipients are batch-authorized at
+the exact property scope before any copy is persisted. Property, Inventory,
+Reservations, Ingestion, and Data Rights retain ownership of their permission
+codes. Direct Staff lifecycle copies remain addressed only to the affected
+active Staff account.
+
 Data Rights owns Guest Rights deadline evaluation, append-only dispatch
 receipts, and the transactional outbox event. This extension resolves the
 current operational audience and then batch-authorizes every candidate for

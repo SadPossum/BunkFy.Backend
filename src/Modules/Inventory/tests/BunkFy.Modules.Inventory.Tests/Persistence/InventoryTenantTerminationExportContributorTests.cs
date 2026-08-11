@@ -90,6 +90,18 @@ public sealed partial class InventoryTenantTerminationExportContributorTests
             Field(first.Records[3], "inventory.operational-reason")
                 .GetString());
         Assert.Equal(
+            "keep bed in service",
+            Field(first.Records[10], "inventory.cancellation-reason")
+                .GetString());
+        Assert.Equal(
+            "user:manager",
+            Field(first.Records[10], "inventory.cancellation-actor-reference")
+                .GetString());
+        Assert.Equal(
+            FrozenAtUtc,
+            Field(first.Records[10], "inventory.canceled-at")
+                .GetDateTimeOffset());
+        Assert.Equal(
             ManagementOperationId,
             first.Records[2].Fields.Single(field =>
                 field.FieldId == "inventory.operation-id").Value.GetGuid());
@@ -480,6 +492,16 @@ public sealed partial class InventoryTenantTerminationExportContributorTests
                 "renovation",
                 "user:owner",
                 FrozenAtUtc.AddDays(-1)).Value;
+        Assert.True(bedRetirement.Cancel(
+            bedRetirement.Version,
+            "keep bed in service",
+            "user:manager",
+            FrozenAtUtc).IsSuccess);
+        Assert.True(roomRetirement.Cancel(
+            roomRetirement.Version,
+            "keep room in service",
+            "user:manager",
+            FrozenAtUtc).IsSuccess);
         InventoryManagementOperation managementOperation = new(
             new InventoryManagementOperationRecord(
                 ManagementOperationId,

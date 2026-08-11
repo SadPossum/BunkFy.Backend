@@ -6,6 +6,7 @@ using BunkFy.Modules.Workspaces.Application.Contributors;
 using BunkFy.Modules.Workspaces.Contracts;
 using Gma.Framework.Messaging;
 using Gma.Framework.ModuleComposition;
+using Gma.Framework.Permissions;
 using Gma.Modules.Organizations.Contracts;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,6 +15,23 @@ using Xunit;
 [Trait("Category", "Unit")]
 public sealed class WorkspacesModuleMetadataTests
 {
+    [Fact]
+    public void Descriptor_exposes_scoped_staff_onboarding_permission()
+    {
+        ModulePermissionDescriptor permission = Assert.Single(
+            WorkspacesModuleMetadata.Descriptor.GetPermissions());
+
+        Assert.Equal(
+            WorkspacesPermissionCodes.StaffOnboardingManage,
+            permission.Code);
+        Assert.Equal(
+            PermissionScopeRequirement.Scoped,
+            permission.ScopeRequirement);
+        Assert.Equal(
+            PermissionScopeGrantPolicy.Descendants,
+            permission.ScopeGrantPolicy);
+    }
+
     [Fact]
     public void Descriptor_publishes_rights_completion_and_recovers_releases()
     {

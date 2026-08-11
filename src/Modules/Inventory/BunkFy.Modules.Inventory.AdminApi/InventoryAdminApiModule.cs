@@ -247,7 +247,7 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
             CancellationToken cancellationToken) =>
             await executor.ExecuteAsync(
                 httpContext,
-                AdminOperation.Create(InventoryAdminOperationNames.BedRetirementsRequest, InventoryAdminPermissions.Configure),
+                AdminOperation.Create(InventoryAdminOperationNames.BedRetirementsRequest, InventoryAdminPermissions.Retire),
                 requireTenant: true,
                 token => dispatcher.SendAsync(
                     new RequestBedRetirementCommand(
@@ -255,6 +255,7 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
                         propertyId,
                         roomId,
                         bedId,
+                        request.Confirmed,
                         request.Reason,
                         Actor(httpContext)),
                     token),
@@ -271,7 +272,7 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
             CancellationToken cancellationToken) =>
             await executor.ExecuteAsync(
                 httpContext,
-                AdminOperation.Create(InventoryAdminOperationNames.BedRetirementsGet, InventoryAdminPermissions.Configure),
+                AdminOperation.Create(InventoryAdminOperationNames.BedRetirementsGet, InventoryAdminPermissions.Retire),
                 requireTenant: true,
                 token => dispatcher.QueryAsync(new GetBedRetirementQuery(propertyId, topologyChangeId), token),
                 cancellationToken,
@@ -288,7 +289,7 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
             CancellationToken cancellationToken) =>
             await executor.ExecuteAsync(
                 httpContext,
-                AdminOperation.Create(InventoryAdminOperationNames.BedRetirementsRetry, InventoryAdminPermissions.Configure),
+                AdminOperation.Create(InventoryAdminOperationNames.BedRetirementsRetry, InventoryAdminPermissions.Retire),
                 requireTenant: true,
                 token => dispatcher.SendAsync(
                     new RetryBedRetirementCommand(
@@ -296,6 +297,32 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
                         propertyId,
                         topologyChangeId,
                         request.ExpectedVersion),
+                    token),
+                cancellationToken,
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
+            .Produces<BedRetirementDto>(StatusCodes.Status200OK);
+
+        inventory.MapPost("/properties/{propertyId:guid}/bed-retirements/{topologyChangeId:guid}/cancel", async (
+            Guid propertyId,
+            Guid topologyChangeId,
+            CancelRetirementRequest request,
+            HttpContext httpContext,
+            AdminApiExecutor executor,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+            await executor.ExecuteAsync(
+                httpContext,
+                AdminOperation.Create(InventoryAdminOperationNames.BedRetirementsCancel, InventoryAdminPermissions.Retire),
+                requireTenant: true,
+                token => dispatcher.SendAsync(
+                    new CancelBedRetirementCommand(
+                        request.OperationId,
+                        propertyId,
+                        topologyChangeId,
+                        request.ExpectedVersion,
+                        request.Confirmed,
+                        request.Reason,
+                        Actor(httpContext)),
                     token),
                 cancellationToken,
                 errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
@@ -311,13 +338,14 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
             CancellationToken cancellationToken) =>
             await executor.ExecuteAsync(
                 httpContext,
-                AdminOperation.Create(InventoryAdminOperationNames.RoomRetirementsRequest, InventoryAdminPermissions.Configure),
+                AdminOperation.Create(InventoryAdminOperationNames.RoomRetirementsRequest, InventoryAdminPermissions.Retire),
                 requireTenant: true,
                 token => dispatcher.SendAsync(
                     new RequestRoomRetirementCommand(
                         request.OperationId,
                         propertyId,
                         roomId,
+                        request.Confirmed,
                         request.Reason,
                         Actor(httpContext)),
                     token),
@@ -334,7 +362,7 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
             CancellationToken cancellationToken) =>
             await executor.ExecuteAsync(
                 httpContext,
-                AdminOperation.Create(InventoryAdminOperationNames.RoomRetirementsGet, InventoryAdminPermissions.Configure),
+                AdminOperation.Create(InventoryAdminOperationNames.RoomRetirementsGet, InventoryAdminPermissions.Retire),
                 requireTenant: true,
                 token => dispatcher.QueryAsync(new GetRoomRetirementQuery(propertyId, topologyChangeId), token),
                 cancellationToken,
@@ -351,7 +379,7 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
             CancellationToken cancellationToken) =>
             await executor.ExecuteAsync(
                 httpContext,
-                AdminOperation.Create(InventoryAdminOperationNames.RoomRetirementsRetry, InventoryAdminPermissions.Configure),
+                AdminOperation.Create(InventoryAdminOperationNames.RoomRetirementsRetry, InventoryAdminPermissions.Retire),
                 requireTenant: true,
                 token => dispatcher.SendAsync(
                     new RetryRoomRetirementCommand(
@@ -359,6 +387,32 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
                         propertyId,
                         topologyChangeId,
                         request.ExpectedVersion),
+                    token),
+                cancellationToken,
+                errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
+            .Produces<RoomRetirementDto>(StatusCodes.Status200OK);
+
+        inventory.MapPost("/properties/{propertyId:guid}/room-retirements/{topologyChangeId:guid}/cancel", async (
+            Guid propertyId,
+            Guid topologyChangeId,
+            CancelRetirementRequest request,
+            HttpContext httpContext,
+            AdminApiExecutor executor,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+            await executor.ExecuteAsync(
+                httpContext,
+                AdminOperation.Create(InventoryAdminOperationNames.RoomRetirementsCancel, InventoryAdminPermissions.Retire),
+                requireTenant: true,
+                token => dispatcher.SendAsync(
+                    new CancelRoomRetirementCommand(
+                        request.OperationId,
+                        propertyId,
+                        topologyChangeId,
+                        request.ExpectedVersion,
+                        request.Confirmed,
+                        request.Reason,
+                        Actor(httpContext)),
                     token),
                 cancellationToken,
                 errorStatusCodes: AdminErrorStatusCodes).ConfigureAwait(false))
@@ -387,13 +441,20 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
     public sealed record ReleaseManualBlockGroupRequest(Guid OperationId);
     public sealed record RequestBedRetirementRequest(
         Guid OperationId,
+        bool Confirmed,
         string Reason);
     public sealed record RequestRoomRetirementRequest(
         Guid OperationId,
+        bool Confirmed,
         string Reason);
     public sealed record RetryRetirementRequest(
         Guid OperationId,
         long ExpectedVersion);
+    public sealed record CancelRetirementRequest(
+        Guid OperationId,
+        long ExpectedVersion,
+        bool Confirmed,
+        string Reason);
 
     private static async ValueTask<object?> SensitiveResponseFilter(
         EndpointFilterInvocationContext context,
@@ -411,6 +472,7 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
     }
 
     private static readonly ApiErrorStatusCodeMap AdminErrorStatusCodes = ApiErrorStatusCodeMap.Create(
+        new(InventoryApplicationErrors.ConfirmationRequired.Code, StatusCodes.Status400BadRequest),
         new(InventoryApplicationErrors.ManagementOperationInvalid.Code, StatusCodes.Status400BadRequest),
         new(InventoryApplicationErrors.ManagementOperationConflict.Code, StatusCodes.Status409Conflict),
         new(InventoryApplicationErrors.RetirementRequestConflict.Code, StatusCodes.Status409Conflict),
@@ -444,8 +506,10 @@ public sealed class InventoryAdminApiModule : IAdminApiModule
         new(InventoryApplicationErrors.RoomRetirementStillDraining.Code, StatusCodes.Status409Conflict),
         new(InventoryApplicationErrors.RoomRetirementInProgress.Code, StatusCodes.Status409Conflict),
         new(Domain.Errors.InventoryDomainErrors.BedRetirementRequestInvalid.Code, StatusCodes.Status400BadRequest),
+        new(Domain.Errors.InventoryDomainErrors.BedRetirementCancellationRequestInvalid.Code, StatusCodes.Status400BadRequest),
         new(Domain.Errors.InventoryDomainErrors.BedRetirementTransitionInvalid.Code, StatusCodes.Status409Conflict),
         new(Domain.Errors.InventoryDomainErrors.RoomRetirementRequestInvalid.Code, StatusCodes.Status400BadRequest),
+        new(Domain.Errors.InventoryDomainErrors.RoomRetirementCancellationRequestInvalid.Code, StatusCodes.Status400BadRequest),
         new(Domain.Errors.InventoryDomainErrors.RoomRetirementTransitionInvalid.Code, StatusCodes.Status409Conflict));
 
     private static string Actor(HttpContext context)

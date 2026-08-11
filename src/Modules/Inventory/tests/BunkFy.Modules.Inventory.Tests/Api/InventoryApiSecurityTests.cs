@@ -10,6 +10,7 @@ using Gma.Framework.AccessControl.AspNetCore;
 using Gma.Framework.Administration.Api;
 using Gma.Framework.Administration.Cli;
 using Gma.Framework.Cqrs;
+using Gma.Framework.Security;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Metadata;
@@ -38,6 +39,27 @@ public sealed class InventoryApiSecurityTests
 
         Assert.Equal(typeof(Guid), operationId.PropertyType);
         Assert.Equal(typeof(Guid), parameter.ParameterType);
+        Assert.False(parameter.HasDefaultValue);
+    }
+
+    [Theory]
+    [InlineData(typeof(InventoryModule.RequestBedRetirementRequest))]
+    [InlineData(typeof(InventoryModule.RequestRoomRetirementRequest))]
+    [InlineData(typeof(InventoryAdminApiModule.RequestBedRetirementRequest))]
+    [InlineData(typeof(InventoryAdminApiModule.RequestRoomRetirementRequest))]
+    public void Retirement_requests_require_explicit_confirmation(Type requestType)
+    {
+        PropertyInfo confirmation = requestType.GetProperty("Confirmed")!;
+        ConstructorInfo constructor = Assert.Single(requestType.GetConstructors());
+        ParameterInfo parameter = Assert.Single(
+            constructor.GetParameters(),
+            candidate => string.Equals(
+                candidate.Name,
+                "confirmed",
+                StringComparison.OrdinalIgnoreCase));
+
+        Assert.Equal(typeof(bool), confirmation.PropertyType);
+        Assert.Equal(typeof(bool), parameter.ParameterType);
         Assert.False(parameter.HasDefaultValue);
     }
 
@@ -96,6 +118,7 @@ public sealed class InventoryApiSecurityTests
     public async Task Operational_routes_publish_explicit_response_contracts()
     {
         WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        builder.Services.AddOptions<InventoryApiSecurityOptions>();
         builder.Services.AddSingleton<IRequestDispatcher>(_ => null!);
         builder.Services.AddSingleton<IAccessHttpSubjectResolver>(_ => null!);
         builder.Services.AddSingleton<AdminApiExecutor>(_ => null!);
@@ -110,6 +133,81 @@ public sealed class InventoryApiSecurityTests
 
         AssertOperationalResponses(endpoints, "/api/inventory/properties/{propertyId:guid}");
         AssertOperationalResponses(endpoints, "/api/admin/inventory/properties/{propertyId:guid}");
+    }
+
+    [Fact]
+    public async Task Configured_assurance_and_retirement_permission_protect_only_new_intent()
+    {
+        WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        builder.Services.Configure<InventoryApiSecurityOptions>(options =>
+            options.TopologyRetirementAssurance = new(
+                maxAuthenticationAge: TimeSpan.FromMinutes(10)));
+        builder.Services.AddSingleton<IRequestDispatcher>(_ => null!);
+        builder.Services.AddSingleton<IAccessHttpSubjectResolver>(_ => null!);
+        await using WebApplication app = builder.Build();
+
+        new InventoryModule().MapEndpoints(app);
+
+        RouteEndpoint[] endpoints = [.. ((IEndpointRouteBuilder)app).DataSources
+            .SelectMany(dataSource => dataSource.Endpoints)
+            .OfType<RouteEndpoint>()];
+        const string property = "/api/inventory/properties/{propertyId:guid}";
+        const string room = $"{property}/rooms/{{roomId:guid}}";
+        RouteEndpoint bedRequest = FindEndpoint(
+            endpoints,
+            HttpMethods.Post,
+            $"{room}/beds/{{bedId:guid}}/retirement");
+        RouteEndpoint roomRequest = FindEndpoint(
+            endpoints,
+            HttpMethods.Post,
+            $"{room}/retirement");
+        RouteEndpoint bedStatus = FindEndpoint(
+            endpoints,
+            HttpMethods.Get,
+            $"{property}/bed-retirements/{{topologyChangeId:guid}}");
+        RouteEndpoint bedRetry = FindEndpoint(
+            endpoints,
+            HttpMethods.Post,
+            $"{property}/bed-retirements/{{topologyChangeId:guid}}/retry");
+        RouteEndpoint bedCancel = FindEndpoint(
+            endpoints,
+            HttpMethods.Post,
+            $"{property}/bed-retirements/{{topologyChangeId:guid}}/cancel");
+        RouteEndpoint roomStatus = FindEndpoint(
+            endpoints,
+            HttpMethods.Get,
+            $"{property}/room-retirements/{{topologyChangeId:guid}}");
+        RouteEndpoint roomRetry = FindEndpoint(
+            endpoints,
+            HttpMethods.Post,
+            $"{property}/room-retirements/{{topologyChangeId:guid}}/retry");
+        RouteEndpoint roomCancel = FindEndpoint(
+            endpoints,
+            HttpMethods.Post,
+            $"{property}/room-retirements/{{topologyChangeId:guid}}/cancel");
+
+        AssertAssurance(bedRequest, expected: true);
+        AssertAssurance(roomRequest, expected: true);
+        AssertPermission(bedRequest, InventoryAdminPermissionCodes.Retire);
+        AssertPermission(roomRequest, InventoryAdminPermissionCodes.Retire);
+        AssertAssurance(bedStatus, expected: false);
+        AssertAssurance(bedRetry, expected: false);
+        AssertAssurance(bedCancel, expected: false);
+        AssertAssurance(roomStatus, expected: false);
+        AssertAssurance(roomRetry, expected: false);
+        AssertAssurance(roomCancel, expected: false);
+        AssertPermission(bedStatus, InventoryAdminPermissionCodes.Retire);
+        AssertPermission(bedRetry, InventoryAdminPermissionCodes.Retire);
+        AssertPermission(bedCancel, InventoryAdminPermissionCodes.Retire);
+        AssertPermission(roomStatus, InventoryAdminPermissionCodes.Retire);
+        AssertPermission(roomRetry, InventoryAdminPermissionCodes.Retire);
+        AssertPermission(roomCancel, InventoryAdminPermissionCodes.Retire);
+        AssertAssurance(
+            FindEndpoint(endpoints, HttpMethods.Put, $"{room}/sales-mode"),
+            expected: false);
+        AssertAssurance(
+            FindEndpoint(endpoints, HttpMethods.Post, $"{property}/blocks"),
+            expected: false);
     }
 
     private static void AssertOperationalResponses(
@@ -159,6 +257,10 @@ public sealed class InventoryApiSecurityTests
             endpoints,
             HttpMethods.Post,
             $"{routeBase}/bed-retirements/{{topologyChangeId:guid}}/retry");
+        AssertResponse<BedRetirementDto>(
+            endpoints,
+            HttpMethods.Post,
+            $"{routeBase}/bed-retirements/{{topologyChangeId:guid}}/cancel");
         AssertResponse<RoomRetirementDto>(
             endpoints,
             HttpMethods.Post,
@@ -171,6 +273,10 @@ public sealed class InventoryApiSecurityTests
             endpoints,
             HttpMethods.Post,
             $"{routeBase}/room-retirements/{{topologyChangeId:guid}}/retry");
+        AssertResponse<RoomRetirementDto>(
+            endpoints,
+            HttpMethods.Post,
+            $"{routeBase}/room-retirements/{{topologyChangeId:guid}}/cancel");
     }
 
     private static void AssertResponse<TResponse>(
@@ -192,6 +298,36 @@ public sealed class InventoryApiSecurityTests
 
         Assert.Equal(typeof(TResponse), response.Type);
     }
+
+    private static RouteEndpoint FindEndpoint(
+        IEnumerable<RouteEndpoint> endpoints,
+        string method,
+        string route) =>
+        Assert.Single(endpoints, candidate =>
+            string.Equals(
+                candidate.RoutePattern.RawText?.Trim('/'),
+                route.Trim('/'),
+                StringComparison.Ordinal) &&
+            candidate.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods.Contains(
+                method,
+                StringComparer.Ordinal) == true);
+
+    private static void AssertAssurance(RouteEndpoint endpoint, bool expected)
+    {
+        bool configured = endpoint.Metadata.Any(metadata =>
+            string.Equals(
+                metadata.GetType().Name,
+                "AuthenticationAssuranceMetadata",
+                StringComparison.Ordinal));
+
+        Assert.Equal(expected, configured);
+    }
+
+    private static void AssertPermission(RouteEndpoint endpoint, string expected) =>
+        Assert.Equal(
+            expected,
+            Assert.Single(endpoint.Metadata.OfType<AccessPermissionMetadata>())
+                .Permission.Value);
 
     private static void AssertNoStore(HttpContext context)
     {

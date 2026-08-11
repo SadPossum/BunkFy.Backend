@@ -66,12 +66,17 @@ public sealed class IngestionApiSecurityTests
     }
 
     [Fact]
-    public async Task Configured_assurance_protects_credential_mutations_only()
+    public async Task Configured_assurance_protects_only_sensitive_ingestion_controls()
     {
         WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        AuthenticationAssuranceRequirement assurance = new(
+            maxAuthenticationAge: TimeSpan.FromMinutes(10));
         builder.Services.Configure<IngestionApiSecurityOptions>(options =>
-            options.CredentialManagementAssurance = new AuthenticationAssuranceRequirement(
-                maxAuthenticationAge: TimeSpan.FromMinutes(10)));
+        {
+            options.CredentialManagementAssurance = assurance;
+            options.CheckpointResetAssurance = assurance;
+            options.IngressResumeAssurance = assurance;
+        });
         builder.Services.AddSingleton<IRequestDispatcher>(_ => null!);
         builder.Services.AddSingleton<IAccessHttpSubjectResolver>(_ => null!);
         await using WebApplication app = builder.Build();
@@ -90,6 +95,51 @@ public sealed class IngestionApiSecurityTests
             HttpMethods.Post,
             $"{credentials}/{{credentialId:guid}}/revoke",
             expected: true);
+
+        const string connections =
+            "/api/ingestion/properties/{propertyId:guid}/connections/{connectionId:guid}";
+        AssertAssurance(
+            endpoints,
+            HttpMethods.Post,
+            $"{connections}/reset-checkpoint",
+            expected: true);
+        AssertAssurance(endpoints, HttpMethods.Post, $"{connections}/enable", expected: false);
+        AssertAssurance(endpoints, HttpMethods.Post, $"{connections}/disable", expected: false);
+        AssertAssurance(
+            endpoints,
+            HttpMethods.Post,
+            $"{connections}/polling-schedule/clear",
+            expected: false);
+
+        const string ingressControl = "/api/ingestion/adapter-ingress-control";
+        AssertAssurance(endpoints, HttpMethods.Get, ingressControl, expected: false);
+        AssertAssurance(
+            endpoints,
+            HttpMethods.Post,
+            $"{ingressControl}/suspend",
+            expected: false);
+        AssertAssurance(
+            endpoints,
+            HttpMethods.Post,
+            $"{ingressControl}/resume",
+            expected: true);
+    }
+
+    [Fact]
+    public void Checkpoint_reset_has_a_dedicated_confirmation_contract()
+    {
+        IngestionModule.ResetConnectionCheckpointRequest request = new(
+            Guid.NewGuid(),
+            ExpectedVersion: 7,
+            Confirmed: false);
+
+        Assert.False(request.Confirmed);
+        Assert.DoesNotContain(
+            typeof(IngestionModule.ConnectionControlRequest).GetProperties(),
+            property => string.Equals(
+                property.Name,
+                nameof(IngestionModule.ResetConnectionCheckpointRequest.Confirmed),
+                StringComparison.Ordinal));
     }
 
     [Fact]

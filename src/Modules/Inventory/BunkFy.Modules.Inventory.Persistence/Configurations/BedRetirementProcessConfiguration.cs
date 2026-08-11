@@ -13,9 +13,11 @@ internal sealed class BedRetirementProcessConfiguration : IEntityTypeConfigurati
         builder.Property(process => process.ScopeId).HasMaxLength(128).IsRequired();
         builder.Property(process => process.Reason).HasMaxLength(BedRetirementProcess.ReasonMaxLength).IsRequired();
         builder.Property(process => process.RequestedBy).HasMaxLength(BedRetirementProcess.ActorIdMaxLength).IsRequired();
+        builder.Property(process => process.CancellationReason).HasMaxLength(BedRetirementProcess.ReasonMaxLength);
+        builder.Property(process => process.CanceledBy).HasMaxLength(BedRetirementProcess.ActorIdMaxLength);
         builder.Property(process => process.State).HasConversion<int>().IsRequired();
         builder.Property(process => process.Version).IsConcurrencyToken().IsRequired();
-        builder.HasIndex(process => new { process.ScopeId, process.BedId }).IsUnique();
+        builder.HasIndex(process => new { process.ScopeId, process.BedId, process.State });
         builder.HasIndex(process => new { process.ScopeId, process.PropertyId, process.RoomId, process.State });
         builder.Ignore(process => process.DomainEvents);
     }

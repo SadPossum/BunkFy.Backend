@@ -14,5 +14,6 @@ public interface IRoomRetirementRepository
         Guid propertyId,
         IReadOnlyCollection<Guid> inventoryUnitIds,
         CancellationToken cancellationToken);
+    Task ReloadAsync(RoomRetirementProcess process, CancellationToken cancellationToken);
     Task AddAsync(RoomRetirementProcess process, CancellationToken cancellationToken);
 }

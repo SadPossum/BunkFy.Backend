@@ -57,4 +57,5 @@ public sealed record ResetAdapterConnectionCheckpointCommand(
     Guid OperationId,
     Guid PropertyId,
     Guid ConnectionId,
-    long ExpectedVersion) : ITransactionalCommand<AdapterConnectionMutationReceiptDto>;
+    long ExpectedVersion,
+    bool Confirmed) : ITransactionalCommand<AdapterConnectionMutationReceiptDto>;

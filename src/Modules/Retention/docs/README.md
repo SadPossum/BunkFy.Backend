@@ -80,12 +80,18 @@ decisions and first-use projection races without adding lock rows or changing
 Task Runtime ownership. The tenant revision still serializes only the final
 short save/commit needed for coherent export evidence.
 
+The Retention task handler declares a one-hour-and-one-minute GMA registration
+timeout. Contributor descriptors remain bounded to one hour and enforce their
+own exact deadline; the final minute is reserved for recording the terminal
+Retention receipt. Other task handlers continue to use their own registration
+timeout or the worker-wide fallback.
+
 Migration `AddRetentionTenantExportRevision` adds the local revision table.
 Migration `AddRetentionTenantDestructionLifecycle` adds lifecycle state,
 resumable destruction operation state, and the receipt ledger. PostgreSQL also
 enforces receipt immutability with an append-only trigger.
 
-All 42 Retention tests pass and EF reports no pending model changes. The exact
+All 44 Retention tests pass and EF reports no pending model changes. The exact
 PostgreSQL 16 mutation scenario proves same-schedule and same-property writers
 wait, reload the committed winner, preserve independent projection streams,
 and leave unrelated coordinates available. The earlier destruction scenario

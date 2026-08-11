@@ -10,6 +10,7 @@ using Gma.Framework.AccessControl.AspNetCore;
 using Gma.Framework.Administration.Api;
 using Gma.Framework.Administration.Cli;
 using Gma.Framework.Cqrs;
+using Gma.Framework.Security;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Metadata;
@@ -127,6 +128,7 @@ public sealed class PropertiesApiSecurityTests
     public async Task Operational_routes_publish_explicit_response_contracts()
     {
         WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        builder.Services.AddOptions<PropertiesApiSecurityOptions>();
         builder.Services.AddSingleton<IRequestDispatcher>(_ => null!);
         builder.Services.AddSingleton<IAccessHttpSubjectResolver>(_ => null!);
         builder.Services.AddSingleton<AdminApiExecutor>(_ => null!);
@@ -157,6 +159,45 @@ public sealed class PropertiesApiSecurityTests
             endpoints,
             HttpMethods.Post,
             "/api/properties/{propertyId:guid}/processing/suspend");
+    }
+
+    [Fact]
+    public async Task Configured_assurance_protects_only_sensitive_property_controls()
+    {
+        WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        AuthenticationAssuranceRequirement assurance = new(
+            maxAuthenticationAge: TimeSpan.FromMinutes(10));
+        builder.Services.Configure<PropertiesApiSecurityOptions>(options =>
+        {
+            options.ProcessingActivationAssurance = assurance;
+            options.PropertyRetirementAssurance = assurance;
+        });
+        builder.Services.AddSingleton<IRequestDispatcher>(_ => null!);
+        builder.Services.AddSingleton<IAccessHttpSubjectResolver>(_ => null!);
+        await using WebApplication app = builder.Build();
+
+        new PropertiesModule().MapEndpoints(app);
+
+        RouteEndpoint[] endpoints = [.. ((IEndpointRouteBuilder)app).DataSources
+            .SelectMany(dataSource => dataSource.Endpoints)
+            .OfType<RouteEndpoint>()];
+        const string property = "/api/properties/{propertyId:guid}";
+
+        AssertAssurance(
+            FindEndpoint(endpoints, HttpMethods.Post, $"{property}/retire"),
+            expected: true);
+        AssertAssurance(
+            FindEndpoint(endpoints, HttpMethods.Post, $"{property}/processing/activate"),
+            expected: true);
+        AssertAssurance(
+            FindEndpoint(endpoints, HttpMethods.Post, $"{property}/processing/suspend"),
+            expected: false);
+        AssertAssurance(
+            FindEndpoint(endpoints, HttpMethods.Put, property),
+            expected: false);
+        AssertAssurance(
+            FindEndpoint(endpoints, HttpMethods.Post, $"{property}/rooms"),
+            expected: false);
     }
 
     private static void AssertTopologyResponses(IEnumerable<RouteEndpoint> endpoints, string routeBase)
@@ -236,5 +277,16 @@ public sealed class PropertiesApiSecurityTests
         Assert.Equal("no-store", context.Response.Headers.CacheControl);
         Assert.Equal("no-cache", context.Response.Headers.Pragma);
         Assert.Equal("0", context.Response.Headers.Expires);
+    }
+
+    private static void AssertAssurance(RouteEndpoint endpoint, bool expected)
+    {
+        bool configured = endpoint.Metadata.Any(metadata =>
+            string.Equals(
+                metadata.GetType().Name,
+                "AuthenticationAssuranceMetadata",
+                StringComparison.Ordinal));
+
+        Assert.Equal(expected, configured);
     }
 }

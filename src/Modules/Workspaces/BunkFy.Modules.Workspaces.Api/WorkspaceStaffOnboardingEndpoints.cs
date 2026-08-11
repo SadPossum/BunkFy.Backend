@@ -1,6 +1,5 @@
 namespace BunkFy.Modules.Workspaces.Api;
 
-using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Workspaces.Api.Requests;
 using BunkFy.Modules.Workspaces.Application;
 using BunkFy.Modules.Workspaces.Application.Commands;
@@ -15,14 +14,20 @@ using Gma.Framework.Cqrs;
 using Gma.Framework.Pagination;
 using Gma.Framework.Results;
 using Gma.Framework.Scoping;
+using Gma.Framework.Security;
+using Gma.Framework.Security.AspNetCore;
 using Gma.Framework.Tenancy.AccessControl.AspNetCore;
+using Gma.Modules.AccessControl.Contracts;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 
 internal static class WorkspaceStaffOnboardingEndpoints
 {
-    public static void Map(IEndpointRouteBuilder endpoints, string moduleName)
+    public static void Map(
+        IEndpointRouteBuilder endpoints,
+        string moduleName,
+        WorkspacesApiSecurityOptions security)
     {
         RouteGroupBuilder group = endpoints.MapGroup("/api/workspace-staff-enrollment")
             .WithModuleName(moduleName)
@@ -87,7 +92,11 @@ internal static class WorkspaceStaffOnboardingEndpoints
                     WorkspacesApiEndpointSupport.ErrorStatusCodes);
         })
             .RequireTenant()
-            .RequireTenantPermission(StaffAdminPermissionCodes.Manage)
+            .RequireTenantPermission(
+                WorkspacesPermissionCodes.StaffOnboardingManage)
+            .RequireTenantPermission(AccessControlProfilePermissionCodes.Read)
+            .RequireAssuranceWhenConfigured(
+                security.StaffOnboardingManagementAssurance)
             .Produces<WorkspaceStaffJoinSourceIssuanceDto>(StatusCodes.Status200OK);
 
         group.MapPost("/sources/enrollment-links", async (
@@ -117,7 +126,11 @@ internal static class WorkspaceStaffOnboardingEndpoints
                     WorkspacesApiEndpointSupport.ErrorStatusCodes);
         })
             .RequireTenant()
-            .RequireTenantPermission(StaffAdminPermissionCodes.Manage)
+            .RequireTenantPermission(
+                WorkspacesPermissionCodes.StaffOnboardingManage)
+            .RequireTenantPermission(AccessControlProfilePermissionCodes.Read)
+            .RequireAssuranceWhenConfigured(
+                security.StaffOnboardingManagementAssurance)
             .Produces<WorkspaceStaffJoinSourceIssuanceDto>(StatusCodes.Status200OK);
 
         group.MapGet("/sources", async (
@@ -145,7 +158,9 @@ internal static class WorkspaceStaffOnboardingEndpoints
                     WorkspacesApiEndpointSupport.ErrorStatusCodes);
         })
             .RequireTenant()
-            .RequireTenantPermission(StaffAdminPermissionCodes.Manage)
+            .RequireTenantPermission(
+                WorkspacesPermissionCodes.StaffOnboardingManage)
+            .RequireTenantPermission(AccessControlProfilePermissionCodes.Read)
             .Produces<WorkspaceStaffJoinSourceListResponse>(StatusCodes.Status200OK);
 
         group.MapPost("/sources/invitations/{sourceId:guid}/revoke", async (
@@ -171,7 +186,11 @@ internal static class WorkspaceStaffOnboardingEndpoints
                     WorkspacesApiEndpointSupport.ErrorStatusCodes);
         })
             .RequireTenant()
-            .RequireTenantPermission(StaffAdminPermissionCodes.Manage)
+            .RequireTenantPermission(
+                WorkspacesPermissionCodes.StaffOnboardingManage)
+            .RequireTenantPermission(AccessControlProfilePermissionCodes.Read)
+            .RequireAssuranceWhenConfigured(
+                security.StaffOnboardingManagementAssurance)
             .Produces<WorkspaceStaffJoinSourceDto>(StatusCodes.Status200OK);
 
         group.MapPost("/sources/enrollment-links/{sourceId:guid}/disable", async (
@@ -197,7 +216,11 @@ internal static class WorkspaceStaffOnboardingEndpoints
                     WorkspacesApiEndpointSupport.ErrorStatusCodes);
         })
             .RequireTenant()
-            .RequireTenantPermission(StaffAdminPermissionCodes.Manage)
+            .RequireTenantPermission(
+                WorkspacesPermissionCodes.StaffOnboardingManage)
+            .RequireTenantPermission(AccessControlProfilePermissionCodes.Read)
+            .RequireAssuranceWhenConfigured(
+                security.StaffOnboardingManagementAssurance)
             .Produces<WorkspaceStaffJoinSourceDto>(StatusCodes.Status200OK);
 
         group.MapPost("/sources/invitations/{sourceId:guid}/replace", async (
@@ -225,7 +248,11 @@ internal static class WorkspaceStaffOnboardingEndpoints
                     WorkspacesApiEndpointSupport.ErrorStatusCodes);
         })
             .RequireTenant()
-            .RequireTenantPermission(StaffAdminPermissionCodes.Manage)
+            .RequireTenantPermission(
+                WorkspacesPermissionCodes.StaffOnboardingManage)
+            .RequireTenantPermission(AccessControlProfilePermissionCodes.Read)
+            .RequireAssuranceWhenConfigured(
+                security.StaffOnboardingManagementAssurance)
             .Produces<WorkspaceStaffJoinSourceReplacementDto>(StatusCodes.Status200OK);
 
         group.MapPost("/sources/enrollment-links/{sourceId:guid}/replace", async (
@@ -253,7 +280,11 @@ internal static class WorkspaceStaffOnboardingEndpoints
                     WorkspacesApiEndpointSupport.ErrorStatusCodes);
         })
             .RequireTenant()
-            .RequireTenantPermission(StaffAdminPermissionCodes.Manage)
+            .RequireTenantPermission(
+                WorkspacesPermissionCodes.StaffOnboardingManage)
+            .RequireTenantPermission(AccessControlProfilePermissionCodes.Read)
+            .RequireAssuranceWhenConfigured(
+                security.StaffOnboardingManagementAssurance)
             .Produces<WorkspaceStaffJoinSourceReplacementDto>(StatusCodes.Status200OK);
 
         group.MapGet("/{organizationId:guid}/applications/current", async (
@@ -296,7 +327,9 @@ internal static class WorkspaceStaffOnboardingEndpoints
                     WorkspacesApiEndpointSupport.ErrorStatusCodes);
         })
             .RequireTenant()
-            .RequireTenantPermission(StaffAdminPermissionCodes.Manage)
+            .RequireTenantPermission(
+                WorkspacesPermissionCodes.StaffOnboardingManage)
+            .RequireTenantPermission(AccessControlProfilePermissionCodes.Read)
             .Produces<WorkspaceStaffOnboardingListResponse>(StatusCodes.Status200OK);
 
         group.MapPost("/applications/{applicationId:guid}/retry", async (
@@ -312,7 +345,11 @@ internal static class WorkspaceStaffOnboardingEndpoints
                     WorkspacesApiEndpointSupport.ErrorStatusCodes);
         })
             .RequireTenant()
-            .RequireTenantPermission(StaffAdminPermissionCodes.Manage)
+            .RequireTenantPermission(
+                WorkspacesPermissionCodes.StaffOnboardingManage)
+            .RequireTenantPermission(AccessControlProfilePermissionCodes.Read)
+            .RequireAssuranceWhenConfigured(
+                security.StaffOnboardingManagementAssurance)
             .Produces<WorkspaceStaffOnboardingDto>(StatusCodes.Status200OK);
     }
 
@@ -340,4 +377,11 @@ internal static class WorkspaceStaffOnboardingEndpoints
                     .IdentityAnchorConflict)
         };
     }
+
+    private static RouteHandlerBuilder RequireAssuranceWhenConfigured(
+        this RouteHandlerBuilder endpoint,
+        AuthenticationAssuranceRequirement? requirement) =>
+        requirement is null
+            ? endpoint
+            : endpoint.RequireAuthenticationAssurance(requirement);
 }

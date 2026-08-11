@@ -1,12 +1,12 @@
 namespace BunkFy.Modules.Workspaces.Tests;
 
-using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Workspaces.Application;
 using BunkFy.Modules.Workspaces.Application.Ports;
 using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Domain;
 using Gma.Framework.AccessControl;
 using Gma.Framework.Pagination;
+using Gma.Modules.AccessControl.Contracts;
 using Gma.Modules.Organizations.Contracts;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -21,7 +21,7 @@ public sealed class WorkspaceOrganizationJoinSourceAuthorizationPolicyTests
     private const string SubjectId = "delegated-manager";
 
     [Fact]
-    public async Task Active_plan_and_manage_permission_allow_exact_issue()
+    public async Task Active_plan_and_onboarding_authority_allow_exact_issue()
     {
         Guid sourceId = Guid.NewGuid();
         WorkspaceStaffAccessPlan plan = CreatePlan(
@@ -42,15 +42,24 @@ public sealed class WorkspaceOrganizationJoinSourceAuthorizationPolicyTests
             OrganizationJoinSourceAuthorizationDecision.Allowed,
             decision);
         Assert.Equal(OrganizationId, test.Scope.OrganizationId);
-        AccessRequirement requirement = Assert.Single(
-            test.Authorization.Requirements);
-        Assert.Equal(SubjectId, requirement.Subject.Id);
+        Assert.Equal(1, test.Authorization.BatchCallCount);
+        Assert.Equal(0, test.Authorization.SingleCallCount);
+        Assert.Equal(2, test.Authorization.Requirements.Count);
+        Assert.All(
+            test.Authorization.Requirements,
+            requirement => Assert.Equal(SubjectId, requirement.Subject.Id));
         Assert.Equal(
-            StaffAdminPermissionCodes.Manage,
-            requirement.Permission.Value);
-        Assert.Equal(
-            WorkspaceAccessScopes.Create(ScopeId).Value,
-            requirement.Scope.Value);
+            [
+                WorkspacesPermissionCodes.StaffOnboardingManage,
+                AccessControlProfilePermissionCodes.Read
+            ],
+            test.Authorization.Requirements.Select(
+                requirement => requirement.Permission.Value));
+        Assert.All(
+            test.Authorization.Requirements,
+            requirement => Assert.Equal(
+                WorkspaceAccessScopes.Create(ScopeId).Value,
+                requirement.Scope.Value));
         Assert.Equal([sourceId], test.Plans.RequestedSourceIds);
     }
 
@@ -69,8 +78,29 @@ public sealed class WorkspaceOrganizationJoinSourceAuthorizationPolicyTests
         Assert.Equal(
             OrganizationJoinSourceAuthorizationDecision.Denied,
             decision);
+        Assert.Equal(1, test.Authorization.BatchCallCount);
+        Assert.Equal(2, test.Authorization.Requirements.Count);
         Assert.Empty(test.Plans.RequestedSourceIds);
         Assert.Equal(0, test.Onboardings.GetByClaimCallCount);
+    }
+
+    [Fact]
+    public async Task Incomplete_authorization_result_fails_closed()
+    {
+        using TestContext test = CreateContext(
+            WorkspaceOperationalAdmissionTestSupport.Allowed(ScopeId),
+            AccessDecision.Allowed(),
+            incompleteAuthorizationResult: true);
+
+        OrganizationJoinSourceAuthorizationDecision decision =
+            await test.Policy.EvaluateAsync(Context(
+                OrganizationJoinSourceAuthorizationOperation.ReadInvitations));
+
+        Assert.Equal(
+            OrganizationJoinSourceAuthorizationDecision.Denied,
+            decision);
+        Assert.Equal(1, test.Authorization.BatchCallCount);
+        Assert.Empty(test.Plans.RequestedSourceIds);
     }
 
     [Theory]
@@ -252,9 +282,12 @@ public sealed class WorkspaceOrganizationJoinSourceAuthorizationPolicyTests
         WorkspaceOperationalAdmissionEvaluator admission,
         AccessDecision accessDecision,
         WorkspaceStaffAccessPlan[]? plans = null,
-        IReadOnlyDictionary<Guid, WorkspaceStaffOnboarding>? onboardings = null)
+        IReadOnlyDictionary<Guid, WorkspaceStaffOnboarding>? onboardings = null,
+        bool incompleteAuthorizationResult = false)
     {
-        RecordingAuthorization authorization = new(accessDecision);
+        RecordingAuthorization authorization = new(
+            accessDecision,
+            incompleteAuthorizationResult);
         RecordingPlans planRepository = new(plans ?? []);
         RecordingOnboardings onboardingRepository = new(onboardings);
         ServiceCollection services = new();
@@ -359,17 +392,34 @@ public sealed class WorkspaceOrganizationJoinSourceAuthorizationPolicyTests
         }
     }
 
-    private sealed class RecordingAuthorization(AccessDecision decision)
+    private sealed class RecordingAuthorization(
+        AccessDecision decision,
+        bool incompleteResult)
         : IAccessAuthorizationService
     {
         public List<AccessRequirement> Requirements { get; } = [];
+        public int SingleCallCount { get; private set; }
+        public int BatchCallCount { get; private set; }
 
         public Task<AccessDecision> AuthorizeAsync(
             AccessRequirement requirement,
             CancellationToken cancellationToken)
         {
+            this.SingleCallCount++;
             this.Requirements.Add(requirement);
             return Task.FromResult(decision);
+        }
+
+        public Task<IReadOnlyList<AccessDecision>> AuthorizeManyAsync(
+            IReadOnlyList<AccessRequirement> requirements,
+            CancellationToken cancellationToken)
+        {
+            this.BatchCallCount++;
+            this.Requirements.AddRange(requirements);
+            IReadOnlyList<AccessDecision> decisions = incompleteResult
+                ? [decision]
+                : requirements.Select(_ => decision).ToArray();
+            return Task.FromResult(decisions);
         }
     }
 

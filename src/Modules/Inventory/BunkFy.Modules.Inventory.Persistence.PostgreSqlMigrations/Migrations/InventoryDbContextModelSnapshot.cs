@@ -32,6 +32,17 @@ namespace BunkFy.Modules.Inventory.Persistence.PostgreSqlMigrations.Migrations
                     b.Property<Guid>("BedId")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("CanceledAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CanceledBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("CancellationReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
                     b.Property<DateTimeOffset?>("CompletedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -74,8 +85,7 @@ namespace BunkFy.Modules.Inventory.Persistence.PostgreSqlMigrations.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ScopeId", "BedId")
-                        .IsUnique();
+                    b.HasIndex("ScopeId", "BedId", "State");
 
                     b.HasIndex("ScopeId", "PropertyId", "RoomId", "State");
 
@@ -248,6 +258,17 @@ namespace BunkFy.Modules.Inventory.Persistence.PostgreSqlMigrations.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("CanceledAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CanceledBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("CancellationReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
                     b.Property<DateTimeOffset?>("CompletedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -290,10 +311,9 @@ namespace BunkFy.Modules.Inventory.Persistence.PostgreSqlMigrations.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ScopeId", "RoomId")
-                        .IsUnique();
-
                     b.HasIndex("ScopeId", "PropertyId", "State");
+
+                    b.HasIndex("ScopeId", "RoomId", "State");
 
                     b.ToTable("room_retirements", "inventory");
                 });
@@ -767,9 +787,9 @@ namespace BunkFy.Modules.Inventory.Persistence.PostgreSqlMigrations.Migrations
 
                             t.HasCheckConstraint("CK_inventory_management_operations_fingerprint", "char_length(\"RequestFingerprint\") = 64 AND \"RequestFingerprint\" ~ '^[0-9a-f]{64}$'");
 
-                            t.HasCheckConstraint("CK_inventory_management_operations_kind", "\"Kind\" BETWEEN 1 AND 9 AND ((\"Kind\" = 1 AND \"ResourceKind\" = 1) OR (\"Kind\" IN (2, 3) AND \"ResourceKind\" = 2 AND \"ResourceId\" = \"PropertyId\") OR (\"Kind\" = 4 AND \"ResourceKind\" = 3 AND \"ResultBlockId\" IS NOT NULL AND \"ResourceId\" = \"ResultBlockId\") OR (\"Kind\" = 5 AND \"ResourceKind\" = 4 AND \"ResultBlockGroupId\" IS NOT NULL AND \"ResourceId\" = \"ResultBlockGroupId\") OR (\"Kind\" = 6 AND \"ResourceKind\" = 5) OR (\"Kind\" = 7 AND \"ResourceKind\" = 6 AND \"ResourceId\" = \"ResultTopologyChangeId\") OR (\"Kind\" = 8 AND \"ResourceKind\" = 1) OR (\"Kind\" = 9 AND \"ResourceKind\" = 7 AND \"ResourceId\" = \"ResultTopologyChangeId\"))");
+                            t.HasCheckConstraint("CK_inventory_management_operations_kind", "\"Kind\" BETWEEN 1 AND 11 AND ((\"Kind\" = 1 AND \"ResourceKind\" = 1) OR (\"Kind\" IN (2, 3) AND \"ResourceKind\" = 2 AND \"ResourceId\" = \"PropertyId\") OR (\"Kind\" = 4 AND \"ResourceKind\" = 3 AND \"ResultBlockId\" IS NOT NULL AND \"ResourceId\" = \"ResultBlockId\") OR (\"Kind\" = 5 AND \"ResourceKind\" = 4 AND \"ResultBlockGroupId\" IS NOT NULL AND \"ResourceId\" = \"ResultBlockGroupId\") OR (\"Kind\" = 6 AND \"ResourceKind\" = 5) OR (\"Kind\" = 7 AND \"ResourceKind\" = 6 AND \"ResourceId\" = \"ResultTopologyChangeId\") OR (\"Kind\" = 8 AND \"ResourceKind\" = 1) OR (\"Kind\" = 9 AND \"ResourceKind\" = 7 AND \"ResourceId\" = \"ResultTopologyChangeId\") OR (\"Kind\" = 10 AND \"ResourceKind\" = 6 AND \"ResourceId\" = \"ResultTopologyChangeId\") OR (\"Kind\" = 11 AND \"ResourceKind\" = 7 AND \"ResourceId\" = \"ResultTopologyChangeId\"))");
 
-                            t.HasCheckConstraint("CK_inventory_management_operations_result", "(\"Kind\" = 1 AND \"ExpectedVersion\" > 0 AND \"ResultVersion\" BETWEEN \"ExpectedVersion\" AND \"ExpectedVersion\" + 1 AND \"ResultSalesMode\" IS NOT NULL AND \"ResultSalesMode\" IN (2, 3) AND \"ResultBlockId\" IS NULL AND \"ResultBlockGroupId\" IS NULL AND \"ResultBlockStatus\" IS NULL AND \"ResultAffectedBlockCount\" IS NULL AND \"ResultTopologyChangeId\" IS NULL) OR (\"Kind\" = 2 AND \"ExpectedVersion\" = 0 AND \"ResultVersion\" = 1 AND \"ResultSalesMode\" IS NULL AND \"ResultBlockId\" IS NOT NULL AND \"ResultBlockId\" <> '00000000-0000-0000-0000-000000000000' AND \"ResultBlockGroupId\" IS NOT NULL AND \"ResultBlockGroupId\" <> '00000000-0000-0000-0000-000000000000' AND \"ResultBlockStatus\" IS NOT NULL AND \"ResultBlockStatus\" = 1 AND \"ResultAffectedBlockCount\" IS NOT NULL AND \"ResultAffectedBlockCount\" = 1 AND \"ResultTopologyChangeId\" IS NULL) OR (\"Kind\" = 3 AND \"ExpectedVersion\" = 0 AND \"ResultVersion\" = 0 AND \"ResultSalesMode\" IS NULL AND \"ResultBlockId\" IS NULL AND \"ResultBlockGroupId\" IS NOT NULL AND \"ResultBlockGroupId\" <> '00000000-0000-0000-0000-000000000000' AND \"ResultBlockStatus\" IS NULL AND \"ResultAffectedBlockCount\" IS NOT NULL AND \"ResultAffectedBlockCount\" > 0 AND \"ResultTopologyChangeId\" IS NULL) OR (\"Kind\" = 4 AND \"ExpectedVersion\" > 0 AND \"ResultVersion\" = \"ExpectedVersion\" + 1 AND \"ResultSalesMode\" IS NULL AND \"ResultBlockId\" IS NOT NULL AND \"ResultBlockId\" <> '00000000-0000-0000-0000-000000000000' AND \"ResultBlockGroupId\" IS NOT NULL AND \"ResultBlockGroupId\" <> '00000000-0000-0000-0000-000000000000' AND \"ResultBlockStatus\" IS NOT NULL AND \"ResultBlockStatus\" = 2 AND \"ResultAffectedBlockCount\" IS NOT NULL AND \"ResultAffectedBlockCount\" = 1 AND \"ResultTopologyChangeId\" IS NULL) OR (\"Kind\" = 5 AND \"ExpectedVersion\" = 0 AND \"ResultVersion\" = 0 AND \"ResultSalesMode\" IS NULL AND \"ResultBlockId\" IS NULL AND \"ResultBlockGroupId\" IS NOT NULL AND \"ResultBlockGroupId\" <> '00000000-0000-0000-0000-000000000000' AND \"ResultBlockStatus\" IS NULL AND \"ResultAffectedBlockCount\" IS NOT NULL AND \"ResultAffectedBlockCount\" > 0 AND \"ResultTopologyChangeId\" IS NULL) OR (\"Kind\" IN (6, 8) AND \"ExpectedVersion\" = 0 AND \"ResultVersion\" > 0 AND \"ResultSalesMode\" IS NULL AND \"ResultBlockId\" IS NULL AND \"ResultBlockGroupId\" IS NULL AND \"ResultBlockStatus\" IS NULL AND \"ResultAffectedBlockCount\" IS NULL AND \"ResultTopologyChangeId\" IS NOT NULL AND \"ResultTopologyChangeId\" <> '00000000-0000-0000-0000-000000000000') OR (\"Kind\" IN (7, 9) AND \"ExpectedVersion\" > 0 AND \"ResultVersion\" = \"ExpectedVersion\" + 1 AND \"ResultSalesMode\" IS NULL AND \"ResultBlockId\" IS NULL AND \"ResultBlockGroupId\" IS NULL AND \"ResultBlockStatus\" IS NULL AND \"ResultAffectedBlockCount\" IS NULL AND \"ResultTopologyChangeId\" IS NOT NULL AND \"ResultTopologyChangeId\" <> '00000000-0000-0000-0000-000000000000')");
+                            t.HasCheckConstraint("CK_inventory_management_operations_result", "(\"Kind\" = 1 AND \"ExpectedVersion\" > 0 AND \"ResultVersion\" BETWEEN \"ExpectedVersion\" AND \"ExpectedVersion\" + 1 AND \"ResultSalesMode\" IS NOT NULL AND \"ResultSalesMode\" IN (2, 3) AND \"ResultBlockId\" IS NULL AND \"ResultBlockGroupId\" IS NULL AND \"ResultBlockStatus\" IS NULL AND \"ResultAffectedBlockCount\" IS NULL AND \"ResultTopologyChangeId\" IS NULL) OR (\"Kind\" = 2 AND \"ExpectedVersion\" = 0 AND \"ResultVersion\" = 1 AND \"ResultSalesMode\" IS NULL AND \"ResultBlockId\" IS NOT NULL AND \"ResultBlockId\" <> '00000000-0000-0000-0000-000000000000' AND \"ResultBlockGroupId\" IS NOT NULL AND \"ResultBlockGroupId\" <> '00000000-0000-0000-0000-000000000000' AND \"ResultBlockStatus\" IS NOT NULL AND \"ResultBlockStatus\" = 1 AND \"ResultAffectedBlockCount\" IS NOT NULL AND \"ResultAffectedBlockCount\" = 1 AND \"ResultTopologyChangeId\" IS NULL) OR (\"Kind\" = 3 AND \"ExpectedVersion\" = 0 AND \"ResultVersion\" = 0 AND \"ResultSalesMode\" IS NULL AND \"ResultBlockId\" IS NULL AND \"ResultBlockGroupId\" IS NOT NULL AND \"ResultBlockGroupId\" <> '00000000-0000-0000-0000-000000000000' AND \"ResultBlockStatus\" IS NULL AND \"ResultAffectedBlockCount\" IS NOT NULL AND \"ResultAffectedBlockCount\" > 0 AND \"ResultTopologyChangeId\" IS NULL) OR (\"Kind\" = 4 AND \"ExpectedVersion\" > 0 AND \"ResultVersion\" = \"ExpectedVersion\" + 1 AND \"ResultSalesMode\" IS NULL AND \"ResultBlockId\" IS NOT NULL AND \"ResultBlockId\" <> '00000000-0000-0000-0000-000000000000' AND \"ResultBlockGroupId\" IS NOT NULL AND \"ResultBlockGroupId\" <> '00000000-0000-0000-0000-000000000000' AND \"ResultBlockStatus\" IS NOT NULL AND \"ResultBlockStatus\" = 2 AND \"ResultAffectedBlockCount\" IS NOT NULL AND \"ResultAffectedBlockCount\" = 1 AND \"ResultTopologyChangeId\" IS NULL) OR (\"Kind\" = 5 AND \"ExpectedVersion\" = 0 AND \"ResultVersion\" = 0 AND \"ResultSalesMode\" IS NULL AND \"ResultBlockId\" IS NULL AND \"ResultBlockGroupId\" IS NOT NULL AND \"ResultBlockGroupId\" <> '00000000-0000-0000-0000-000000000000' AND \"ResultBlockStatus\" IS NULL AND \"ResultAffectedBlockCount\" IS NOT NULL AND \"ResultAffectedBlockCount\" > 0 AND \"ResultTopologyChangeId\" IS NULL) OR (\"Kind\" IN (6, 8) AND \"ExpectedVersion\" = 0 AND \"ResultVersion\" > 0 AND \"ResultSalesMode\" IS NULL AND \"ResultBlockId\" IS NULL AND \"ResultBlockGroupId\" IS NULL AND \"ResultBlockStatus\" IS NULL AND \"ResultAffectedBlockCount\" IS NULL AND \"ResultTopologyChangeId\" IS NOT NULL AND \"ResultTopologyChangeId\" <> '00000000-0000-0000-0000-000000000000') OR (\"Kind\" IN (7, 9, 10, 11) AND \"ExpectedVersion\" > 0 AND \"ResultVersion\" = \"ExpectedVersion\" + 1 AND \"ResultSalesMode\" IS NULL AND \"ResultBlockId\" IS NULL AND \"ResultBlockGroupId\" IS NULL AND \"ResultBlockStatus\" IS NULL AND \"ResultAffectedBlockCount\" IS NULL AND \"ResultTopologyChangeId\" IS NOT NULL AND \"ResultTopologyChangeId\" <> '00000000-0000-0000-0000-000000000000')");
                         });
                 });
 

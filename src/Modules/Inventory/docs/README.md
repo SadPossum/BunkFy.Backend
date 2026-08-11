@@ -17,14 +17,16 @@ values are engineering defaults until country, retention, and rights approval.
 - manual half-open `[arrival, departure)` block groups targeting a property, configured building/floor, room, or unit;
 - retry-safe manual-block creation and release with caller-owned operation ids,
   canonical request fingerprints, typed immutable receipts, and exact replay;
-- retry-safe room and bed retirement requests and rejected-process retries with
-  caller-owned operation ids, normalized intent fingerprints, expected process
-  versions, compact journal pointers, and exact replay;
+- retry-safe room and bed retirement requests, rejected-process retries, and
+  draining-process cancellations with caller-owned operation ids, normalized
+  intent fingerprints, expected process versions, compact journal pointers,
+  and exact replay;
 - durable, idempotent multi-unit reservation allocations and releases with concurrent-claim serialization;
 - exact-reservation Data Rights discovery/export plus terminal allocation
   anonymisation and restore-safe owner proof;
 - date-range availability reads over the currently sellable units;
-- scoped `inventory.read`, `inventory.configure`, and `inventory.blocks.manage` permissions;
+- scoped `inventory.read`, `inventory.configure`, `inventory.blocks.manage`, and
+  sensitive `inventory.retire` permissions;
 - public API, Admin API, Admin CLI, PostgreSQL migration, NATS handlers, and worker rebuild composition;
 - versioned unit-definition, sales-mode, block, and allocation events plus `IInventoryAvailabilityProjectionExportSource` for downstream Reservations rebuilds.
 
@@ -54,6 +56,15 @@ process retries additionally bind the caller-observed process version, acquire
 the process and room fences in that order, and publish no duplicate finalization
 request on exact replay.
 
+A room or bed retirement can be canceled only while it is `Draining`.
+Cancellation binds the observed process version, normalized reason, and actor;
+acquires the process and room fences in that order; and records a compact replay
+pointer before commit. It republishes the room definition in the same transaction
+so sellability returns with a higher unit version. Canceled attempts remain
+queryable as history but are excluded from active-target lookups. PostgreSQL
+partial unique indexes allow later attempts while still enforcing at most one
+active retirement per room or bed.
+
 Public and Admin Inventory endpoints emit `Cache-Control: no-store`, `Pragma: no-cache`, and an expired response date. This prevents block reasons, staff references, claim identifiers, and current availability state from being retained by shared caches. Admin endpoints also declare explicit success response metadata so generated clients match runtime responses.
 
 ## Tenant Termination
@@ -72,7 +83,7 @@ and removes all 18 tenant-owned record families in foreign-key-safe stages.
 One invocation removes at most one non-empty batch of 500 physical rows;
 allocation units are explicitly removed before allocations. Completion retains
 only a closed lifecycle row and one immutable, PII-free destruction receipt
-with a versioned SHA-256 proof chain. Personal-data catalogue version 4 binds
+with a versioned SHA-256 proof chain. Personal-data catalogue version 6 binds
 the retained proof to its dedicated tenant-destruction policy.
 
 Relational writes and export selection share the tenant mutation transaction
@@ -86,15 +97,17 @@ protected in EF and PostgreSQL; anonymisation tombstones remain updateable for
 restore proof but cannot be deleted outside the exact destruction operation.
 
 Migrations `AddInventoryTenantExportRevision`,
-`AddInventoryTenantDestructionLifecycle`, and
-`AddInventoryManualBlockManagementOperations`, and
-`AddInventoryRetirementManagementOperations` add the revision/lifecycle state,
-resumable operation, typed receipt ledger, and provider-side proof guards.
-All 130 focused non-Docker Inventory tests pass, EF reports no pending model changes,
-and the consolidated PostgreSQL scenarios passed through
-2026-08-09 with lock drain, outbox suppression, bounded graph removal,
-replay/conflict, concurrent block mutation, trigger enforcement, closed
-admission, downgrade refusal, and tenant isolation.
+`AddInventoryTenantDestructionLifecycle`,
+`AddInventoryManualBlockManagementOperations`,
+`AddInventoryRetirementManagementOperations`, and
+`AddInventoryRetirementCancellation` add the revision/lifecycle state,
+resumable operation, typed receipt ledger, cancellation audit state, partial
+active-retirement uniqueness, and provider-side proof guards. All 159 focused
+non-Docker Inventory tests pass, EF reports no pending model changes, and the
+Inventory PostgreSQL scenarios passed through 2026-08-11 with lock drain,
+outbox suppression, bounded graph removal, replay/conflict, concurrent block
+mutation, retained cancellation history, active-attempt enforcement, trigger
+enforcement, closed admission, downgrade refusal, and tenant isolation.
 
 Production execution remains disabled until every mandatory owner, terminal
 orchestration, protected replay, operator controls, and final admission are

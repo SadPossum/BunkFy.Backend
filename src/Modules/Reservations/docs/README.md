@@ -47,6 +47,9 @@ retention, and rights policies receive production approval.
 - DataRights discovery through exact reservation id or indexed normalized
   current/pending contact values, with bounded masked previews and exact-version
   selection revalidation;
+- owner-local Data Rights correction execution protected by the public host's
+  configured recent-authentication assurance in addition to scoped execution
+  permission and approved-claim validation;
 - catalogue-driven, transient DataRights export of Reservations-owned booking,
   pending amendment, Guest-link, details-history, adapter-receipt, and reminder
   records without staff actor attribution;

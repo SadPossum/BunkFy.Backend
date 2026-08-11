@@ -37,12 +37,16 @@ public sealed class InventoryAllocationAmendmentRequestedHandlerTests
         FakeAvailabilityRepository availability = new();
         FakeDecisionRepository decisions = new();
         RecordingOutbox outbox = new();
+        InventoryManagementMutationCoordinator retirementMutations =
+            CreateRetirementMutationCoordinator();
         BedRetirementCoordinator bedRetirements = new(
+            retirementMutations,
             new FakeBedRetirementRepository(),
             availability,
             new TestClock(),
             new TestIdGenerator());
         RoomRetirementCoordinator roomRetirements = new(
+            retirementMutations,
             new FakeRoomRetirementRepository(),
             availability,
             new TestClock(),
@@ -171,12 +175,16 @@ public sealed class InventoryAllocationAmendmentRequestedHandlerTests
         IInventoryAllocationOperationLock operationLock,
         RecordingOutbox outbox)
     {
+        InventoryManagementMutationCoordinator retirementMutations =
+            CreateRetirementMutationCoordinator();
         BedRetirementCoordinator bedRetirements = new(
+            retirementMutations,
             new FakeBedRetirementRepository(),
             availability,
             new TestClock(),
             new TestIdGenerator());
         RoomRetirementCoordinator roomRetirements = new(
+            retirementMutations,
             new FakeRoomRetirementRepository(),
             availability,
             new TestClock(),
@@ -195,6 +203,11 @@ public sealed class InventoryAllocationAmendmentRequestedHandlerTests
             new TestClock(),
             new TestIdGenerator());
     }
+
+    private static InventoryManagementMutationCoordinator
+        CreateRetirementMutationCoordinator() => new(
+            new NoopInventoryManagementLock(),
+            new TestScopeContext());
 
     private static InventoryAllocationAmendmentRequestedIntegrationEvent Request(
         Guid amendmentId,
@@ -336,6 +349,10 @@ public sealed class InventoryAllocationAmendmentRequestedHandlerTests
 
         public Task AddAsync(BedRetirementProcess process, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
+
+        public Task ReloadAsync(
+            BedRetirementProcess process,
+            CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
     private sealed class FakeRoomRetirementRepository : IRoomRetirementRepository
@@ -363,6 +380,10 @@ public sealed class InventoryAllocationAmendmentRequestedHandlerTests
 
         public Task AddAsync(RoomRetirementProcess process, CancellationToken cancellationToken) =>
             Task.CompletedTask;
+
+        public Task ReloadAsync(
+            RoomRetirementProcess process,
+            CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
     private sealed class FakeDecisionRepository : IInventoryAllocationAmendmentDecisionRepository
@@ -427,6 +448,23 @@ public sealed class InventoryAllocationAmendmentRequestedHandlerTests
     {
         public bool IsEnabled => true;
         public string ScopeId => InventoryAllocationAmendmentRequestedHandlerTests.ScopeId;
+    }
+
+    private sealed class NoopInventoryManagementLock
+        : IInventoryManagementLock
+    {
+        public Task AcquireResourceAsync(
+            string tenantId,
+            InventoryManagementResourceKind resourceKind,
+            Guid resourceId,
+            CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task AcquireOperationAsync(
+            string tenantId,
+            InventoryManagementResourceKind resourceKind,
+            Guid resourceId,
+            Guid operationId,
+            CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
     private sealed class RecordingOutbox : IOutboxWriter

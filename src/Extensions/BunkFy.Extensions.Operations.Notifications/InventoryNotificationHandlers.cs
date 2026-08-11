@@ -16,6 +16,7 @@ internal sealed class ManualInventoryBlockCreatedNotificationHandler(Operational
             integrationEvent.TenantId,
             integrationEvent.OccurredAtUtc,
             integrationEvent.PropertyId,
+            OperationalNotificationAudiencePermissions.InventoryRead,
             new OperationalNotification(
                 InventoryModuleMetadata.Name,
                 "manual-inventory-block-created",
@@ -44,6 +45,7 @@ internal sealed class ManualInventoryBlockReleasedNotificationHandler(Operationa
             integrationEvent.TenantId,
             integrationEvent.OccurredAtUtc,
             integrationEvent.PropertyId,
+            OperationalNotificationAudiencePermissions.InventoryRead,
             new OperationalNotification(
                 InventoryModuleMetadata.Name,
                 "manual-inventory-block-released",
@@ -70,6 +72,7 @@ internal sealed class RoomSalesModeChangedNotificationHandler(OperationalNotific
             integrationEvent.TenantId,
             integrationEvent.OccurredAtUtc,
             integrationEvent.PropertyId,
+            OperationalNotificationAudiencePermissions.InventoryRead,
             new OperationalNotification(
                 InventoryModuleMetadata.Name,
                 "room-sales-mode-changed",

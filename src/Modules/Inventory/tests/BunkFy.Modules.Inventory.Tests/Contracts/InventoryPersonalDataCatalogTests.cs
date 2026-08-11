@@ -33,17 +33,23 @@ public sealed class InventoryPersonalDataCatalogTests
         [typeof(InventoryModule.CreateManualBlockRequest)] = OperationIdMember(),
         [typeof(InventoryModule.CreateManualBlockGroupRequest)] = OperationIdMember(),
         [typeof(InventoryModule.RequestBedRetirementRequest)] =
-            OperationIdMember(),
+            OperationAndConfirmationMembers(),
         [typeof(InventoryModule.RequestRoomRetirementRequest)] =
-            OperationIdMember(),
+            OperationAndConfirmationMembers(),
+        [typeof(InventoryModule.CancelRetirementRequest)] =
+            OperationVersionAndConfirmationMembers(),
         [typeof(CreateManualInventoryBlockCommand)] = OperationIdMember(),
         [typeof(CreateManualInventoryBlockGroupCommand)] = OperationIdMember(),
         [typeof(ReleaseManualInventoryBlockCommand)] = OperationIdMember(),
         [typeof(ReleaseManualInventoryBlockGroupCommand)] = OperationIdMember(),
-        [typeof(RequestBedRetirementCommand)] = OperationIdMember(),
-        [typeof(RequestRoomRetirementCommand)] = OperationIdMember(),
+        [typeof(RequestBedRetirementCommand)] = OperationAndConfirmationMembers(),
+        [typeof(RequestRoomRetirementCommand)] = OperationAndConfirmationMembers(),
         [typeof(RetryBedRetirementCommand)] = OperationAndVersionMembers(),
         [typeof(RetryRoomRetirementCommand)] = OperationAndVersionMembers(),
+        [typeof(CancelBedRetirementCommand)] =
+            OperationVersionAndConfirmationMembers(),
+        [typeof(CancelRoomRetirementCommand)] =
+            OperationVersionAndConfirmationMembers(),
         [typeof(ManualInventoryBlockListResponse)] = PaginationMembers(),
         [typeof(RoomInventoryListResponse)] = PaginationMembers(),
         [typeof(BedRetirementImpactSnapshot)] = new([nameof(BedRetirementImpactSnapshot.HasActiveClaims)], StringComparer.Ordinal),
@@ -57,6 +63,14 @@ public sealed class InventoryPersonalDataCatalogTests
 
     private static HashSet<string> OperationAndVersionMembers() => new(
         ["OperationId", "ExpectedVersion"],
+        StringComparer.Ordinal);
+
+    private static HashSet<string> OperationAndConfirmationMembers() => new(
+        ["OperationId", "Confirmed"],
+        StringComparer.Ordinal);
+
+    private static HashSet<string> OperationVersionAndConfirmationMembers() => new(
+        ["OperationId", "ExpectedVersion", "Confirmed"],
         StringComparer.Ordinal);
 
     [Fact]
@@ -244,7 +258,8 @@ public sealed class InventoryPersonalDataCatalogTests
                      typeof(InventoryModule.CreateManualBlockRequest),
                      typeof(InventoryModule.CreateManualBlockGroupRequest),
                      typeof(InventoryModule.RequestBedRetirementRequest),
-                     typeof(InventoryModule.RequestRoomRetirementRequest)
+                     typeof(InventoryModule.RequestRoomRetirementRequest),
+                     typeof(InventoryModule.CancelRetirementRequest)
                  })
         {
             yield return (PersonalDataSurface.ApiInput, type);
@@ -261,6 +276,8 @@ public sealed class InventoryPersonalDataCatalogTests
                      typeof(RequestRoomRetirementCommand),
                      typeof(RetryBedRetirementCommand),
                      typeof(RetryRoomRetirementCommand),
+                     typeof(CancelBedRetirementCommand),
+                     typeof(CancelRoomRetirementCommand),
                      typeof(InventoryAllocationAmendmentDecisionRecord),
                      typeof(ApplyInventoryAllocationAnonymisationCommand),
                      typeof(RestoreInventoryAllocationAnonymisationCommand)

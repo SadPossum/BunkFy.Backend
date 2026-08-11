@@ -75,6 +75,17 @@ internal static class InventoryManagementMutationFingerprint
             topologyChangeId.ToString("N"),
             expectedVersion.ToString(CultureInfo.InvariantCulture));
 
+    public static string ComputeBedRetirementCancellation(
+        Guid propertyId,
+        Guid topologyChangeId,
+        long expectedVersion,
+        string reason) => Compute(
+            "bunkfy-inventory-bed-retirement-cancellation/v1",
+            propertyId.ToString("N"),
+            topologyChangeId.ToString("N"),
+            expectedVersion.ToString(CultureInfo.InvariantCulture),
+            NormalizeReason(reason));
+
     public static string ComputeRoomRetirementRequest(
         Guid propertyId,
         Guid roomId,
@@ -92,6 +103,17 @@ internal static class InventoryManagementMutationFingerprint
             propertyId.ToString("N"),
             topologyChangeId.ToString("N"),
             expectedVersion.ToString(CultureInfo.InvariantCulture));
+
+    public static string ComputeRoomRetirementCancellation(
+        Guid propertyId,
+        Guid topologyChangeId,
+        long expectedVersion,
+        string reason) => Compute(
+            "bunkfy-inventory-room-retirement-cancellation/v1",
+            propertyId.ToString("N"),
+            topologyChangeId.ToString("N"),
+            expectedVersion.ToString(CultureInfo.InvariantCulture),
+            NormalizeReason(reason));
 
     public static string NormalizeReason(string? reason) =>
         reason?.Trim() ?? string.Empty;

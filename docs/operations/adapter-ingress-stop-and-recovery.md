@@ -26,6 +26,9 @@ The customer API requires `ingestion.ingress-control.manage` at tenant scope:
 
 Suspend and resume bodies contain the status response's current
 `expectedVersion` and a `reasonCode`. A stale version returns a conflict.
+Tenant suspension remains immediately available for incident containment.
+Resume additionally requires the public host's configured recent-authentication
+assurance because it releases the tenant-wide stop.
 
 ## Global control
 

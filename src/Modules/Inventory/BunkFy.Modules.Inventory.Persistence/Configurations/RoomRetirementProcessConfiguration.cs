@@ -13,9 +13,11 @@ internal sealed class RoomRetirementProcessConfiguration : IEntityTypeConfigurat
         builder.Property(process => process.ScopeId).HasMaxLength(128).IsRequired();
         builder.Property(process => process.Reason).HasMaxLength(RoomRetirementProcess.ReasonMaxLength).IsRequired();
         builder.Property(process => process.RequestedBy).HasMaxLength(RoomRetirementProcess.ActorIdMaxLength).IsRequired();
+        builder.Property(process => process.CancellationReason).HasMaxLength(RoomRetirementProcess.ReasonMaxLength);
+        builder.Property(process => process.CanceledBy).HasMaxLength(RoomRetirementProcess.ActorIdMaxLength);
         builder.Property(process => process.State).HasConversion<int>().IsRequired();
         builder.Property(process => process.Version).IsConcurrencyToken().IsRequired();
-        builder.HasIndex(process => new { process.ScopeId, process.RoomId }).IsUnique();
+        builder.HasIndex(process => new { process.ScopeId, process.RoomId, process.State });
         builder.HasIndex(process => new { process.ScopeId, process.PropertyId, process.State });
         builder.Ignore(process => process.DomainEvents);
     }

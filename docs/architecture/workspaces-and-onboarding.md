@@ -148,7 +148,7 @@ The current frontend keeps workspace and property selection in one `WorkspacePro
 3. An existing account signs in; a new person registers a global account. Invitation intent survives redirects in tab-scoped storage while the URL fragment is scrubbed immediately.
 4. The authenticated applicant submits the original token plus a proposed Staff profile. BunkFy derives the organization/source identifiers and the current active-member/verified-email facts from Auth on the server.
 5. Organizations admits only the exact subject and source for which the BunkFy process is ready. Automatic enrollment may create membership immediately; approval enrollment first creates a pending claim bound to the process.
-6. An owner approves or rejects a bound claim. Organizations atomically creates or restores membership only on acceptance.
+6. An owner or explicitly authorized Staff-onboarding manager approves or rejects a bound claim. Organizations atomically creates or restores membership only on acceptance.
 7. Accepted invitation/claim facts drive the Workspaces process to provision one idempotent Staff identity and then install the constrained member assignment.
 8. The process completes only after both product authorities acknowledge success. Until then membership alone grants no BunkFy operation; failures are visible and owner-retryable.
 9. A later access-profile slice may add manager-selected Staff/property/profile plans, but those plans remain server-owned BunkFy state and cannot broaden reusable links into owner access.
@@ -176,6 +176,7 @@ PII-derived request fingerprint.
 - Role names, permissions, organization ids, subject ids, and property ids supplied by the browser or encoded in a QR are never trusted authority. Server-owned invitation/onboarding state is authoritative.
 - Named email invitations require the same verified Auth email. Changing the target email supersedes the previous invitation.
 - Owner creation/transfer, reusable enrollment, and high-privilege access require separate permissions and confirmation.
+- BunkFy operator onboarding requires `workspaces.staff-onboarding.manage` plus access-profile visibility; its source mutations and provisioning retries require configured privileged-operation assurance. Applicant self-service remains bound to the exact authenticated subject and source.
 - Audit records retain bounded lifecycle facts but never token plaintext, password material, OAuth tokens, or unrestricted PII.
 
 A QR code is a transport representation, not a separate authority mechanism. A one-person QR contains a normal single-use invitation URL. A reusable shared QR uses an `EnrollmentLink` with expiry, maximum uses, optional approval, and a low-privilege access profile. Reusable links can never grant ownership automatically.

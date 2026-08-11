@@ -131,14 +131,40 @@ builder.Services.Configure<AccessControlApiSecurityOptions>(
     options => options.ProfileManagementAssurance = privilegedOperationAssurance);
 builder.Services.Configure<OrganizationsApiSecurityOptions>(
     options => options.GovernanceOperationsAssurance = privilegedOperationAssurance);
-builder.Services.Configure<IngestionApiSecurityOptions>(
-    options => options.CredentialManagementAssurance = privilegedOperationAssurance);
+builder.Services.Configure<WorkspacesApiSecurityOptions>(
+    options => options.StaffOnboardingManagementAssurance =
+        privilegedOperationAssurance);
+builder.Services.Configure<PropertiesApiSecurityOptions>(options =>
+{
+    options.ProcessingActivationAssurance = privilegedOperationAssurance;
+    options.PropertyRetirementAssurance = privilegedOperationAssurance;
+});
+builder.Services.Configure<InventoryApiSecurityOptions>(options =>
+    options.TopologyRetirementAssurance = privilegedOperationAssurance);
+builder.Services.Configure<IngestionApiSecurityOptions>(options =>
+{
+    options.CredentialManagementAssurance = privilegedOperationAssurance;
+    options.CheckpointResetAssurance = privilegedOperationAssurance;
+    options.IngressResumeAssurance = privilegedOperationAssurance;
+});
 builder.Services.Configure<StaffApiSecurityOptions>(
     options =>
     {
         options.AccountLinkManagementAssurance =
             privilegedOperationAssurance;
         options.EmploymentGovernanceAssurance =
+            privilegedOperationAssurance;
+        options.DataHoldReleaseAssurance =
+            privilegedOperationAssurance;
+    });
+builder.Services.Configure<ReservationsApiSecurityOptions>(options =>
+    options.CorrectionExecutionAssurance = privilegedOperationAssurance);
+builder.Services.Configure<GuestsApiSecurityOptions>(
+    options =>
+    {
+        options.CorrectionExecutionAssurance =
+            privilegedOperationAssurance;
+        options.RestrictionExecutionAssurance =
             privilegedOperationAssurance;
         options.DataHoldReleaseAssurance =
             privilegedOperationAssurance;

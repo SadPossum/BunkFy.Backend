@@ -70,6 +70,7 @@
     <File Path="docs/planning/data-rights-operational-surface-hardening-task.md" />
     <File Path="docs/planning/data-rights-protected-export-artifacts-task.md" />
     <File Path="docs/planning/data-rights-restriction-execution-task.md" />
+    <File Path="docs/planning/data-rights-task-timeout-alignment-task.md" />
     <File Path="docs/planning/development-guidelines.md" />
     <File Path="docs/planning/durable-runtime-production-admission-task.md" />
     <File Path="docs/planning/ef-enum-default-sentinel-hardening-task.md" />
@@ -86,6 +87,7 @@
     <File Path="docs/planning/guests-management-update-archive-idempotency-task.md" />
     <File Path="docs/planning/guests-operational-surface-hardening-task.md" />
     <File Path="docs/planning/guests-read-surface-hardening-task.md" />
+    <File Path="docs/planning/guests-sensitive-mutation-assurance-task.md" />
     <File Path="docs/planning/guests-tenant-termination-owner-task.md" />
     <File Path="docs/planning/hosted-production-foundation-task.md" />
     <File Path="docs/planning/imap-reservation-mail-adapter-task.md" />
@@ -102,6 +104,7 @@
     <File Path="docs/planning/ingestion-module-task.md" />
     <File Path="docs/planning/ingestion-operational-surface-hardening-task.md" />
     <File Path="docs/planning/ingestion-pii-minimization-task.md" />
+    <File Path="docs/planning/ingestion-sensitive-control-assurance-task.md" />
     <File Path="docs/planning/ingestion-sensitive-history-retention-task.md" />
     <File Path="docs/planning/ingestion-source-graph-mutation-serialization-task.md" />
     <File Path="docs/planning/ingestion-source-reprocessing-task.md" />
@@ -113,12 +116,14 @@
     <File Path="docs/planning/inventory-module-task.md" />
     <File Path="docs/planning/inventory-operational-surface-hardening-task.md" />
     <File Path="docs/planning/inventory-personal-data-catalogue-task.md" />
+    <File Path="docs/planning/inventory-retirement-cancellation-recovery-task.md" />
     <File Path="docs/planning/inventory-retirement-idempotency-task.md" />
     <File Path="docs/planning/inventory-retirement-outcome-convergence-task.md" />
     <File Path="docs/planning/inventory-room-retirement-and-throughput-hardening-task.md" />
     <File Path="docs/planning/inventory-room-sales-mode-idempotency-task.md" />
     <File Path="docs/planning/inventory-tenant-termination-owner-task.md" />
     <File Path="docs/planning/inventory-topology-change-safety-task.md" />
+    <File Path="docs/planning/inventory-topology-retirement-control-assurance-task.md" />
     <File Path="docs/planning/json-file-drop-adapter-task.md" />
     <File Path="docs/planning/json-file-drop-local-retention-task.md" />
     <File Path="docs/planning/json-file-drop-quarantine-task.md" />
@@ -126,6 +131,7 @@
     <File Path="docs/planning/operations-notifications-data-rights-deadline-alerts-task.md" />
     <File Path="docs/planning/operations-notifications-data-rights-owner-capability-task.md" />
     <File Path="docs/planning/operations-notifications-ingestion-data-rights-task.md" />
+    <File Path="docs/planning/operations-notifications-least-privilege-audience-task.md" />
     <File Path="docs/planning/operations-notifications-personal-data-catalogue-task.md" />
     <File Path="docs/planning/operations-notifications-production-admission-task.md" />
     <File Path="docs/planning/operations-notifications-staff-data-rights-task.md" />
@@ -145,12 +151,15 @@
     <File Path="docs/planning/properties-operational-surface-hardening-task.md" />
     <File Path="docs/planning/properties-personal-data-catalogue-task.md" />
     <File Path="docs/planning/properties-room-mutation-idempotency-task.md" />
+    <File Path="docs/planning/properties-sensitive-control-assurance-task.md" />
     <File Path="docs/planning/properties-tenant-termination-owner-task.md" />
     <File Path="docs/planning/properties-topology-lifecycle-task.md" />
     <File Path="docs/planning/remote-adapter-lease-task.md" />
     <File Path="docs/planning/reservation-guest-record-convergence-task.md" />
+    <File Path="docs/planning/reservation-guest-record-resume-attribution-task.md" />
     <File Path="docs/planning/reservation-record-retention-task.md" />
     <File Path="docs/planning/reservations-aggregate-query-shape-task.md" />
+    <File Path="docs/planning/reservations-correction-assurance-task.md" />
     <File Path="docs/planning/reservations-data-rights-workflow-task.md" />
     <File Path="docs/planning/reservations-management-create-idempotency-task.md" />
     <File Path="docs/planning/reservations-management-guest-details-idempotency-task.md" />
@@ -165,6 +174,7 @@
     <File Path="docs/planning/reservations-tenant-termination-owner-task.md" />
     <File Path="docs/planning/retention-mutation-serialization-task.md" />
     <File Path="docs/planning/retention-operational-surface-hardening-task.md" />
+    <File Path="docs/planning/retention-task-timeout-alignment-task.md" />
     <File Path="docs/planning/retention-tenant-termination-owner-task.md" />
     <File Path="docs/planning/secure-staff-enrollment-task.md" />
     <File Path="docs/planning/security-signals-and-incident-correlation-task.md" />
@@ -211,6 +221,7 @@
     <File Path="docs/planning/workspace-operational-admission-integration-task.md" />
     <File Path="docs/planning/workspace-staff-access-lifecycle-task.md" />
     <File Path="docs/planning/workspace-staff-access-mutation-serialization-task.md" />
+    <File Path="docs/planning/workspace-staff-onboarding-authorization-task.md" />
     <File Path="docs/planning/workspace-staff-onboarding-source-mutation-serialization-task.md" />
     <File Path="docs/planning/workspace-staff-onboarding-staging-retention-task.md" />
     <File Path="docs/planning/workspace-staff-retention-correlation-scrub-task.md" />

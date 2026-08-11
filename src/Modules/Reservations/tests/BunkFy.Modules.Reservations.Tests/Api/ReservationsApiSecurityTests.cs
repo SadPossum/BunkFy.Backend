@@ -2,6 +2,7 @@ namespace BunkFy.Modules.Reservations.Tests.Api;
 
 using System.CommandLine;
 using System.Reflection;
+using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Reservations.AdminApi;
 using BunkFy.Modules.Reservations.AdminCli;
 using BunkFy.Modules.Reservations.Api;
@@ -10,6 +11,7 @@ using Gma.Framework.AccessControl.AspNetCore;
 using Gma.Framework.Administration.Cli;
 using Gma.Framework.Administration.Api;
 using Gma.Framework.Cqrs;
+using Gma.Framework.Security;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Metadata;
@@ -114,7 +116,7 @@ public sealed class ReservationsApiSecurityTests
     [Fact]
     public async Task Operational_routes_publish_bounded_response_contracts()
     {
-        WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        WebApplicationBuilder builder = CreateApiBuilder();
         builder.Services.AddSingleton<IRequestDispatcher>(_ => null!);
         builder.Services.AddSingleton<IAccessHttpSubjectResolver>(_ => null!);
         builder.Services.AddSingleton<AdminApiExecutor>(_ => null!);
@@ -149,6 +151,69 @@ public sealed class ReservationsApiSecurityTests
             HttpMethods.Get,
             $"{admin}/{{reservationId:guid}}/details-history");
         AssertMutationResponses(endpoints, admin, includeGuestDetails: false);
+    }
+
+    [Fact]
+    public async Task Data_rights_correction_requires_recent_authentication_at_property_scope()
+    {
+        WebApplicationBuilder builder = CreateApiBuilder();
+        builder.Services.AddSingleton<IRequestDispatcher>(_ => null!);
+        builder.Services.AddSingleton<IAccessHttpSubjectResolver>(_ => null!);
+        await using WebApplication app = builder.Build();
+
+        new ReservationsModule().MapEndpoints(app);
+
+        RouteEndpoint[] endpoints =
+        [
+            .. ((IEndpointRouteBuilder)app).DataSources
+                .SelectMany(dataSource => dataSource.Endpoints)
+                .OfType<RouteEndpoint>()
+        ];
+        RouteEndpoint correction = Assert.Single(endpoints, endpoint =>
+            string.Equals(
+                endpoint.RoutePattern.RawText?.Trim('/'),
+                "api/reservations/properties/{propertyId:guid}/data-rights-corrections",
+                StringComparison.Ordinal) &&
+            endpoint.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods.Contains(
+                HttpMethods.Post,
+                StringComparer.Ordinal) == true);
+        AccessPermissionMetadata permission =
+            Assert.Single(correction.Metadata.OfType<AccessPermissionMetadata>());
+        Assert.Equal(DataRightsAdminPermissionCodes.Execute, permission.Permission.Value);
+        Assert.Equal("reservations-property", permission.ScopeResolverName);
+        AssertAssurance(correction, expected: true);
+
+        RouteEndpoint assured = Assert.Single(endpoints, HasAssurance);
+        Assert.Same(correction, assured);
+        IProducesResponseTypeMetadata response = Assert.Single(
+            correction.Metadata.OfType<IProducesResponseTypeMetadata>(),
+            metadata => metadata.StatusCode == StatusCodes.Status200OK);
+        Assert.Equal(typeof(ReservationDataRightsCorrectionReceiptDto), response.Type);
+    }
+
+    [Fact]
+    public async Task Data_rights_correction_assurance_is_optional_for_standalone_composition()
+    {
+        WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        builder.Services.AddOptions<ReservationsApiSecurityOptions>();
+        builder.Services.AddSingleton<IRequestDispatcher>(_ => null!);
+        builder.Services.AddSingleton<IAccessHttpSubjectResolver>(_ => null!);
+        await using WebApplication app = builder.Build();
+
+        new ReservationsModule().MapEndpoints(app);
+
+        RouteEndpoint correction = Assert.Single(((IEndpointRouteBuilder)app).DataSources
+            .SelectMany(dataSource => dataSource.Endpoints)
+            .OfType<RouteEndpoint>(), endpoint =>
+                string.Equals(
+                    endpoint.RoutePattern.RawText?.Trim('/'),
+                    "api/reservations/properties/{propertyId:guid}/data-rights-corrections",
+                    StringComparison.Ordinal) &&
+                endpoint.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods.Contains(
+                    HttpMethods.Post,
+                    StringComparer.Ordinal) == true);
+
+        AssertAssurance(correction, expected: false);
     }
 
     private static void AssertMutationResponses(
@@ -190,6 +255,24 @@ public sealed class ReservationsApiSecurityTests
             HttpMethods.Post,
             $"{reservation}/check-out");
     }
+
+    private static WebApplicationBuilder CreateApiBuilder()
+    {
+        WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        builder.Services.Configure<ReservationsApiSecurityOptions>(options =>
+            options.CorrectionExecutionAssurance = new AuthenticationAssuranceRequirement(
+                maxAuthenticationAge: TimeSpan.FromMinutes(10)));
+        return builder;
+    }
+
+    private static void AssertAssurance(RouteEndpoint endpoint, bool expected) =>
+        Assert.Equal(expected, HasAssurance(endpoint));
+
+    private static bool HasAssurance(RouteEndpoint endpoint) =>
+        endpoint.Metadata.Any(metadata => string.Equals(
+            metadata.GetType().Name,
+            "AuthenticationAssuranceMetadata",
+            StringComparison.Ordinal));
 
     private static void AssertResponse<TResponse>(
         IEnumerable<RouteEndpoint> endpoints,

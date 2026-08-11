@@ -94,6 +94,16 @@ public sealed class ReservationGuestRecordEndpointTests
         Assert.DoesNotContain("CreationConfirmationId", members);
     }
 
+    [Theory]
+    [InlineData("ReservationGuestRecords.ProcessStateInvalid")]
+    [InlineData("ReservationGuestRecords.GuestIdentityMismatch")]
+    public void Internal_workflow_contract_failures_are_server_errors(
+        string errorCode) =>
+        Assert.Equal(
+            StatusCodes.Status500InternalServerError,
+            ReservationGuestRecordEndpoints.ErrorStatusCodes.GetStatusCode(
+                new Gma.Framework.Results.Error(errorCode, "Contract failure.")));
+
     private static void AddEndpointServices(IServiceCollection services)
     {
         services.AddSingleton<IAccessHttpSubjectResolver>(_ => null!);
