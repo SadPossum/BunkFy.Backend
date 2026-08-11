@@ -1,7 +1,9 @@
 # Workspace Onboarding Production Proof Task
 
-Status: local and deployed API proof complete; browser and delivery rehearsal remains
+Status: local, deployed API, and Preview captured-delivery proof complete;
+browser and real-provider rehearsal remains
 Date: 2026-07-22
+Updated: 2026-08-11
 
 ## Goal
 
@@ -59,3 +61,14 @@ approval, and rejection paths. The remaining browser, registration-adapter,
 delivery, redirect, and process-control evidence is defined by the root
 `docs/operations/deployed-workspace-browser-rehearsal.md` runbook and must be
 captured against the exact candidate deployment.
+
+The automated Preview rehearsal has now registered and verified three clean
+identities through private Mailpit capture, then passed invitation and QR child
+proofs with separate applicants, least-privilege property isolation, approval,
+rejection, replay, and explicit cleanup. The current hardened-runtime evidence
+is bound to release `preview-runtime-hardening-20260811`.
+
+That closes the repository-owned Preview delivery proof only. Browser redirect
+continuity and QR rendering, deployment-controlled Worker restart, enabled
+external identity providers, and real-provider delivery remain the private
+rehearsal described above.

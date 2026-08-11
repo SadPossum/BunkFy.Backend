@@ -1,8 +1,9 @@
 # Secure Staff Enrollment Task
 
-Status: implementation complete and ordering-hardened; deployment smoke pending
+Status: implementation and deployed API smoke complete; browser and
+real-provider proof pending
 Date: 2026-07-21
-Updated: 2026-07-28
+Updated: 2026-08-11
 
 ## Goal
 
@@ -106,9 +107,20 @@ review.
   duplicate claim handling, authoritative claim-version capture, and denied
   owner retry before source acceptance.
 - PostgreSQL tests prove uniqueness, optimistic transitions, tenant isolation, restart recovery, and migration shape.
-- API, application, and event-handler tests cover the admission, claim binding, denial, retry, and partial-failure boundaries. A deployed multi-account smoke remains required for invitation and QR token lifecycle behavior across real redirects, broker delivery, and process restarts.
+- API, application, and event-handler tests cover the admission, claim binding,
+  denial, retry, and partial-failure boundaries. The deployed Preview rehearsal
+  now proves invitation and QR token lifecycle behavior with separate accounts,
+  durable broker delivery, approval/rejection, property isolation, replay, and
+  cleanup on the hardened runtime.
 - Architecture guards prove GMA has no BunkFy reference and BunkFy composition reaches Organizations through public contracts plus the explicit admission seam.
 
 ## Remaining Deployment Gate
 
-Before production launch, run the invitation and reusable-link flows with separate owner and applicant accounts against the deployed PostgreSQL, NATS, Auth redirect, and web origins. Cover new-account registration, existing-account acceptance, manual approval and rejection, automatic enrollment, expiry, capacity, rotation, replay, restart recovery, suspension, and owner retry of a failed provisioning step. This is deployment evidence, not a reason to move product policy into GMA.
+Before production launch, complete the browser- and environment-owned portion
+with separate owner and applicant accounts against the hosted Auth redirect and
+web origins. Cover browser continuation, QR rendering, every enabled external
+identity provider, real-provider mail delivery, deployment-controlled Worker
+restart, and operator recovery. Expiry, capacity, rotation, replay, suspension,
+and failed-provisioning recovery remain covered by deterministic repository
+tests and must be sampled again where the private release policy requires it.
+This evidence boundary is not a reason to move product policy into GMA.

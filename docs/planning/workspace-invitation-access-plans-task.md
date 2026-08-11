@@ -1,7 +1,9 @@
 # Workspace Invitation Access Plans Task
 
-Status: backend and deployed API proof complete; browser and delivery rehearsal pending
+Status: backend, deployed API, and Preview captured-delivery proof complete;
+browser and real-provider rehearsal pending
 Date: 2026-07-21
+Updated: 2026-08-11
 
 ## Goal
 
@@ -48,10 +50,11 @@ Local verification covers aggregate lifecycle and exact replay, owner and delega
 
 The root deployed invitation and QR enrollment verifiers now cover the public
 API boundary with separate identities, property isolation, approval/rejection,
-capacity, replay, and exact owner-visible access. Browser registration, enabled
-mail or external-provider delivery, redirect continuity, QR rendering, and
-deployment-controlled Worker restart remain the explicit root browser
-rehearsal gate.
+capacity, replay, and exact owner-visible access. The Preview rehearsal also
+proves captured verification delivery through private Mailpit on the hardened
+runtime. Browser registration and redirect continuity, QR rendering, enabled
+external-provider behavior, real-provider delivery, and deployment-controlled
+Worker restart remain the explicit root browser rehearsal gate.
 
 ## Not In This Slice
 
