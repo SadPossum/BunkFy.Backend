@@ -70,6 +70,7 @@
     <File Path="docs/planning/data-rights-operational-surface-hardening-task.md" />
     <File Path="docs/planning/data-rights-protected-export-artifacts-task.md" />
     <File Path="docs/planning/data-rights-restriction-execution-task.md" />
+    <File Path="docs/planning/data-rights-task-timeout-alignment-task.md" />
     <File Path="docs/planning/development-guidelines.md" />
     <File Path="docs/planning/durable-runtime-production-admission-task.md" />
     <File Path="docs/planning/ef-enum-default-sentinel-hardening-task.md" />

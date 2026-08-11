@@ -41,6 +41,9 @@ deterministically generated
   ordered PII-minimal work items before any owner module can be invoked;
 - durable, retry-safe worker dispatch invokes a versioned owner contributor,
   records the immutable owner proof and resumes safely after process failure;
+- bounded owner task registrations cover each two-minute module deadline plus
+  terminal persistence, while verification derives its outer worker boundary
+  from the existing 64-owner contract; short tasks retain the host fallback;
 - one terminal self-event per work item reconciles the case only after every
   selected owner has a durable result; all-success, all-unsuccessful and mixed
   batches become `Completed`, `Blocked` and `PartiallyCompleted` respectively;

@@ -142,6 +142,7 @@ Useful entry points:
 - [Data Rights Correction Execution Task](planning/data-rights-correction-execution-task.md)
 - [Data Rights Coordinator Mutation Serialization Task](planning/data-rights-coordinator-mutation-serialization-task.md)
 - [Data Rights Operational Surface Hardening Task](planning/data-rights-operational-surface-hardening-task.md)
+- [Data Rights Task Timeout Alignment Task](planning/data-rights-task-timeout-alignment-task.md)
 - [Data Rights Guest Response Deadline Policy Task](planning/data-rights-guest-response-deadline-policy-task.md)
 - [Operations Notifications Data Rights Deadline Alerts Task](planning/operations-notifications-data-rights-deadline-alerts-task.md)
 - [Automatic Retention Control Plane Task](planning/automatic-retention-control-plane-task.md)

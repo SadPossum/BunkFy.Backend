@@ -170,11 +170,17 @@ public static class DependencyInjection
         services.AddTaskHandler<
             ExecuteDataRightsAnonymisationPayload,
             ExecuteDataRightsAnonymisationTaskHandler>(
-                DataRightsModuleMetadata.Name);
+                DataRightsModuleMetadata.Name,
+                handlerTimeout:
+                    DataRightsTaskExecutionPolicy
+                        .AnonymisationOwnerHandlerTimeout);
         services.AddTaskHandler<
             ExecuteDataRightsAnonymisationPayloadV2,
             ExecuteDataRightsAnonymisationTaskV2Handler>(
-                DataRightsModuleMetadata.Name);
+                DataRightsModuleMetadata.Name,
+                handlerTimeout:
+                    DataRightsTaskExecutionPolicy
+                        .AnonymisationOwnerHandlerTimeout);
         services.AddTaskHandler<
             GenerateDataRightsExportPayload,
             GenerateDataRightsExportTaskHandler>(
@@ -186,15 +192,24 @@ public static class DependencyInjection
         services.AddTaskHandler<
             ExecuteTenantTerminationOwnerWorkPayload,
             ExecuteTenantTerminationOwnerWorkTaskHandler>(
-                DataRightsModuleMetadata.Name);
+                DataRightsModuleMetadata.Name,
+                handlerTimeout:
+                    DataRightsTaskExecutionPolicy
+                        .TenantTerminationOwnerHandlerTimeout);
         services.AddTaskHandler<
             ExecuteTenantTerminationExportOwnerWorkPayload,
             ExecuteTenantTerminationExportOwnerWorkTaskHandler>(
-                DataRightsModuleMetadata.Name);
+                DataRightsModuleMetadata.Name,
+                handlerTimeout:
+                    DataRightsTaskExecutionPolicy
+                        .TenantTerminationOwnerHandlerTimeout);
         services.AddTaskHandler<
             ExecuteGlobalTenantTerminationOwnerWorkPayload,
             ExecuteGlobalTenantTerminationOwnerWorkTaskHandler>(
-                DataRightsModuleMetadata.Name);
+                DataRightsModuleMetadata.Name,
+                handlerTimeout:
+                    DataRightsTaskExecutionPolicy
+                        .TenantTerminationOwnerHandlerTimeout);
         services.AddTaskHandler<
             GenerateTenantTerminationExportArtifactPayload,
             GenerateTenantTerminationExportArtifactTaskHandler>(
@@ -202,7 +217,10 @@ public static class DependencyInjection
         services.AddTaskHandler<
             VerifyTenantTerminationPayload,
             VerifyTenantTerminationTaskHandler>(
-                DataRightsModuleMetadata.Name);
+                DataRightsModuleMetadata.Name,
+                handlerTimeout:
+                    DataRightsTaskExecutionPolicy
+                        .TenantTerminationVerificationHandlerTimeout);
         services.AddTaskHandler<
             DispatchDataRightsResponseDeadlineAlertsPayload,
             DispatchDataRightsResponseDeadlineAlertsTaskHandler>(
