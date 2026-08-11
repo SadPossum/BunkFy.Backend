@@ -101,3 +101,12 @@ TaskRuntime/NATS composition, and exact Worker release identity. This closes the
 local topology-validation gap; actual approval references, replica evidence,
 restore drills, alert delivery, and target-environment activation remain
 deployment responsibilities.
+
+## 2026-08-11 Durable Runtime Revalidation
+
+- Framework implementation `cbe34c1` and TaskRuntime implementation `b8856c5` add exact message-size/discard bounds and observable journal/task-history lifecycle progress without introducing BunkFy policy into GMA.
+- Every long-running BunkFy host now declares finite `MaxMessageSize` and `DiscardPolicy` values, guarded by architecture tests.
+- Generic PostgreSQL/SQL Server journal-cleanup conformance moved from BunkFy to Skeleton; BunkFy retains only product runtime and ingestion behavior tests.
+- BunkFy's full non-Docker gate passes with a synchronized solution, zero build warnings/errors, clean migration drift, all module and extension suites, 102 architecture tests, and 60 integration tests.
+
+Production retention values, replay windows, broker replicas, connection pools, alert thresholds, and restore evidence remain deployment activation work rather than reusable-code gaps.
