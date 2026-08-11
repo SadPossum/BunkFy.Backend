@@ -147,6 +147,7 @@ Useful entry points:
 - [Automatic Retention Control Plane Task](planning/automatic-retention-control-plane-task.md)
 - [Retention Operational Surface Hardening Task](planning/retention-operational-surface-hardening-task.md)
 - [Retention Mutation Serialization Task](planning/retention-mutation-serialization-task.md)
+- [Retention Task Timeout Alignment Task](planning/retention-task-timeout-alignment-task.md)
 - [Tenant Termination Control Plane Task](planning/tenant-termination-control-plane-task.md)
 - [Tenant Termination Phase Ordering Task](planning/tenant-termination-phase-ordering-task.md)
 - [Tenant Termination Terminal Coordinator Task](planning/tenant-termination-terminal-coordinator-task.md)

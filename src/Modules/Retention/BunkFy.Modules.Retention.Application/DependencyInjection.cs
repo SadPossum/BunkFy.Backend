@@ -72,7 +72,8 @@ public static class DependencyInjection
         services.AddTaskHandler<
             ExecuteRetentionSchedulePayload,
             ExecuteRetentionScheduleTaskHandler>(
-                RetentionModuleMetadata.Name);
+                RetentionModuleMetadata.Name,
+                handlerTimeout: RetentionTaskExecutionPolicy.HandlerTimeout);
         services.TryAddEnumerable(
             ServiceDescriptor.Scoped<
                 ITaskScheduleProvider,

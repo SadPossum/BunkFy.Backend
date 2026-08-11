@@ -171,6 +171,7 @@
     <File Path="docs/planning/reservations-tenant-termination-owner-task.md" />
     <File Path="docs/planning/retention-mutation-serialization-task.md" />
     <File Path="docs/planning/retention-operational-surface-hardening-task.md" />
+    <File Path="docs/planning/retention-task-timeout-alignment-task.md" />
     <File Path="docs/planning/retention-tenant-termination-owner-task.md" />
     <File Path="docs/planning/secure-staff-enrollment-task.md" />
     <File Path="docs/planning/security-signals-and-incident-correlation-task.md" />

@@ -5,6 +5,8 @@ public static class RetentionExecutionContract
     public const int CurrentVersion = 1;
     public const int KeyMaxLength = 64;
     public const int OutcomeCodeMaxLength = 100;
+    public static TimeSpan MaximumContributorExecutionTimeout { get; } =
+        TimeSpan.FromHours(1);
 }
 
 public enum RetentionTargetScopeKind
@@ -50,7 +52,8 @@ public sealed record RetentionScheduleDescriptor
             : throw new ArgumentOutOfRangeException(nameof(maxAttempts));
         this.ExecutionTimeout = executionTimeout ?? TimeSpan.FromMinutes(5);
         if (this.ExecutionTimeout <= TimeSpan.Zero ||
-            this.ExecutionTimeout > TimeSpan.FromHours(1))
+            this.ExecutionTimeout >
+                RetentionExecutionContract.MaximumContributorExecutionTimeout)
         {
             throw new ArgumentOutOfRangeException(nameof(executionTimeout));
         }
