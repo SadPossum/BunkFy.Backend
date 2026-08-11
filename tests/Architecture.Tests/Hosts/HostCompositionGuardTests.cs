@@ -97,6 +97,7 @@ public sealed class HostCompositionGuardTests
             "options.CredentialManagementAssurance = privilegedOperationAssurance",
             "options.CheckpointResetAssurance = privilegedOperationAssurance",
             "options.IngressResumeAssurance = privilegedOperationAssurance",
+            "builder.Services.Configure<ReservationsApiSecurityOptions>",
             "builder.Services.Configure<GuestsApiSecurityOptions>",
             "builder.AddModule<AccessControlApiModule>();",
             "builder.Services.AddGmaTenantAccessControlAspNetCore();",
@@ -145,14 +146,23 @@ public sealed class HostCompositionGuardTests
 
         Assert.Empty(missing);
 
+        int reservationsSecurityStart = program.IndexOf(
+            "builder.Services.Configure<ReservationsApiSecurityOptions>",
+            StringComparison.Ordinal);
         int guestsSecurityStart = program.IndexOf(
             "builder.Services.Configure<GuestsApiSecurityOptions>",
             StringComparison.Ordinal);
         int dataRightsSecurityStart = program.IndexOf(
             "builder.Services.Configure<DataRightsApiSecurityOptions>",
             StringComparison.Ordinal);
-        Assert.True(guestsSecurityStart >= 0);
+        Assert.True(reservationsSecurityStart >= 0);
+        Assert.True(guestsSecurityStart > reservationsSecurityStart);
         Assert.True(dataRightsSecurityStart > guestsSecurityStart);
+        string reservationsSecurity = program[reservationsSecurityStart..guestsSecurityStart];
+        Assert.Contains(
+            "options.CorrectionExecutionAssurance = privilegedOperationAssurance",
+            reservationsSecurity,
+            StringComparison.Ordinal);
         string guestsSecurity = program[guestsSecurityStart..dataRightsSecurityStart];
         Assert.Contains(
             "options.CorrectionExecutionAssurance =",

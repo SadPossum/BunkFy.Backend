@@ -8,6 +8,8 @@ using Gma.Framework.Api.Tenancy;
 using Gma.Framework.Cqrs;
 using Gma.Framework.ModuleComposition;
 using Gma.Framework.Pagination;
+using Gma.Framework.Security;
+using Gma.Framework.Security.AspNetCore;
 using Gma.Framework.Tenancy.AccessControl.AspNetCore;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -15,6 +17,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using BunkFy.Modules.Reservations.Application;
 using BunkFy.Modules.Reservations.Application.Commands;
 using BunkFy.Modules.Reservations.Application.Queries;
@@ -29,6 +32,7 @@ public sealed class ReservationsModule : IModule
     public void AddServices(IHostApplicationBuilder builder)
     {
         builder.SelectModuleProfile(ReservationsProfiles.Default, "BunkFy.Modules.Reservations.Api");
+        builder.Services.AddOptions<ReservationsApiSecurityOptions>();
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Scoped<IAccessHttpScopeResolver, ReservationsPropertyAccessScopeResolver>());
         builder.Services.AddReservationsApplication();
@@ -37,6 +41,9 @@ public sealed class ReservationsModule : IModule
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
     {
+        ReservationsApiSecurityOptions security = endpoints.ServiceProvider
+            .GetRequiredService<IOptions<ReservationsApiSecurityOptions>>()
+            .Value;
         RouteGroupBuilder group = endpoints.MapGroup("/api/reservations/properties/{propertyId:guid}")
             .WithModuleName(this.Name)
             .WithTags("Reservations")
@@ -74,7 +81,7 @@ public sealed class ReservationsModule : IModule
                 ReservationsAdminPermissionCodes.Create,
                 ReservationsPropertyAccessScopeResolver.ResolverName);
 
-        group.MapPost("/data-rights-corrections", async (
+        RouteHandlerBuilder correction = group.MapPost("/data-rights-corrections", async (
             Guid propertyId,
             ReservationDataRightsCorrectionRequest request,
             HttpContext httpContext,
@@ -111,6 +118,9 @@ public sealed class ReservationsModule : IModule
             .RequireResolvedScopePermission(
                 DataRightsAdminPermissionCodes.Execute,
                 ReservationsPropertyAccessScopeResolver.ResolverName);
+        RequireAssuranceWhenConfigured(
+            correction,
+            security.CorrectionExecutionAssurance);
 
         group.MapGet("", async (
             Guid propertyId,
@@ -483,6 +493,13 @@ public sealed class ReservationsModule : IModule
         context.Response.Headers.Pragma = "no-cache";
         context.Response.Headers.Expires = "0";
     }
+
+    private static RouteHandlerBuilder RequireAssuranceWhenConfigured(
+        RouteHandlerBuilder endpoint,
+        AuthenticationAssuranceRequirement? requirement) =>
+        requirement is null
+            ? endpoint
+            : endpoint.RequireAuthenticationAssurance(requirement);
 
     private static string? ResolveActor(HttpContext context, IAccessHttpSubjectResolver subjectResolver)
     {
