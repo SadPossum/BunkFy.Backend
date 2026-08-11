@@ -34,6 +34,12 @@ public interface IReservationRepository
         Guid reservationId,
         CancellationToken cancellationToken) =>
         this.GetAsyncByReservationId(reservationId, cancellationToken);
+    Task<Reservation?> GetForCreationReplayByReservationIdAsync(
+        Guid reservationId,
+        CancellationToken cancellationToken) =>
+        this.GetForRequiredContinuationByReservationIdAsync(
+            reservationId,
+            cancellationToken);
     Task<Reservation?> GetByExternalSourceAsync(string sourceSystem, string sourceReference, CancellationToken cancellationToken);
     Task<bool> ExternalSourceExistsAsync(string sourceSystem, string sourceReference, CancellationToken cancellationToken);
     Task<ReservationListResponse> ListAsync(

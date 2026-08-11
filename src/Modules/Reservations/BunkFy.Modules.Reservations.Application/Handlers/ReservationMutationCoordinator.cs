@@ -23,7 +23,7 @@ internal sealed class ReservationMutationCoordinator(
             operationId,
             cancellationToken).ConfigureAwait(false);
         Reservation? existing = await reservations
-            .GetForRequiredContinuationByReservationIdAsync(
+            .GetForCreationReplayByReservationIdAsync(
                 operationId,
                 cancellationToken)
             .ConfigureAwait(false);

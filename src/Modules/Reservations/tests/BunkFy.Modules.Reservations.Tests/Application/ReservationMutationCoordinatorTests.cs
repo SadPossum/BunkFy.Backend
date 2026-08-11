@@ -27,7 +27,7 @@ public sealed class ReservationMutationCoordinatorTests
             CancellationToken.None);
 
         Assert.Same(reservation, result);
-        Assert.Equal(["coordinate-lock", "creation-read"], calls);
+        Assert.Equal(["coordinate-lock", "creation-replay-read"], calls);
     }
 
     [Fact]
@@ -271,9 +271,15 @@ public sealed class ReservationMutationCoordinatorTests
         public Task<Reservation?>
             GetForRequiredContinuationByReservationIdAsync(
             Guid reservationId,
+            CancellationToken cancellationToken) =>
+            throw new InvalidOperationException(
+                "Creation replay must use its narrow repository path.");
+
+        public Task<Reservation?> GetForCreationReplayByReservationIdAsync(
+            Guid reservationId,
             CancellationToken cancellationToken)
         {
-            calls.Add("creation-read");
+            calls.Add("creation-replay-read");
             return this.GetAsyncByReservationId(
                 reservationId,
                 cancellationToken);

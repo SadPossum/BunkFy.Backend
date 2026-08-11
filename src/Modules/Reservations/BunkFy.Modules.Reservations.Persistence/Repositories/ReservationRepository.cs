@@ -57,8 +57,7 @@ internal sealed class ReservationRepository(
         Guid reservationId,
         CancellationToken cancellationToken) =>
         this.OrdinaryReservations()
-            .Include(reservation => reservation.RequestedUnits)
-            .Include(reservation => reservation.Guests)
+            .WithAggregateGraph()
             .FirstOrDefaultAsync(
                 reservation => reservation.Id == reservationId && reservation.PropertyId == propertyId,
                 cancellationToken);
@@ -78,8 +77,7 @@ internal sealed class ReservationRepository(
         Guid reservationId,
         CancellationToken cancellationToken) =>
         dbContext.Reservations
-            .Include(reservation => reservation.RequestedUnits)
-            .Include(reservation => reservation.Guests)
+            .WithAggregateGraph()
             .FirstOrDefaultAsync(
                 reservation =>
                     reservation.Id == reservationId &&
@@ -91,8 +89,7 @@ internal sealed class ReservationRepository(
         Guid reservationId,
         CancellationToken cancellationToken) =>
         dbContext.Reservations
-            .Include(reservation => reservation.RequestedUnits)
-            .Include(reservation => reservation.Guests)
+            .WithAggregateGraph()
             .FirstOrDefaultAsync(
                 reservation =>
                     reservation.Id == reservationId &&
@@ -103,8 +100,7 @@ internal sealed class ReservationRepository(
         Guid reservationId,
         CancellationToken cancellationToken) =>
         this.OrdinaryReservations()
-            .Include(reservation => reservation.RequestedUnits)
-            .Include(reservation => reservation.Guests)
+            .WithAggregateGraph()
             .FirstOrDefaultAsync(
                 reservation => reservation.Id == reservationId,
                 cancellationToken);
@@ -113,8 +109,14 @@ internal sealed class ReservationRepository(
         Guid reservationId,
         CancellationToken cancellationToken) =>
         dbContext.Reservations
-            .Include(reservation => reservation.RequestedUnits)
-            .Include(reservation => reservation.Guests)
+            .WithAggregateGraph()
+            .FirstOrDefaultAsync(reservation => reservation.Id == reservationId, cancellationToken);
+
+    public Task<Reservation?> GetForCreationReplayByReservationIdAsync(
+        Guid reservationId,
+        CancellationToken cancellationToken) =>
+        dbContext.Reservations
+            .WithCreationReplayGraph()
             .FirstOrDefaultAsync(reservation => reservation.Id == reservationId, cancellationToken);
 
     public Task<Reservation?> GetByExternalSourceAsync(
@@ -122,8 +124,7 @@ internal sealed class ReservationRepository(
         string sourceReference,
         CancellationToken cancellationToken) =>
         dbContext.Reservations
-            .Include(reservation => reservation.RequestedUnits)
-            .Include(reservation => reservation.Guests)
+            .WithAggregateGraph()
             .FirstOrDefaultAsync(
                 reservation => !reservation.IsAnonymised &&
                                reservation.SourceSystem == sourceSystem &&
