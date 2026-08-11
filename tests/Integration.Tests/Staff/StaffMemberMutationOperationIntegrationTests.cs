@@ -163,7 +163,6 @@ public sealed class StaffMemberMutationOperationIntegrationTests
                 "EMP-42",
                 "Manager",
                 "Operations",
-                null,
                 "user:operator")).ConfigureAwait(false);
         Assert.True(created.IsSuccess, created.Error.Code);
 
@@ -873,7 +872,6 @@ public sealed class StaffMemberMutationOperationIntegrationTests
                 "Outbox Rollback",
                 null,
                 "rollback@example.test",
-                null,
                 null,
                 null,
                 null,

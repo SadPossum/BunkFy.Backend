@@ -9,10 +9,14 @@ internal static class StaffMemberUniqueness
         string? employeeNumber, string? authSubjectId, Guid? exceptStaffMemberId,
         CancellationToken cancellationToken)
     {
-        if (!string.IsNullOrWhiteSpace(employeeNumber) && await members.EmployeeNumberExistsAsync(
-            employeeNumber.Trim(), exceptStaffMemberId, cancellationToken).ConfigureAwait(false))
+        Result employeeNumberUnique = await EnsureEmployeeNumberAsync(
+            members,
+            employeeNumber,
+            exceptStaffMemberId,
+            cancellationToken).ConfigureAwait(false);
+        if (employeeNumberUnique.IsFailure)
         {
-            return Result.Failure(StaffApplicationErrors.EmployeeNumberConflict);
+            return employeeNumberUnique;
         }
 
         return await EnsureAuthSubjectAsync(
@@ -20,6 +24,21 @@ internal static class StaffMemberUniqueness
             authSubjectId,
             exceptStaffMemberId,
             cancellationToken).ConfigureAwait(false);
+    }
+
+    public static async Task<Result> EnsureEmployeeNumberAsync(
+        IStaffMemberRepository members,
+        string? employeeNumber,
+        Guid? exceptStaffMemberId,
+        CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrWhiteSpace(employeeNumber) && await members.EmployeeNumberExistsAsync(
+            employeeNumber.Trim(), exceptStaffMemberId, cancellationToken).ConfigureAwait(false))
+        {
+            return Result.Failure(StaffApplicationErrors.EmployeeNumberConflict);
+        }
+
+        return Result.Success();
     }
 
     public static async Task<Result> EnsureAuthSubjectAsync(

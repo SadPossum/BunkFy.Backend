@@ -37,24 +37,21 @@ public sealed class StaffCommandHandlerTests
     }
 
     [Fact]
-    public async Task Create_rejects_duplicate_employee_number_or_auth_subject_before_adding()
+    public async Task Create_rejects_duplicate_employee_number_before_adding()
     {
         FakeStaffMemberRepository members = new()
         {
-            ExistingEmployeeNumber = "EMP-100",
-            ExistingAuthSubjectId = "user-100"
+            ExistingEmployeeNumber = "EMP-100"
         };
         using ServiceProvider provider = CreateProvider(members, new FakePropertyProjectionRepository());
         ICommandHandler<CreateStaffMemberCommand, StaffDirectoryMemberDto> handler = provider
             .GetRequiredService<ICommandHandler<CreateStaffMemberCommand, StaffDirectoryMemberDto>>();
 
         Result<StaffDirectoryMemberDto> employeeConflict = await handler.HandleAsync(
-            CreateCommand(employeeNumber: " EMP-100 ", authSubjectId: null), CancellationToken.None);
-        Result<StaffDirectoryMemberDto> subjectConflict = await handler.HandleAsync(
-            CreateCommand(employeeNumber: null, authSubjectId: " user-100 "), CancellationToken.None);
+            CreateCommand(employeeNumber: " EMP-100 "), CancellationToken.None);
 
         Assert.Equal(StaffApplicationErrors.EmployeeNumberConflict, employeeConflict.Error);
-        Assert.Equal(StaffApplicationErrors.AuthSubjectConflict, subjectConflict.Error);
+        Assert.Equal(0, members.AuthSubjectExistsCount);
         Assert.Null(members.AddedMember);
     }
 
@@ -75,8 +72,7 @@ public sealed class StaffCommandHandlerTests
             operationId,
             displayName: " Ada Operator ",
             workEmail: " ADA@EXAMPLE.TEST ",
-            employeeNumber: " EMP-100 ",
-            authSubjectId: " user-100 ");
+            employeeNumber: " EMP-100 ");
         int eventCount = existing.DomainEvents.Count;
 
         Result<StaffDirectoryMemberDto> result = await handler.HandleAsync(
@@ -158,6 +154,8 @@ public sealed class StaffCommandHandlerTests
         Assert.Equal("operational-read", calls[1]);
         Assert.Equal("safety-read", calls[2]);
         Assert.Equal(operationId, members.AddedMember?.Id);
+        Assert.Null(members.AddedMember?.AuthSubjectId);
+        Assert.Equal(0, members.AuthSubjectExistsCount);
     }
 
     [Fact]
@@ -2228,10 +2226,9 @@ public sealed class StaffCommandHandlerTests
         Guid? operationId = null,
         string displayName = "Ada Operator",
         string workEmail = "ada@example.test",
-        string? employeeNumber = "EMP-100",
-        string? authSubjectId = "user-100") => new(
+        string? employeeNumber = "EMP-100") => new(
         operationId ?? Guid.NewGuid(), displayName, null, workEmail, null, employeeNumber,
-        "Manager", "Operations", authSubjectId, "user:owner");
+        "Manager", "Operations", "user:owner");
 
     private static UpdateStaffMemberCommand UpdateCommand(
         StaffMember member,
@@ -2271,7 +2268,7 @@ public sealed class StaffCommandHandlerTests
         "EMP-100",
         "Manager",
         "Operations",
-        "user-100",
+        authSubjectId: null,
         "user:original-owner",
         Guid.NewGuid(),
         TestClock.Now).Value;

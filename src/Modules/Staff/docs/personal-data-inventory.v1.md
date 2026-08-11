@@ -1,4 +1,4 @@
-# staff Personal-Data Inventory v18
+# staff Personal-Data Inventory v19
 
 Generated from `staff.personal-data` schema v1.
 Catalogue approval: `engineering-default`.
@@ -400,11 +400,8 @@ Engineering metadata is not legal or country-launch approval.
 | staff.audit-actor-id | BunkFy.Modules.Staff.Domain | BunkFy.Modules.Staff.Domain.Entities.StaffPropertyAssignment | AssignedBy | persistence | staff-profile-lifecycle |
 | staff.audit-actor-id | BunkFy.Modules.Staff.Domain | BunkFy.Modules.Staff.Domain.Entities.StaffPropertyAssignment | UnassignedBy | persistence | staff-profile-lifecycle |
 | staff.auth-subject-id | BunkFy.Modules.Staff.AdminApi | BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffAuthSubjectRequest | AuthSubjectId | admin-input | transient-request |
-| staff.auth-subject-id | BunkFy.Modules.Staff.AdminApi | BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffProfileWriteRequest | AuthSubjectId | admin-input | transient-request |
 | staff.auth-subject-id | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffAuthSubjectRequest | AuthSubjectId | api-input | transient-request |
-| staff.auth-subject-id | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffProfileWriteRequest | AuthSubjectId | api-input | transient-request |
 | staff.auth-subject-id | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.BootstrapStaffIdentityCommand | AuthSubjectId | application-command | transient-request |
-| staff.auth-subject-id | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.CreateStaffMemberCommand | AuthSubjectId | application-command | transient-request |
 | staff.auth-subject-id | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.ProvisionStaffOnboardingCommand | AuthSubjectId | application-command | transient-request |
 | staff.auth-subject-id | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.SetStaffAuthSubjectCommand | AuthSubjectId | application-command | transient-request |
 | staff.auth-subject-id | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.UpdateCurrentStaffMemberCommand | AuthSubjectId | application-command | transient-request |

@@ -95,8 +95,7 @@ public sealed class StaffAdminCliModule : IAdminCliModule
                     parse.GetRequiredValue(options.DisplayName), parse.GetValue(options.LegalName),
                     parse.GetValue(options.Email), parse.GetValue(options.Phone),
                     parse.GetValue(options.EmployeeNumber), parse.GetValue(options.JobTitle),
-                    parse.GetValue(options.Department), parse.GetValue(options.AuthSubject),
-                    Actor(parse, global)), ct), token));
+                    parse.GetValue(options.Department), Actor(parse, global)), ct), token));
         return command;
     }
 
@@ -355,7 +354,6 @@ public sealed class StaffAdminCliModule : IAdminCliModule
         public Option<string?> EmployeeNumber { get; } = new("--employee-number");
         public Option<string?> JobTitle { get; } = new("--job-title");
         public Option<string?> Department { get; } = new("--department");
-        public Option<string?> AuthSubject { get; } = new("--auth-subject-id");
         public Option<long> Version { get; } = VersionOption();
 
         public void AddTo(Command command, bool includeVersion)
@@ -367,7 +365,6 @@ public sealed class StaffAdminCliModule : IAdminCliModule
             command.Options.Add(this.EmployeeNumber);
             command.Options.Add(this.JobTitle);
             command.Options.Add(this.Department);
-            command.Options.Add(this.AuthSubject);
             if (includeVersion)
             {
                 command.Options.Add(this.Version);

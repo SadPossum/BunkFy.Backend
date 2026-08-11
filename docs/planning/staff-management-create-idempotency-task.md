@@ -54,9 +54,11 @@ tenant admission.
    part of request equivalence and replay never rewrites original attribution.
 7. A processing-restricted or anonymized coordinate remains non-disclosing and
    cannot be reused to create a second profile.
-8. Existing employee-number and authentication-subject uniqueness rules remain
-   tenant scoped. Concurrent conflicting creates converge to their existing
-   semantic conflict rather than leaking a persistence exception.
+8. Manual creation is unlinked and evaluates only tenant-scoped employee-number
+   uniqueness. The later
+   [account-link authority contract](staff-manual-create-account-link-authority-task.md)
+   reserves Auth-subject correlation for its dedicated mutation and trusted
+   onboarding/bootstrap paths.
 
 ## Surfaces
 
@@ -67,6 +69,8 @@ tenant admission.
 - Keep one operation id for an unchanged web create-form attempt; allocate a
   new id when the normalized profile changes or the attempt succeeds or is
   abandoned.
+- Keep Auth-subject input out of manual create surfaces; account correlation is
+  a separate expected-version operation.
 - Map operation-reuse conflicts to HTTP 409 on public and administrative HTTP
   surfaces.
 - Regenerate OpenAPI and web contracts after the backend contract settles.
@@ -113,6 +117,8 @@ tenant admission.
 - Profile updates and authentication-subject changes are completed in
   `staff-profile-update-idempotency-task.md` and
   `staff-auth-subject-idempotency-task.md`.
+- Manual creation was separated from account-link authority in
+  `staff-manual-create-account-link-authority-task.md`.
 - Give employment lifecycle and property-assignment commands durable operation
   identities and replay receipts in later Staff slices.
 - Do not generalize Staff-specific equivalence, visibility, or operation

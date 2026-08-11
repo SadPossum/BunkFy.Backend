@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "staff.personal-data",
-  "catalogVersion": 18,
+  "catalogVersion": 19,
   "module": "staff",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -2529,31 +2529,10 @@
           "retentionPolicy": "transient-request"
         },
         {
-          "assembly": "BunkFy.Modules.Staff.AdminApi",
-          "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffProfileWriteRequest",
-          "member": "AuthSubjectId",
-          "surface": "admin-input",
-          "retentionPolicy": "transient-request"
-        },
-        {
           "assembly": "BunkFy.Modules.Staff.Api",
           "type": "BunkFy.Modules.Staff.Api.Requests.StaffAuthSubjectRequest",
           "member": "AuthSubjectId",
           "surface": "api-input",
-          "retentionPolicy": "transient-request"
-        },
-        {
-          "assembly": "BunkFy.Modules.Staff.Api",
-          "type": "BunkFy.Modules.Staff.Api.Requests.StaffProfileWriteRequest",
-          "member": "AuthSubjectId",
-          "surface": "api-input",
-          "retentionPolicy": "transient-request"
-        },
-        {
-          "assembly": "BunkFy.Modules.Staff.Application",
-          "type": "BunkFy.Modules.Staff.Application.Commands.CreateStaffMemberCommand",
-          "member": "AuthSubjectId",
-          "surface": "application-command",
           "retentionPolicy": "transient-request"
         },
         {

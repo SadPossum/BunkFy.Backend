@@ -60,7 +60,7 @@ public sealed class StaffAdminApiModule : IAdminApiModule
                 ct => dispatcher.SendAsync(new CreateStaffMemberCommand(request.OperationId,
                     request.DisplayName, request.LegalName, request.WorkEmail, request.WorkPhone,
                     request.EmployeeNumber, request.JobTitle, request.Department,
-                    request.AuthSubjectId, Actor(context)), ct),
+                    Actor(context)), ct),
                 token, errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false);
         }).Produces<StaffDirectoryMemberDto>(StatusCodes.Status200OK);
         group.MapPut("/{staffMemberId:guid}", async (Guid staffMemberId, StaffProfileUpdateRequest request,
@@ -145,7 +145,7 @@ public sealed class StaffAdminApiModule : IAdminApiModule
 
     public sealed record StaffProfileWriteRequest(Guid OperationId, string DisplayName, string? LegalName,
         string? WorkEmail, string? WorkPhone, string? EmployeeNumber, string? JobTitle,
-        string? Department, string? AuthSubjectId);
+        string? Department);
     public sealed record StaffProfileUpdateRequest(Guid OperationId, string DisplayName, string? LegalName,
         string? WorkEmail, string? WorkPhone, string? EmployeeNumber, string? JobTitle,
         string? Department, long ExpectedVersion);

@@ -49,7 +49,7 @@ internal static class StaffMemberEndpoints
         {
             return (await dispatcher.SendAsync(new CreateStaffMemberCommand(request.OperationId,
                 request.DisplayName, request.LegalName, request.WorkEmail, request.WorkPhone,
-                request.EmployeeNumber, request.JobTitle, request.Department, request.AuthSubjectId,
+                request.EmployeeNumber, request.JobTitle, request.Department,
                 StaffApiEndpointSupport.ResolveActor(context, subjects)), token)
                 .ConfigureAwait(false)).ToHttpResult(StaffApiEndpointSupport.ErrorStatusCodes);
         }).Produces<StaffDirectoryMemberDto>(StatusCodes.Status200OK)

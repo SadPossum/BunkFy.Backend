@@ -20,7 +20,7 @@ internal sealed class CreateStaffMemberCommandValidator : ICommandValidator<Crea
                      command.EmployeeNumber,
                      command.JobTitle,
                      command.Department,
-                     command.AuthSubjectId,
+                     authSubjectId: null,
                      version: null,
                      command.ActorId))
         {

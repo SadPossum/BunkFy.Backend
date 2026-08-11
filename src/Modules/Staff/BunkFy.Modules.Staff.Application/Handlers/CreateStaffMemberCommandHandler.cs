@@ -41,7 +41,7 @@ internal sealed class CreateStaffMemberCommandHandler(
             command.EmployeeNumber,
             command.JobTitle,
             command.Department,
-            command.AuthSubjectId);
+            authSubjectId: null);
         if (profile.IsFailure)
         {
             return Result.Failure<StaffDirectoryMemberDto>(profile.Error);
@@ -77,8 +77,11 @@ internal sealed class CreateStaffMemberCommandHandler(
                 StaffApplicationErrors.StaffMemberNotFound);
         }
 
-        Result uniqueness = await StaffMemberUniqueness.EnsureAsync(members, command.EmployeeNumber,
-            command.AuthSubjectId, null, cancellationToken).ConfigureAwait(false);
+        Result uniqueness = await StaffMemberUniqueness.EnsureEmployeeNumberAsync(
+            members,
+            command.EmployeeNumber,
+            exceptStaffMemberId: null,
+            cancellationToken).ConfigureAwait(false);
         if (uniqueness.IsFailure)
         {
             return Result.Failure<StaffDirectoryMemberDto>(uniqueness.Error);
@@ -94,7 +97,7 @@ internal sealed class CreateStaffMemberCommandHandler(
             profile.Value.EmployeeNumber,
             profile.Value.JobTitle,
             profile.Value.Department,
-            profile.Value.AuthSubjectId,
+            authSubjectId: null,
             actor.Value.Value,
             ids.NewId(),
             clock.UtcNow);

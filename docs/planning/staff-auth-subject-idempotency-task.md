@@ -82,6 +82,9 @@ fails closed. Direct replacement is now rejected by the later
   receipt is accepted.
 - The later transition-safety slice constrains which new operations are valid;
   exact receipts created under this contract retain their replay semantics.
+- The later manual-create authority slice removes Auth-subject correlation from
+  management creation, leaving this dedicated mutation as the only operator
+  account-link path.
 
 ## Verification
 

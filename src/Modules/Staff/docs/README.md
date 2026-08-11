@@ -23,6 +23,11 @@ can deny the old subject's access, clear the link while suspended, resume the
 unlinked profile, and then link the new subject. Linking the new subject does
 not copy or grant membership, roles, or permissions.
 
+Manual management creation always produces an unlinked profile. Operators use
+the dedicated account-link mutation afterward; only workspace onboarding and
+owner identity bootstrap may correlate their already-authorized subject while
+creating or reconciling a profile.
+
 ## Permissions
 
 - `staff.read`

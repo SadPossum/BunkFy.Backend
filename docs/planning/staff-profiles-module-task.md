@@ -39,7 +39,7 @@ The initial `StaffMember` aggregate is tenant scoped and has:
 
 Employee number, work email, and work phone are not global identities. Employee number may be tenant-unique when present, but contact values must not be used for automatic identity matching. A departed profile remains a durable historical record and cannot be reactivated in the first slice. Suspension is reversible through an explicit resume operation.
 
-The Auth user link may be attached or removed through an expected-version command. A linked active profile must first be suspended so Workspaces can deny the old subject's access; the link may then be cleared while suspended, and a new subject may be linked only after the unlinked profile is resumed. Direct replacement is rejected. Because linking cannot grant permissions and Auth intentionally has separate ownership, Staff does not reach into Auth persistence or require synchronous Auth availability. Access for a newly linked account is provisioned separately through Workspaces and AccessControl.
+The Auth user link may be attached or removed through an expected-version command. Manual management creation always starts unlinked; workspace onboarding and owner identity bootstrap retain separate trusted correlation contracts. A linked active profile must first be suspended so Workspaces can deny the old subject's access; the link may then be cleared while suspended, and a new subject may be linked only after the unlinked profile is resumed. Direct replacement is rejected. Because linking cannot grant permissions and Auth intentionally has separate ownership, Staff does not reach into Auth persistence or require synchronous Auth availability. Access for a newly linked account is provisioned separately through Workspaces and AccessControl.
 
 ## Property Assignments
 
@@ -64,7 +64,7 @@ Property-scoped reads return only staff with a current assignment at that proper
 Public management API, Admin API, and Admin CLI use the same application commands and queries. Initial permissions are operation specific:
 
 - `staff.read` for scoped profile and assignment reads;
-- `staff.create` for creating a tenant staff profile;
+- `staff.create` for creating an unlinked tenant staff profile;
 - `staff.manage` for profile edits and Auth-link changes;
 - `staff.assign-properties` for property assignment changes;
 - `staff.manage-lifecycle` for suspend, resume, and departure operations.
@@ -151,7 +151,8 @@ model is not an erasure workflow.
 - structured departments, positions, teams, reporting lines, and organization charts;
 - approval chains, delegation, temporary elevation, and break-glass workflows;
 - bulk imports, HR integrations, merge/split, and employee-number reuse policy;
-- automated Auth disablement or AccessControl revocation on suspension/departure;
+- richer account-transfer and access-provisioning workflows beyond the current
+  explicit Workspaces lifecycle coordination;
 - future-dated assignment and departure scheduling with property-local business dates.
 
 ## Completion Criterion

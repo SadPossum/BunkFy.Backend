@@ -8,6 +8,7 @@ using BunkFy.Modules.Staff.AdminCli;
 using BunkFy.Modules.Staff.Api;
 using BunkFy.Modules.Staff.Api.Requests;
 using BunkFy.Modules.Staff.Application;
+using BunkFy.Modules.Staff.Application.Commands;
 using BunkFy.Modules.Staff.Contracts;
 using Gma.Framework.AccessControl;
 using Gma.Framework.AccessControl.AspNetCore;
@@ -72,6 +73,25 @@ public sealed class StaffApiSecurityTests
         Assert.NotNull(request.GetProperty("Department"));
     }
 
+    [Theory]
+    [InlineData(typeof(StaffProfileWriteRequest))]
+    [InlineData(typeof(StaffAdminApiModule.StaffProfileWriteRequest))]
+    [InlineData(typeof(CreateStaffMemberCommand))]
+    public void Manual_staff_creation_excludes_auth_subject_correlation(
+        Type createType) =>
+        Assert.Null(createType.GetProperty("AuthSubjectId"));
+
+    [Theory]
+    [InlineData(typeof(ProvisionStaffOnboardingCommand))]
+    [InlineData(typeof(BootstrapStaffIdentityCommand))]
+    [InlineData(typeof(StaffOnboardingProvisioningRequest))]
+    [InlineData(typeof(StaffIdentityBootstrapRequest))]
+    public void Trusted_identity_paths_retain_explicit_auth_subject_correlation(
+        Type trustedType) =>
+        Assert.Equal(
+            typeof(string),
+            trustedType.GetProperty("AuthSubjectId")?.PropertyType);
+
     [Fact]
     public void Unsafe_account_link_transitions_are_http_conflicts()
     {
@@ -127,6 +147,13 @@ public sealed class StaffApiSecurityTests
             "--operation-id",
             "73000000-0000-0000-0000-000000000001"
         ]).Errors);
+        Assert.NotEmpty(root.Parse([
+            .. command,
+            "--operation-id",
+            "73000000-0000-0000-0000-000000000001",
+            "--auth-subject-id",
+            "account-maya"
+        ]).Errors);
     }
 
     [Fact]
@@ -158,6 +185,13 @@ public sealed class StaffApiSecurityTests
             .. command,
             "--operation-id",
             "73000000-0000-0000-0000-000000000003"
+        ]).Errors);
+        Assert.NotEmpty(root.Parse([
+            .. command,
+            "--operation-id",
+            "73000000-0000-0000-0000-000000000003",
+            "--auth-subject-id",
+            "account-maya"
         ]).Errors);
     }
 
@@ -294,6 +328,11 @@ public sealed class StaffApiSecurityTests
         const string member = "/api/staff/members/{staffMemberId:guid}";
 
         AssertPermissions(endpoints, HttpMethods.Get, member, StaffAdminPermissionCodes.Read);
+        AssertPermissions(
+            endpoints,
+            HttpMethods.Post,
+            "/api/staff/members",
+            StaffAdminPermissionCodes.Create);
         AssertPermissions(
             endpoints,
             HttpMethods.Get,
