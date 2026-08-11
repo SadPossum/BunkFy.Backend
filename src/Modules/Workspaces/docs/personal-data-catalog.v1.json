@@ -64,11 +64,11 @@
       "id": "workspaces-join-source",
       "scope": "tenant-staff-join-source-management",
       "readers": [
-        "permission:staff.manage",
+        "permission:workspaces.staff-onboarding.manage",
         "system:workspaces-onboarding"
       ],
       "writers": [
-        "permission:staff.manage",
+        "permission:workspaces.staff-onboarding.manage",
         "system:workspaces-onboarding"
       ]
     },
@@ -77,13 +77,13 @@
       "scope": "tenant-onboarding-self-or-manager",
       "readers": [
         "permission:data-rights.execute",
-        "permission:staff.manage",
+        "permission:workspaces.staff-onboarding.manage",
         "subject:self",
         "system:workspaces-onboarding"
       ],
       "writers": [
         "permission:data-rights.execute",
-        "permission:staff.manage",
+        "permission:workspaces.staff-onboarding.manage",
         "subject:self",
         "system:workspaces-onboarding"
       ]
@@ -93,14 +93,13 @@
       "scope": "tenant-sensitive-onboarding",
       "readers": [
         "permission:data-rights.execute",
-        "permission:staff.manage",
-        "permission:staff.sensitive-profile.read",
+        "permission:workspaces.staff-onboarding.manage",
         "subject:self",
         "system:workspaces-onboarding"
       ],
       "writers": [
         "permission:data-rights.execute",
-        "permission:staff.manage",
+        "permission:workspaces.staff-onboarding.manage",
         "subject:self",
         "system:workspaces-onboarding"
       ]

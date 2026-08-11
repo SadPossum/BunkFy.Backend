@@ -95,6 +95,7 @@ Useful entry points:
 - [Workspace Staff Access Lifecycle Task](planning/workspace-staff-access-lifecycle-task.md)
 - [Workspace Staff Access Mutation Serialization Task](planning/workspace-staff-access-mutation-serialization-task.md)
 - [Workspace Staff Onboarding Source Mutation Serialization Task](planning/workspace-staff-onboarding-source-mutation-serialization-task.md)
+- [Workspace Staff-Onboarding Authorization Task](planning/workspace-staff-onboarding-authorization-task.md)
 - [Workspaces Cross-Graph Correlation Mutation Serialization Task](planning/workspaces-cross-graph-correlation-mutation-serialization-task.md)
 - [Workspaces Natural Expiry Consumer Task](planning/workspaces-natural-expiry-consumer-task.md)
 - [Workspace Staff Onboarding Staging Retention Task](planning/workspace-staff-onboarding-staging-retention-task.md)

@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 
 public sealed class WorkspacesModule : IModule
 {
@@ -25,6 +26,7 @@ public sealed class WorkspacesModule : IModule
             builder.Configuration,
             globalAuthScopeId);
         builder.AddWorkspacesPersistence();
+        builder.Services.AddOptions<WorkspacesApiSecurityOptions>();
         builder.Services.TryAddEnumerable(ServiceDescriptor.Scoped<
             ITenantEndpointAccessPolicy,
             WorkspaceTerminationEndpointAccessPolicy>());
@@ -32,8 +34,14 @@ public sealed class WorkspacesModule : IModule
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
     {
+        WorkspacesApiSecurityOptions security = endpoints.ServiceProvider
+            .GetRequiredService<IOptions<WorkspacesApiSecurityOptions>>()
+            .Value;
         WorkspaceAccessManagementEndpoints.Map(endpoints, this.Name);
-        WorkspaceStaffOnboardingEndpoints.Map(endpoints, this.Name);
+        WorkspaceStaffOnboardingEndpoints.Map(
+            endpoints,
+            this.Name,
+            security);
         WorkspaceStaffOnboardingDataRightsEndpoints.Map(
             endpoints,
             this.Name);

@@ -1,11 +1,11 @@
 namespace BunkFy.Modules.Workspaces.Application;
 
-using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Workspaces.Application.Ports;
 using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Domain;
 using Gma.Framework.AccessControl;
 using Gma.Framework.Permissions;
+using Gma.Modules.AccessControl.Contracts;
 using Gma.Modules.Organizations.Contracts;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -46,16 +46,28 @@ internal sealed class WorkspaceOrganizationJoinSourceAuthorizationPolicy(
                 : OrganizationJoinSourceAuthorizationDecision.Unavailable;
         }
 
-        AccessDecision access = await services
+        AccessSubject subject = AccessSubject.User(context.SubjectId);
+        AccessScope scope = WorkspaceAccessScopes.Create(
+            context.OrganizationId.ToString("D"));
+        AccessRequirement[] requirements =
+        [
+            new AccessRequirement(
+                subject,
+                PermissionCode.Create(
+                    WorkspacesPermissionCodes.StaffOnboardingManage),
+                scope),
+            new AccessRequirement(
+                subject,
+                PermissionCode.Create(
+                    AccessControlProfilePermissionCodes.Read),
+                scope)
+        ];
+        IReadOnlyList<AccessDecision> access = await services
             .GetRequiredService<IAccessAuthorizationService>()
-            .AuthorizeAsync(
-                new AccessRequirement(
-                    AccessSubject.User(context.SubjectId),
-                    PermissionCode.Create(StaffAdminPermissionCodes.Manage),
-                    WorkspaceAccessScopes.Create(
-                        context.OrganizationId.ToString("D"))),
-                cancellationToken).ConfigureAwait(false);
-        if (!access.IsAllowed)
+            .AuthorizeManyAsync(requirements, cancellationToken)
+            .ConfigureAwait(false);
+        if (access.Count != requirements.Length ||
+            access.Any(decision => !decision.IsAllowed))
         {
             return OrganizationJoinSourceAuthorizationDecision.Denied;
         }

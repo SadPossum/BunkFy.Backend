@@ -6,6 +6,14 @@ access plans, and recoverable access-lifecycle processes; it does not take
 ownership of organization claims, Auth identities, access profiles, properties,
 or durable Staff profiles.
 
+Operator onboarding surfaces require the Workspaces-owned
+`workspaces.staff-onboarding.manage` capability together with
+`access-control.profiles.read`, because source plans select a server-owned
+access profile. Product mutations also require the host's configured
+privileged-operation assurance. Applicant submission and own-status reads stay
+subject-bound self-service flows, while Administration-only access-process
+repair remains a separate recovery authority.
+
 The executable [`personal-data-catalog.v1.json`](personal-data-catalog.v1.json)
 classifies Workspaces persistence, public/application boundaries, one-time join
 tokens, and the person-linked Organizations and Staff events consumed by this

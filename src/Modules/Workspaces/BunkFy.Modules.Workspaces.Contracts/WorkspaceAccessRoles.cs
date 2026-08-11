@@ -47,6 +47,7 @@ public static class WorkspaceAccessRoles
         AccessControlProfilePermissionCodes.Read,
         AccessControlProfilePermissionCodes.Manage,
         AccessControlProfilePermissionCodes.Assign,
+        WorkspacesPermissionCodes.StaffOnboardingManage,
         PropertiesAdminPermissionCodes.Read,
         PropertiesAdminPermissionCodes.PropertiesManage,
         PropertiesAdminPermissionCodes.RoomsManage,
@@ -117,6 +118,7 @@ public static class WorkspaceAccessRoles
             [
                 AccessControlProfilePermissionCodes.Manage,
                 AccessControlProfilePermissionCodes.Assign,
+                WorkspacesPermissionCodes.StaffOnboardingManage,
                 GuestsAdminPermissionCodes.Archive,
                 GuestsAdminPermissionCodes.DataHoldsManage,
                 StaffAdminPermissionCodes.SensitiveProfileRead,

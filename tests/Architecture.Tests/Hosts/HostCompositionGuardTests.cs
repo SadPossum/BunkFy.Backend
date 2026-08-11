@@ -90,6 +90,7 @@ public sealed class HostCompositionGuardTests
             "builder.Services.AddAccessProfilePermissionAllowlist(WorkspaceAccessRoles.DelegablePermissions);",
             "options => options.ProfileManagementAssurance = privilegedOperationAssurance",
             "options => options.GovernanceOperationsAssurance = privilegedOperationAssurance",
+            "options => options.StaffOnboardingManagementAssurance =",
             "options => options.CredentialManagementAssurance = privilegedOperationAssurance",
             "builder.AddModule<AccessControlApiModule>();",
             "builder.Services.AddGmaTenantAccessControlAspNetCore();",
