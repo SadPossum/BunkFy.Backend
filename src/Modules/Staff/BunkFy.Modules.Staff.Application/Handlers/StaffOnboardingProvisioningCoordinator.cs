@@ -55,13 +55,6 @@ internal sealed class StaffOnboardingProvisioningCoordinator(
             return Result.Failure<StaffMemberDto>(actor.Error);
         }
 
-        Result<StaffChangeReason> reason = StaffChangeReason.Create(
-            command.Reason);
-        if (reason.IsFailure)
-        {
-            return Result.Failure<StaffMemberDto>(reason.Error);
-        }
-
         string fingerprint = StaffOnboardingProvisioningFingerprint.Compute(
             profile.Value);
         await operationLock.AcquireAsync(
@@ -115,11 +108,10 @@ internal sealed class StaffOnboardingProvisioningCoordinator(
                     scopeId,
                     nowUtc,
                     cancellationToken).ConfigureAwait(false)
-                : this.UpdateAndResume(
+                : this.UpdateExisting(
                     member,
                     profile.Value,
                     actor.Value,
-                    reason.Value,
                     nowUtc);
         if (provisioned.IsFailure)
         {
@@ -190,17 +182,22 @@ internal sealed class StaffOnboardingProvisioningCoordinator(
             created.Value.Version));
     }
 
-    private Result<StaffOnboardingProvisioningMutation> UpdateAndResume(
+    private Result<StaffOnboardingProvisioningMutation> UpdateExisting(
         StaffMember member,
         StaffProfile profile,
         StaffActorId actor,
-        StaffChangeReason reason,
         DateTimeOffset nowUtc)
     {
         if (member.Status == StaffMemberState.Departed)
         {
             return Result.Failure<StaffOnboardingProvisioningMutation>(
                 StaffApplicationErrors.StaffDeparted);
+        }
+
+        if (member.Status == StaffMemberState.Suspended)
+        {
+            return Result.Failure<StaffOnboardingProvisioningMutation>(
+                StaffApplicationErrors.StaffSuspended);
         }
 
         long startingVersion = member.Version;
@@ -220,21 +217,6 @@ internal sealed class StaffOnboardingProvisioningCoordinator(
         {
             return Result.Failure<StaffOnboardingProvisioningMutation>(
                 updated.Error);
-        }
-
-        if (member.Status == StaffMemberState.Suspended)
-        {
-            Result resumed = member.Resume(
-                member.Version,
-                actor.Value,
-                reason.Value,
-                ids.NewId(),
-                nowUtc);
-            if (resumed.IsFailure)
-            {
-                return Result.Failure<StaffOnboardingProvisioningMutation>(
-                    resumed.Error);
-            }
         }
 
         return Result.Success(new StaffOnboardingProvisioningMutation(

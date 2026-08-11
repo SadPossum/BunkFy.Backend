@@ -17,8 +17,7 @@ public sealed record StaffOnboardingProvisioningRequest(
     string? EmployeeNumber,
     string? JobTitle,
     string? Department,
-    string ActorId,
-    string Reason);
+    string ActorId);
 
 public sealed record StaffOnboardingProvisioningResult(
     bool IsSuccess,

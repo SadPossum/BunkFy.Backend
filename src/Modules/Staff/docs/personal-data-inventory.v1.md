@@ -1,4 +1,4 @@
-# staff Personal-Data Inventory v16
+# staff Personal-Data Inventory v17
 
 Generated from `staff.personal-data` schema v1.
 Catalogue approval: `engineering-default`.
@@ -422,11 +422,9 @@ Engineering metadata is not legal or country-launch approval.
 | staff.change-reason | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffDepartureRequest | Reason | api-input | transient-request |
 | staff.change-reason | BunkFy.Modules.Staff.Api | BunkFy.Modules.Staff.Api.Requests.StaffLifecycleRequest | Reason | api-input | transient-request |
 | staff.change-reason | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.DepartStaffMemberCommand | Reason | application-command | transient-request |
-| staff.change-reason | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.ProvisionStaffOnboardingCommand | Reason | application-command | transient-request |
 | staff.change-reason | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.ReconcileStaffPropertyAssignmentsCommand | Reason | application-command | transient-request |
 | staff.change-reason | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.ResumeStaffMemberCommand | Reason | application-command | transient-request |
 | staff.change-reason | BunkFy.Modules.Staff.Application | BunkFy.Modules.Staff.Application.Commands.SuspendStaffMemberCommand | Reason | application-command | transient-request |
-| staff.change-reason | BunkFy.Modules.Staff.Contracts | BunkFy.Modules.Staff.Contracts.StaffOnboardingProvisioningRequest | Reason | integration-command | transient-request |
 | staff.change-reason | BunkFy.Modules.Staff.Contracts | BunkFy.Modules.Staff.Contracts.StaffPropertyAssignmentProvisioningRequest | Reason | integration-command | transient-request |
 | staff.data-hold | BunkFy.Modules.Staff.Persistence | BunkFy.Modules.Staff.Persistence.Repositories.StaffDataHoldReceiptTenantExport | DataHold | data-rights-export | staff-tenant-termination-export-fragment |
 | staff.data-hold | BunkFy.Modules.Staff.Persistence | BunkFy.Modules.Staff.Persistence.Repositories.StaffDataHoldTenantExport | DataHold | data-rights-export | staff-tenant-termination-export-fragment |

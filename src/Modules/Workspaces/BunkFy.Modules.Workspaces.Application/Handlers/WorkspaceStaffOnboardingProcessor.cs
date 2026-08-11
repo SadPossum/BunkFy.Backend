@@ -228,8 +228,7 @@ internal sealed class WorkspaceStaffOnboardingProcessor(
                     application.EmployeeNumber,
                     application.JobTitle,
                     application.Department,
-                    "integration:organizations",
-                    "Workspace Staff onboarding accepted."),
+                    "integration:organizations"),
                 cancellationToken).ConfigureAwait(false);
             if (!provisioned.IsSuccess || !provisioned.StaffMemberId.HasValue)
             {

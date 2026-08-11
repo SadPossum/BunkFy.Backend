@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "staff.personal-data",
-  "catalogVersion": 16,
+  "catalogVersion": 17,
   "module": "staff",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -2716,13 +2716,6 @@
         },
         {
           "assembly": "BunkFy.Modules.Staff.Application",
-          "type": "BunkFy.Modules.Staff.Application.Commands.ProvisionStaffOnboardingCommand",
-          "member": "Reason",
-          "surface": "application-command",
-          "retentionPolicy": "transient-request"
-        },
-        {
-          "assembly": "BunkFy.Modules.Staff.Application",
           "type": "BunkFy.Modules.Staff.Application.Commands.ReconcileStaffPropertyAssignmentsCommand",
           "member": "Reason",
           "surface": "application-command",
@@ -2740,13 +2733,6 @@
           "type": "BunkFy.Modules.Staff.Application.Commands.SuspendStaffMemberCommand",
           "member": "Reason",
           "surface": "application-command",
-          "retentionPolicy": "transient-request"
-        },
-        {
-          "assembly": "BunkFy.Modules.Staff.Contracts",
-          "type": "BunkFy.Modules.Staff.Contracts.StaffOnboardingProvisioningRequest",
-          "member": "Reason",
-          "surface": "integration-command",
           "retentionPolicy": "transient-request"
         },
         {

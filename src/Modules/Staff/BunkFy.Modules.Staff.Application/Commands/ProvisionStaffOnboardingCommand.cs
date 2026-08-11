@@ -14,6 +14,5 @@ public sealed record ProvisionStaffOnboardingCommand(
     string? EmployeeNumber,
     string? JobTitle,
     string? Department,
-    string ActorId,
-    string Reason) : ITransactionalCommand<StaffMemberDto>,
+    string ActorId) : ITransactionalCommand<StaffMemberDto>,
     IStaffPersistenceRetryableCommand;

@@ -48,8 +48,9 @@ changed or cross-kind reuse conflicts. The shared Staff member-mutation journal
 stores an explicit operation kind, canonical request fingerprint, and result
 facts without duplicating profile, Auth-subject, assignment, or reason values.
 It participates in Staff export and tenant lifecycle, and is removed when the
-profile is anonymised. Workspace onboarding reconciliation remains a separate
-desired-state integration contract.
+profile is anonymised. Workspace onboarding profile provisioning remains a
+separate integration contract: it may create a missing profile or update an
+active one, but it cannot alter employment lifecycle.
 
 ## Processing restrictions
 

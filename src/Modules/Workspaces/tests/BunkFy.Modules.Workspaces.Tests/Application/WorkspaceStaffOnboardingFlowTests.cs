@@ -129,8 +129,11 @@ public sealed class WorkspaceStaffOnboardingFlowTests
         Assert.Equal(0, access.AssignmentCallCount);
     }
 
-    [Fact]
-    public async Task Staff_failure_never_grants_workspace_access()
+    [Theory]
+    [InlineData("Staff.EmployeeNumberConflict")]
+    [InlineData("Staff.StaffSuspended")]
+    public async Task Staff_failure_never_grants_workspace_access(
+        string errorCode)
     {
         WorkspaceStaffOnboarding application = WorkspaceStaffOnboardingTests.CreateApplication();
         Assert.True(application.ObserveClaimAccepted(
@@ -138,7 +141,7 @@ public sealed class WorkspaceStaffOnboardingFlowTests
             1,
             WorkspaceStaffOnboardingTests.Now.AddMinutes(1)).IsSuccess);
         FakeRepository applications = new(application);
-        FakeStaffProvisioner staff = new() { ErrorCode = "Staff.EmployeeNumberConflict" };
+        FakeStaffProvisioner staff = new() { ErrorCode = errorCode };
         FakeAccessControl access = new();
         using ServiceProvider provider = CreateProvider(applications, staff, access);
         ICommandHandler<RetryWorkspaceStaffOnboardingCommand, WorkspaceStaffOnboardingDto> handler =
@@ -150,6 +153,7 @@ public sealed class WorkspaceStaffOnboardingFlowTests
 
         Assert.True(result.IsFailure);
         Assert.Equal(WorkspaceStaffOnboardingState.Failed, application.Status);
+        Assert.Equal(errorCode, application.FailureCode);
         Assert.Null(application.StaffMemberId);
         Assert.Equal(1, staff.CallCount);
         Assert.Equal(0, access.AssignmentCallCount);

@@ -532,8 +532,7 @@ public sealed class StaffMemberMutationOperationIntegrationTests
             "EMP-ONBOARDING",
             "Receptionist",
             "Operations",
-            "integration:organizations",
-            "Workspace Staff onboarding accepted.");
+            "integration:organizations");
 
         Result<StaffMemberDto>[] concurrent = await Task.WhenAll(
             SendAsync(services, command),

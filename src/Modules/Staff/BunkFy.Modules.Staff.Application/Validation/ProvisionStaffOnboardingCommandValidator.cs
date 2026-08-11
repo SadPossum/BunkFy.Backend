@@ -32,10 +32,5 @@ internal sealed class ProvisionStaffOnboardingCommandValidator
         {
             yield return error;
         }
-
-        foreach (string error in StaffValidation.Reason(command.Reason))
-        {
-            yield return error;
-        }
     }
 }

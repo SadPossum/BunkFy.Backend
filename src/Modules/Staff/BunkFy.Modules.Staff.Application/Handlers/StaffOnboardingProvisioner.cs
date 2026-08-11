@@ -24,8 +24,7 @@ internal sealed class StaffOnboardingProvisioner(IRequestDispatcher dispatcher)
                 request.EmployeeNumber,
                 request.JobTitle,
                 request.Department,
-                request.ActorId,
-                request.Reason),
+                request.ActorId),
             cancellationToken).ConfigureAwait(false);
 
         return result.IsSuccess

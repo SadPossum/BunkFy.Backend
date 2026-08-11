@@ -1114,7 +1114,7 @@ public sealed class StaffCommandHandlerTests
         ProvisionStaffOnboardingCommand command = new(
             Guid.NewGuid(),
             "member-100", "Ada Operator", "Ada Lovelace", "ada@example.test", null,
-            "EMP-100", "Manager", "Operations", "integration:organizations", "Onboarding accepted.");
+            "EMP-100", "Manager", "Operations", "integration:organizations");
 
         Result<StaffMemberDto> first = await handler.HandleAsync(command, CancellationToken.None);
         Result<StaffMemberDto> replayed = await handler.HandleAsync(command, CancellationToken.None);
@@ -1181,7 +1181,7 @@ public sealed class StaffCommandHandlerTests
     }
 
     [Fact]
-    public async Task First_onboarding_operation_can_resume_an_existing_suspended_member()
+    public async Task First_onboarding_operation_requires_explicit_resume_for_a_suspended_member()
     {
         StaffMember member = CreateMember("member-100");
         Assert.True(member.Suspend(
@@ -1191,6 +1191,7 @@ public sealed class StaffCommandHandlerTests
             Guid.NewGuid(),
             TestClock.Now).IsSuccess);
         long startingVersion = member.Version;
+        string startingDisplayName = member.DisplayName;
         RecordingOnboardingOperations operations = new();
         using ServiceProvider provider = CreateProvider(
             new FakeStaffMemberRepository(member),
@@ -1198,28 +1199,47 @@ public sealed class StaffCommandHandlerTests
             onboardingOperations: operations);
         var handler = provider.GetRequiredService<
             ICommandHandler<ProvisionStaffOnboardingCommand, StaffMemberDto>>();
+        ProvisionStaffOnboardingCommand command = new(
+            Guid.NewGuid(),
+            "member-100",
+            "Ada Returned",
+            "Ada Lovelace",
+            "ada@example.test",
+            null,
+            "EMP-100",
+            "Manager",
+            "Operations",
+            "integration:organizations");
+
+        Result<StaffMemberDto> denied = await handler.HandleAsync(
+            command,
+            CancellationToken.None);
+
+        Assert.Equal(StaffApplicationErrors.StaffSuspended, denied.Error);
+        Assert.Equal(StaffMemberState.Suspended, member.Status);
+        Assert.Equal(startingVersion, member.Version);
+        Assert.Equal(startingDisplayName, member.DisplayName);
+        Assert.Empty(operations.Records);
+
+        Assert.True(member.Resume(
+            member.Version,
+            "user:lifecycle-manager",
+            "Approved return.",
+            Guid.NewGuid(),
+            TestClock.Now.AddMinutes(1)).IsSuccess);
+        long resumedVersion = member.Version;
 
         Result<StaffMemberDto> result = await handler.HandleAsync(
-            new ProvisionStaffOnboardingCommand(
-                Guid.NewGuid(),
-                "member-100",
-                "Ada Returned",
-                "Ada Lovelace",
-                "ada@example.test",
-                null,
-                "EMP-100",
-                "Manager",
-                "Operations",
-                "integration:organizations",
-                "Onboarding accepted."),
+            command,
             CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Error.Code);
         Assert.Equal(StaffStatus.Active, result.Value.Status);
-        Assert.Equal(startingVersion + 2, result.Value.Version);
+        Assert.Equal("Ada Returned", result.Value.DisplayName);
+        Assert.Equal(resumedVersion + 1, result.Value.Version);
         StaffMemberMutationOperationRecord receipt =
             Assert.Single(operations.Records);
-        Assert.Equal(startingVersion, receipt.ExpectedVersion);
+        Assert.Equal(resumedVersion, receipt.ExpectedVersion);
         Assert.Equal(result.Value.Version, receipt.ResultVersion);
     }
 
