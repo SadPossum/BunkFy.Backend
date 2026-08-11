@@ -36,12 +36,15 @@ public sealed class BedRetirementProcess : ScopedAggregateRoot<Guid>
     public Guid BedId { get; private set; }
     public string Reason { get; private set; } = string.Empty;
     public string RequestedBy { get; private set; } = string.Empty;
+    public string? CancellationReason { get; private set; }
+    public string? CanceledBy { get; private set; }
     public InventoryRetirementProcessState State { get; private set; } = InventoryRetirementProcessState.Draining;
     public int? RejectionReasonCode { get; private set; }
     public long Version { get; private set; } = 1;
     public DateTimeOffset CreatedAtUtc { get; private set; }
     public DateTimeOffset? UpdatedAtUtc { get; private set; }
     public DateTimeOffset? CompletedAtUtc { get; private set; }
+    public DateTimeOffset? CanceledAtUtc { get; private set; }
 
     public static Result<BedRetirementProcess> Create(
         Guid id,
@@ -162,6 +165,41 @@ public sealed class BedRetirementProcess : ScopedAggregateRoot<Guid>
         this.RejectionReasonCode = reasonCode;
         this.Version++;
         this.UpdatedAtUtc = nowUtc;
+        return Result.Success();
+    }
+
+    public Result Cancel(
+        long expectedVersion,
+        string reason,
+        string canceledBy,
+        DateTimeOffset nowUtc)
+    {
+        if (expectedVersion != this.Version)
+        {
+            return Result.Failure(InventoryDomainErrors.VersionConflict);
+        }
+
+        if (this.State != InventoryRetirementProcessState.Draining)
+        {
+            return Result.Failure(InventoryDomainErrors.BedRetirementTransitionInvalid);
+        }
+
+        string normalizedReason = reason?.Trim() ?? string.Empty;
+        string normalizedActor = canceledBy?.Trim() ?? string.Empty;
+        if (normalizedReason.Length is 0 or > ReasonMaxLength ||
+            normalizedActor.Length is 0 or > ActorIdMaxLength)
+        {
+            return Result.Failure(
+                InventoryDomainErrors.BedRetirementCancellationRequestInvalid);
+        }
+
+        this.State = InventoryRetirementProcessState.Canceled;
+        this.CancellationReason = normalizedReason;
+        this.CanceledBy = normalizedActor;
+        this.RejectionReasonCode = null;
+        this.Version++;
+        this.UpdatedAtUtc = nowUtc;
+        this.CanceledAtUtc = nowUtc;
         return Result.Success();
     }
 

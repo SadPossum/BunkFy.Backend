@@ -49,8 +49,10 @@ public static class InventoryDomainErrors
         "The inventory allocation anonymisation restore receipt is invalid.");
     public static readonly Error BedRetirementIdentityInvalid = new("Inventory.BedRetirementIdentityInvalid", "Bed retirement identity is invalid.");
     public static readonly Error BedRetirementRequestInvalid = new("Inventory.BedRetirementRequestInvalid", "Bed retirement reason and actor are required and must be within supported limits.");
+    public static readonly Error BedRetirementCancellationRequestInvalid = new("Inventory.BedRetirementCancellationRequestInvalid", "Bed retirement cancellation reason and actor are required and must be within supported limits.");
     public static readonly Error BedRetirementTransitionInvalid = new("Inventory.BedRetirementTransitionInvalid", "The bed retirement process cannot perform this transition.");
     public static readonly Error RoomRetirementIdentityInvalid = new("Inventory.RoomRetirementIdentityInvalid", "Room retirement identity is invalid.");
     public static readonly Error RoomRetirementRequestInvalid = new("Inventory.RoomRetirementRequestInvalid", "Room retirement reason and actor are required and must be within supported limits.");
+    public static readonly Error RoomRetirementCancellationRequestInvalid = new("Inventory.RoomRetirementCancellationRequestInvalid", "Room retirement cancellation reason and actor are required and must be within supported limits.");
     public static readonly Error RoomRetirementTransitionInvalid = new("Inventory.RoomRetirementTransitionInvalid", "The room retirement process cannot perform this transition.");
 }

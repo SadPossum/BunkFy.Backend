@@ -20,6 +20,8 @@ internal static class BedRetirementMappings
         process.RejectionReasonCode.HasValue
             ? (BedRetirementFinalizationRejectionReason)process.RejectionReasonCode.Value
             : null,
+        process.CancellationReason,
+        process.CanceledBy,
         impact.ActiveAllocationCount,
         impact.ActiveManualBlockCount,
         impact.AffectedReservationIds,
@@ -27,5 +29,6 @@ internal static class BedRetirementMappings
         process.Version,
         process.CreatedAtUtc,
         process.UpdatedAtUtc,
-        process.CompletedAtUtc);
+        process.CompletedAtUtc,
+        process.CanceledAtUtc);
 }

@@ -573,7 +573,8 @@ public sealed class IngestionOperationsIntegrationTests
         object resetRequest = new
         {
             operationId = resetOperationId,
-            expectedVersion = disabled.Version
+            expectedVersion = disabled.Version,
+            confirmed = true
         };
         AdapterConnectionMutationReceiptDto reset = await PostAsync<AdapterConnectionMutationReceiptDto>(
             client,

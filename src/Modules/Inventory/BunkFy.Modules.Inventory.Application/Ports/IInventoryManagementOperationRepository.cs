@@ -244,5 +244,7 @@ public enum InventoryManagementMutationKind
     BedRetirementRequest = 6,
     BedRetirementRetry = 7,
     RoomRetirementRequest = 8,
-    RoomRetirementRetry = 9
+    RoomRetirementRetry = 9,
+    BedRetirementCancellation = 10,
+    RoomRetirementCancellation = 11
 }

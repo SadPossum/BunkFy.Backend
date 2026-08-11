@@ -11,6 +11,8 @@ public sealed record BedRetirementDto(
     string RequestedBy,
     InventoryRetirementStatus Status,
     BedRetirementFinalizationRejectionReason? RejectionReason,
+    string? CancellationReason,
+    string? CanceledBy,
     int ActiveAllocationCount,
     int ActiveManualBlockCount,
     IReadOnlyCollection<Guid> AffectedReservationIds,
@@ -18,4 +20,5 @@ public sealed record BedRetirementDto(
     long Version,
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset? UpdatedAtUtc,
-    DateTimeOffset? CompletedAtUtc);
+    DateTimeOffset? CompletedAtUtc,
+    DateTimeOffset? CanceledAtUtc);

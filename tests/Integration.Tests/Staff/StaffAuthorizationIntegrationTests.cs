@@ -85,11 +85,30 @@ public sealed class StaffAuthorizationIntegrationTests
                            workPhone = "+1 555 0100",
                            employeeNumber = "EMP-100",
                            jobTitle = "Hostel Manager",
-                           department = "Operations",
-                           authSubjectId = assignedUserId.ToString("D")
+                           department = "Operations"
                        }).ConfigureAwait(false))
             {
                 member = await ReadSuccessAsync<StaffMemberDto>(create).ConfigureAwait(false);
+            }
+
+            using (HttpResponseMessage unlinkedAssignedSelf = await SendAsync(client, HttpMethod.Get,
+                       "/api/staff/me", assignedTokens.AccessToken).ConfigureAwait(false))
+            {
+                await AssertStatusAsync(HttpStatusCode.NotFound, unlinkedAssignedSelf).ConfigureAwait(false);
+            }
+
+            using (HttpResponseMessage linkAccount = await SendAsync(client, HttpMethod.Put,
+                       $"/api/staff/members/{member.StaffMemberId:D}/auth-subject",
+                       managerTokens.AccessToken, new
+                       {
+                           operationId = Guid.NewGuid(),
+                           authSubjectId = assignedUserId.ToString("D"),
+                           expectedVersion = member.Version
+                       }).ConfigureAwait(false))
+            {
+                StaffMemberMutationReceiptDto receipt =
+                    await ReadSuccessAsync<StaffMemberMutationReceiptDto>(linkAccount).ConfigureAwait(false);
+                member = member with { Version = receipt.Version };
             }
 
             using (HttpResponseMessage selfRead = await SendAsync(client, HttpMethod.Get,
@@ -315,7 +334,9 @@ public sealed class StaffAuthorizationIntegrationTests
             "--name", "staff-provisioner"));
         foreach (string permission in new[] { PropertiesAdminPermissionCodes.PropertiesManage,
                      StaffAdminPermissionCodes.Create, StaffAdminPermissionCodes.Manage,
-                     StaffAdminPermissionCodes.ManageLifecycle })
+                     StaffAdminPermissionCodes.ManageLifecycle,
+                     StaffAdminPermissionCodes.AccountLinksManage,
+                     StaffAdminPermissionCodes.SensitiveProfileRead })
         {
             await GrantAsync(admin, "staff-provisioner", permission).ConfigureAwait(false);
         }

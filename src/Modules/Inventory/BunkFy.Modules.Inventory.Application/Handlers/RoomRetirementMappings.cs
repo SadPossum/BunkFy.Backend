@@ -19,6 +19,8 @@ internal static class RoomRetirementMappings
         process.RejectionReasonCode.HasValue
             ? (RoomRetirementFinalizationRejectionReason)process.RejectionReasonCode.Value
             : null,
+        process.CancellationReason,
+        process.CanceledBy,
         impact.ActiveAllocationCount,
         impact.ActiveManualBlockCount,
         impact.ActiveBedRetirementCount,
@@ -27,5 +29,6 @@ internal static class RoomRetirementMappings
         process.Version,
         process.CreatedAtUtc,
         process.UpdatedAtUtc,
-        process.CompletedAtUtc);
+        process.CompletedAtUtc,
+        process.CanceledAtUtc);
 }

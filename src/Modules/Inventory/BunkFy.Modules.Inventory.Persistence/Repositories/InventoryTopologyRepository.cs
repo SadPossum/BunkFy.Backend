@@ -177,17 +177,20 @@ internal sealed class InventoryTopologyRepository(InventoryDbContext dbContext) 
 
         Dictionary<Guid, InventoryRoomTopology> roomsById = rooms.ToDictionary(item => item.Id);
         Dictionary<Guid, RoomInventoryConfiguration> configurationsByRoom = configurations.ToDictionary(item => item.Id);
+        BedRetirementProcess[] localBedRetirements = dbContext.BedRetirements.Local.ToArray();
+        Guid[] trackedBedRetirementIds = localBedRetirements.Select(process => process.Id).ToArray();
         List<BedRetirementProcess> drains = roomIds.Length == 0
             ? []
             : await dbContext.BedRetirements
-                .Where(process => roomIds.Contains(process.RoomId) &&
+                .Where(process => !trackedBedRetirementIds.Contains(process.Id) &&
+                    roomIds.Contains(process.RoomId) &&
                     (process.State == InventoryRetirementProcessState.Draining ||
                      process.State == InventoryRetirementProcessState.FinalizationRequested ||
                      process.State == InventoryRetirementProcessState.FinalizedAwaitingTopology ||
                      process.State == InventoryRetirementProcessState.Rejected))
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
-        foreach (BedRetirementProcess local in dbContext.BedRetirements.Local.Where(process =>
+        foreach (BedRetirementProcess local in localBedRetirements.Where(process =>
                      roomIds.Contains(process.RoomId) && BedRetirementProcess.IsDrainActive(process.State)))
         {
             if (drains.All(process => process.Id != local.Id))
@@ -196,17 +199,20 @@ internal sealed class InventoryTopologyRepository(InventoryDbContext dbContext) 
             }
         }
 
+        RoomRetirementProcess[] localRoomRetirements = dbContext.RoomRetirements.Local.ToArray();
+        Guid[] trackedRoomRetirementIds = localRoomRetirements.Select(process => process.Id).ToArray();
         List<RoomRetirementProcess> roomDrains = roomIds.Length == 0
             ? []
             : await dbContext.RoomRetirements
-                .Where(process => roomIds.Contains(process.RoomId) &&
+                .Where(process => !trackedRoomRetirementIds.Contains(process.Id) &&
+                    roomIds.Contains(process.RoomId) &&
                     (process.State == InventoryRetirementProcessState.Draining ||
                      process.State == InventoryRetirementProcessState.FinalizationRequested ||
                      process.State == InventoryRetirementProcessState.FinalizedAwaitingTopology ||
                      process.State == InventoryRetirementProcessState.Rejected))
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
-        foreach (RoomRetirementProcess local in dbContext.RoomRetirements.Local.Where(process =>
+        foreach (RoomRetirementProcess local in localRoomRetirements.Where(process =>
                      roomIds.Contains(process.RoomId) && RoomRetirementProcess.IsDrainActive(process.State)))
         {
             if (roomDrains.All(process => process.Id != local.Id))

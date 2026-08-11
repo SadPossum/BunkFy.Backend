@@ -115,6 +115,7 @@
     <File Path="docs/planning/inventory-module-task.md" />
     <File Path="docs/planning/inventory-operational-surface-hardening-task.md" />
     <File Path="docs/planning/inventory-personal-data-catalogue-task.md" />
+    <File Path="docs/planning/inventory-retirement-cancellation-recovery-task.md" />
     <File Path="docs/planning/inventory-retirement-idempotency-task.md" />
     <File Path="docs/planning/inventory-retirement-outcome-convergence-task.md" />
     <File Path="docs/planning/inventory-room-retirement-and-throughput-hardening-task.md" />

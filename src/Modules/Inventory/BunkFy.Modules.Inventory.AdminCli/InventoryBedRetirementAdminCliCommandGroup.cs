@@ -20,7 +20,8 @@ internal static class InventoryBedRetirementAdminCliCommandGroup
         {
             CreateRequestCommand(services, globalOptions),
             CreateGetCommand(services, globalOptions),
-            CreateRetryCommand(services, globalOptions)
+            CreateRetryCommand(services, globalOptions),
+            CreateCancelCommand(services, globalOptions)
         };
 
     private static Command CreateRequestCommand(IServiceProvider services, AdminCliGlobalOptions globalOptions)
@@ -108,6 +109,42 @@ internal static class InventoryBedRetirementAdminCliCommandGroup
         return command;
     }
 
+    private static Command CreateCancelCommand(IServiceProvider services, AdminCliGlobalOptions globalOptions)
+    {
+        Option<Guid> operation = RequiredId("--operation-id");
+        Option<Guid> property = RequiredId("--property-id");
+        Option<Guid> change = RequiredId("--topology-change-id");
+        Option<long> expectedVersion = new("--expected-version") { Required = true };
+        Option<string> reason = new("--reason") { Required = true };
+        Option<bool> yes = new("--yes");
+        Command command = new("cancel", "Stop a draining bed-retirement process.")
+        {
+            operation,
+            property,
+            change,
+            expectedVersion,
+            reason,
+            yes
+        };
+        command.SetAction((parse, cancellationToken) => ExecuteAsync(
+            services,
+            globalOptions,
+            parse,
+            InventoryAdminOperationNames.BedRetirementsCancel,
+            (dispatcher, token) => dispatcher.SendAsync(
+                new CancelBedRetirementCommand(
+                    parse.GetValue(operation),
+                    parse.GetValue(property),
+                    parse.GetValue(change),
+                    parse.GetValue(expectedVersion),
+                    parse.GetValue(yes),
+                    parse.GetRequiredValue(reason),
+                    ResolveActor(parse, globalOptions)),
+                token),
+            cancellationToken));
+        return command;
+    }
+
     private static Task<int> ExecuteAsync(
         IServiceProvider services,
         AdminCliGlobalOptions globalOptions,
@@ -145,7 +182,10 @@ internal static class InventoryBedRetirementAdminCliCommandGroup
                 ("Allocations", item => item.ActiveAllocationCount.ToString(CultureInfo.InvariantCulture)),
                 ("Blocks", item => item.ActiveManualBlockCount.ToString(CultureInfo.InvariantCulture)),
                 ("Version", item => item.Version.ToString(CultureInfo.InvariantCulture)),
-                ("Reason", item => item.Reason)
+                ("Reason", item => item.Reason),
+                ("CancellationReason", item => item.CancellationReason ?? string.Empty),
+                ("CanceledBy", item => item.CanceledBy ?? string.Empty),
+                ("CanceledAtUtc", item => item.CanceledAtUtc?.ToString("O", CultureInfo.InvariantCulture) ?? string.Empty)
             ]);
 
     private static Option<Guid> RequiredId(string name) => new(name) { Required = true };

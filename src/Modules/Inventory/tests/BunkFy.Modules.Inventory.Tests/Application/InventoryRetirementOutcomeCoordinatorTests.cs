@@ -331,6 +331,10 @@ public sealed class InventoryRetirementOutcomeCoordinatorTests
             RoomRetirementProcess value,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
+
+        public Task ReloadAsync(
+            RoomRetirementProcess value,
+            CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
     private sealed class FakeBedRetirementRepository(
@@ -382,6 +386,10 @@ public sealed class InventoryRetirementOutcomeCoordinatorTests
             BedRetirementProcess value,
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
+
+        public Task ReloadAsync(
+            BedRetirementProcess value,
+            CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
     private sealed class TestScopeContext : IScopeContext

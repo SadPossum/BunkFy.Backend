@@ -26,7 +26,7 @@ internal sealed class InventoryManagementOperationConfiguration
                 "\"RequestFingerprint\" ~ '^[0-9a-f]{64}$'");
             table.HasCheckConstraint(
                 "CK_inventory_management_operations_kind",
-                "\"Kind\" BETWEEN 1 AND 9 AND " +
+                "\"Kind\" BETWEEN 1 AND 11 AND " +
                 "((\"Kind\" = 1 AND \"ResourceKind\" = 1) OR " +
                 "(\"Kind\" IN (2, 3) AND \"ResourceKind\" = 2 AND " +
                 "\"ResourceId\" = \"PropertyId\") OR " +
@@ -41,6 +41,10 @@ internal sealed class InventoryManagementOperationConfiguration
                 "\"ResourceId\" = \"ResultTopologyChangeId\") OR " +
                 "(\"Kind\" = 8 AND \"ResourceKind\" = 1) OR " +
                 "(\"Kind\" = 9 AND \"ResourceKind\" = 7 AND " +
+                "\"ResourceId\" = \"ResultTopologyChangeId\") OR " +
+                "(\"Kind\" = 10 AND \"ResourceKind\" = 6 AND " +
+                "\"ResourceId\" = \"ResultTopologyChangeId\") OR " +
+                "(\"Kind\" = 11 AND \"ResourceKind\" = 7 AND " +
                 "\"ResourceId\" = \"ResultTopologyChangeId\"))");
             table.HasCheckConstraint(
                 "CK_inventory_management_operations_result",
@@ -107,7 +111,7 @@ internal sealed class InventoryManagementOperationConfiguration
                 "\"ResultAffectedBlockCount\" IS NULL AND " +
                 "\"ResultTopologyChangeId\" IS NOT NULL AND " +
                 $"\"ResultTopologyChangeId\" <> '{EmptyGuid}') OR " +
-                "(\"Kind\" IN (7, 9) AND \"ExpectedVersion\" > 0 AND " +
+                "(\"Kind\" IN (7, 9, 10, 11) AND \"ExpectedVersion\" > 0 AND " +
                 "\"ResultVersion\" = \"ExpectedVersion\" + 1 AND " +
                 "\"ResultSalesMode\" IS NULL AND " +
                 "\"ResultBlockId\" IS NULL AND " +

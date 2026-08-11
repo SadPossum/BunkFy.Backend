@@ -83,6 +83,14 @@ internal static class InventoryTenantTerminationExportSchema
             nameof(InventoryBedRetirementTenantExport.RequestedBy),
             "inventory.staff-actor-reference",
             "include-in-authorized-staff-or-tenant-export"),
+        Binding<InventoryBedRetirementTenantExport>(
+            nameof(InventoryBedRetirementTenantExport.CancellationReason),
+            "inventory.cancellation-reason",
+            "include-after-authorized-subject-review-or-tenant-export"),
+        Binding<InventoryBedRetirementTenantExport>(
+            nameof(InventoryBedRetirementTenantExport.CanceledBy),
+            "inventory.cancellation-actor-reference",
+            "include-in-authorized-staff-or-tenant-export"),
         Binding<InventoryRoomRetirementTenantExport>(
             nameof(InventoryRoomRetirementTenantExport.Reason),
             "inventory.operational-reason",
@@ -90,6 +98,14 @@ internal static class InventoryTenantTerminationExportSchema
         Binding<InventoryRoomRetirementTenantExport>(
             nameof(InventoryRoomRetirementTenantExport.RequestedBy),
             "inventory.staff-actor-reference",
+            "include-in-authorized-staff-or-tenant-export"),
+        Binding<InventoryRoomRetirementTenantExport>(
+            nameof(InventoryRoomRetirementTenantExport.CancellationReason),
+            "inventory.cancellation-reason",
+            "include-after-authorized-subject-review-or-tenant-export"),
+        Binding<InventoryRoomRetirementTenantExport>(
+            nameof(InventoryRoomRetirementTenantExport.CanceledBy),
+            "inventory.cancellation-actor-reference",
             "include-in-authorized-staff-or-tenant-export")
     ];
 

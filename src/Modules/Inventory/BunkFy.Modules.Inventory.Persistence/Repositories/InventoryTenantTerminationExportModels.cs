@@ -264,6 +264,13 @@ internal sealed record InventoryBedRetirementTenantExport(
     [property: InventoryTenantExportField(
         "inventory.staff-actor-reference")]
     string RequestedBy,
+    [property: InventoryTenantExportField("inventory.cancellation-reason")]
+    string? CancellationReason,
+    [property: InventoryTenantExportField(
+        "inventory.cancellation-actor-reference")]
+    string? CanceledBy,
+    [property: InventoryTenantExportField("inventory.canceled-at")]
+    DateTimeOffset? CanceledAtUtc,
     [property: InventoryTenantExportField("inventory.state")]
     InventoryRetirementProcessState State,
     [property: InventoryTenantExportField(
@@ -292,6 +299,13 @@ internal sealed record InventoryRoomRetirementTenantExport(
     [property: InventoryTenantExportField(
         "inventory.staff-actor-reference")]
     string RequestedBy,
+    [property: InventoryTenantExportField("inventory.cancellation-reason")]
+    string? CancellationReason,
+    [property: InventoryTenantExportField(
+        "inventory.cancellation-actor-reference")]
+    string? CanceledBy,
+    [property: InventoryTenantExportField("inventory.canceled-at")]
+    DateTimeOffset? CanceledAtUtc,
     [property: InventoryTenantExportField("inventory.state")]
     InventoryRetirementProcessState State,
     [property: InventoryTenantExportField(

@@ -41,6 +41,68 @@ public sealed class RoomRetirementProcessTests
         Assert.Equal(InventoryRetirementProcessState.FinalizationRequested, process.State);
     }
 
+    [Fact]
+    public void Draining_process_can_be_canceled_with_an_audited_reason()
+    {
+        RoomRetirementProcess process = Create();
+        long expectedVersion = process.Version;
+
+        Result canceled = process.Cancel(
+            expectedVersion,
+            "  Keep room in service  ",
+            "  user:manager-a  ",
+            Now.AddMinutes(1));
+
+        Assert.True(canceled.IsSuccess);
+        Assert.Equal(InventoryRetirementProcessState.Canceled, process.State);
+        Assert.False(RoomRetirementProcess.IsDrainActive(process.State));
+        Assert.Equal(expectedVersion + 1, process.Version);
+        Assert.Equal("Keep room in service", process.CancellationReason);
+        Assert.Equal("user:manager-a", process.CanceledBy);
+        Assert.Equal(Now.AddMinutes(1), process.CanceledAtUtc);
+        Assert.Equal(Now.AddMinutes(1), process.UpdatedAtUtc);
+    }
+
+    [Fact]
+    public void Stale_version_cannot_cancel_or_mutate_the_process()
+    {
+        RoomRetirementProcess process = Create();
+
+        Result canceled = process.Cancel(
+            process.Version - 1,
+            "Keep room in service",
+            "user:manager-a",
+            Now.AddMinutes(1));
+
+        Assert.True(canceled.IsFailure);
+        Assert.Equal(InventoryRetirementProcessState.Draining, process.State);
+        Assert.Null(process.CancellationReason);
+        Assert.Null(process.CanceledBy);
+        Assert.Null(process.CanceledAtUtc);
+        Assert.Null(process.UpdatedAtUtc);
+    }
+
+    [Fact]
+    public void Finalization_or_terminal_states_cannot_be_canceled()
+    {
+        RoomRetirementProcess requested = Create();
+        requested.RequestFinalization(Guid.NewGuid(), Now.AddMinutes(1));
+        RoomRetirementProcess rejected = Create();
+        rejected.RequestFinalization(Guid.NewGuid(), Now.AddMinutes(1));
+        rejected.Reject(1, Now.AddMinutes(2));
+        RoomRetirementProcess completed = Create();
+        completed.RequestFinalization(Guid.NewGuid(), Now.AddMinutes(1));
+        completed.MarkFinalized(Now.AddMinutes(2));
+        completed.Complete(Now.AddMinutes(3));
+
+        Assert.True(requested.Cancel(requested.Version, "Stop", "user:a", Now).IsFailure);
+        Assert.True(rejected.Cancel(rejected.Version, "Stop", "user:a", Now).IsFailure);
+        Assert.True(completed.Cancel(completed.Version, "Stop", "user:a", Now).IsFailure);
+        Assert.All(
+            [requested, rejected, completed],
+            process => Assert.Null(process.CanceledAtUtc));
+    }
+
     private static RoomRetirementProcess Create() => RoomRetirementProcess.Create(
         Guid.NewGuid(),
         "tenant-a",

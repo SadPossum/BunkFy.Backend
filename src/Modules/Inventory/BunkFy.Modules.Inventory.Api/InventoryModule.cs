@@ -296,6 +296,35 @@ public sealed class InventoryModule : IModule
                 InventoryAdminPermissionCodes.Retire,
                 InventoryPropertyAccessScopeResolver.ResolverName);
 
+        inventory.MapPost("/properties/{propertyId:guid}/bed-retirements/{topologyChangeId:guid}/cancel", async (
+            Guid propertyId,
+            Guid topologyChangeId,
+            CancelRetirementRequest request,
+            HttpContext httpContext,
+            IAccessHttpSubjectResolver subjectResolver,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+        {
+            string? actor = ResolveActor(httpContext, subjectResolver);
+            return actor is null
+                ? Results.Unauthorized()
+                : (await dispatcher.SendAsync(
+                    new CancelBedRetirementCommand(
+                        request.OperationId,
+                        propertyId,
+                        topologyChangeId,
+                        request.ExpectedVersion,
+                        request.Confirmed,
+                        request.Reason,
+                        actor),
+                    cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes);
+        })
+            .Produces<BedRetirementDto>(StatusCodes.Status200OK)
+            .RequireTenant()
+            .RequireResolvedScopePermission(
+                InventoryAdminPermissionCodes.Retire,
+                InventoryPropertyAccessScopeResolver.ResolverName);
+
         RouteHandlerBuilder requestRoomRetirement = inventory.MapPost("/properties/{propertyId:guid}/rooms/{roomId:guid}/retirement", async (
             Guid propertyId,
             Guid roomId,
@@ -359,6 +388,35 @@ public sealed class InventoryModule : IModule
             .RequireResolvedScopePermission(
                 InventoryAdminPermissionCodes.Retire,
                 InventoryPropertyAccessScopeResolver.ResolverName);
+
+        inventory.MapPost("/properties/{propertyId:guid}/room-retirements/{topologyChangeId:guid}/cancel", async (
+            Guid propertyId,
+            Guid topologyChangeId,
+            CancelRetirementRequest request,
+            HttpContext httpContext,
+            IAccessHttpSubjectResolver subjectResolver,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+        {
+            string? actor = ResolveActor(httpContext, subjectResolver);
+            return actor is null
+                ? Results.Unauthorized()
+                : (await dispatcher.SendAsync(
+                    new CancelRoomRetirementCommand(
+                        request.OperationId,
+                        propertyId,
+                        topologyChangeId,
+                        request.ExpectedVersion,
+                        request.Confirmed,
+                        request.Reason,
+                        actor),
+                    cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes);
+        })
+            .Produces<RoomRetirementDto>(StatusCodes.Status200OK)
+            .RequireTenant()
+            .RequireResolvedScopePermission(
+                InventoryAdminPermissionCodes.Retire,
+                InventoryPropertyAccessScopeResolver.ResolverName);
     }
 
     public sealed record ConfigureSalesModeRequest(
@@ -392,6 +450,11 @@ public sealed class InventoryModule : IModule
     public sealed record RetryRetirementRequest(
         Guid OperationId,
         long ExpectedVersion);
+    public sealed record CancelRetirementRequest(
+        Guid OperationId,
+        long ExpectedVersion,
+        bool Confirmed,
+        string Reason);
 
     private static async ValueTask<object?> SensitiveResponseFilter(
         EndpointFilterInvocationContext context,
@@ -459,7 +522,9 @@ public sealed class InventoryModule : IModule
         new(InventoryApplicationErrors.RoomRetirementStillDraining.Code, StatusCodes.Status409Conflict),
         new(InventoryApplicationErrors.RoomRetirementInProgress.Code, StatusCodes.Status409Conflict),
         new(Domain.Errors.InventoryDomainErrors.BedRetirementRequestInvalid.Code, StatusCodes.Status400BadRequest),
+        new(Domain.Errors.InventoryDomainErrors.BedRetirementCancellationRequestInvalid.Code, StatusCodes.Status400BadRequest),
         new(Domain.Errors.InventoryDomainErrors.BedRetirementTransitionInvalid.Code, StatusCodes.Status409Conflict),
         new(Domain.Errors.InventoryDomainErrors.RoomRetirementRequestInvalid.Code, StatusCodes.Status400BadRequest),
+        new(Domain.Errors.InventoryDomainErrors.RoomRetirementCancellationRequestInvalid.Code, StatusCodes.Status400BadRequest),
         new(Domain.Errors.InventoryDomainErrors.RoomRetirementTransitionInvalid.Code, StatusCodes.Status409Conflict));
 }

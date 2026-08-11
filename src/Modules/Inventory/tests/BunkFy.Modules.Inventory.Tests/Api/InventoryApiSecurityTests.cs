@@ -169,6 +169,10 @@ public sealed class InventoryApiSecurityTests
             endpoints,
             HttpMethods.Post,
             $"{property}/bed-retirements/{{topologyChangeId:guid}}/retry");
+        RouteEndpoint bedCancel = FindEndpoint(
+            endpoints,
+            HttpMethods.Post,
+            $"{property}/bed-retirements/{{topologyChangeId:guid}}/cancel");
         RouteEndpoint roomStatus = FindEndpoint(
             endpoints,
             HttpMethods.Get,
@@ -177,6 +181,10 @@ public sealed class InventoryApiSecurityTests
             endpoints,
             HttpMethods.Post,
             $"{property}/room-retirements/{{topologyChangeId:guid}}/retry");
+        RouteEndpoint roomCancel = FindEndpoint(
+            endpoints,
+            HttpMethods.Post,
+            $"{property}/room-retirements/{{topologyChangeId:guid}}/cancel");
 
         AssertAssurance(bedRequest, expected: true);
         AssertAssurance(roomRequest, expected: true);
@@ -184,12 +192,16 @@ public sealed class InventoryApiSecurityTests
         AssertPermission(roomRequest, InventoryAdminPermissionCodes.Retire);
         AssertAssurance(bedStatus, expected: false);
         AssertAssurance(bedRetry, expected: false);
+        AssertAssurance(bedCancel, expected: false);
         AssertAssurance(roomStatus, expected: false);
         AssertAssurance(roomRetry, expected: false);
+        AssertAssurance(roomCancel, expected: false);
         AssertPermission(bedStatus, InventoryAdminPermissionCodes.Retire);
         AssertPermission(bedRetry, InventoryAdminPermissionCodes.Retire);
+        AssertPermission(bedCancel, InventoryAdminPermissionCodes.Retire);
         AssertPermission(roomStatus, InventoryAdminPermissionCodes.Retire);
         AssertPermission(roomRetry, InventoryAdminPermissionCodes.Retire);
+        AssertPermission(roomCancel, InventoryAdminPermissionCodes.Retire);
         AssertAssurance(
             FindEndpoint(endpoints, HttpMethods.Put, $"{room}/sales-mode"),
             expected: false);
@@ -245,6 +257,10 @@ public sealed class InventoryApiSecurityTests
             endpoints,
             HttpMethods.Post,
             $"{routeBase}/bed-retirements/{{topologyChangeId:guid}}/retry");
+        AssertResponse<BedRetirementDto>(
+            endpoints,
+            HttpMethods.Post,
+            $"{routeBase}/bed-retirements/{{topologyChangeId:guid}}/cancel");
         AssertResponse<RoomRetirementDto>(
             endpoints,
             HttpMethods.Post,
@@ -257,6 +273,10 @@ public sealed class InventoryApiSecurityTests
             endpoints,
             HttpMethods.Post,
             $"{routeBase}/room-retirements/{{topologyChangeId:guid}}/retry");
+        AssertResponse<RoomRetirementDto>(
+            endpoints,
+            HttpMethods.Post,
+            $"{routeBase}/room-retirements/{{topologyChangeId:guid}}/cancel");
     }
 
     private static void AssertResponse<TResponse>(

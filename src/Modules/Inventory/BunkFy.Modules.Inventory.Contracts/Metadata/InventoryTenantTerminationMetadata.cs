@@ -8,13 +8,13 @@ public static class InventoryTenantTerminationMetadata
     public const string OwnerKey = InventoryDataRightsCoordinates.Owner;
     public const string ExportDependencyOwnerKey = "properties";
     public const string DestroyDependencyOwnerKey = "reservations";
-    public const int CatalogVersion = 5;
-    public const int PersonalDataCatalogVersion = 5;
+    public const int CatalogVersion = 6;
+    public const int PersonalDataCatalogVersion = 6;
     public const string ExportCatalogId = "inventory.tenant-portability";
     public const int ExportCatalogSchemaVersion = 1;
     public const string ExportSchemaId =
         "inventory.tenant-termination-export";
-    public const int ExportSchemaVersion = 4;
+    public const int ExportSchemaVersion = 5;
 
     public const string InventoryUnitRecordType = "inventory-unit";
     public const string RoomConfigurationRecordType = "room-configuration";
@@ -84,6 +84,9 @@ public static class InventoryTenantTerminationMetadata
             "inventory.allocation-anonymisation-proof",
             "inventory.retirement-id",
             "inventory.staff-actor-reference",
+            "inventory.cancellation-reason",
+            "inventory.cancellation-actor-reference",
+            "inventory.canceled-at",
             "inventory.rejection-reason-code",
             "inventory.completed-at"
         ]);

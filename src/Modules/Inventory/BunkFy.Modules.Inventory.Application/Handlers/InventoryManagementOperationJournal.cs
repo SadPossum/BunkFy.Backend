@@ -132,6 +132,24 @@ internal sealed class InventoryManagementOperationJournal(
             cancellationToken);
 
     public Task<InventoryManagementReplayDecision<
+        InventoryRetirementOperationPointer>> InspectBedRetirementCancellationAsync(
+        Guid propertyId,
+        Guid topologyChangeId,
+        Guid operationId,
+        long expectedVersion,
+        string fingerprint,
+        CancellationToken cancellationToken) => this.InspectAsync(
+            propertyId,
+            InventoryManagementResourceKind.BedRetirement,
+            topologyChangeId,
+            operationId,
+            InventoryManagementMutationKind.BedRetirementCancellation,
+            expectedVersion,
+            fingerprint,
+            static operation => operation.ToRetirementPointer(),
+            cancellationToken);
+
+    public Task<InventoryManagementReplayDecision<
         InventoryRetirementOperationPointer>>
         InspectRoomRetirementRequestAsync(
         Guid propertyId,
@@ -162,6 +180,24 @@ internal sealed class InventoryManagementOperationJournal(
             topologyChangeId,
             operationId,
             InventoryManagementMutationKind.RoomRetirementRetry,
+            expectedVersion,
+            fingerprint,
+            static operation => operation.ToRetirementPointer(),
+            cancellationToken);
+
+    public Task<InventoryManagementReplayDecision<
+        InventoryRetirementOperationPointer>> InspectRoomRetirementCancellationAsync(
+        Guid propertyId,
+        Guid topologyChangeId,
+        Guid operationId,
+        long expectedVersion,
+        string fingerprint,
+        CancellationToken cancellationToken) => this.InspectAsync(
+            propertyId,
+            InventoryManagementResourceKind.RoomRetirement,
+            topologyChangeId,
+            operationId,
+            InventoryManagementMutationKind.RoomRetirementCancellation,
             expectedVersion,
             fingerprint,
             static operation => operation.ToRetirementPointer(),
@@ -276,6 +312,26 @@ internal sealed class InventoryManagementOperationJournal(
             completedAtUtc,
             cancellationToken);
 
+    public Task RecordBedRetirementCancellationAsync(
+        BedRetirementProcess process,
+        Guid operationId,
+        long expectedVersion,
+        string fingerprint,
+        DateTimeOffset completedAtUtc,
+        CancellationToken cancellationToken) => this.RecordRetirementAsync(
+            process.ScopeId,
+            process.PropertyId,
+            InventoryManagementResourceKind.BedRetirement,
+            process.Id,
+            InventoryManagementMutationKind.BedRetirementCancellation,
+            expectedVersion,
+            fingerprint,
+            process.Id,
+            process.Version,
+            operationId,
+            completedAtUtc,
+            cancellationToken);
+
     public Task RecordRoomRetirementRequestAsync(
         RoomRetirementProcess process,
         Guid operationId,
@@ -307,6 +363,26 @@ internal sealed class InventoryManagementOperationJournal(
             InventoryManagementResourceKind.RoomRetirement,
             process.Id,
             InventoryManagementMutationKind.RoomRetirementRetry,
+            expectedVersion,
+            fingerprint,
+            process.Id,
+            process.Version,
+            operationId,
+            completedAtUtc,
+            cancellationToken);
+
+    public Task RecordRoomRetirementCancellationAsync(
+        RoomRetirementProcess process,
+        Guid operationId,
+        long expectedVersion,
+        string fingerprint,
+        DateTimeOffset completedAtUtc,
+        CancellationToken cancellationToken) => this.RecordRetirementAsync(
+            process.ScopeId,
+            process.PropertyId,
+            InventoryManagementResourceKind.RoomRetirement,
+            process.Id,
+            InventoryManagementMutationKind.RoomRetirementCancellation,
             expectedVersion,
             fingerprint,
             process.Id,

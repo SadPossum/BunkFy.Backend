@@ -11,7 +11,9 @@ public static class InventoryAdminOperationNames
     public const string BedRetirementsGet = "inventory.bed-retirements.get";
     public const string BedRetirementsRequest = "inventory.bed-retirements.request";
     public const string BedRetirementsRetry = "inventory.bed-retirements.retry";
+    public const string BedRetirementsCancel = "inventory.bed-retirements.cancel";
     public const string RoomRetirementsGet = "inventory.room-retirements.get";
     public const string RoomRetirementsRequest = "inventory.room-retirements.request";
     public const string RoomRetirementsRetry = "inventory.room-retirements.retry";
+    public const string RoomRetirementsCancel = "inventory.room-retirements.cancel";
 }

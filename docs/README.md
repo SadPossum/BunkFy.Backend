@@ -55,6 +55,7 @@ Useful entry points:
 - [Inventory Manual Block Idempotency Task](planning/inventory-manual-block-idempotency-task.md)
 - [Inventory Retirement Idempotency Task](planning/inventory-retirement-idempotency-task.md)
 - [Inventory Retirement Outcome Convergence Task](planning/inventory-retirement-outcome-convergence-task.md)
+- [Inventory Retirement Cancellation Recovery Task](planning/inventory-retirement-cancellation-recovery-task.md)
 - [Inventory Topology Retirement Control Assurance Task](planning/inventory-topology-retirement-control-assurance-task.md)
 - [Properties Operational Surface Hardening Task](planning/properties-operational-surface-hardening-task.md)
 - [Inventory Personal-Data Catalogue Task](planning/inventory-personal-data-catalogue-task.md)

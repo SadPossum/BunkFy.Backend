@@ -7,6 +7,7 @@ using BunkFy.Modules.Inventory.Application.Ports;
 using BunkFy.Modules.Inventory.Contracts;
 using BunkFy.Modules.Inventory.Domain.Aggregates;
 using Gma.Framework.Results;
+using Gma.Framework.Messaging;
 using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
@@ -298,6 +299,176 @@ public sealed class InventoryRetirementCommandHandlerTests
             harness.Lock.ResourceKinds);
     }
 
+    [Fact]
+    public async Task Cancellation_requires_confirmation_before_write_side_work()
+    {
+        BedRetirementProcess bed = CreateBedProcess();
+        RoomRetirementProcess room = CreateRoomProcess();
+        RecordingOperationRepository operations = new();
+        Harness harness = CreateHarness(bed, room, operations);
+
+        Result<BedRetirementDto> bedResult = await harness.BedCancel.HandleAsync(
+            new(
+                Guid.NewGuid(),
+                PropertyId,
+                bed.Id,
+                bed.Version,
+                false,
+                "Keep the bed",
+                "user:manager"),
+            CancellationToken.None);
+        Result<RoomRetirementDto> roomResult = await harness.RoomCancel.HandleAsync(
+            new(
+                Guid.NewGuid(),
+                PropertyId,
+                room.Id,
+                room.Version,
+                false,
+                "Keep the room",
+                "user:manager"),
+            CancellationToken.None);
+
+        Assert.Equal(InventoryApplicationErrors.ConfirmationRequired, bedResult.Error);
+        Assert.Equal(InventoryApplicationErrors.ConfirmationRequired, roomResult.Error);
+        Assert.Empty(harness.Lock.ResourceKinds);
+        Assert.Empty(operations.Added);
+        Assert.Empty(harness.Outbox.Events);
+        Assert.Equal(InventoryRetirementProcessState.Draining, bed.State);
+        Assert.Equal(InventoryRetirementProcessState.Draining, room.State);
+    }
+
+    [Fact]
+    public async Task Bed_cancellation_is_locked_audited_and_republishes_sellable_inventory()
+    {
+        BedRetirementProcess process = CreateBedProcess();
+        long expectedVersion = process.Version;
+        RecordingOperationRepository operations = new();
+        Harness harness = CreateHarness(process, roomProcess: null, operations);
+
+        Result<BedRetirementDto> result = await harness.BedCancel.HandleAsync(
+            new(
+                Guid.NewGuid(),
+                PropertyId,
+                process.Id,
+                expectedVersion,
+                true,
+                "  Repair no longer needed  ",
+                "user:manager"),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(InventoryRetirementStatus.Canceled, result.Value.Status);
+        Assert.Equal("Repair no longer needed", result.Value.CancellationReason);
+        Assert.Equal("user:manager", result.Value.CanceledBy);
+        Assert.Equal(Now, result.Value.CanceledAtUtc);
+        Assert.Equal(
+            ["BedRetirement", "Room"],
+            harness.Lock.ResourceKinds);
+        InventoryManagementOperationRecord stored = Assert.Single(operations.Added);
+        Assert.Equal(InventoryManagementMutationKind.BedRetirementCancellation, stored.Kind);
+        Assert.Equal(expectedVersion, stored.ExpectedVersion);
+        Assert.Equal(expectedVersion + 1, stored.ResultVersion);
+        InventoryUnitDefinitionChangedIntegrationEvent definition = Assert.IsType<
+            InventoryUnitDefinitionChangedIntegrationEvent>(Assert.Single(harness.Outbox.Events));
+        Assert.True(definition.IsSellable);
+    }
+
+    [Fact]
+    public async Task Room_cancellation_is_locked_and_journaled()
+    {
+        RoomRetirementProcess process = CreateRoomProcess();
+        long expectedVersion = process.Version;
+        RecordingOperationRepository operations = new();
+        Harness harness = CreateHarness(bedProcess: null, process, operations);
+
+        Result<RoomRetirementDto> result = await harness.RoomCancel.HandleAsync(
+            new(
+                Guid.NewGuid(),
+                PropertyId,
+                process.Id,
+                expectedVersion,
+                true,
+                "Keep room in service",
+                "user:manager"),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(InventoryRetirementStatus.Canceled, result.Value.Status);
+        Assert.Equal(
+            ["RoomRetirement", "Room"],
+            harness.Lock.ResourceKinds);
+        InventoryManagementOperationRecord stored = Assert.Single(operations.Added);
+        Assert.Equal(InventoryManagementMutationKind.RoomRetirementCancellation, stored.Kind);
+        Assert.Equal(expectedVersion, stored.ExpectedVersion);
+        Assert.Equal(expectedVersion + 1, stored.ResultVersion);
+        Assert.Single(harness.Outbox.Events);
+    }
+
+    [Fact]
+    public async Task Bed_cancellation_exact_replay_is_read_only_and_changed_intent_conflicts()
+    {
+        BedRetirementProcess process = CreateBedProcess();
+        long expectedVersion = process.Version;
+        Guid operationId = Guid.NewGuid();
+        RecordingOperationRepository operations = new();
+        Harness harness = CreateHarness(process, roomProcess: null, operations);
+        CancelBedRetirementCommand command = new(
+            operationId,
+            PropertyId,
+            process.Id,
+            expectedVersion,
+            true,
+            "Keep the bed",
+            "user:manager");
+
+        Result<BedRetirementDto> canceled = await harness.BedCancel.HandleAsync(
+            command,
+            CancellationToken.None);
+        Result<BedRetirementDto> replayed = await harness.BedCancel.HandleAsync(
+            command,
+            CancellationToken.None);
+        Result<BedRetirementDto> changed = await harness.BedCancel.HandleAsync(
+            command with { Reason = "Changed reason" },
+            CancellationToken.None);
+
+        Assert.True(canceled.IsSuccess);
+        Assert.True(replayed.IsSuccess);
+        Assert.Equal(InventoryRetirementStatus.Canceled, replayed.Value.Status);
+        Assert.Equal(InventoryApplicationErrors.ManagementOperationConflict, changed.Error);
+        Assert.Single(operations.Added);
+        Assert.Single(harness.Outbox.Events);
+        Assert.Equal(
+            ["BedRetirement", "Room", "BedRetirement", "BedRetirement"],
+            harness.Lock.ResourceKinds);
+    }
+
+    [Fact]
+    public async Task Stale_cancellation_does_not_publish_or_bind_the_operation()
+    {
+        RoomRetirementProcess process = CreateRoomProcess();
+        RecordingOperationRepository operations = new();
+        Harness harness = CreateHarness(bedProcess: null, process, operations);
+
+        Result<RoomRetirementDto> result = await harness.RoomCancel.HandleAsync(
+            new(
+                Guid.NewGuid(),
+                PropertyId,
+                process.Id,
+                process.Version - 1,
+                true,
+                "Keep room in service",
+                "user:manager"),
+            CancellationToken.None);
+
+        Assert.Equal(InventoryApplicationErrors.VersionConflict, result.Error);
+        Assert.Empty(operations.Added);
+        Assert.Empty(harness.Outbox.Events);
+        Assert.Equal(
+            ["RoomRetirement", "Room"],
+            harness.Lock.ResourceKinds);
+        Assert.Equal(InventoryRetirementProcessState.Draining, process.State);
+    }
+
     private static Harness CreateHarness(
         BedRetirementProcess? bedProcess,
         RoomRetirementProcess? roomProcess,
@@ -314,12 +485,20 @@ public sealed class InventoryRetirementCommandHandlerTests
         FakeAvailabilityRepository availability = new();
         TestClock clock = new();
         TestIdGenerator ids = new();
+        RecordingOutbox outbox = new();
+        FakeTopologyRepository topology = new(bedProcess, roomProcess);
+        InventoryUnitDefinitionPublisher definitions = new(
+            topology,
+            new RecordingOutboxRegistry(outbox),
+            ids);
         BedRetirementCoordinator bedCoordinator = new(
+            mutations,
             beds,
             availability,
             clock,
             ids);
         RoomRetirementCoordinator roomCoordinator = new(
+            mutations,
             rooms,
             availability,
             clock,
@@ -333,7 +512,7 @@ public sealed class InventoryRetirementCommandHandlerTests
                 rooms,
                 availability,
                 bedCoordinator,
-                null!,
+                definitions,
                 scope,
                 clock,
                 ids),
@@ -353,7 +532,7 @@ public sealed class InventoryRetirementCommandHandlerTests
                 rooms,
                 availability,
                 roomCoordinator,
-                null!,
+                definitions,
                 scope,
                 clock,
                 ids),
@@ -365,8 +544,23 @@ public sealed class InventoryRetirementCommandHandlerTests
                 roomCoordinator,
                 clock,
                 ids),
+            new(
+                mutations,
+                journal,
+                beds,
+                bedCoordinator,
+                definitions,
+                clock),
+            new(
+                mutations,
+                journal,
+                rooms,
+                roomCoordinator,
+                definitions,
+                clock),
             operationLock,
-            ids);
+            ids,
+            outbox);
     }
 
     private static BedRetirementProcess CreateBedProcess() =>
@@ -411,8 +605,11 @@ public sealed class InventoryRetirementCommandHandlerTests
         RetryBedRetirementCommandHandler BedRetry,
         RequestRoomRetirementCommandHandler RoomRequest,
         RetryRoomRetirementCommandHandler RoomRetry,
+        CancelBedRetirementCommandHandler BedCancel,
+        CancelRoomRetirementCommandHandler RoomCancel,
         RecordingManagementLock Lock,
-        TestIdGenerator Ids);
+        TestIdGenerator Ids,
+        RecordingOutbox Outbox);
 
     private sealed class RecordingOperationRepository
         : IInventoryManagementOperationRepository
@@ -527,6 +724,10 @@ public sealed class InventoryRetirementCommandHandlerTests
             BedRetirementProcess value,
             CancellationToken cancellationToken) => throw new
                 InvalidOperationException("Creation is outside this harness.");
+
+        public Task ReloadAsync(
+            BedRetirementProcess value,
+            CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
     private sealed class FakeRoomRetirementRepository(
@@ -574,6 +775,10 @@ public sealed class InventoryRetirementCommandHandlerTests
             RoomRetirementProcess value,
             CancellationToken cancellationToken) => throw new
                 InvalidOperationException("Creation is outside this harness.");
+
+        public Task ReloadAsync(
+            RoomRetirementProcess value,
+            CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
     private sealed class FakeAvailabilityRepository
@@ -624,6 +829,83 @@ public sealed class InventoryRetirementCommandHandlerTests
             IReadOnlyCollection<Guid> inventoryUnitIds,
             CancellationToken cancellationToken) =>
             throw new InvalidOperationException("Not used by retirement tests.");
+    }
+
+    private sealed class FakeTopologyRepository(
+        BedRetirementProcess? bedProcess,
+        RoomRetirementProcess? roomProcess) : IInventoryTopologyRepository
+    {
+        public Task ApplyPropertyAsync(
+            InventoryPropertyTopologyWriteModel property,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task ApplyRoomAsync(
+            InventoryRoomTopologyWriteModel room,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task ApplyBedAsync(
+            InventoryBedTopologyWriteModel bed,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<InventoryRoomTopologySnapshot?> GetRoomAsync(
+            Guid propertyId,
+            Guid roomId,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<IReadOnlyCollection<InventoryUnitDefinitionSnapshot>>
+            GetUnitDefinitionsAsync(
+            Guid propertyId,
+            Guid? roomId,
+            Guid? inventoryUnitId,
+            bool touchVersions,
+            CancellationToken cancellationToken)
+        {
+            Assert.Equal(PropertyId, propertyId);
+            Assert.Equal(RoomId, roomId);
+            Assert.Null(inventoryUnitId);
+            Assert.True(touchVersions);
+            bool isSellable =
+                (bedProcess is null || !BedRetirementProcess.IsDrainActive(bedProcess.State)) &&
+                (roomProcess is null || !RoomRetirementProcess.IsDrainActive(roomProcess.State));
+            return Task.FromResult<IReadOnlyCollection<InventoryUnitDefinitionSnapshot>>(
+                [new(
+                    TenantId,
+                    BedId,
+                    PropertyId,
+                    RoomId,
+                    BedId,
+                    InventoryUnitKind.Bed,
+                    "1",
+                    IsTopologyActive: true,
+                    isSellable,
+                    ConfigurationVersion: 1,
+                    UnitVersion: 2)]);
+        }
+    }
+
+    private sealed class RecordingOutbox : IOutboxWriter
+    {
+        public string ModuleName => InventoryModuleMetadata.Name;
+        public List<IIntegrationEvent> Events { get; } = [];
+
+        public Task EnqueueAsync<TEvent>(
+            TEvent integrationEvent,
+            CancellationToken cancellationToken)
+            where TEvent : IIntegrationEvent
+        {
+            this.Events.Add(integrationEvent);
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class RecordingOutboxRegistry(RecordingOutbox outbox)
+        : IOutboxWriterRegistry
+    {
+        public IOutboxWriter GetRequired(string moduleName)
+        {
+            Assert.Equal(InventoryModuleMetadata.Name, moduleName);
+            return outbox;
+        }
     }
 
     private sealed class TestScopeContext : IScopeContext
