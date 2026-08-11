@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.Staff.Application.Validation;
 
 using BunkFy.Modules.Staff.Application.Commands;
+using BunkFy.Modules.Staff.Contracts;
 using Gma.Framework.Cqrs;
 
 internal sealed class BootstrapStaffIdentityCommandValidator
@@ -13,19 +14,10 @@ internal sealed class BootstrapStaffIdentityCommandValidator
             yield return "OperationId is required.";
         }
 
-        foreach (string error in StaffValidation.Profile(
-            command.DisplayName,
-            legalName: null,
-            email: command.WorkEmail,
-            phone: null,
-            employeeNumber: null,
-            jobTitle: null,
-            department: null,
-            command.AuthSubjectId,
-            version: null,
-            command.ActorId))
+        string authSubjectId = command.AuthSubjectId?.Trim() ?? string.Empty;
+        if (authSubjectId.Length is 0 or > StaffContractLimits.AuthSubjectIdMaxLength)
         {
-            yield return error;
+            yield return "AuthSubjectId is required and must be within the supported limit.";
         }
     }
 }

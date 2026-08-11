@@ -34,31 +34,14 @@ internal sealed class BootstrapStaffIdentityCommandHandler(
                 StaffApplicationErrors.CreationOperationInvalid);
         }
 
-        Result<StaffProfile> profile = StaffProfile.Create(
-            command.DisplayName,
-            legalName: null,
-            command.WorkEmail,
-            workPhone: null,
-            employeeNumber: null,
-            jobTitle: null,
-            department: null,
+        Result<StaffAuthSubject> authSubject = StaffAuthSubject.Create(
             command.AuthSubjectId);
-        if (profile.IsFailure)
+        if (authSubject.IsFailure || authSubject.Value.Value is null)
         {
-            return Result.Failure<Unit>(profile.Error);
+            return Result.Failure<Unit>(StaffDomainErrors.AuthSubjectInvalid);
         }
 
-        if (profile.Value.AuthSubjectId is null)
-        {
-            return Result.Failure<Unit>(
-                StaffDomainErrors.AuthSubjectInvalid);
-        }
-
-        Result<StaffActorId> actor = StaffActorId.Create(command.ActorId);
-        if (actor.IsFailure)
-        {
-            return Result.Failure<Unit>(actor.Error);
-        }
+        string normalizedAuthSubject = authSubject.Value.Value;
 
         await creationLock.AcquireAsync(
                 scopeContext.ScopeId,
@@ -72,7 +55,7 @@ internal sealed class BootstrapStaffIdentityCommandHandler(
         {
             return string.Equals(
                 operationOwner.AuthSubjectId,
-                profile.Value.AuthSubjectId,
+                normalizedAuthSubject,
                 StringComparison.Ordinal)
                 ? Result.Success(Unit.Value)
                 : Result.Failure<Unit>(
@@ -80,11 +63,31 @@ internal sealed class BootstrapStaffIdentityCommandHandler(
         }
 
         if (await members.AuthSubjectExistsAsync(
-                profile.Value.AuthSubjectId,
+                normalizedAuthSubject,
                 exceptStaffMemberId: null,
                 cancellationToken).ConfigureAwait(false))
         {
             return Result.Success(Unit.Value);
+        }
+
+        Result<StaffProfile> profile = StaffProfile.Create(
+            command.DisplayName,
+            legalName: null,
+            command.WorkEmail,
+            workPhone: null,
+            employeeNumber: null,
+            jobTitle: null,
+            department: null,
+            normalizedAuthSubject);
+        if (profile.IsFailure)
+        {
+            return Result.Failure<Unit>(profile.Error);
+        }
+
+        Result<StaffActorId> actor = StaffActorId.Create(command.ActorId);
+        if (actor.IsFailure)
+        {
+            return Result.Failure<Unit>(actor.Error);
         }
 
         Result<StaffMember> created = StaffMember.Create(

@@ -11,6 +11,7 @@ using BunkFy.Modules.Staff.Application;
 using BunkFy.Modules.Staff.Application.Commands;
 using BunkFy.Modules.Staff.Application.Handlers;
 using BunkFy.Modules.Staff.Application.Ports;
+using BunkFy.Modules.Staff.Application.Validation;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Staff.Domain.Aggregates;
 using BunkFy.Modules.Staff.Domain.Errors;
@@ -999,6 +1000,141 @@ public sealed class StaffCommandHandlerTests
         Assert.Equal("member-100", members.AddedMember.AuthSubjectId);
         Assert.Equal(StaffMemberState.Active, members.AddedMember.Status);
         Assert.Equal(1, members.AddCount);
+        Assert.Equal(2, creationLock.Acquisitions.Count);
+    }
+
+    [Fact]
+    public void Identity_bootstrap_validator_only_requires_the_replay_envelope()
+    {
+        BootstrapStaffIdentityCommandValidator validator = new();
+
+        string[] errors = validator.Validate(new BootstrapStaffIdentityCommand(
+            Guid.NewGuid(),
+            " member-100 ",
+            string.Empty,
+            new string('e', StaffContractLimits.EmailMaxLength + 1),
+            string.Empty)).ToArray();
+
+        Assert.Empty(errors);
+    }
+
+    [Fact]
+    public void Identity_bootstrap_validator_rejects_an_invalid_replay_envelope()
+    {
+        BootstrapStaffIdentityCommandValidator validator = new();
+
+        string[] emptyOperationErrors = validator.Validate(
+            new BootstrapStaffIdentityCommand(
+                Guid.Empty,
+                "member-100",
+                "Ada Operator",
+                null,
+                "integration:organizations")).ToArray();
+        string[] emptySubjectErrors = validator.Validate(
+            new BootstrapStaffIdentityCommand(
+                Guid.NewGuid(),
+                "   ",
+                "Ada Operator",
+                null,
+                "integration:organizations")).ToArray();
+        string[] oversizedSubjectErrors = validator.Validate(
+            new BootstrapStaffIdentityCommand(
+                Guid.NewGuid(),
+                new string('s', StaffContractLimits.AuthSubjectIdMaxLength + 1),
+                "Ada Operator",
+                null,
+                "integration:organizations")).ToArray();
+
+        Assert.Equal("OperationId is required.", Assert.Single(emptyOperationErrors));
+        Assert.Equal(
+            "AuthSubjectId is required and must be within the supported limit.",
+            Assert.Single(emptySubjectErrors));
+        Assert.Equal(
+            "AuthSubjectId is required and must be within the supported limit.",
+            Assert.Single(oversizedSubjectErrors));
+    }
+
+    [Fact]
+    public async Task Identity_bootstrap_exact_replay_ignores_mutation_only_payload()
+    {
+        Guid operationId = Guid.NewGuid();
+        StaffMember operationOwner = CreateMemberWithId(operationId, "member-100");
+        FakeStaffMemberRepository members = new(operationOwner);
+        using ServiceProvider provider = CreateProvider(
+            members,
+            new FakePropertyProjectionRepository());
+        var handler = provider.GetRequiredService<
+            ICommandHandler<BootstrapStaffIdentityCommand, Unit>>();
+
+        Result<Unit> result = await handler.HandleAsync(
+            new BootstrapStaffIdentityCommand(
+                operationId,
+                " member-100 ",
+                string.Empty,
+                new string('e', StaffContractLimits.EmailMaxLength + 1),
+                string.Empty),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.Code);
+        Assert.Equal(0, members.AddCount);
+    }
+
+    [Fact]
+    public async Task Identity_bootstrap_existing_identity_ignores_mutation_only_payload()
+    {
+        StaffMember member = CreateMember("member-100");
+        FakeStaffMemberRepository members = new(member);
+        using ServiceProvider provider = CreateProvider(
+            members,
+            new FakePropertyProjectionRepository());
+        var handler = provider.GetRequiredService<
+            ICommandHandler<BootstrapStaffIdentityCommand, Unit>>();
+
+        Result<Unit> result = await handler.HandleAsync(
+            new BootstrapStaffIdentityCommand(
+                Guid.NewGuid(),
+                " member-100 ",
+                string.Empty,
+                new string('e', StaffContractLimits.EmailMaxLength + 1),
+                string.Empty),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.Code);
+        Assert.Equal(0, members.AddCount);
+    }
+
+    [Fact]
+    public async Task Identity_bootstrap_new_identity_still_requires_valid_mutation_payload()
+    {
+        FakeStaffMemberRepository members = new();
+        RecordingCreationOperationLock creationLock = new();
+        using ServiceProvider provider = CreateProvider(
+            members,
+            new FakePropertyProjectionRepository(),
+            creationLock: creationLock);
+        var handler = provider.GetRequiredService<
+            ICommandHandler<BootstrapStaffIdentityCommand, Unit>>();
+
+        Result<Unit> invalidProfile = await handler.HandleAsync(
+            new BootstrapStaffIdentityCommand(
+                Guid.NewGuid(),
+                "member-profile",
+                string.Empty,
+                null,
+                "integration:organizations"),
+            CancellationToken.None);
+        Result<Unit> invalidActor = await handler.HandleAsync(
+            new BootstrapStaffIdentityCommand(
+                Guid.NewGuid(),
+                "member-actor",
+                "Ada Operator",
+                "ada@example.test",
+                string.Empty),
+            CancellationToken.None);
+
+        Assert.Equal(StaffDomainErrors.DisplayNameInvalid, invalidProfile.Error);
+        Assert.Equal(StaffDomainErrors.ActorInvalid, invalidActor.Error);
+        Assert.Equal(0, members.AddCount);
         Assert.Equal(2, creationLock.Acquisitions.Count);
     }
 

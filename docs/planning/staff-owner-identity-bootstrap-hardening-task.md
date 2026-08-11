@@ -46,8 +46,12 @@ independent from Organizations membership lifecycle.
   the new Staff member id when creation is needed.
 - Replaying the same source event for the same Auth subject is a no-op.
 - Reusing that source event id for another Auth subject conflicts.
-- Any existing Staff identity for the Auth subject, including suspended,
-  departed, restricted, or anonymised data, makes bootstrap a successful no-op.
+- Any existing Staff identity whose Auth-subject binding remains available,
+  including suspended, departed, or restricted data, makes bootstrap a
+  successful no-op.
+- Anonymisation erases the Auth-subject binding. Staff cannot correlate a later
+  operation by that erased value; current Organizations access admission is the
+  stale-event fence before the bootstrap capability is invoked.
 - Bootstrap never updates profile fields and never advances an existing Staff
   version.
 
@@ -83,8 +87,9 @@ independent from Organizations membership lifecycle.
   semantics.
 - Bootstrap serializes the source operation, uses safety-visible identity lookup,
   and creates a Staff member only when neither the operation id nor Auth subject
-  already exists. Existing, suspended, departed, restricted, and anonymised
-  identities remain untouched.
+  already exists. Existing, suspended, departed, and restricted identities with
+  an available Auth binding remain untouched; Organizations admission protects
+  the erased-binding anonymisation boundary from stale membership events.
 - Exact replay and competing source operations converge through the existing
   transaction lock, scoped Auth-subject uniqueness, and persistence retry
   pipeline. No new receipt table or migration was required.

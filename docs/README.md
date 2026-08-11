@@ -79,6 +79,7 @@ Useful entry points:
 - [Staff Auth-Subject Idempotency Task](planning/staff-auth-subject-idempotency-task.md)
 - [Staff Employment Lifecycle Idempotency Task](planning/staff-employment-lifecycle-idempotency-task.md)
 - [Staff Immediate Effective-Date Integrity Task](planning/staff-immediate-effective-date-integrity-task.md)
+- [Staff Identity Bootstrap Replay Envelope Task](planning/staff-identity-bootstrap-replay-envelope-task.md)
 - [Staff Property Assignment Idempotency Task](planning/staff-property-assignment-idempotency-task.md)
 - [Workspace And Staff Onboarding Task](planning/workspace-onboarding-task.md)
 - [Secure Staff Enrollment Task](planning/secure-staff-enrollment-task.md)
