@@ -497,6 +497,21 @@ public sealed partial class DeveloperExperienceGuardTests
         Assert.Empty(missing);
     }
 
+    [Fact]
+    public void Product_module_inbox_stores_preserve_domain_events_in_the_inbox_transaction()
+    {
+        string[] offenders = RepositoryPaths
+            .EnumerateFiles("src/Modules", "*InboxStore.cs")
+            .Where(path => !File.ReadAllText(path).Contains(
+                ": EfDomainEventInboxStore<",
+                StringComparison.Ordinal))
+            .Select(RepositoryPaths.ToRepositoryPath)
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        Assert.Empty(offenders);
+    }
+
     private static bool SolutionContainsPath(string solution, string path)
     {
         string normalized = path.Replace('\\', '/');

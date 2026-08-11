@@ -873,25 +873,37 @@ public sealed class InventoryAuthorizationIntegrationTests
         {
             propertiesScope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantA);
             PropertiesDbContext propertiesDb = propertiesScope.ServiceProvider.GetRequiredService<PropertiesDbContext>();
-            await using var transaction = await propertiesDb.Database
-                .BeginTransactionAsync()
-                .ConfigureAwait(false);
             IIntegrationEventHandler<RoomRetirementFinalizationRequestedIntegrationEvent> finalize =
                 ResolveHandler<RoomRetirementFinalizationRequestedIntegrationEvent>(
                     propertiesScope.ServiceProvider,
                     PropertiesModuleMetadata.Name);
-            await finalize.HandleAsync(
-                new(
-                    Guid.NewGuid(),
-                    TenantA,
-                    DateTimeOffset.UtcNow,
-                    topologyChangeId,
-                    PropertyB,
-                    RoomB),
+            RoomRetirementFinalizationRequestedIntegrationEvent finalization = new(
+                Guid.NewGuid(),
+                TenantA,
+                DateTimeOffset.UtcNow,
+                topologyChangeId,
+                PropertyB,
+                RoomB);
+            IInboxStore inbox = propertiesScope.ServiceProvider
+                .GetServices<IInboxStore>()
+                .Single(store => store.ModuleName == PropertiesModuleMetadata.Name);
+            InboxProcessResult inboxResult = await inbox.ProcessAsync(
+                new InboxMessageRecord(
+                    finalization.EventId,
+                    PropertiesModuleMetadata.RoomRetirementFinalizationHandlerName,
+                    IntegrationEventNaming.CreateSubject(
+                        IntegrationEventNaming.DefaultSubjectPrefix,
+                        InventoryModuleMetadata.Name,
+                        finalization.EventName,
+                        finalization.Version),
+                    finalization.EventName,
+                    finalization.Version,
+                    finalization.ScopeId,
+                    finalization.OccurredAtUtc),
+                cancellationToken => finalize.HandleAsync(finalization, cancellationToken),
                 CancellationToken.None).ConfigureAwait(false);
 
-            await propertiesDb.SaveChangesAsync().ConfigureAwait(false);
-            await transaction.CommitAsync().ConfigureAwait(false);
+            Assert.Equal(InboxProcessStatus.Processed, inboxResult.Status);
             Room room = await propertiesDb.Rooms
                 .AsNoTracking()
                 .Include(item => item.Beds)
@@ -901,6 +913,10 @@ public sealed class InventoryAuthorizationIntegrationTests
             Assert.All(room.Beds, bed => Assert.Equal(BedState.Retired, bed.Status));
             roomVersion = room.Version;
             bedVersion = room.Beds.Single(bed => bed.Id == BedB2).Version;
+            Assert.Single(propertiesDb.OutboxMessages.Where(message =>
+                message.EventType == typeof(RoomRetiredIntegrationEvent).FullName));
+            Assert.Single(propertiesDb.OutboxMessages.Where(message =>
+                message.EventType == typeof(RoomRetirementFinalizedIntegrationEvent).FullName));
         }
 
         using (IServiceScope roomOutcomeScope = api.Services.CreateScope())

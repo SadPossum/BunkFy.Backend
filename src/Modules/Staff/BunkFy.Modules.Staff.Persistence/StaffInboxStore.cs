@@ -1,15 +1,22 @@
 namespace BunkFy.Modules.Staff.Persistence;
 
+using Gma.Framework.Application.Events;
 using Gma.Framework.Messaging;
 using Gma.Framework.Messaging.Infrastructure;
+using Gma.Framework.Persistence.EntityFrameworkCore;
 using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
 
-internal sealed class StaffInboxStore(StaffDbContext dbContext, ISystemClock clock, IIdGenerator idGenerator)
-    : EfInboxStore<StaffDbContext>(
+internal sealed class StaffInboxStore(
+    StaffDbContext dbContext,
+    ISystemClock clock,
+    IIdGenerator idGenerator,
+    IDomainEventDispatcher domainEventDispatcher)
+    : EfDomainEventInboxStore<StaffDbContext>(
         dbContext,
         clock,
         idGenerator,
+        domainEventDispatcher,
         StaffMigrations.Schema)
 {
     protected override ValueTask<bool> IsAdmittedAsync(

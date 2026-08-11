@@ -44,6 +44,7 @@ public sealed class GuestProfileCreationLinkConfirmationTests
         Assert.Equal(ReservationGuestRecordLinkProcessState.Ready, process.State);
         Assert.Equal(1, process.DispatchRevision);
         Assert.Single(dispatched.Events);
+        Assert.Empty(process.DomainEvents);
         Assert.Single(projections.Profiles);
         Assert.Single(projections.Restrictions);
     }

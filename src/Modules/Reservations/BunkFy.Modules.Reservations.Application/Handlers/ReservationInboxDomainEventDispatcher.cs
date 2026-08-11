@@ -5,12 +5,18 @@ using Gma.Framework.Domain;
 
 internal sealed class ReservationInboxDomainEventDispatcher(IDomainEventDispatcher dispatcher)
 {
-    public Task DispatchAsync(IAggregateRoot aggregate, CancellationToken cancellationToken)
+    public async Task DispatchAsync(IAggregateRoot aggregate, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(aggregate);
 
-        return aggregate.DomainEvents.Count == 0
-            ? Task.CompletedTask
-            : dispatcher.DispatchAsync(aggregate.DomainEvents.ToArray(), cancellationToken);
+        if (aggregate.DomainEvents.Count == 0)
+        {
+            return;
+        }
+
+        await dispatcher
+            .DispatchAsync(aggregate.DomainEvents.ToArray(), cancellationToken)
+            .ConfigureAwait(false);
+        aggregate.ClearDomainEvents();
     }
 }
