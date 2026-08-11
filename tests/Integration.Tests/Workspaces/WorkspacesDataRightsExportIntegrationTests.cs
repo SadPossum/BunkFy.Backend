@@ -631,6 +631,8 @@ public sealed partial class WorkspacesDataRightsExportIntegrationTests
         Assert.True(
             onboarding.MarkStaffReady(
                 StaffMemberId,
+                Guid.NewGuid(),
+                Guid.NewGuid(),
                 Now.AddMinutes(2)).IsSuccess);
         Assert.True(
             onboarding.Complete(

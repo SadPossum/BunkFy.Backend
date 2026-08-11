@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Workspaces.Application.Handlers;
 
+using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Workspaces.Application.Mapping;
 using BunkFy.Modules.Workspaces.Application.Ports;
 using BunkFy.Modules.Workspaces.Application.Queries;
@@ -11,7 +12,9 @@ using Gma.Framework.Results;
 using Gma.Framework.Scoping;
 
 internal sealed class GetOwnWorkspaceStaffOnboardingQueryHandler(
-    IWorkspaceStaffOnboardingRepository applications,
+    WorkspaceStaffOnboardingMutationCoordinator mutations,
+    IWorkspaceStaffOnboardingSerializedReadBoundary readBoundary,
+    IStaffWorkspaceOnboardingIdentityAnchorOutcomeReader anchorOutcomes,
     WorkspaceOperationalAdmissionEvaluator operationalAdmission,
     IScopeContext scopeContext)
     : IQueryHandler<GetOwnWorkspaceStaffOnboardingQuery, WorkspaceStaffOnboardingDto>
@@ -19,27 +22,55 @@ internal sealed class GetOwnWorkspaceStaffOnboardingQueryHandler(
     public async Task<Result<WorkspaceStaffOnboardingDto>> HandleAsync(
         GetOwnWorkspaceStaffOnboardingQuery query,
         CancellationToken cancellationToken)
-    {
-        Result admitted = WorkspaceOperationalAdmissionGuard.RequireAllowed(
-            await operationalAdmission.EvaluateAsync(
-                scopeContext.ScopeId ?? string.Empty,
-                cancellationToken).ConfigureAwait(false));
-        if (admitted.IsFailure)
+        => await readBoundary.RunAsync(
+            async readToken =>
         {
-            return Result.Failure<WorkspaceStaffOnboardingDto>(admitted.Error);
-        }
+            Result admitted = WorkspaceOperationalAdmissionGuard.RequireAllowed(
+                await operationalAdmission.EvaluateAsync(
+                    scopeContext.ScopeId ?? string.Empty,
+                    readToken).ConfigureAwait(false));
+            if (admitted.IsFailure)
+            {
+                return Result.Failure<WorkspaceStaffOnboardingDto>(
+                    admitted.Error);
+            }
 
-        WorkspaceStaffOnboarding? application = await applications
-            .GetOperationalBySourceAndSubjectAsync(
-            query.SourceKind.ToDomain(),
-            query.SourceId,
-            query.SubjectId,
-            cancellationToken).ConfigureAwait(false);
-        return application is null
-            ? Result.Failure<WorkspaceStaffOnboardingDto>(
-                WorkspaceStaffOnboardingApplicationErrors.ApplicationNotFound)
-            : Result.Success(application.ToDto());
-    }
+            WorkspaceStaffOnboardingMutationLease lease =
+                await mutations.AcquireApplicantAsync(
+                    query.SourceKind.ToDomain(),
+                    query.SourceId,
+                    query.SubjectId,
+                    WorkspaceStaffOnboardingSourceLockMode.Read,
+                    requireOperational: true,
+                    readToken).ConfigureAwait(false);
+            if (lease.CoordinateExists && lease.Application is null)
+            {
+                return Result.Failure<WorkspaceStaffOnboardingDto>(
+                    WorkspaceStaffOnboardingApplicationErrors
+                        .ProcessingRestricted);
+            }
+
+            WorkspaceStaffOnboarding? application = lease.Application;
+            if (application is null)
+            {
+                return Result.Failure<WorkspaceStaffOnboardingDto>(
+                    WorkspaceStaffOnboardingApplicationErrors
+                        .ApplicationNotFound);
+            }
+
+            StaffWorkspaceOnboardingIdentityAnchorOutcome outcome =
+                await anchorOutcomes.ReadAsync(
+                    new StaffWorkspaceOnboardingIdentityAnchorOutcomeRequest(
+                        application.Id,
+                        application.SubjectId),
+                    readToken).ConfigureAwait(false);
+            return WorkspaceStaffOnboardingProfileMutationAuthority
+                .IsExactAbsent(application, outcome)
+                    ? Result.Success(application.ToDto())
+                    : Result.Failure<WorkspaceStaffOnboardingDto>(
+                        WorkspaceStaffOnboardingApplicationErrors
+                            .ProfileMutationAuthorityUnavailable);
+        }, cancellationToken).ConfigureAwait(false);
 }
 
 internal sealed class ListActionableWorkspaceStaffOnboardingQueryHandler(

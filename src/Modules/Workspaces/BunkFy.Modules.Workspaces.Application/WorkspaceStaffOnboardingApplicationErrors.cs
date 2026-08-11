@@ -71,4 +71,13 @@ public static class WorkspaceStaffOnboardingApplicationErrors
     public static readonly Error ProcessingRestricted = new(
         "Workspaces.StaffOnboardingProcessingRestricted",
         "The selected Staff onboarding record is restricted from ordinary processing.");
+    public static readonly Error IdentityAnchorConflict = new(
+        "Workspaces.StaffOnboardingIdentityAnchorConflict",
+        "The Staff identity-anchor outcome conflicts with the onboarding record.");
+    public static readonly Error IdentityAnchorSuspended = new(
+        "Workspaces.StaffOnboardingIdentityAnchorSuspended",
+        "The anchored Staff member is suspended and cannot receive workspace access.");
+    public static readonly Error IdentityAnchorLifecycleTransitionPending = new(
+        "Workspaces.StaffOnboardingIdentityAnchorLifecycleTransitionPending",
+        "The anchored Staff member has an unfinished workspace access lifecycle transition.");
 }

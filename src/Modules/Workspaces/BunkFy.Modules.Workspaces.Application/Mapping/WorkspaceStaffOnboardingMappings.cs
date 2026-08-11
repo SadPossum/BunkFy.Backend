@@ -56,4 +56,30 @@ public static class WorkspaceStaffOnboardingMappings
         application.FailureCode,
         application.CreatedAtUtc,
         application.LastChangedAtUtc);
+
+    public static WorkspaceStaffOnboardingStatus ToContract(
+        this WorkspaceStaffOnboardingState status) => status switch
+        {
+            WorkspaceStaffOnboardingState.Submitted =>
+                WorkspaceStaffOnboardingStatus.Submitted,
+            WorkspaceStaffOnboardingState.PendingApproval =>
+                WorkspaceStaffOnboardingStatus.PendingApproval,
+            WorkspaceStaffOnboardingState.Provisioning =>
+                WorkspaceStaffOnboardingStatus.Provisioning,
+            WorkspaceStaffOnboardingState.StaffReady =>
+                WorkspaceStaffOnboardingStatus.StaffReady,
+            WorkspaceStaffOnboardingState.Completed =>
+                WorkspaceStaffOnboardingStatus.Completed,
+            WorkspaceStaffOnboardingState.Failed =>
+                WorkspaceStaffOnboardingStatus.Failed,
+            WorkspaceStaffOnboardingState.Rejected =>
+                WorkspaceStaffOnboardingStatus.Rejected,
+            WorkspaceStaffOnboardingState.Superseded =>
+                WorkspaceStaffOnboardingStatus.Superseded,
+            WorkspaceStaffOnboardingState.Expired =>
+                WorkspaceStaffOnboardingStatus.Expired,
+            WorkspaceStaffOnboardingState.Withdrawn =>
+                WorkspaceStaffOnboardingStatus.Withdrawn,
+            _ => WorkspaceStaffOnboardingStatus.Unknown
+        };
 }

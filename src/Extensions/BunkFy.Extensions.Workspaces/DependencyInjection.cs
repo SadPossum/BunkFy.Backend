@@ -1,6 +1,7 @@
 namespace BunkFy.Extensions.Workspaces;
 
 using BunkFy.Modules.Staff.Contracts;
+using BunkFy.Modules.Workspaces.Contracts;
 using Gma.Framework.Messaging;
 using Gma.Framework.Observability;
 using Gma.Modules.AccessControl.Contracts;
@@ -82,6 +83,11 @@ public static class DependencyInjection
             OrganizationMembershipAccessHandler>(
             AccessControlModuleMetadata.Name,
             OrganizationsModuleMetadata.Name);
+        services.AddIntegrationEventHandler<
+            WorkspaceStaffOnboardingIdentityAnchorResolvedIntegrationEvent,
+            WorkspaceStaffOnboardingIdentityAnchorResolutionHandler>(
+            StaffModuleMetadata.Name,
+            WorkspacesModuleMetadata.Name);
 
         return services;
     }

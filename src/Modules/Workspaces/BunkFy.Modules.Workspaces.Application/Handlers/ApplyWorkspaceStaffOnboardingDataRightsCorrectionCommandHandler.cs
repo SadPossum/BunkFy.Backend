@@ -18,6 +18,7 @@ internal sealed class
     ApplyWorkspaceStaffOnboardingDataRightsCorrectionCommandHandler(
         IWorkspaceStaffOnboardingCorrectionReceiptRepository receipts,
         WorkspaceStaffOnboardingMutationCoordinator mutations,
+        WorkspaceStaffOnboardingIdentityAnchorConvergence anchorConvergence,
         WorkspaceStaffOnboardingDataRightsCorrectionAuthorizer authorizer,
         IOrganizationEnrollmentClaimInspector claims,
         IScopeContext scopeContext,
@@ -25,11 +26,28 @@ internal sealed class
         IIdGenerator ids)
     : ICommandHandler<
         ApplyWorkspaceStaffOnboardingDataRightsCorrectionCommand,
-        WorkspaceStaffOnboardingDataRightsCorrectionReceiptDto>
+        WorkspaceStaffOnboardingDataRightsCorrectionOutcome>
 {
+    public async Task<Result<
+        WorkspaceStaffOnboardingDataRightsCorrectionReceiptDto>> HandleAsync(
+        ApplyWorkspaceStaffOnboardingDataRightsCorrectionCommand command,
+        CancellationToken cancellationToken) =>
+        Map(
+            await this.HandleWithAuthorityOutcomeAsync(
+                command,
+                cancellationToken).ConfigureAwait(false));
+
+    Task<Result<WorkspaceStaffOnboardingDataRightsCorrectionOutcome>>
+        ICommandHandler<
+            ApplyWorkspaceStaffOnboardingDataRightsCorrectionCommand,
+            WorkspaceStaffOnboardingDataRightsCorrectionOutcome>.HandleAsync(
+            ApplyWorkspaceStaffOnboardingDataRightsCorrectionCommand command,
+            CancellationToken cancellationToken) =>
+            this.HandleWithAuthorityOutcomeAsync(command, cancellationToken);
+
     public async Task<
-        Result<WorkspaceStaffOnboardingDataRightsCorrectionReceiptDto>>
-        HandleAsync(
+        Result<WorkspaceStaffOnboardingDataRightsCorrectionOutcome>>
+        HandleWithAuthorityOutcomeAsync(
             ApplyWorkspaceStaffOnboardingDataRightsCorrectionCommand command,
             CancellationToken cancellationToken)
     {
@@ -42,9 +60,7 @@ internal sealed class
             command.ActorId);
         if (valid.IsFailure)
         {
-            return Result.Failure<
-                WorkspaceStaffOnboardingDataRightsCorrectionReceiptDto>(
-                valid.Error);
+            return Failure(valid.Error);
         }
 
         Result<WorkspaceStaffApplicantProfile> requested =
@@ -58,9 +74,7 @@ internal sealed class
                 command.Department);
         if (requested.IsFailure)
         {
-            return Result.Failure<
-                WorkspaceStaffOnboardingDataRightsCorrectionReceiptDto>(
-                requested.Error);
+            return Failure(requested.Error);
         }
 
         string requestSha256 =
@@ -85,9 +99,7 @@ internal sealed class
             cancellationToken).ConfigureAwait(false);
         if (authorized.IsFailure)
         {
-            return Result.Failure<
-                WorkspaceStaffOnboardingDataRightsCorrectionReceiptDto>(
-                authorized.Error);
+            return Failure(authorized.Error);
         }
 
         WorkspaceStaffOnboardingMutationLease lease =
@@ -108,24 +120,45 @@ internal sealed class
         WorkspaceStaffOnboarding? application = lease.Application;
         if (application is null)
         {
-            return Result.Failure<
-                WorkspaceStaffOnboardingDataRightsCorrectionReceiptDto>(
+            return Failure(
                 WorkspaceStaffOnboardingApplicationErrors
                     .ApplicationNotFound);
         }
 
+        Result<WorkspaceStaffOnboardingIdentityAnchorConvergenceResult>
+            converged = await anchorConvergence.ConvergeAcquiredAsync(
+                application,
+                cancellationToken).ConfigureAwait(false);
+        if (converged.IsFailure)
+        {
+            return Failure(converged.Error);
+        }
+
+        if (converged.Value.Outcome !=
+            WorkspaceStaffOnboardingIdentityAnchorConvergenceOutcome.Absent)
+        {
+            return Result.Success(
+                WorkspaceStaffOnboardingDataRightsCorrectionOutcome
+                    .AuthorityMovedToStaff());
+        }
+
+        if (WorkspaceStaffOnboardingProfileMutationAuthority
+            .HasLocalIdentityAnchorCoordinates(application))
+        {
+            return Failure(
+                WorkspaceStaffOnboardingApplicationErrors
+                    .IdentityAnchorConflict);
+        }
+
         if (command.ExpectedVersion != application.Version)
         {
-            return Result.Failure<
-                WorkspaceStaffOnboardingDataRightsCorrectionReceiptDto>(
+            return Failure(
                 WorkspaceStaffOnboardingErrors.CorrectionVersionConflict);
         }
 
         if (application.Status != WorkspaceStaffOnboardingState.Submitted)
         {
-            return Result.Failure<
-                WorkspaceStaffOnboardingDataRightsCorrectionReceiptDto>(
-                WorkspaceStaffOnboardingErrors.CorrectionUnavailable);
+            return Failure(WorkspaceStaffOnboardingErrors.CorrectionUnavailable);
         }
 
         DateTimeOffset nowUtc = ToPersistencePrecision(clock.UtcNow);
@@ -144,8 +177,7 @@ internal sealed class
                 nowUtc,
                 cancellationToken).ConfigureAwait(false))
         {
-            return Result.Failure<
-                WorkspaceStaffOnboardingDataRightsCorrectionReceiptDto>(
+            return Failure(
                 WorkspaceStaffOnboardingApplicationErrors
                     .CorrectionTargetUnavailable);
         }
@@ -158,9 +190,7 @@ internal sealed class
                 nowUtc);
         if (updated.IsFailure)
         {
-            return Result.Failure<
-                WorkspaceStaffOnboardingDataRightsCorrectionReceiptDto>(
-                updated.Error);
+            return Failure(updated.Error);
         }
 
         Result<WorkspaceStaffOnboardingCorrectionReceipt> created =
@@ -180,32 +210,71 @@ internal sealed class
                 updated.Value.OccurredAtUtc);
         if (created.IsFailure)
         {
-            return Result.Failure<
-                WorkspaceStaffOnboardingDataRightsCorrectionReceiptDto>(
-                created.Error);
+            return Failure(created.Error);
         }
 
         await receipts.AddAsync(created.Value, cancellationToken)
             .ConfigureAwait(false);
-        return Result.Success(created.Value.ToDto());
+        return Applied(created.Value);
     }
 
     private static Result<
-        WorkspaceStaffOnboardingDataRightsCorrectionReceiptDto> Replay(
-            WorkspaceStaffOnboardingCorrectionReceipt receipt,
-            ApplyWorkspaceStaffOnboardingDataRightsCorrectionCommand command,
-            string requestSha256) =>
+        WorkspaceStaffOnboardingDataRightsCorrectionOutcome> Replay(
+        WorkspaceStaffOnboardingCorrectionReceipt receipt,
+        ApplyWorkspaceStaffOnboardingDataRightsCorrectionCommand command,
+        string requestSha256) =>
         receipt.MatchesReplay(
             command.CaseId,
             command.ApprovalRevision,
             command.ApplicationId,
             command.ExpectedVersion,
             requestSha256)
-            ? Result.Success(receipt.ToDto())
+            ? Applied(receipt)
             : Result.Failure<
-                WorkspaceStaffOnboardingDataRightsCorrectionReceiptDto>(
+                WorkspaceStaffOnboardingDataRightsCorrectionOutcome>(
                 WorkspaceStaffOnboardingApplicationErrors
                     .CorrectionIdempotencyConflict);
+
+    private static Result<WorkspaceStaffOnboardingDataRightsCorrectionOutcome>
+        Applied(WorkspaceStaffOnboardingCorrectionReceipt receipt) =>
+        Result.Success(
+            WorkspaceStaffOnboardingDataRightsCorrectionOutcome.Applied(
+                receipt.ToDto()));
+
+    private static Result<WorkspaceStaffOnboardingDataRightsCorrectionOutcome>
+        Failure(Error error) =>
+        Result.Failure<WorkspaceStaffOnboardingDataRightsCorrectionOutcome>(
+            error);
+
+    private static Result<
+        WorkspaceStaffOnboardingDataRightsCorrectionReceiptDto> Map(
+        Result<WorkspaceStaffOnboardingDataRightsCorrectionOutcome> outcome)
+    {
+        if (outcome.IsFailure)
+        {
+            return Result.Failure<
+                WorkspaceStaffOnboardingDataRightsCorrectionReceiptDto>(
+                outcome.Error);
+        }
+
+        return outcome.Value.Kind switch
+        {
+            WorkspaceStaffOnboardingDataRightsCorrectionOutcomeKind.Applied
+                when outcome.Value.Receipt is not null =>
+                Result.Success(outcome.Value.Receipt),
+            WorkspaceStaffOnboardingDataRightsCorrectionOutcomeKind
+                .AuthorityMovedToStaff
+                when outcome.Value.Receipt is null =>
+                Result.Failure<
+                    WorkspaceStaffOnboardingDataRightsCorrectionReceiptDto>(
+                    WorkspaceStaffOnboardingApplicationErrors
+                        .CorrectionTargetUnavailable),
+            _ => Result.Failure<
+                WorkspaceStaffOnboardingDataRightsCorrectionReceiptDto>(
+                WorkspaceStaffOnboardingApplicationErrors
+                    .IdentityAnchorConflict)
+        };
+    }
 
     private static DateTimeOffset ToPersistencePrecision(
         DateTimeOffset value)

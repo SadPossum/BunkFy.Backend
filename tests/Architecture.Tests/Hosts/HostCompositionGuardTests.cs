@@ -998,6 +998,8 @@ public sealed class HostCompositionGuardTests
             "retention-workers",
             "Tasks__Worker__WorkerGroups__7",
             "tenant-termination-workers",
+            "Tasks__Worker__WorkerGroups__8",
+            "workspaces-maintenance-workers",
             "AppHost:AdminApi:Enabled",
             "AppHost:Worker:Enabled",
             "AppHost:Redis:Enabled"
@@ -1025,6 +1027,10 @@ public sealed class HostCompositionGuardTests
         Assert.Contains("retention-workers", workerGroups, StringComparer.Ordinal);
         Assert.Contains(
             "tenant-termination-workers",
+            workerGroups,
+            StringComparer.Ordinal);
+        Assert.Contains(
+            "workspaces-maintenance-workers",
             workerGroups,
             StringComparer.Ordinal);
     }

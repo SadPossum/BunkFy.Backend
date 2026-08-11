@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Workspaces.Persistence;
 
+using System.Globalization;
 using BunkFy.Modules.Workspaces.Domain;
 using BunkFy.Modules.Workspaces.Domain.DataRights;
 using BunkFy.Modules.Workspaces.Domain.Termination;
@@ -20,6 +21,12 @@ public sealed class WorkspacesDbContext(
 
     public DbSet<WorkspaceStaffOnboarding> StaffOnboardingApplications =>
         this.Set<WorkspaceStaffOnboarding>();
+    public DbSet<WorkspaceStaffIdentityAnchorSweepCheckpoint>
+        StaffIdentityAnchorSweepCheckpoints =>
+        this.Set<WorkspaceStaffIdentityAnchorSweepCheckpoint>();
+    public DbSet<WorkspaceStaffHistoricalNoProvisionReceipt>
+        StaffHistoricalNoProvisionReceipts =>
+        this.Set<WorkspaceStaffHistoricalNoProvisionReceipt>();
     public DbSet<WorkspaceStaffDeferredClaimWithdrawal>
         StaffDeferredClaimWithdrawals =>
         this.Set<WorkspaceStaffDeferredClaimWithdrawal>();
@@ -105,6 +112,10 @@ public sealed class WorkspacesDbContext(
             .Any(entry =>
                 entry.State is
                     EntityState.Modified or EntityState.Deleted);
+        bool historicalNoProvisionMutationRequested = this.ChangeTracker
+            .Entries<WorkspaceStaffHistoricalNoProvisionReceipt>()
+            .Any(entry =>
+                entry.State is EntityState.Modified or EntityState.Deleted);
         bool correctionMutationRequested = this.ChangeTracker
             .Entries<WorkspaceStaffOnboardingCorrectionReceipt>()
             .Any(entry =>
@@ -141,6 +152,7 @@ public sealed class WorkspacesDbContext(
             .Any(entry =>
                 entry.State is EntityState.Modified or EntityState.Deleted);
         if (retentionMutationRequested ||
+            historicalNoProvisionMutationRequested ||
             correctionMutationRequested ||
             restrictionMutationRequested ||
             anonymisationMutationRequested ||
@@ -394,10 +406,13 @@ public sealed class WorkspacesDbContext(
     internal async Task<int> SaveTenantDestructionChangesAsync(
         string tenantId,
         Guid operationId,
+        WorkspaceTenantDestroyStage? attemptedStage,
         CancellationToken cancellationToken)
     {
         if (!TenantIds.TryNormalize(tenantId, out string? canonicalTenantId) ||
             operationId == Guid.Empty ||
+            attemptedStage is <= WorkspaceTenantDestroyStage.Unknown or
+                >= WorkspaceTenantDestroyStage.Completed ||
             !this.scopeContext.IsEnabled ||
             !string.Equals(
                 this.scopeContext.ScopeId,
@@ -449,8 +464,16 @@ public sealed class WorkspacesDbContext(
 
         if (this.Database.IsNpgsql())
         {
+            string attemptedStageValue = attemptedStage.HasValue
+                ? ((int)attemptedStage.Value).ToString(
+                    CultureInfo.InvariantCulture)
+                : string.Empty;
             await this.Database.ExecuteSqlInterpolatedAsync(
                     $"SELECT set_config('bunkfy.workspaces_tenant_destroy_operation_id', {operationId.ToString("D")}, true)",
+                    cancellationToken)
+                .ConfigureAwait(false);
+            await this.Database.ExecuteSqlInterpolatedAsync(
+                    $"SELECT set_config('bunkfy.workspaces_tenant_destroy_attempted_stage', {attemptedStageValue}, true)",
                     cancellationToken)
                 .ConfigureAwait(false);
         }

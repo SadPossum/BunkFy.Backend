@@ -8,6 +8,7 @@ using BunkFy.Modules.Workspaces.Application.Ports;
 using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Domain;
 using BunkFy.Modules.Workspaces.Domain.DataRights;
+using BunkFy.Modules.Workspaces.Domain.Events;
 using Gma.Framework.AccessControl;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Cqrs.Infrastructure;
@@ -80,10 +81,13 @@ public sealed class WorkspaceStaffOnboardingFlowTests
         WorkspaceStaffOnboarding application = WorkspaceStaffOnboardingTests.CreateApplication();
         FakeRepository applications = new(application);
         FakeStaffProvisioner staff = new();
+        List<string> operationCalls = [];
+        FakeOperationLock operationLock = new(operationCalls);
         using ServiceProvider provider = CreateProvider(
             applications,
             staff,
-            new FakeAccessControl());
+            new FakeAccessControl(),
+            operationLock: operationLock);
         WorkspaceStaffAccessPlan acceptedPlan = (await provider
             .GetRequiredService<IWorkspaceStaffAccessPlanRepository>()
             .GetAsync(application.SourceId, CancellationToken.None))!;
@@ -109,10 +113,46 @@ public sealed class WorkspaceStaffOnboardingFlowTests
             CancellationToken.None);
 
         Assert.Equal(1, application.ClaimVersion);
-        Assert.Equal(WorkspaceStaffOnboardingState.Completed, application.Status);
-        Assert.Equal(WorkspaceStaffAccessPlanState.Expired, acceptedPlan.Status);
+        Assert.Equal(WorkspaceStaffOnboardingState.StaffReady, application.Status);
+        Assert.Equal(WorkspaceStaffAccessPlanState.Active, acceptedPlan.Status);
         Assert.Equal(1, staff.CallCount);
         Assert.Equal(application.Id, staff.LastRequest?.OperationId);
+        Assert.Null(application.DisplayName);
+        WorkspaceStaffOnboardingIdentityAnchorContinuationRequestedDomainEvent
+            continuation = Assert.Single(application.DomainEvents.OfType<
+                WorkspaceStaffOnboardingIdentityAnchorContinuationRequestedDomainEvent>());
+        WorkspaceStaffOnboardingIdentityAnchorContinuationRequestedIntegrationEvent
+            continuationFact = new(
+                continuation.EventId,
+                continuation.ScopeId,
+                continuation.OccurredAtUtc,
+                continuation.ApplicationId,
+                continuation.StaffMemberId);
+        WorkspaceStaffOnboardingIdentityAnchorContinuationHandler continuationHandler =
+            provider.GetRequiredService<
+                WorkspaceStaffOnboardingIdentityAnchorContinuationHandler>();
+        operationCalls.Clear();
+
+        await continuationHandler.HandleAsync(
+            continuationFact,
+            CancellationToken.None);
+
+        Assert.Equal(WorkspaceStaffOnboardingState.Completed, application.Status);
+        Assert.Equal(WorkspaceStaffAccessPlanState.Expired, acceptedPlan.Status);
+        Assert.Single(application.DomainEvents.OfType<
+            WorkspaceStaffOnboardingIdentityAnchorResolvedDomainEvent>());
+        long completedVersion = application.Version;
+
+        await continuationHandler.HandleAsync(
+            continuationFact,
+            CancellationToken.None);
+
+        Assert.Equal(completedVersion, application.Version);
+        Assert.Single(application.DomainEvents.OfType<
+            WorkspaceStaffOnboardingIdentityAnchorResolvedDomainEvent>());
+        Assert.Equal(
+            ["source-write", "application", "source-write", "application"],
+            operationCalls);
     }
 
     [Fact]
@@ -209,8 +249,9 @@ public sealed class WorkspaceStaffOnboardingFlowTests
     public async Task Access_failure_retries_without_duplicate_staff_and_then_redacts_application()
     {
         WorkspaceStaffOnboarding application = WorkspaceStaffOnboardingTests.CreateApplication();
+        Guid claimId = Guid.NewGuid();
         Assert.True(application.ObserveClaimAccepted(
-            Guid.NewGuid(),
+            claimId,
             1,
             WorkspaceStaffOnboardingTests.Now.AddMinutes(1)).IsSuccess);
         FakeRepository applications = new(application);
@@ -230,14 +271,35 @@ public sealed class WorkspaceStaffOnboardingFlowTests
         Result<WorkspaceStaffOnboardingDto> first = await handler.HandleAsync(
             new RetryWorkspaceStaffOnboardingCommand(application.Id),
             CancellationToken.None);
+        Assert.True(first.IsSuccess, first.Error.Code);
+        Assert.Equal(
+            WorkspaceStaffOnboardingStatus.StaffReady,
+            first.Value.Status);
         Assert.Equal(WorkspaceStaffAccessPlanState.Active, retryPlan.Status);
+        WorkspaceStaffOnboardingIdentityAnchorContinuationRequestedIntegrationEvent
+            continuation = CreateContinuationFact(application);
+        WorkspaceStaffOnboardingIdentityAnchorContinuationHandler
+            continuationHandler = provider.GetRequiredService<
+                WorkspaceStaffOnboardingIdentityAnchorContinuationHandler>();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            continuationHandler.HandleAsync(
+                continuation,
+                CancellationToken.None));
+
+        Assert.Equal(WorkspaceStaffOnboardingState.Failed, application.Status);
+        WorkspaceStaffOnboarding rolledBack = CreateRolledBackStaffReady(
+            application,
+            claimId,
+            staffMemberId);
+        applications.Replace(rolledBack);
+        application = rolledBack;
         access.FailAssignments = false;
-        Result<WorkspaceStaffOnboardingDto> retried = await handler.HandleAsync(
-            new RetryWorkspaceStaffOnboardingCommand(application.Id),
+
+        await continuationHandler.HandleAsync(
+            continuation,
             CancellationToken.None);
 
-        Assert.True(first.IsFailure);
-        Assert.True(retried.IsSuccess, retried.Error.Code);
         Assert.Equal(1, staff.CallCount);
         Assert.Collection(
             access.AssignmentCalls,
@@ -251,11 +313,13 @@ public sealed class WorkspaceStaffOnboardingFlowTests
                     WorkspaceAccessScopes.Create(WorkspaceStaffOnboardingTests.OrganizationId.ToString("D")),
                     call.Scope);
             });
-        Assert.Equal(WorkspaceStaffOnboardingStatus.Completed, retried.Value.Status);
+        Assert.Equal(WorkspaceStaffOnboardingState.Completed, application.Status);
         Assert.Equal(WorkspaceStaffAccessPlanState.Expired, retryPlan.Status);
-        Assert.Equal(staffMemberId, retried.Value.StaffMemberId);
-        Assert.Null(retried.Value.VerifiedAccountEmail);
-        Assert.Null(retried.Value.DisplayName);
+        Assert.Equal(staffMemberId, application.StaffMemberId);
+        Assert.Null(application.VerifiedAccountEmail);
+        Assert.Null(application.DisplayName);
+        Assert.Single(application.DomainEvents.OfType<
+            WorkspaceStaffOnboardingIdentityAnchorResolvedDomainEvent>());
     }
 
     [Fact]
@@ -270,9 +334,10 @@ public sealed class WorkspaceStaffOnboardingFlowTests
         Assert.True(application.BeginProvisioning(
             WorkspaceStaffOnboardingTests.Now.AddMinutes(2)).IsSuccess);
         FakeRepository applications = new(application);
+        FakeStaffProvisioner staff = new();
         using ServiceProvider provider = CreateProvider(
             applications,
-            new FakeStaffProvisioner(),
+            staff,
             new FakeAccessControl());
         WorkspaceStaffAccessPlan plan = (await provider
             .GetRequiredService<IWorkspaceStaffAccessPlanRepository>()
@@ -296,9 +361,396 @@ public sealed class WorkspaceStaffOnboardingFlowTests
                 isRestricted: false),
             CancellationToken.None);
 
+        Assert.Equal(WorkspaceStaffOnboardingState.StaffReady, application.Status);
+        Assert.Equal(WorkspaceStaffAccessPlanState.Active, plan.Status);
+        WorkspaceStaffOnboardingIdentityAnchorContinuationRequestedIntegrationEvent
+            continuation = CreateContinuationFact(application);
+
+        await provider.GetRequiredService<
+                WorkspaceStaffOnboardingIdentityAnchorContinuationHandler>()
+            .HandleAsync(continuation, CancellationToken.None);
+
         Assert.Equal(WorkspaceStaffOnboardingState.Completed, application.Status);
         Assert.Equal(WorkspaceStaffAccessPlanState.Expired, plan.Status);
+        Assert.Equal(1, staff.CallCount);
+        Assert.Single(application.DomainEvents.OfType<
+            WorkspaceStaffOnboardingIdentityAnchorResolvedDomainEvent>());
         Assert.Null(application.DisplayName);
+    }
+
+    [Fact]
+    public async Task Restriction_release_is_a_durable_trigger_after_continuation_delivery_exhausts()
+    {
+        WorkspaceStaffOnboarding application =
+            WorkspaceStaffOnboardingTests.CreateApplication();
+        Assert.True(application.ObserveClaimAccepted(
+            Guid.NewGuid(),
+            1,
+            WorkspaceStaffOnboardingTests.Now.AddMinutes(1)).IsSuccess);
+        FakeRepository applications = new(application);
+        FakeStaffProvisioner staff = new();
+        FakeRestrictionProjectionRepository restrictions = new(
+            applications.Applications);
+        using ServiceProvider provider = CreateProvider(
+            applications,
+            staff,
+            new FakeAccessControl(),
+            restrictionProjections: restrictions);
+        WorkspaceStaffAccessPlan plan = (await provider
+            .GetRequiredService<IWorkspaceStaffAccessPlanRepository>()
+            .GetAsync(application.SourceId, CancellationToken.None))!;
+        Assert.True(plan.ObserveSourceExpired(
+            WorkspaceStaffOnboardingTests.Now.AddMinutes(2),
+            WorkspaceStaffOnboardingTests.Now.AddMinutes(2)).IsSuccess);
+
+        Result<WorkspaceStaffOnboardingDto> first = await provider
+            .GetRequiredService<ICommandHandler<
+                RetryWorkspaceStaffOnboardingCommand,
+                WorkspaceStaffOnboardingDto>>()
+            .HandleAsync(
+                new RetryWorkspaceStaffOnboardingCommand(application.Id),
+                CancellationToken.None);
+        Assert.True(first.IsSuccess, first.Error.Code);
+        Assert.Equal(WorkspaceStaffOnboardingState.StaffReady, application.Status);
+        WorkspaceStaffOnboardingIdentityAnchorContinuationRequestedIntegrationEvent
+            continuation = CreateContinuationFact(application);
+        WorkspaceStaffOnboardingProcessingRestrictionProjection projection =
+            restrictions.Get(application.Id);
+        Assert.True(projection.Apply(
+            expectedRevision: 0,
+            WorkspaceStaffOnboardingProcessingRestrictionContract.CurrentVersion,
+            WorkspaceStaffOnboardingTests.Now.AddMinutes(3)).IsSuccess);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => provider
+            .GetRequiredService<
+                WorkspaceStaffOnboardingIdentityAnchorContinuationHandler>()
+            .HandleAsync(continuation, CancellationToken.None));
+
+        Assert.Equal(WorkspaceStaffOnboardingState.StaffReady, application.Status);
+        Assert.Null(application.IdentityAnchorResolutionEventId);
+        Assert.Equal(WorkspaceStaffAccessPlanState.Active, plan.Status);
+        Assert.True(projection.Release(
+            expectedRevision: 1,
+            WorkspaceStaffOnboardingProcessingRestrictionContract.CurrentVersion,
+            WorkspaceStaffOnboardingTests.Now.AddMinutes(4)).IsSuccess);
+
+        await provider.GetRequiredService<
+                WorkspaceStaffOnboardingProcessingRestrictionRecoveryHandler>()
+            .HandleAsync(
+                new WorkspaceStaffOnboardingProcessingRestrictionChangedIntegrationEvent(
+                    Guid.NewGuid(),
+                    application.ScopeId,
+                    WorkspaceStaffOnboardingTests.Now.AddMinutes(4),
+                    application.Id,
+                    WorkspaceStaffOnboardingProcessingRestrictionContract
+                        .CurrentVersion,
+                    projection.Revision,
+                    isRestricted: false),
+                CancellationToken.None);
+
+        Assert.Equal(WorkspaceStaffOnboardingState.Completed, application.Status);
+        Assert.Equal(WorkspaceStaffAccessPlanState.Expired, plan.Status);
+        Assert.Equal(1, staff.CallCount);
+        Assert.Single(application.DomainEvents.OfType<
+            WorkspaceStaffOnboardingIdentityAnchorResolvedDomainEvent>());
+    }
+
+    [Fact]
+    public async Task Restriction_release_converges_a_target_bound_terminal_application()
+    {
+        WorkspaceStaffOnboarding application =
+            WorkspaceStaffOnboardingTests.CreateApplication();
+        Assert.True(application.ObserveClaimAccepted(
+            Guid.NewGuid(),
+            1,
+            WorkspaceStaffOnboardingTests.Now.AddMinutes(1)).IsSuccess);
+        FakeRepository applications = new(application);
+        FakeRestrictionProjectionRepository restrictions = new(
+            applications.Applications);
+        using ServiceProvider provider = CreateProvider(
+            applications,
+            new FakeStaffProvisioner(),
+            new FakeAccessControl(),
+            restrictionProjections: restrictions);
+
+        Result<WorkspaceStaffOnboardingDto> first = await provider
+            .GetRequiredService<ICommandHandler<
+                RetryWorkspaceStaffOnboardingCommand,
+                WorkspaceStaffOnboardingDto>>()
+            .HandleAsync(
+                new RetryWorkspaceStaffOnboardingCommand(application.Id),
+                CancellationToken.None);
+        Assert.True(first.IsSuccess, first.Error.Code);
+        WorkspaceStaffOnboardingIdentityAnchorContinuationRequestedIntegrationEvent
+            continuation = CreateContinuationFact(application);
+        WorkspaceStaffOnboardingProcessingRestrictionProjection projection =
+            restrictions.Get(application.Id);
+        Assert.True(projection.Apply(
+            expectedRevision: 0,
+            WorkspaceStaffOnboardingProcessingRestrictionContract.CurrentVersion,
+            WorkspaceStaffOnboardingTests.Now.AddMinutes(3)).IsSuccess);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => provider
+            .GetRequiredService<
+                WorkspaceStaffOnboardingIdentityAnchorContinuationHandler>()
+            .HandleAsync(continuation, CancellationToken.None));
+        Assert.True(application.Supersede(
+            WorkspaceStaffOnboardingTests.Now.AddMinutes(4)).IsSuccess);
+        Assert.Null(application.IdentityAnchorResolutionEventId);
+        Assert.True(projection.Release(
+            expectedRevision: 1,
+            WorkspaceStaffOnboardingProcessingRestrictionContract.CurrentVersion,
+            WorkspaceStaffOnboardingTests.Now.AddMinutes(5)).IsSuccess);
+
+        await provider.GetRequiredService<
+                WorkspaceStaffOnboardingProcessingRestrictionRecoveryHandler>()
+            .HandleAsync(
+                new WorkspaceStaffOnboardingProcessingRestrictionChangedIntegrationEvent(
+                    Guid.NewGuid(),
+                    application.ScopeId,
+                    WorkspaceStaffOnboardingTests.Now.AddMinutes(5),
+                    application.Id,
+                    WorkspaceStaffOnboardingProcessingRestrictionContract
+                        .CurrentVersion,
+                    projection.Revision,
+                    isRestricted: false),
+                CancellationToken.None);
+
+        Assert.Equal(WorkspaceStaffOnboardingState.Superseded, application.Status);
+        Assert.Equal(
+            BunkFy.Modules.Workspaces.Domain
+                .WorkspaceStaffOnboardingIdentityAnchorResolutionDisposition
+                .SupersededRedacted,
+            application.IdentityAnchorResolutionDisposition);
+        Assert.Single(application.DomainEvents.OfType<
+            WorkspaceStaffOnboardingIdentityAnchorResolvedDomainEvent>());
+    }
+
+    [Theory]
+    [InlineData(
+        "Staff.StaffSuspended",
+        StaffWorkspaceOnboardingIdentityAnchorTargetLifecycle.Suspended,
+        StaffWorkspaceOnboardingIdentityAnchorSubjectMatch.Exact)]
+    [InlineData(
+        "Staff.StaffDeparted",
+        StaffWorkspaceOnboardingIdentityAnchorTargetLifecycle.Departed,
+        StaffWorkspaceOnboardingIdentityAnchorSubjectMatch.Exact)]
+    [InlineData(
+        "Staff.StaffMemberNotFound",
+        StaffWorkspaceOnboardingIdentityAnchorTargetLifecycle.Anonymised,
+        StaffWorkspaceOnboardingIdentityAnchorSubjectMatch.Missing)]
+    public async Task Property_reconcile_failure_rereads_committed_lifecycle_before_marking_failed(
+        string errorCode,
+        StaffWorkspaceOnboardingIdentityAnchorTargetLifecycle terminalLifecycle,
+        StaffWorkspaceOnboardingIdentityAnchorSubjectMatch terminalSubjectMatch)
+    {
+        WorkspaceStaffOnboarding application =
+            WorkspaceStaffOnboardingTests.CreateApplication();
+        Assert.True(application.ObserveClaimAccepted(
+            Guid.NewGuid(),
+            1,
+            WorkspaceStaffOnboardingTests.Now.AddMinutes(1)).IsSuccess);
+        Guid staffMemberId = Guid.NewGuid();
+        Guid resolutionEventId = Guid.NewGuid();
+        StaffWorkspaceOnboardingIdentityAnchorTargetLifecycle lifecycle =
+            StaffWorkspaceOnboardingIdentityAnchorTargetLifecycle.Active;
+        StaffWorkspaceOnboardingIdentityAnchorSubjectMatch subjectMatch =
+            StaffWorkspaceOnboardingIdentityAnchorSubjectMatch.Exact;
+        FakeStaffPropertyProvisioner properties = new()
+        {
+            ErrorCode = errorCode,
+            BeforeResult = () =>
+            {
+                lifecycle = terminalLifecycle;
+                subjectMatch = terminalSubjectMatch;
+            }
+        };
+        StubStaffWorkspaceOnboardingIdentityAnchorOutcomeReader outcomes = new(
+            request => new StaffWorkspaceOnboardingIdentityAnchorOutcome(
+                request.ApplicationId,
+                StaffWorkspaceOnboardingIdentityAnchorOutcomeStatus.Unresolved,
+                staffMemberId,
+                lifecycle,
+                subjectMatch,
+                WorkspaceApplicationVersion: null,
+                ResolutionDisposition: null,
+                resolutionEventId));
+        FakeAccessControl access = new();
+        using ServiceProvider provider = CreateProvider(
+            new FakeRepository(application),
+            new FakeStaffProvisioner
+            {
+                StaffMemberId = staffMemberId,
+                ResolutionEventId = resolutionEventId
+            },
+            access,
+            staffProperties: properties,
+            anchorOutcomes: outcomes);
+
+        Result<WorkspaceStaffOnboardingDto> first = await provider
+            .GetRequiredService<ICommandHandler<
+                RetryWorkspaceStaffOnboardingCommand,
+                WorkspaceStaffOnboardingDto>>()
+            .HandleAsync(
+                new RetryWorkspaceStaffOnboardingCommand(application.Id),
+                CancellationToken.None);
+        Assert.True(first.IsSuccess, first.Error.Code);
+        WorkspaceStaffOnboardingIdentityAnchorContinuationRequestedIntegrationEvent
+            continuation = CreateContinuationFact(application);
+
+        await provider.GetRequiredService<
+                WorkspaceStaffOnboardingIdentityAnchorContinuationHandler>()
+            .HandleAsync(continuation, CancellationToken.None);
+
+        Assert.Equal(1, properties.CallCount);
+        Assert.Equal(WorkspaceStaffOnboardingState.Superseded, application.Status);
+        Assert.Null(application.FailureCode);
+        Assert.Equal(
+            BunkFy.Modules.Workspaces.Domain
+                .WorkspaceStaffOnboardingIdentityAnchorResolutionDisposition
+                .SupersededRedacted,
+            application.IdentityAnchorResolutionDisposition);
+        Assert.Single(application.DomainEvents.OfType<
+            WorkspaceStaffOnboardingIdentityAnchorResolvedDomainEvent>());
+        Assert.Equal(0, access.AssignmentCallCount);
+    }
+
+    [Fact]
+    public async Task Property_reconcile_lifecycle_race_with_open_process_is_retryable_without_failed_state()
+    {
+        WorkspaceStaffOnboarding application =
+            WorkspaceStaffOnboardingTests.CreateApplication();
+        Assert.True(application.ObserveClaimAccepted(
+            Guid.NewGuid(),
+            1,
+            WorkspaceStaffOnboardingTests.Now.AddMinutes(1)).IsSuccess);
+        Guid staffMemberId = Guid.NewGuid();
+        Guid resolutionEventId = Guid.NewGuid();
+        StaffWorkspaceOnboardingIdentityAnchorTargetLifecycle lifecycle =
+            StaffWorkspaceOnboardingIdentityAnchorTargetLifecycle.Active;
+        FakeStaffPropertyProvisioner properties = new()
+        {
+            ErrorCode = "Staff.StaffSuspended",
+            BeforeResult = () => lifecycle =
+                StaffWorkspaceOnboardingIdentityAnchorTargetLifecycle.Suspended
+        };
+        StubStaffWorkspaceOnboardingIdentityAnchorOutcomeReader outcomes = new(
+            request => new StaffWorkspaceOnboardingIdentityAnchorOutcome(
+                request.ApplicationId,
+                StaffWorkspaceOnboardingIdentityAnchorOutcomeStatus.Unresolved,
+                staffMemberId,
+                lifecycle,
+                StaffWorkspaceOnboardingIdentityAnchorSubjectMatch.Exact,
+                WorkspaceApplicationVersion: null,
+                ResolutionDisposition: null,
+                resolutionEventId));
+        WorkspaceStaffAccessProcess open = WorkspaceStaffAccessProcess.Create(
+            Guid.NewGuid(),
+            application.ScopeId,
+            staffMemberId,
+            application.SubjectId,
+            WorkspaceStaffAccessTargetState.Suspended,
+            targetStaffVersion: 2,
+            DateOnly.FromDateTime(
+                WorkspaceStaffOnboardingTests.Now.UtcDateTime),
+            "integration:staff",
+            [],
+            WorkspaceStaffOnboardingTests.Now).Value;
+        SingleOpenAccessProcessRepository accessProcesses = new(open);
+        using ServiceProvider provider = CreateProvider(
+            new FakeRepository(application),
+            new FakeStaffProvisioner
+            {
+                StaffMemberId = staffMemberId,
+                ResolutionEventId = resolutionEventId
+            },
+            new FakeAccessControl(),
+            staffProperties: properties,
+            anchorOutcomes: outcomes,
+            accessProcesses: accessProcesses);
+
+        Result<WorkspaceStaffOnboardingDto> first = await provider
+            .GetRequiredService<ICommandHandler<
+                RetryWorkspaceStaffOnboardingCommand,
+                WorkspaceStaffOnboardingDto>>()
+            .HandleAsync(
+                new RetryWorkspaceStaffOnboardingCommand(application.Id),
+                CancellationToken.None);
+        Assert.True(first.IsSuccess, first.Error.Code);
+        WorkspaceStaffOnboardingIdentityAnchorContinuationRequestedIntegrationEvent
+            continuation = CreateContinuationFact(application);
+
+        InvalidOperationException exception = await Assert.ThrowsAsync<
+            InvalidOperationException>(() => provider.GetRequiredService<
+                WorkspaceStaffOnboardingIdentityAnchorContinuationHandler>()
+            .HandleAsync(continuation, CancellationToken.None));
+
+        Assert.Contains(
+            WorkspaceStaffOnboardingApplicationErrors
+                .IdentityAnchorLifecycleTransitionPending.Code,
+            exception.Message,
+            StringComparison.Ordinal);
+        Assert.Equal(1, properties.CallCount);
+        Assert.Equal(WorkspaceStaffOnboardingState.StaffReady, application.Status);
+        Assert.Null(application.FailureCode);
+        Assert.Null(application.IdentityAnchorResolutionEventId);
+    }
+
+    [Fact]
+    public async Task Property_reconcile_error_is_preserved_only_when_final_authority_remains_active()
+    {
+        WorkspaceStaffOnboarding application =
+            WorkspaceStaffOnboardingTests.CreateApplication();
+        Assert.True(application.ObserveClaimAccepted(
+            Guid.NewGuid(),
+            1,
+            WorkspaceStaffOnboardingTests.Now.AddMinutes(1)).IsSuccess);
+        Guid staffMemberId = Guid.NewGuid();
+        Guid resolutionEventId = Guid.NewGuid();
+        FakeStaffPropertyProvisioner properties = new()
+        {
+            ErrorCode = "Staff.StaffSuspended"
+        };
+        StubStaffWorkspaceOnboardingIdentityAnchorOutcomeReader outcomes = new(
+            request => new StaffWorkspaceOnboardingIdentityAnchorOutcome(
+                request.ApplicationId,
+                StaffWorkspaceOnboardingIdentityAnchorOutcomeStatus.Unresolved,
+                staffMemberId,
+                StaffWorkspaceOnboardingIdentityAnchorTargetLifecycle.Active,
+                StaffWorkspaceOnboardingIdentityAnchorSubjectMatch.Exact,
+                WorkspaceApplicationVersion: null,
+                ResolutionDisposition: null,
+                resolutionEventId));
+        using ServiceProvider provider = CreateProvider(
+            new FakeRepository(application),
+            new FakeStaffProvisioner
+            {
+                StaffMemberId = staffMemberId,
+                ResolutionEventId = resolutionEventId
+            },
+            new FakeAccessControl(),
+            staffProperties: properties,
+            anchorOutcomes: outcomes);
+
+        Result<WorkspaceStaffOnboardingDto> first = await provider
+            .GetRequiredService<ICommandHandler<
+                RetryWorkspaceStaffOnboardingCommand,
+                WorkspaceStaffOnboardingDto>>()
+            .HandleAsync(
+                new RetryWorkspaceStaffOnboardingCommand(application.Id),
+                CancellationToken.None);
+        Assert.True(first.IsSuccess, first.Error.Code);
+        WorkspaceStaffOnboardingIdentityAnchorContinuationRequestedIntegrationEvent
+            continuation = CreateContinuationFact(application);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => provider
+            .GetRequiredService<
+                WorkspaceStaffOnboardingIdentityAnchorContinuationHandler>()
+            .HandleAsync(continuation, CancellationToken.None));
+
+        Assert.Equal(1, properties.CallCount);
+        Assert.Equal(WorkspaceStaffOnboardingState.Failed, application.Status);
+        Assert.Equal("Staff.StaffSuspended", application.FailureCode);
+        Assert.Null(application.IdentityAnchorResolutionEventId);
     }
 
     private static void AssertProvisionerAssignment(
@@ -347,6 +799,69 @@ public sealed class WorkspaceStaffOnboardingFlowTests
         Assert.Equal("verified@example.test", result.Value.VerifiedAccountEmail);
         Assert.Equal(WorkspaceStaffOnboardingTests.OrganizationId.ToString("D"),
             provider.GetRequiredService<IScopeContextAccessor>().ScopeId);
+    }
+
+    [Fact]
+    public async Task Staff_anchor_found_for_local_submitted_application_commits_redaction_without_disclosure()
+    {
+        WorkspaceStaffOnboarding application = CreateApplication(
+            Guid.NewGuid(),
+            WorkspaceStaffOnboardingSource.EnrollmentLink,
+            Guid.NewGuid(),
+            "Profile A");
+        Guid staffMemberId = Guid.NewGuid();
+        Guid resolutionEventId = Guid.NewGuid();
+        RecordingUnitOfWork unitOfWork = new();
+        StubStaffWorkspaceOnboardingIdentityAnchorOutcomeReader outcomes = new(
+            request => new StaffWorkspaceOnboardingIdentityAnchorOutcome(
+                request.ApplicationId,
+                StaffWorkspaceOnboardingIdentityAnchorOutcomeStatus.Unresolved,
+                staffMemberId,
+                StaffWorkspaceOnboardingIdentityAnchorTargetLifecycle.Active,
+                StaffWorkspaceOnboardingIdentityAnchorSubjectMatch.Exact,
+                WorkspaceApplicationVersion: null,
+                ResolutionDisposition: null,
+                resolutionEventId));
+        using ServiceProvider provider = CreateProvider(
+            new FakeRepository(application),
+            new FakeStaffProvisioner(),
+            new FakeAccessControl(),
+            new FakeJoinTokenInspector(
+                WorkspaceStaffOnboardingTests.OrganizationId,
+                application.SourceId),
+            anchorOutcomes: outcomes,
+            unitOfWork: unitOfWork);
+
+        Result<WorkspaceStaffOnboardingSubmissionOutcome> result =
+            await provider.GetRequiredService<
+                    IWorkspaceStaffOnboardingSubmitter>()
+                .SubmitWithAuthorityOutcomeAsync(
+                    new SubmitWorkspaceStaffOnboardingCommand(
+                        WorkspaceStaffOnboardingSourceKind.EnrollmentLink,
+                        "secret-token",
+                        application.SubjectId,
+                        "Must not be written",
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null),
+                    CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.Code);
+        Assert.Equal(
+            WorkspaceStaffOnboardingSubmissionOutcomeKind
+                .AuthorityMovedToStaff,
+            result.Value.Kind);
+        Assert.Null(result.Value.Application);
+        Assert.Equal(1, unitOfWork.SaveCount);
+        Assert.Equal(WorkspaceStaffOnboardingState.StaffReady, application.Status);
+        Assert.Equal(staffMemberId, application.StaffMemberId);
+        Assert.Null(application.DisplayName);
+        Assert.Null(application.VerifiedAccountEmail);
+        Assert.Single(application.DomainEvents.OfType<
+            WorkspaceStaffOnboardingIdentityAnchorContinuationRequestedDomainEvent>());
     }
 
     [Theory]
@@ -547,7 +1062,7 @@ public sealed class WorkspaceStaffOnboardingFlowTests
     [Theory]
     [InlineData(WorkspaceStaffOnboardingSourceKind.Invitation)]
     [InlineData(WorkspaceStaffOnboardingSourceKind.EnrollmentLink)]
-    public async Task Terminal_source_replay_returns_the_existing_application_without_reopening_it(
+    public async Task Terminal_source_replay_with_local_staff_coordinates_is_not_disclosed(
         WorkspaceStaffOnboardingSourceKind sourceKind)
     {
         Guid sourceId = Guid.NewGuid();
@@ -579,6 +1094,8 @@ public sealed class WorkspaceStaffOnboardingFlowTests
                 WorkspaceStaffOnboardingTests.Now.AddMinutes(1));
         Assert.True(accepted.IsSuccess, accepted.Error.Code);
         Assert.True(application.MarkStaffReady(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
             Guid.NewGuid(),
             WorkspaceStaffOnboardingTests.Now.AddMinutes(2)).IsSuccess);
         Assert.True(application.Complete(
@@ -618,9 +1135,9 @@ public sealed class WorkspaceStaffOnboardingFlowTests
                     null),
                 CancellationToken.None);
 
-        Assert.True(replayed.IsSuccess, replayed.Error.Code);
-        Assert.Equal(application.Id, replayed.Value.ApplicationId);
-        Assert.Equal(WorkspaceStaffOnboardingStatus.Completed, replayed.Value.Status);
+        Assert.Equal(
+            WorkspaceStaffOnboardingApplicationErrors.IdentityAnchorConflict,
+            replayed.Error);
         Assert.Equal(completedVersion, application.Version);
         Assert.Null(application.DisplayName);
         Assert.Single(applications.Applications);
@@ -885,6 +1402,43 @@ public sealed class WorkspaceStaffOnboardingFlowTests
             "Operations",
             WorkspaceStaffOnboardingTests.Now).Value;
 
+    private static WorkspaceStaffOnboardingIdentityAnchorContinuationRequestedIntegrationEvent
+        CreateContinuationFact(WorkspaceStaffOnboarding application)
+    {
+        WorkspaceStaffOnboardingIdentityAnchorContinuationRequestedDomainEvent
+            continuation = Assert.Single(application.DomainEvents.OfType<
+                WorkspaceStaffOnboardingIdentityAnchorContinuationRequestedDomainEvent>());
+        return new(
+            continuation.EventId,
+            continuation.ScopeId,
+            continuation.OccurredAtUtc,
+            continuation.ApplicationId,
+            continuation.StaffMemberId);
+    }
+
+    private static WorkspaceStaffOnboarding CreateRolledBackStaffReady(
+        WorkspaceStaffOnboarding source,
+        Guid claimId,
+        Guid staffMemberId)
+    {
+        WorkspaceStaffOnboarding restored = CreateApplication(
+            source.Id,
+            source.SourceKind,
+            source.SourceId,
+            "Ada Operator");
+        Assert.True(restored.ObserveClaimAccepted(
+            claimId,
+            1,
+            WorkspaceStaffOnboardingTests.Now.AddMinutes(1)).IsSuccess);
+        Assert.True(restored.MarkStaffReady(
+            staffMemberId,
+            source.IdentityAnchorExpectedResolutionEventId!.Value,
+            source.IdentityAnchorContinuationEventId!.Value,
+            WorkspaceStaffOnboardingTests.Now.AddMinutes(2)).IsSuccess);
+        restored.ClearDomainEvents();
+        return restored;
+    }
+
     private static OrganizationEnrollmentClaimDto Claim(
         WorkspaceStaffOnboarding application,
         Guid claimId,
@@ -936,7 +1490,14 @@ public sealed class WorkspaceStaffOnboardingFlowTests
         WorkspaceTerminationFenceSnapshot? terminationFence = null,
         FakeWorkspaceStaffDeferredClaimWithdrawalRepository?
             deferredWithdrawals = null,
-        FakeOrganizationEnrollmentClaimInspector? claims = null)
+        FakeOrganizationEnrollmentClaimInspector? claims = null,
+        FakeRestrictionProjectionRepository? restrictionProjections = null,
+        FakeOperationLock? operationLock = null,
+        IStaffPropertyAssignmentProvisioner? staffProperties = null,
+        IStaffWorkspaceOnboardingIdentityAnchorOutcomeReader? anchorOutcomes =
+            null,
+        IWorkspaceStaffAccessProcessRepository? accessProcesses = null,
+        IUnitOfWork? unitOfWork = null)
     {
         HostApplicationBuilder builder = new(new HostApplicationBuilderSettings
         {
@@ -964,16 +1525,54 @@ public sealed class WorkspaceStaffOnboardingFlowTests
         services.AddSingleton<IWorkspaceStaffOnboardingRepository>(applications);
         services.AddSingleton<
             IWorkspaceStaffOnboardingProcessingRestrictionProjectionRepository>(
-            new FakeRestrictionProjectionRepository(
-                applications.Applications));
+            restrictionProjections ??
+                new FakeRestrictionProjectionRepository(
+                    applications.Applications));
         services.AddSingleton<IWorkspaceStaffOnboardingOperationLock>(
-            new FakeOperationLock());
+            operationLock ?? new FakeOperationLock());
+        services.AddSingleton<IWorkspaceStaffAccessProcessRepository>(
+            accessProcesses ??
+                WorkspaceStaffAccessMutationTestSupport.NoOpenProcesses);
+        services.AddSingleton<IWorkspaceStaffAccessOperationLock>(
+            new FakeStaffAccessOperationLock());
         services.AddSingleton<IWorkspaceStaffAccessPlanRepository>(new FakeAccessPlanRepository(plans));
         services.AddSingleton<IWorkspaceStaffDeferredClaimWithdrawalRepository>(
             deferredWithdrawals ??
                 new FakeWorkspaceStaffDeferredClaimWithdrawalRepository());
         services.AddSingleton<IStaffOnboardingProvisioner>(staff);
-        services.AddSingleton<IStaffPropertyAssignmentProvisioner>(new FakeStaffPropertyProvisioner());
+        services.AddSingleton(
+            anchorOutcomes ??
+            new StubStaffWorkspaceOnboardingIdentityAnchorOutcomeReader(
+                request =>
+                {
+                    if (staff.LastRequest?.OperationId != request.ApplicationId ||
+                        !staff.StaffMemberId.HasValue)
+                    {
+                        return StubStaffWorkspaceOnboardingIdentityAnchorOutcomeReader
+                            .Absent(request);
+                    }
+
+                    return new StaffWorkspaceOnboardingIdentityAnchorOutcome(
+                        request.ApplicationId,
+                        StaffWorkspaceOnboardingIdentityAnchorOutcomeStatus
+                            .Unresolved,
+                        staff.StaffMemberId.Value,
+                        StaffWorkspaceOnboardingIdentityAnchorTargetLifecycle
+                            .Active,
+                        string.Equals(
+                            staff.LastRequest.AuthSubjectId,
+                            request.ExpectedAuthSubjectId,
+                            StringComparison.Ordinal)
+                                ? StaffWorkspaceOnboardingIdentityAnchorSubjectMatch
+                                    .Exact
+                                : StaffWorkspaceOnboardingIdentityAnchorSubjectMatch
+                                    .Mismatch,
+                        WorkspaceApplicationVersion: null,
+                        ResolutionDisposition: null,
+                        staff.ResolutionEventId);
+                }));
+        services.AddSingleton<IStaffPropertyAssignmentProvisioner>(
+            staffProperties ?? new FakeStaffPropertyProvisioner());
         services.AddSingleton<IAccessControlRoleProvisioner>(access);
         services.AddSingleton<IAccessProfileProvisioner>(profiles);
         services.AddSingleton<IScopedAccessProfileProvisioner>(profiles);
@@ -991,7 +1590,8 @@ public sealed class WorkspaceStaffOnboardingFlowTests
         services.AddSingleton<IScopeContext>(provider => provider.GetRequiredService<IScopeContextAccessor>());
         services.AddSingleton<ISystemClock>(new FakeClock());
         services.AddSingleton<IIdGenerator>(new FakeIdGenerator());
-        services.AddSingleton<IUnitOfWork>(new TestUnitOfWork());
+        services.AddSingleton<IUnitOfWork>(
+            unitOfWork ?? new TestUnitOfWork());
         services.AddWorkspacesApplication(new ConfigurationBuilder().Build(), "global");
         return services.BuildServiceProvider();
     }
@@ -1002,6 +1602,19 @@ public sealed class WorkspaceStaffOnboardingFlowTests
 
         public Task SaveChangesAsync(CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
+    }
+
+    private sealed class RecordingUnitOfWork : IUnitOfWork
+    {
+        public string ModuleName => WorkspacesModuleMetadata.Name;
+        public int SaveCount { get; private set; }
+
+        public Task SaveChangesAsync(
+            CancellationToken cancellationToken = default)
+        {
+            this.SaveCount++;
+            return Task.CompletedTask;
+        }
     }
 
     private static WorkspaceStaffAccessPlan CreateActivePlan(
@@ -1116,6 +1729,13 @@ public sealed class WorkspaceStaffOnboardingFlowTests
             this.applications.Add(application);
             return Task.CompletedTask;
         }
+
+        public void Replace(WorkspaceStaffOnboarding application)
+        {
+            int index = this.applications.FindIndex(item => item.Id == application.Id);
+            Assert.True(index >= 0);
+            this.applications[index] = application;
+        }
     }
 
     private sealed class FakeAccessPlanRepository(params WorkspaceStaffAccessPlan[] seed)
@@ -1176,18 +1796,29 @@ public sealed class WorkspaceStaffOnboardingFlowTests
             this.projections.Add(projection.ApplicationId, projection);
             return Task.CompletedTask;
         }
+
+        public WorkspaceStaffOnboardingProcessingRestrictionProjection Get(
+            Guid applicationId) => this.projections[applicationId];
     }
 
-    private sealed class FakeOperationLock
+    private sealed class FakeOperationLock(List<string>? calls = null)
         : IWorkspaceStaffOnboardingOperationLock
     {
         public Task AcquireSourceReadAsync(
             Guid sourceId,
-            CancellationToken cancellationToken) => Task.CompletedTask;
+            CancellationToken cancellationToken)
+        {
+            calls?.Add("source-read");
+            return Task.CompletedTask;
+        }
 
         public Task AcquireSourceWriteAsync(
             Guid sourceId,
-            CancellationToken cancellationToken) => Task.CompletedTask;
+            CancellationToken cancellationToken)
+        {
+            calls?.Add("source-write");
+            return Task.CompletedTask;
+        }
 
         public Task AcquireApplicantAsync(
             Guid sourceId,
@@ -1196,13 +1827,79 @@ public sealed class WorkspaceStaffOnboardingFlowTests
 
         public Task<bool> TryAcquireAsync(
             Guid applicationId,
+            CancellationToken cancellationToken)
+        {
+            calls?.Add("application");
+            return Task.FromResult(true);
+        }
+    }
+
+    private sealed class FakeStaffAccessOperationLock
+        : IWorkspaceStaffAccessOperationLock
+    {
+        public Task AcquireStaffAsync(
+            Guid staffMemberId,
+            CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task<bool> TryAcquireProcessAsync(
+            Guid processId,
+            CancellationToken cancellationToken) => Task.FromResult(true);
+    }
+
+    private sealed class SingleOpenAccessProcessRepository(
+        WorkspaceStaffAccessProcess open)
+        : IWorkspaceStaffAccessProcessRepository
+    {
+        public Task<WorkspaceStaffAccessProcess?> GetAsync(
+            Guid processId,
             CancellationToken cancellationToken) =>
-            Task.FromResult(true);
+            Task.FromResult<WorkspaceStaffAccessProcess?>(
+                open.Id == processId ? open : null);
+
+        public Task<WorkspaceStaffAccessProcess?> GetByStaffVersionAsync(
+            Guid staffMemberId,
+            long targetStaffVersion,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<WorkspaceStaffAccessProcess?>(
+                open.StaffMemberId == staffMemberId &&
+                open.TargetStaffVersion == targetStaffVersion
+                    ? open
+                    : null);
+
+        public Task<WorkspaceStaffAccessProcess?> GetOpenByStaffAsync(
+            Guid staffMemberId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<WorkspaceStaffAccessProcess?>(
+                open.StaffMemberId == staffMemberId ? open : null);
+
+        public Task<WorkspaceStaffAccessProcess?>
+            GetLatestCompletedSuspensionAsync(
+                Guid staffMemberId,
+                string subjectId,
+                CancellationToken cancellationToken) =>
+            Task.FromResult<WorkspaceStaffAccessProcess?>(null);
+
+        public Task<WorkspaceStaffAccessProcess?> GetCompletedDepartureAsync(
+            Guid staffMemberId,
+            long targetStaffVersion,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<WorkspaceStaffAccessProcess?>(null);
+
+        public Task<WorkspaceStaffAccessProcessListResponse> ListOpenAsync(
+            PageRequest page,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task AddAsync(
+            WorkspaceStaffAccessProcess process,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 
     private sealed class FakeStaffProvisioner : IStaffOnboardingProvisioner
     {
         public Guid? StaffMemberId { get; init; } = Guid.NewGuid();
+        public Guid ResolutionEventId { get; init; } = Guid.NewGuid();
         public string? ErrorCode { get; init; }
         public int CallCount { get; private set; }
         public StaffOnboardingProvisioningRequest? LastRequest { get; private set; }
@@ -1214,20 +1911,38 @@ public sealed class WorkspaceStaffOnboardingFlowTests
             this.CallCount++;
             this.LastRequest = request;
             return Task.FromResult(this.ErrorCode is null
-                ? new StaffOnboardingProvisioningResult(true, this.StaffMemberId, null)
+                ? new StaffOnboardingProvisioningResult(
+                    true,
+                    this.StaffMemberId,
+                    ErrorCode: null,
+                    ResolutionEventId: this.ResolutionEventId)
                 : new StaffOnboardingProvisioningResult(false, null, this.ErrorCode));
         }
     }
 
-    private sealed class FakeStaffPropertyProvisioner : IStaffPropertyAssignmentProvisioner
+    private sealed class FakeStaffPropertyProvisioner
+        : IStaffPropertyAssignmentProvisioner
     {
+        public string? ErrorCode { get; init; }
+        public Action? BeforeResult { get; init; }
+        public int CallCount { get; private set; }
+
         public Task<StaffPropertyAssignmentProvisioningResult> ReconcileAsync(
             StaffPropertyAssignmentProvisioningRequest request,
-            CancellationToken cancellationToken = default) => Task.FromResult(
-                new StaffPropertyAssignmentProvisioningResult(
+            CancellationToken cancellationToken = default)
+        {
+            this.CallCount++;
+            this.BeforeResult?.Invoke();
+            return Task.FromResult(this.ErrorCode is null
+                ? new StaffPropertyAssignmentProvisioningResult(
                     true,
                     request.PropertyIds.ToArray(),
-                    null));
+                    null)
+                : new StaffPropertyAssignmentProvisioningResult(
+                    false,
+                    [],
+                    this.ErrorCode));
+        }
     }
 
     private sealed class FakeAccessControl : IAccessControlRoleProvisioner

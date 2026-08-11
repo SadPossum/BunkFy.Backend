@@ -1,8 +1,12 @@
 namespace BunkFy.Modules.Workspaces.Tests;
 
+using BunkFy.Modules.Staff.Contracts;
+using BunkFy.Modules.Workspaces.Application;
 using BunkFy.Modules.Workspaces.Application.Handlers;
 using BunkFy.Modules.Workspaces.Application.Ports;
 using BunkFy.Modules.Workspaces.Domain;
+using Gma.Framework.Runtime.Identity;
+using Gma.Framework.Runtime.Time;
 using Gma.Modules.Organizations.Contracts;
 
 internal static class WorkspaceStaffOnboardingMutationTestSupport
@@ -14,6 +18,23 @@ internal static class WorkspaceStaffOnboardingMutationTestSupport
 
     public static WorkspaceStaffOnboardingMutationCoordinator
         CreateForSourceOnly() => new(new NoOpOperationLock(), null!);
+
+    public static WorkspaceStaffOnboardingIdentityAnchorConvergence
+        CreateIdentityAnchorConvergence(
+            IStaffWorkspaceOnboardingIdentityAnchorOutcomeReader? outcomes =
+                null) =>
+        new(
+            outcomes ??
+                new StubStaffWorkspaceOnboardingIdentityAnchorOutcomeReader(),
+            WorkspaceStaffAccessMutationTestSupport.Create(
+                WorkspaceStaffAccessMutationTestSupport.NoOpenProcesses),
+            WorkspaceStaffAccessMutationTestSupport.NoOpenProcesses,
+            new WorkspaceAccessProvisioner(
+                roles: null!,
+                profiles: null!,
+                scopedProfiles: null!),
+            new TestClock(),
+            new TestIds());
 
     private sealed class NoOpOperationLock
         : IWorkspaceStaffOnboardingOperationLock
@@ -34,6 +55,17 @@ internal static class WorkspaceStaffOnboardingMutationTestSupport
         public Task<bool> TryAcquireAsync(
             Guid applicationId,
             CancellationToken cancellationToken) => Task.FromResult(true);
+    }
+
+    private sealed class TestClock : ISystemClock
+    {
+        public DateTimeOffset UtcNow =>
+            new(2026, 8, 11, 12, 0, 0, TimeSpan.Zero);
+    }
+
+    private sealed class TestIds : IIdGenerator
+    {
+        public Guid NewId() => Guid.NewGuid();
     }
 }
 

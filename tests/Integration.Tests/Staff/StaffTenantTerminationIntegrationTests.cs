@@ -28,6 +28,14 @@ public sealed class StaffTenantTerminationIntegrationTests
         "10000000-0000-0000-0000-000000000001";
     private const string TenantB =
         "10000000-0000-0000-0000-000000000002";
+    private const string TenantSparseAnchor =
+        "10000000-0000-0000-0000-000000000003";
+    private const string TenantSingleResolution =
+        "10000000-0000-0000-0000-000000000004";
+    private const string TenantPagedResolutions =
+        "10000000-0000-0000-0000-000000000005";
+    private const string TenantIdentityAnchorSentinel =
+        "10000000-0000-0000-0000-000000000006";
     private const string Digest =
         "0123456789abcdef0123456789abcdef" +
         "0123456789abcdef0123456789abcdef";
@@ -442,6 +450,375 @@ public sealed class StaffTenantTerminationIntegrationTests
                 """,
                 TenantA));
     }
+
+    [DockerFact]
+    [Trait("Category", "Docker")]
+    [Trait("Category", "Integration")]
+    public async Task Tenant_destroy_persists_sparse_and_paged_identity_anchor_stages()
+    {
+        await using PostgreSqlContainer postgreSql =
+            new PostgreSqlBuilder("postgres:16-alpine")
+                .WithDatabase("bunkfy_staff_anchor_destroy_stage_tests")
+                .Build();
+        await postgreSql.StartAsync().ConfigureAwait(false);
+        string connectionString = postgreSql.GetConnectionString();
+        using (ServiceProvider sentinelProvider = CreatePersistenceProvider(
+                   connectionString,
+                   TenantIdentityAnchorSentinel,
+                   new TestClock(ExportNowUtc)))
+        {
+            await SeedIdentityAnchorGraphAsync(
+                    sentinelProvider,
+                    TenantIdentityAnchorSentinel,
+                    anchorCount: 1,
+                    resolutionCount: 1)
+                .ConfigureAwait(false);
+        }
+
+        DestroyStageSnapshot[] sparse =
+            await DestroyIdentityAnchorScenarioAsync(
+                connectionString,
+                TenantSparseAnchor,
+                anchorCount: 1,
+                resolutionCount: 0).ConfigureAwait(false);
+        DestroyStageSnapshot sparseAnchorBatch = Assert.Single(
+            sparse,
+            snapshot => snapshot.Status ==
+                    TenantTerminationContributionStatus.RetryRequired &&
+                snapshot.Stage == 17 &&
+                snapshot.ResolutionCount == 0 &&
+                snapshot.AnchorCount == 0 &&
+                snapshot.StaffMemberCount == 1);
+        Assert.Equal(17, sparseAnchorBatch.Stage);
+
+        DestroyStageSnapshot[] single =
+            await DestroyIdentityAnchorScenarioAsync(
+                connectionString,
+                TenantSingleResolution,
+                anchorCount: 1,
+                resolutionCount: 1).ConfigureAwait(false);
+        Assert.Contains(
+            single,
+            snapshot => snapshot.Status ==
+                    TenantTerminationContributionStatus.RetryRequired &&
+                snapshot.Stage == 24 &&
+                snapshot.ResolutionCount == 0 &&
+                snapshot.AnchorCount == 1);
+        Assert.Contains(
+            single,
+            snapshot => snapshot.Status ==
+                    TenantTerminationContributionStatus.RetryRequired &&
+                snapshot.Stage == 17 &&
+                snapshot.ResolutionCount == 0 &&
+                snapshot.AnchorCount == 0);
+
+        DestroyStageSnapshot[] paged =
+            await DestroyIdentityAnchorScenarioAsync(
+                connectionString,
+                TenantPagedResolutions,
+                anchorCount: 501,
+                resolutionCount: 501).ConfigureAwait(false);
+        Assert.Contains(
+            paged,
+            snapshot => snapshot.Status ==
+                    TenantTerminationContributionStatus.RetryRequired &&
+                snapshot.Stage == 25 &&
+                snapshot.ResolutionCount == 1 &&
+                snapshot.AnchorCount == 501);
+        Assert.Contains(
+            paged,
+            snapshot => snapshot.Status ==
+                    TenantTerminationContributionStatus.RetryRequired &&
+                snapshot.Stage == 24 &&
+                snapshot.ResolutionCount == 0 &&
+                snapshot.AnchorCount == 501);
+        Assert.Contains(
+            paged,
+            snapshot => snapshot.Status ==
+                    TenantTerminationContributionStatus.RetryRequired &&
+                snapshot.Stage == 24 &&
+                snapshot.ResolutionCount == 0 &&
+                snapshot.AnchorCount == 1);
+        Assert.Contains(
+            paged,
+            snapshot => snapshot.Status ==
+                    TenantTerminationContributionStatus.RetryRequired &&
+                snapshot.Stage == 17 &&
+                snapshot.ResolutionCount == 0 &&
+                snapshot.AnchorCount == 0);
+        Assert.Equal(
+            1,
+            await CountForTenantAsync(
+                connectionString,
+                "staff.identity_provisioning_anchor_resolutions",
+                TenantIdentityAnchorSentinel).ConfigureAwait(false));
+        Assert.Equal(
+            1,
+            await CountForTenantAsync(
+                connectionString,
+                "staff.identity_provisioning_anchors",
+                TenantIdentityAnchorSentinel).ConfigureAwait(false));
+        Assert.Equal(
+            1,
+            await CountForTenantAsync(
+                connectionString,
+                "staff.staff_members",
+                TenantIdentityAnchorSentinel).ConfigureAwait(false));
+        Assert.Equal(
+            1,
+            await ScalarForTenantAsync(
+                connectionString,
+                """
+                SELECT "LifecycleStatus"::bigint
+                FROM staff.tenant_revisions
+                WHERE "ScopeId" = @tenantId
+                """,
+                TenantIdentityAnchorSentinel).ConfigureAwait(false));
+    }
+
+    private static async Task<DestroyStageSnapshot[]>
+        DestroyIdentityAnchorScenarioAsync(
+            string connectionString,
+            string tenantId,
+            int anchorCount,
+            int resolutionCount)
+    {
+        TestClock clock = new(ExportNowUtc);
+        using ServiceProvider provider = CreatePersistenceProvider(
+            connectionString,
+            tenantId,
+            clock);
+        await SeedIdentityAnchorGraphAsync(
+                provider,
+                tenantId,
+                anchorCount,
+                resolutionCount)
+            .ConfigureAwait(false);
+
+        WorkspaceTerminationFence fence = await AddFenceAsync(
+            provider,
+            tenantId).ConfigureAwait(false);
+        TenantTerminationContributionRequest request = TenantDestroyRequest(
+            fence,
+            tenantId,
+            DeterministicSourceId(tenantId, 10_000));
+        long selectedRevision = await ScalarForTenantAsync(
+            connectionString,
+            """
+            SELECT "Revision"
+            FROM staff.tenant_revisions
+            WHERE "ScopeId" = @tenantId
+            """,
+            tenantId).ConfigureAwait(false);
+        using IServiceScope destroyScope = provider.CreateScope();
+        ITenantTerminationContributor contributor = ResolveContributor(
+            destroyScope.ServiceProvider);
+        List<DestroyStageSnapshot> snapshots = [];
+        for (int attempt = 0; attempt < 20; attempt++)
+        {
+            TenantTerminationContributionResult result =
+                await contributor.ExecuteAsync(
+                    request,
+                    CancellationToken.None).ConfigureAwait(false);
+            snapshots.Add(new(
+                result.Status,
+                await ReadDestroyStageAsync(
+                    connectionString,
+                    tenantId).ConfigureAwait(false),
+                await CountForTenantAsync(
+                    connectionString,
+                    "staff.identity_provisioning_anchor_resolutions",
+                    tenantId).ConfigureAwait(false),
+                await CountForTenantAsync(
+                    connectionString,
+                    "staff.identity_provisioning_anchors",
+                    tenantId).ConfigureAwait(false),
+                await CountForTenantAsync(
+                    connectionString,
+                    "staff.staff_members",
+                    tenantId).ConfigureAwait(false)));
+            if (result.Status == TenantTerminationContributionStatus.Completed)
+            {
+                break;
+            }
+
+            Assert.Equal(
+                TenantTerminationContributionStatus.RetryRequired,
+                result.Status);
+        }
+
+        DestroyStageSnapshot completed = Assert.Single(
+            snapshots,
+            snapshot => snapshot.Status ==
+                TenantTerminationContributionStatus.Completed);
+        Assert.Null(completed.Stage);
+        Assert.Equal(0, completed.ResolutionCount);
+        Assert.Equal(0, completed.AnchorCount);
+        Assert.Equal(0, completed.StaffMemberCount);
+        Assert.Equal(
+            3,
+            await ScalarForTenantAsync(
+                connectionString,
+                """
+                SELECT "LifecycleStatus"::bigint
+                FROM staff.tenant_revisions
+                WHERE "ScopeId" = @tenantId
+                """,
+                tenantId).ConfigureAwait(false));
+        Assert.Equal(
+            1,
+            await CountForTenantAsync(
+                connectionString,
+                "staff.tenant_destroy_receipts",
+                tenantId).ConfigureAwait(false));
+        DestroyReceiptSnapshot receipt = await ReadDestroyReceiptAsync(
+            connectionString,
+            tenantId).ConfigureAwait(false);
+        Assert.Equal(request.IdempotencyKey, receipt.OperationId);
+        Assert.Equal(tenantId, receipt.ScopeId);
+        Assert.Equal(selectedRevision, receipt.SelectedRevision);
+        Assert.Equal(selectedRevision + 1, receipt.ResultingRevision);
+        return snapshots.ToArray();
+    }
+
+    private static async Task SeedIdentityAnchorGraphAsync(
+        ServiceProvider provider,
+        string tenantId,
+        int anchorCount,
+        int resolutionCount)
+    {
+        using IServiceScope seedScope = provider.CreateScope();
+        StaffDbContext staff = seedScope.ServiceProvider
+            .GetRequiredService<StaffDbContext>();
+        WorkspacesDbContext workspaces = seedScope.ServiceProvider
+            .GetRequiredService<WorkspacesDbContext>();
+        await staff.Database.MigrateAsync().ConfigureAwait(false);
+        await workspaces.Database.MigrateAsync().ConfigureAwait(false);
+
+        StaffMember member = CreateMember(
+            tenantId,
+            $"Anchor target {tenantId[^1]}");
+        staff.StaffMembers.Add(member);
+        await staff.SaveChangesAsync().ConfigureAwait(false);
+
+        IStaffIdentityProvisioningAnchorRepository anchors = seedScope
+            .ServiceProvider.GetRequiredService<
+                IStaffIdentityProvisioningAnchorRepository>();
+        IStaffIdentityProvisioningAnchorResolutionRepository resolutions =
+            seedScope.ServiceProvider.GetRequiredService<
+                IStaffIdentityProvisioningAnchorResolutionRepository>();
+        Guid[] sourceIds = Enumerable.Range(1, anchorCount)
+            .Select(index => DeterministicSourceId(tenantId, index))
+            .ToArray();
+        foreach (Guid sourceId in sourceIds)
+        {
+            await anchors.AddAsync(
+                new StaffIdentityProvisioningAnchorRecord(
+                    tenantId,
+                    StaffIdentityProvisioningSourceKind.WorkspaceOnboarding,
+                    sourceId,
+                    member.Id,
+                    SeedNowUtc),
+                CancellationToken.None).ConfigureAwait(false);
+        }
+
+        await staff.SaveChangesAsync().ConfigureAwait(false);
+        foreach (Guid sourceId in sourceIds.Take(resolutionCount))
+        {
+            await resolutions.AddAsync(
+                new StaffIdentityProvisioningAnchorResolutionRecord(
+                    tenantId,
+                    StaffIdentityProvisioningSourceKind.WorkspaceOnboarding,
+                    sourceId,
+                    member.Id,
+                    WorkspaceApplicationVersion: 1,
+                    StaffWorkspaceOnboardingIdentityAnchorResolutionDisposition
+                        .CompletedRedacted,
+                    sourceId,
+                    SeedNowUtc.AddMinutes(1)),
+                CancellationToken.None).ConfigureAwait(false);
+        }
+
+        await staff.SaveChangesAsync().ConfigureAwait(false);
+    }
+
+    private static Guid DeterministicSourceId(
+        string tenantId,
+        int ordinal)
+    {
+        Span<byte> bytes = stackalloc byte[16];
+        Guid.Parse(tenantId).TryWriteBytes(bytes);
+        System.Buffers.Binary.BinaryPrimitives.WriteInt32BigEndian(
+            bytes,
+            ordinal);
+        return new Guid(bytes);
+    }
+
+    private static async Task<int?> ReadDestroyStageAsync(
+        string connectionString,
+        string tenantId)
+    {
+        await using NpgsqlConnection connection = new(connectionString);
+        await connection.OpenAsync().ConfigureAwait(false);
+        await using NpgsqlCommand command = new(
+            """
+            SELECT "Stage"
+            FROM staff.tenant_destroy_operations
+            WHERE "ScopeId" = @tenantId;
+            """,
+            connection);
+        command.Parameters.AddWithValue("tenantId", tenantId);
+        object? value = await command.ExecuteScalarAsync()
+            .ConfigureAwait(false);
+        return value is null or DBNull
+            ? null
+            : Convert.ToInt32(
+                value,
+                System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static async Task<DestroyReceiptSnapshot> ReadDestroyReceiptAsync(
+        string connectionString,
+        string tenantId)
+    {
+        await using NpgsqlConnection connection = new(connectionString);
+        await connection.OpenAsync().ConfigureAwait(false);
+        await using NpgsqlCommand command = new(
+            """
+            SELECT
+                "OperationId",
+                "ScopeId",
+                "SelectedRevision",
+                "ResultingRevision"
+            FROM staff.tenant_destroy_receipts
+            WHERE "ScopeId" = @tenantId;
+            """,
+            connection);
+        command.Parameters.AddWithValue("tenantId", tenantId);
+        await using NpgsqlDataReader reader = await command.ExecuteReaderAsync()
+            .ConfigureAwait(false);
+        Assert.True(await reader.ReadAsync().ConfigureAwait(false));
+        DestroyReceiptSnapshot snapshot = new(
+            reader.GetGuid(0),
+            reader.GetString(1),
+            reader.GetInt64(2),
+            reader.GetInt64(3));
+        Assert.False(await reader.ReadAsync().ConfigureAwait(false));
+        return snapshot;
+    }
+
+    private sealed record DestroyStageSnapshot(
+        TenantTerminationContributionStatus Status,
+        int? Stage,
+        long ResolutionCount,
+        long AnchorCount,
+        long StaffMemberCount);
+
+    private sealed record DestroyReceiptSnapshot(
+        Guid OperationId,
+        string ScopeId,
+        long SelectedRevision,
+        long ResultingRevision);
 
     private static async Task<(Guid StaffId, ProofIds ProofIds)>
         SeedGraphAsync(

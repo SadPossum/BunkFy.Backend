@@ -179,5 +179,9 @@ internal enum WorkspaceTenantDestroyStage
     AnonymisationReceipts = 17,
     TerminationFenceReceipts = 18,
     HistoricalTerminationFences = 19,
-    Completed = 20
+    SweepCheckpoints = 20,
+    HistoricalNoProvisionReceipts = 21,
+    // The final migration must translate any persisted legacy completion
+    // ordinal to Completed (22) before replacing the stage check constraint.
+    Completed = 22
 }

@@ -39,9 +39,18 @@ internal sealed class
         WorkspaceStaffOnboarding? application = await applications.GetAsync(
             integrationEvent.ApplicationId,
             cancellationToken).ConfigureAwait(false);
-        if (application is null ||
-            application.Status != WorkspaceStaffOnboardingState.Provisioning ||
-            application.StaffMemberId.HasValue)
+        if (application is null)
+        {
+            return;
+        }
+
+        bool provisioningWithoutAnchor =
+            application.Status == WorkspaceStaffOnboardingState.Provisioning &&
+            !application.StaffMemberId.HasValue;
+        bool anchoredContinuation =
+            application.StaffMemberId.HasValue &&
+            !application.IdentityAnchorResolutionEventId.HasValue;
+        if (!provisioningWithoutAnchor && !anchoredContinuation)
         {
             return;
         }
@@ -51,7 +60,8 @@ internal sealed class
             cancellationToken).ConfigureAwait(false);
         if (recovered.IsSuccess)
         {
-            if (application.SourceKind ==
+            if (application.Status == WorkspaceStaffOnboardingState.Completed &&
+                application.SourceKind ==
                 WorkspaceStaffOnboardingSource.EnrollmentLink)
             {
                 await OrganizationEnrollmentClaimExpiredStaffOnboardingHandler

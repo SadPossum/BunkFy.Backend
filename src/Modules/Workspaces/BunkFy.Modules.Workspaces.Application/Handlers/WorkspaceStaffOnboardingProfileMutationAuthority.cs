@@ -1,10 +1,46 @@
 namespace BunkFy.Modules.Workspaces.Application.Handlers;
 
+using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Workspaces.Domain;
 using Gma.Modules.Organizations.Contracts;
 
 internal static class WorkspaceStaffOnboardingProfileMutationAuthority
 {
+    public static bool HasLocalIdentityAnchorCoordinates(
+        WorkspaceStaffOnboarding application)
+    {
+        ArgumentNullException.ThrowIfNull(application);
+        return application.StaffMemberId.HasValue ||
+            application.IdentityAnchorExpectedResolutionEventId.HasValue ||
+            application.IdentityAnchorContinuationEventId.HasValue ||
+            application.IdentityAnchorResolutionEventId.HasValue ||
+            application.IdentityAnchorResolutionStaffMemberId.HasValue ||
+            application.IdentityAnchorResolutionApplicationVersion.HasValue ||
+            application.IdentityAnchorResolutionDisposition.HasValue ||
+            application.IdentityAnchorResolutionIntentAtUtc.HasValue ||
+            application.IdentityAnchorResolutionObservedAtUtc.HasValue;
+    }
+
+    public static bool IsExactAbsent(
+        WorkspaceStaffOnboarding application,
+        StaffWorkspaceOnboardingIdentityAnchorOutcome outcome)
+    {
+        ArgumentNullException.ThrowIfNull(application);
+        ArgumentNullException.ThrowIfNull(outcome);
+        return outcome.ApplicationId == application.Id &&
+            outcome.Status ==
+                StaffWorkspaceOnboardingIdentityAnchorOutcomeStatus.Absent &&
+            !outcome.StaffMemberId.HasValue &&
+            outcome.TargetLifecycle ==
+                StaffWorkspaceOnboardingIdentityAnchorTargetLifecycle.Unknown &&
+            outcome.SubjectMatch ==
+                StaffWorkspaceOnboardingIdentityAnchorSubjectMatch.Unknown &&
+            !outcome.WorkspaceApplicationVersion.HasValue &&
+            !outcome.ResolutionDisposition.HasValue &&
+            !outcome.ResolutionEventId.HasValue &&
+            !HasLocalIdentityAnchorCoordinates(application);
+    }
+
     public static async Task<bool> IsFencedAsync(
         IOrganizationEnrollmentClaimInspector claims,
         WorkspaceStaffOnboardingSource sourceKind,

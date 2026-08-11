@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.Workspaces.Tests;
 
 using BunkFy.Modules.DataRights.Contracts;
+using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Workspaces.Application;
 using BunkFy.Modules.Workspaces.Application.Authorization;
 using BunkFy.Modules.Workspaces.Application.Commands;
@@ -510,6 +511,55 @@ public sealed class
         Assert.Equal(0, gate.EvaluationCount);
     }
 
+    [Fact]
+    public async Task Staff_anchor_found_after_lock_returns_commit_shaped_moved_outcome()
+    {
+        WorkspaceStaffOnboarding application = CreateApplication();
+        Guid staffMemberId = Guid.NewGuid();
+        Guid resolutionEventId = Guid.NewGuid();
+        InMemoryReceiptRepository receipts = new();
+        ApplyWorkspaceStaffOnboardingDataRightsCorrectionCommandHandler handler =
+            CreateHandler(
+                application,
+                receipts,
+                new RecordingCorrectionLock(),
+                new RecordingExecutionGate(),
+                anchorOutcomes:
+                    new StubStaffWorkspaceOnboardingIdentityAnchorOutcomeReader(
+                        request => new(
+                            request.ApplicationId,
+                            StaffWorkspaceOnboardingIdentityAnchorOutcomeStatus
+                                .Unresolved,
+                            staffMemberId,
+                            StaffWorkspaceOnboardingIdentityAnchorTargetLifecycle
+                                .Active,
+                            StaffWorkspaceOnboardingIdentityAnchorSubjectMatch
+                                .Exact,
+                            WorkspaceApplicationVersion: null,
+                            ResolutionDisposition: null,
+                            resolutionEventId)));
+
+        Result<WorkspaceStaffOnboardingDataRightsCorrectionOutcome> result =
+            await handler.HandleWithAuthorityOutcomeAsync(
+                Command(application) with
+                {
+                    DisplayName = "Must not be written"
+                },
+                CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.Code);
+        Assert.Equal(
+            WorkspaceStaffOnboardingDataRightsCorrectionOutcomeKind
+                .AuthorityMovedToStaff,
+            result.Value.Kind);
+        Assert.Null(result.Value.Receipt);
+        Assert.Null(receipts.Receipt);
+        Assert.Equal(WorkspaceStaffOnboardingState.StaffReady, application.Status);
+        Assert.Equal(staffMemberId, application.StaffMemberId);
+        Assert.Null(application.DisplayName);
+        Assert.Null(application.VerifiedAccountEmail);
+    }
+
     private static
         ApplyWorkspaceStaffOnboardingDataRightsCorrectionCommandHandler
         CreateHandler(
@@ -517,7 +567,9 @@ public sealed class
             InMemoryReceiptRepository receipts,
             RecordingCorrectionLock correctionLock,
             RecordingExecutionGate gate,
-            FakeOrganizationEnrollmentClaimInspector? claims = null)
+            FakeOrganizationEnrollmentClaimInspector? claims = null,
+            IStaffWorkspaceOnboardingIdentityAnchorOutcomeReader?
+                anchorOutcomes = null)
     {
         InMemoryApplicationRepository applications = new(application);
         return new(
@@ -525,6 +577,8 @@ public sealed class
             WorkspaceStaffOnboardingMutationTestSupport.Create(
                 applications,
                 correctionLock),
+            WorkspaceStaffOnboardingMutationTestSupport
+                .CreateIdentityAnchorConvergence(anchorOutcomes),
             new WorkspaceStaffOnboardingDataRightsCorrectionAuthorizer(
                 gate,
                 new TestScopeContext()),

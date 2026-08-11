@@ -13,6 +13,7 @@ using Gma.Framework.AccessControl;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Pagination;
 using Gma.Framework.Results;
+using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
 using Gma.Modules.AccessControl.Contracts;
 using Gma.Modules.Organizations.Contracts;
@@ -321,12 +322,21 @@ public sealed class WorkspaceStaffOnboardingRetentionTests
             WorkspaceStaffOnboardingMutationTestSupport.Create(
                 applications,
                 new FakeOperationLock()),
+            new WorkspaceStaffOnboardingIdentityAnchorConvergence(
+                new StubStaffWorkspaceOnboardingIdentityAnchorOutcomeReader(),
+                WorkspaceStaffAccessMutationTestSupport.Create(
+                    WorkspaceStaffAccessMutationTestSupport.NoOpenProcesses),
+                WorkspaceStaffAccessMutationTestSupport.NoOpenProcesses,
+                null!,
+                new FakeClock(),
+                new TestIds()),
             plans,
             planPolicy,
             null!,
             WorkspaceOperationalAdmissionTestSupport.Allowed(
                 application.ScopeId),
             new FakeClock(),
+            new TestIds(),
             NullLogger<WorkspaceStaffOnboardingProcessor>.Instance);
         ReconcileWorkspaceStaffOnboardingRetentionCandidateCommandHandler handler = new(
             applications,
@@ -448,6 +458,11 @@ public sealed class WorkspaceStaffOnboardingRetentionTests
     private sealed class FakeClock : ISystemClock
     {
         public DateTimeOffset UtcNow => Now;
+    }
+
+    private sealed class TestIds : IIdGenerator
+    {
+        public Guid NewId() => Guid.CreateVersion7();
     }
 
     private sealed class FakeClaimInspector(OrganizationEnrollmentClaimDto? claim)
@@ -778,6 +793,11 @@ public sealed class WorkspaceStaffOnboardingRetentionContributorTests
     private sealed class FakeClock : ISystemClock
     {
         public DateTimeOffset UtcNow => Now;
+    }
+
+    private sealed class TestIds : IIdGenerator
+    {
+        public Guid NewId() => Guid.CreateVersion7();
     }
 
     private sealed class FakeCandidateRepository(

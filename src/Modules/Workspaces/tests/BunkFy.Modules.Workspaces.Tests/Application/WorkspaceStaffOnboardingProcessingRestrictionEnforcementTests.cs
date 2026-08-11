@@ -327,6 +327,8 @@ public sealed class
             WorkspaceStaffOnboardingMutationTestSupport.Create(
                 applications,
                 operationLock),
+            WorkspaceStaffOnboardingMutationTestSupport
+                .CreateIdentityAnchorConvergence(),
             new RecordingPlanRepository(plan),
             new WorkspaceStaffJoinTokenAuthorityResolver(
                 new EnrollmentTokenInspector(OrganizationId, sourceId)),
@@ -382,6 +384,17 @@ public sealed class
             WorkspaceStaffOnboardingMutationTestSupport.Create(
                 applications,
                 operationLock),
+            new WorkspaceStaffOnboardingIdentityAnchorConvergence(
+                new StubStaffWorkspaceOnboardingIdentityAnchorOutcomeReader(),
+                WorkspaceStaffAccessMutationTestSupport.Create(
+                    WorkspaceStaffAccessMutationTestSupport.NoOpenProcesses),
+                WorkspaceStaffAccessMutationTestSupport.NoOpenProcesses,
+                new WorkspaceAccessProvisioner(
+                    roles: null!,
+                    profiles: null!,
+                    scopedProfiles: null!),
+                new TestClock(),
+                new TestIds()),
             plans,
             new WorkspaceStaffAccessPlanPolicy(
                 profiles: null!,
@@ -395,6 +408,7 @@ public sealed class
             operationalAdmission ??
                 WorkspaceOperationalAdmissionTestSupport.Allowed(TenantId),
             new TestClock(),
+            new TestIds(),
             NullLogger<WorkspaceStaffOnboardingProcessor>.Instance);
 
     private static

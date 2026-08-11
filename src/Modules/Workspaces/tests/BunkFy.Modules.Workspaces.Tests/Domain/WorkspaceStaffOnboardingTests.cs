@@ -44,7 +44,11 @@ public sealed class WorkspaceStaffOnboardingTests
         Guid staffMemberId = Guid.NewGuid();
 
         Assert.True(application.ObserveClaimAccepted(claimId, 1, Now.AddMinutes(1)).IsSuccess);
-        Assert.True(application.MarkStaffReady(staffMemberId, Now.AddMinutes(2)).IsSuccess);
+        Assert.True(application.MarkStaffReady(
+            staffMemberId,
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Now.AddMinutes(2)).IsSuccess);
         Assert.True(application.Complete(Now.AddMinutes(3)).IsSuccess);
 
         Assert.Equal(WorkspaceStaffOnboardingState.Completed, application.Status);
@@ -99,7 +103,11 @@ public sealed class WorkspaceStaffOnboardingTests
         Guid claimId = Guid.NewGuid();
         Guid staffMemberId = Guid.NewGuid();
         Assert.True(application.ObserveClaimAccepted(claimId, 1, Now.AddMinutes(1)).IsSuccess);
-        Assert.True(application.MarkStaffReady(staffMemberId, Now.AddMinutes(2)).IsSuccess);
+        Assert.True(application.MarkStaffReady(
+            staffMemberId,
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Now.AddMinutes(2)).IsSuccess);
         Assert.True(application.Fail("Workspaces.AccessProvisioningFailed", Now.AddMinutes(3)).IsSuccess);
 
         Assert.True(application.BeginProvisioning(Now.AddMinutes(4)).IsSuccess);

@@ -27,6 +27,12 @@ public static class DependencyInjection
             StaffMigrations.Schema, StaffMigrations.HistoryTable));
         builder.Services.TryAddScoped<IStaffMemberRepository, StaffMemberRepository>();
         builder.Services.TryAddScoped<
+            IStaffIdentityProvisioningAnchorRepository,
+            StaffIdentityProvisioningAnchorRepository>();
+        builder.Services.TryAddScoped<
+            IStaffIdentityProvisioningAnchorResolutionRepository,
+            StaffIdentityProvisioningAnchorResolutionRepository>();
+        builder.Services.TryAddScoped<
             IStaffMemberMutationOperationRepository,
             StaffMemberMutationOperationRepository>();
         builder.Services.TryAddScoped<

@@ -11,6 +11,7 @@ using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Workspaces.Application.Authorization;
 using BunkFy.Modules.Workspaces.Application.Contributors;
 using BunkFy.Modules.Workspaces.Application.Handlers;
+using BunkFy.Modules.Workspaces.Application.Ports;
 using BunkFy.Modules.Workspaces.Application.Tasks;
 using BunkFy.Modules.Workspaces.Contracts;
 using Gma.Framework.AccessControl;
@@ -56,6 +57,15 @@ public static class DependencyInjection
             IWorkspaceStaffOnboardingSubmitter,
             WorkspaceStaffOnboardingSubmitter>();
         services.TryAddScoped<WorkspaceStaffOnboardingProcessor>();
+        services.TryAddScoped<
+            WorkspaceStaffOnboardingIdentityAnchorConvergence>();
+        services.TryAddScoped<
+            IWorkspaceStaffIdentityAnchorFreshStatusReader,
+            WorkspaceStaffIdentityAnchorFreshStatusReader>();
+        services.TryAddScoped<
+            WorkspaceStaffIdentityAnchorCutoverCoordinator>();
+        services.TryAddScoped<
+            WorkspaceStaffHistoricalNoProvisionAuthorityReader>();
         services.TryAddScoped<WorkspaceStaffOnboardingMutationCoordinator>();
         services.TryAddScoped<
             WorkspaceStaffOnboardingDataRightsCorrectionAuthorizer>();
@@ -185,6 +195,16 @@ public static class DependencyInjection
             WorkspacesModuleMetadata.Name,
             StaffModuleMetadata.Name);
         services.AddIntegrationEventHandler<
+            StaffIdentityProvisioningAnchorCreatedIntegrationEvent,
+            StaffIdentityProvisioningAnchorCreatedWorkspacesHandler>(
+            WorkspacesModuleMetadata.Name,
+            StaffModuleMetadata.Name);
+        services.AddIntegrationEventHandler<
+            WorkspaceStaffOnboardingIdentityAnchorContinuationRequestedIntegrationEvent,
+            WorkspaceStaffOnboardingIdentityAnchorContinuationHandler>(
+            WorkspacesModuleMetadata.Name,
+            WorkspacesModuleMetadata.Name);
+        services.AddIntegrationEventHandler<
             PropertyCreatedIntegrationEvent,
             WorkspacePropertyCreatedHandler>(
             WorkspacesModuleMetadata.Name,
@@ -224,6 +244,17 @@ public static class DependencyInjection
         services.AddTaskHandler<
             RebuildWorkspacePropertiesPayload,
             RebuildWorkspacePropertiesTaskHandler>(WorkspacesModuleMetadata.Name);
+        services.AddTaskHandler<
+            ReconcileWorkspaceStaffIdentityAnchorsPayload,
+            WorkspaceStaffIdentityAnchorSweepTaskHandler>(
+                WorkspacesModuleMetadata.Name);
+        services.TryAddScoped<
+            IWorkspaceStaffIdentityAnchorSweepTransactionDispatcher,
+            WorkspaceStaffIdentityAnchorSweepTransactionDispatcher>();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
+                ITaskScheduleProvider,
+                WorkspaceStaffIdentityAnchorSweepScheduleProvider>());
         return services;
     }
 }

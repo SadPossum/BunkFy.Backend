@@ -171,6 +171,23 @@ internal sealed partial class WorkspaceTenantDestructionOwner
                             fence.Id != operation.FenceId),
                     fence => fence.Id,
                     cancellationToken),
+            WorkspaceTenantDestroyStage.SweepCheckpoints =>
+                this.RemoveGuidBatchAsync(
+                    operation,
+                    dbContext.StaffIdentityAnchorSweepCheckpoints
+                        .IgnoreQueryFilters()
+                        .Where(checkpoint =>
+                            checkpoint.ScopeId == tenantId),
+                    checkpoint => checkpoint.Id,
+                    cancellationToken),
+            WorkspaceTenantDestroyStage.HistoricalNoProvisionReceipts =>
+                this.RemoveGuidBatchAsync(
+                    operation,
+                    dbContext.StaffHistoricalNoProvisionReceipts
+                        .IgnoreQueryFilters()
+                        .Where(receipt => receipt.ScopeId == tenantId),
+                    receipt => receipt.Id,
+                    cancellationToken),
             _ => throw new InvalidDataException(
                 "The Workspaces tenant destruction stage is invalid.")
         };
@@ -410,6 +427,18 @@ internal sealed partial class WorkspaceTenantDestructionOwner
             await dbContext.WorkspaceTerminationFenceReceipts
                 .IgnoreQueryFilters()
                 .AnyAsync(receipt => receipt.ScopeId == tenantId, cancellationToken)
+                .ConfigureAwait(false) ||
+            await dbContext.StaffIdentityAnchorSweepCheckpoints
+                .IgnoreQueryFilters()
+                .AnyAsync(
+                    checkpoint => checkpoint.ScopeId == tenantId,
+                    cancellationToken)
+                .ConfigureAwait(false) ||
+            await dbContext.StaffHistoricalNoProvisionReceipts
+                .IgnoreQueryFilters()
+                .AnyAsync(
+                    receipt => receipt.ScopeId == tenantId,
+                    cancellationToken)
                 .ConfigureAwait(false);
         if (hasOwnedRecords)
         {

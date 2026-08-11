@@ -13,6 +13,7 @@ using Gma.Framework.Api.Results;
 using Gma.Framework.Api.Tenancy;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Pagination;
+using Gma.Framework.Results;
 using Gma.Framework.Scoping;
 using Gma.Framework.Tenancy.AccessControl.AspNetCore;
 using Microsoft.AspNetCore.Builder;
@@ -42,7 +43,8 @@ internal static class WorkspaceStaffOnboardingEndpoints
                 return Results.Unauthorized();
             }
 
-            return (await submitter.SubmitAsync(
+            Result<WorkspaceStaffOnboardingSubmissionOutcome> outcome =
+                await submitter.SubmitWithAuthorityOutcomeAsync(
                 new SubmitWorkspaceStaffOnboardingCommand(
                     request.SourceKind,
                     request.Token,
@@ -54,8 +56,9 @@ internal static class WorkspaceStaffOnboardingEndpoints
                     request.EmployeeNumber,
                     request.JobTitle,
                     request.Department),
-                token).ConfigureAwait(false)).ToHttpResult(
-                    WorkspacesApiEndpointSupport.ErrorStatusCodes);
+                token).ConfigureAwait(false);
+            return MapSubmissionOutcome(outcome).ToHttpResult(
+                WorkspacesApiEndpointSupport.ErrorStatusCodes);
         }).Produces<WorkspaceStaffOnboardingDto>(StatusCodes.Status200OK);
 
         group.MapPost("/sources/invitations", async (
@@ -311,5 +314,30 @@ internal static class WorkspaceStaffOnboardingEndpoints
             .RequireTenant()
             .RequireTenantPermission(StaffAdminPermissionCodes.Manage)
             .Produces<WorkspaceStaffOnboardingDto>(StatusCodes.Status200OK);
+    }
+
+    internal static Result<WorkspaceStaffOnboardingDto> MapSubmissionOutcome(
+        Result<WorkspaceStaffOnboardingSubmissionOutcome> outcome)
+    {
+        if (outcome.IsFailure)
+        {
+            return Result.Failure<WorkspaceStaffOnboardingDto>(outcome.Error);
+        }
+
+        return outcome.Value.Kind switch
+        {
+            WorkspaceStaffOnboardingSubmissionOutcomeKind.Applied
+                when outcome.Value.Application is not null =>
+                Result.Success(outcome.Value.Application),
+            WorkspaceStaffOnboardingSubmissionOutcomeKind
+                .AuthorityMovedToStaff
+                when outcome.Value.Application is null =>
+                Result.Failure<WorkspaceStaffOnboardingDto>(
+                    WorkspaceStaffOnboardingApplicationErrors
+                        .ProfileMutationAuthorityUnavailable),
+            _ => Result.Failure<WorkspaceStaffOnboardingDto>(
+                WorkspaceStaffOnboardingApplicationErrors
+                    .IdentityAnchorConflict)
+        };
     }
 }
