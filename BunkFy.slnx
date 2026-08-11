@@ -180,9 +180,9 @@
     <File Path="docs/planning/staff-profile-update-idempotency-task.md" />
     <File Path="docs/planning/staff-profiles-module-task.md" />
     <File Path="docs/planning/staff-property-assignment-idempotency-task.md" />
-    <File Path="docs/planning/staff-retired-property-operational-visibility-task.md" />
     <File Path="docs/planning/staff-record-retention-task.md" />
     <File Path="docs/planning/staff-retention-prerequisite-transaction-boundary-task.md" />
+    <File Path="docs/planning/staff-retired-property-operational-visibility-task.md" />
     <File Path="docs/planning/staff-tenant-termination-owner-task.md" />
     <File Path="docs/planning/standalone-adapter-host-task.md" />
     <File Path="docs/planning/support-admin-access-task.md" />
