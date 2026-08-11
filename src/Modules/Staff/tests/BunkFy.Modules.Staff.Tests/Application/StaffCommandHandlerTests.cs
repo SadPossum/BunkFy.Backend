@@ -953,7 +953,7 @@ public sealed class StaffCommandHandlerTests
     [InlineData(typeof(SuspendStaffMemberCommandHandler))]
     [InlineData(typeof(UnassignStaffPropertyCommandHandler))]
     [InlineData(typeof(DepartStaffMemberCommandHandler))]
-    [InlineData(typeof(ProvisionStaffOnboardingCommandHandler))]
+    [InlineData(typeof(StaffOnboardingProvisioningCoordinator))]
     [InlineData(typeof(ReconcileStaffIdentityCommandHandler))]
     [InlineData(typeof(ReconcileStaffPropertyAssignmentsCommandHandler))]
     public void Existing_member_mutations_use_the_shared_serialization_boundary(
@@ -1043,13 +1043,18 @@ public sealed class StaffCommandHandlerTests
     }
 
     [Fact]
-    public async Task Onboarding_provisioning_is_replay_safe_for_an_existing_auth_subject()
+    public async Task Onboarding_replay_preserves_newer_profile_and_fails_closed_after_suspension()
     {
         FakeStaffMemberRepository members = new();
-        using ServiceProvider provider = CreateProvider(members, new FakePropertyProjectionRepository());
+        RecordingOnboardingOperations operations = new();
+        using ServiceProvider provider = CreateProvider(
+            members,
+            new FakePropertyProjectionRepository(),
+            onboardingOperations: operations);
         ICommandHandler<ProvisionStaffOnboardingCommand, StaffMemberDto> handler = provider
             .GetRequiredService<ICommandHandler<ProvisionStaffOnboardingCommand, StaffMemberDto>>();
         ProvisionStaffOnboardingCommand command = new(
+            Guid.NewGuid(),
             "member-100", "Ada Operator", "Ada Lovelace", "ada@example.test", null,
             "EMP-100", "Manager", "Operations", "integration:organizations", "Onboarding accepted.");
 
@@ -1060,8 +1065,104 @@ public sealed class StaffCommandHandlerTests
         Assert.True(replayed.IsSuccess, replayed.Error.Code);
         Assert.Equal(first.Value.StaffMemberId, replayed.Value.StaffMemberId);
         Assert.Equal(1, members.AddCount);
+        Assert.Equal(first.Value.Version, replayed.Value.Version);
         Assert.Equal("Ada Lovelace", replayed.Value.LegalName);
         Assert.Equal("EMP-100", replayed.Value.EmployeeNumber);
+
+        StaffMember member = Assert.IsType<StaffMember>(members.AddedMember);
+        Assert.True(member.UpdateProfile(
+            "Ada Operator Edited",
+            member.LegalName,
+            member.WorkEmail,
+            member.WorkPhone,
+            member.EmployeeNumber,
+            member.JobTitle,
+            member.Department,
+            member.Version,
+            "user:operator",
+            Guid.NewGuid(),
+            TestClock.Now.AddMinutes(1)).IsSuccess);
+        long editedVersion = member.Version;
+
+        Result<StaffMemberDto> replayedAfterEdit = await handler.HandleAsync(
+            command,
+            CancellationToken.None);
+        Result<StaffMemberDto> conflicting = await handler.HandleAsync(
+            command with { DisplayName = "Different applicant" },
+            CancellationToken.None);
+
+        Assert.True(replayedAfterEdit.IsSuccess, replayedAfterEdit.Error.Code);
+        Assert.Equal("Ada Operator Edited", replayedAfterEdit.Value.DisplayName);
+        Assert.Equal(editedVersion, replayedAfterEdit.Value.Version);
+        Assert.Equal(
+            StaffApplicationErrors.OnboardingOperationConflict,
+            conflicting.Error);
+
+        members.OperationallyVisible = false;
+        Result<StaffMemberDto> replayedWhileHidden =
+            await handler.HandleAsync(command, CancellationToken.None);
+        Assert.Equal(
+            StaffApplicationErrors.OnboardingReplayUnavailable,
+            replayedWhileHidden.Error);
+        members.OperationallyVisible = true;
+
+        Assert.True(member.Suspend(
+            member.Version,
+            "user:operator",
+            "Temporary leave.",
+            Guid.NewGuid(),
+            TestClock.Now.AddMinutes(2)).IsSuccess);
+        Result<StaffMemberDto> replayedAfterSuspension =
+            await handler.HandleAsync(command, CancellationToken.None);
+
+        Assert.Equal(
+            StaffApplicationErrors.OnboardingReplayUnavailable,
+            replayedAfterSuspension.Error);
+        Assert.Equal(StaffMemberState.Suspended, member.Status);
+        Assert.Single(operations.Records);
+    }
+
+    [Fact]
+    public async Task First_onboarding_operation_can_resume_an_existing_suspended_member()
+    {
+        StaffMember member = CreateMember("member-100");
+        Assert.True(member.Suspend(
+            member.Version,
+            "user:owner",
+            "Temporary leave.",
+            Guid.NewGuid(),
+            TestClock.Now).IsSuccess);
+        long startingVersion = member.Version;
+        RecordingOnboardingOperations operations = new();
+        using ServiceProvider provider = CreateProvider(
+            new FakeStaffMemberRepository(member),
+            new FakePropertyProjectionRepository(),
+            onboardingOperations: operations);
+        var handler = provider.GetRequiredService<
+            ICommandHandler<ProvisionStaffOnboardingCommand, StaffMemberDto>>();
+
+        Result<StaffMemberDto> result = await handler.HandleAsync(
+            new ProvisionStaffOnboardingCommand(
+                Guid.NewGuid(),
+                "member-100",
+                "Ada Returned",
+                "Ada Lovelace",
+                "ada@example.test",
+                null,
+                "EMP-100",
+                "Manager",
+                "Operations",
+                "integration:organizations",
+                "Onboarding accepted."),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.Code);
+        Assert.Equal(StaffStatus.Active, result.Value.Status);
+        Assert.Equal(startingVersion + 2, result.Value.Version);
+        StaffMemberMutationOperationRecord receipt =
+            Assert.Single(operations.Records);
+        Assert.Equal(startingVersion, receipt.ExpectedVersion);
+        Assert.Equal(result.Value.Version, receipt.ResultVersion);
     }
 
     [Fact]
@@ -1505,7 +1606,9 @@ public sealed class StaffCommandHandlerTests
         IStaffLifecyclePolicy? lifecyclePolicy = null,
         IStaffOperationLock? operationLock = null,
         IStaffCreationOperationLock? creationLock = null,
-        IStaffMemberMutationOperationRepository? memberMutationOperations = null)
+        IStaffMemberMutationOperationRepository? memberMutationOperations = null,
+        IStaffOnboardingProvisioningOperationRepository?
+            onboardingOperations = null)
     {
         ServiceCollection services = new();
         services.AddSingleton(members);
@@ -1518,6 +1621,8 @@ public sealed class StaffCommandHandlerTests
             creationLock ?? new NoopStaffCreationOperationLock());
         services.AddSingleton(
             memberMutationOperations ?? new RecordingMemberMutationOperations());
+        services.AddSingleton(
+            onboardingOperations ?? new RecordingOnboardingOperations());
         if (lifecyclePolicy is not null)
         {
             services.AddSingleton(lifecyclePolicy);
@@ -1811,6 +1916,26 @@ public sealed class StaffCommandHandlerTests
         {
             this.Records.RemoveAll(record =>
                 record.StaffMemberId == staffMemberId);
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class RecordingOnboardingOperations
+        : IStaffOnboardingProvisioningOperationRepository
+    {
+        public List<StaffMemberMutationOperationRecord> Records { get; } = [];
+
+        public Task<StaffMemberMutationOperationRecord?> GetAsync(
+            Guid operationId,
+            CancellationToken cancellationToken) => Task.FromResult(
+            this.Records.SingleOrDefault(record =>
+                record.OperationId == operationId));
+
+        public Task AddAsync(
+            StaffMemberMutationOperationRecord operation,
+            CancellationToken cancellationToken)
+        {
+            this.Records.Add(operation);
             return Task.CompletedTask;
         }
     }

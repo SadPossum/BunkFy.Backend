@@ -30,6 +30,9 @@ public static class DependencyInjection
             IStaffMemberMutationOperationRepository,
             StaffMemberMutationOperationRepository>();
         builder.Services.TryAddScoped<
+            IStaffOnboardingProvisioningOperationRepository,
+            StaffOnboardingProvisioningOperationRepository>();
+        builder.Services.TryAddScoped<
             IStaffDataRightsCorrectionReceiptRepository,
             StaffDataRightsCorrectionReceiptRepository>();
         builder.Services.TryAddScoped<

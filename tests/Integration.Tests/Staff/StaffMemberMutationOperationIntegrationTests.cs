@@ -83,6 +83,8 @@ public sealed class StaffMemberMutationOperationIntegrationTests
                  '2026-08-07T14:30:00Z');
             """).ConfigureAwait(false);
         await MigrateAsync(services).ConfigureAwait(false);
+        await AssertOnboardingProvisioningReplayAsync(services)
+            .ConfigureAwait(false);
 
         using (IServiceScope migrationScope = services.CreateScope())
         {
@@ -416,6 +418,95 @@ public sealed class StaffMemberMutationOperationIntegrationTests
             departOperationId).ConfigureAwait(false);
     }
 
+    private static async Task AssertOnboardingProvisioningReplayAsync(
+        ServiceProvider services)
+    {
+        Guid operationId = Guid.NewGuid();
+        ProvisionStaffOnboardingCommand command = new(
+            operationId,
+            "account-onboarding",
+            "Onboarding Applicant",
+            "Original Applicant",
+            "applicant@example.test",
+            null,
+            "EMP-ONBOARDING",
+            "Receptionist",
+            "Operations",
+            "integration:organizations",
+            "Workspace Staff onboarding accepted.");
+
+        Result<StaffMemberDto>[] concurrent = await Task.WhenAll(
+            SendAsync(services, command),
+            SendAsync(services, command)).ConfigureAwait(false);
+        Assert.All(
+            concurrent,
+            result => Assert.True(result.IsSuccess, result.Error.Code));
+        Assert.Equal(
+            concurrent[0].Value.StaffMemberId,
+            concurrent[1].Value.StaffMemberId);
+        Assert.Equal(concurrent[0].Value.Version, concurrent[1].Value.Version);
+
+        StaffMemberDto provisioned = concurrent[0].Value;
+        Result<StaffMemberMutationReceiptDto> edited = await SendAsync(
+            services,
+            new UpdateStaffMemberCommand(
+                Guid.NewGuid(),
+                provisioned.StaffMemberId,
+                "Operator Edited Applicant",
+                provisioned.LegalName,
+                provisioned.WorkEmail,
+                provisioned.WorkPhone,
+                provisioned.EmployeeNumber,
+                provisioned.JobTitle,
+                provisioned.Department,
+                provisioned.Version,
+                "user:operator")).ConfigureAwait(false);
+        Assert.True(edited.IsSuccess, edited.Error.Code);
+
+        Result<StaffMemberDto> replayed = await SendAsync(
+            services,
+            command).ConfigureAwait(false);
+        Result<StaffMemberDto> conflicting = await SendAsync(
+            services,
+            command with { DisplayName = "Changed applicant" })
+            .ConfigureAwait(false);
+
+        Assert.True(replayed.IsSuccess, replayed.Error.Code);
+        Assert.Equal("Operator Edited Applicant", replayed.Value.DisplayName);
+        Assert.Equal(edited.Value.Version, replayed.Value.Version);
+        Assert.Equal(
+            StaffApplicationErrors.OnboardingOperationConflict,
+            conflicting.Error);
+
+        Result<StaffMemberMutationReceiptDto> suspended = await SendAsync(
+            services,
+            new SuspendStaffMemberCommand(
+                Guid.NewGuid(),
+                provisioned.StaffMemberId,
+                "Approved leave",
+                edited.Value.Version,
+                "user:operator")).ConfigureAwait(false);
+        Assert.True(suspended.IsSuccess, suspended.Error.Code);
+
+        Result<StaffMemberDto> replayedAfterSuspension = await SendAsync(
+            services,
+            command).ConfigureAwait(false);
+        Assert.Equal(
+            StaffApplicationErrors.OnboardingReplayUnavailable,
+            replayedAfterSuspension.Error);
+
+        using IServiceScope scope = services.CreateScope();
+        StaffMemberMutationOperationRecord receipt = Assert.IsType<
+            StaffMemberMutationOperationRecord>(
+            await scope.ServiceProvider.GetRequiredService<
+                    IStaffOnboardingProvisioningOperationRepository>()
+                .GetAsync(operationId, CancellationToken.None)
+                .ConfigureAwait(false));
+        Assert.Equal(provisioned.StaffMemberId, receipt.StaffMemberId);
+        Assert.Equal(provisioned.Version, receipt.ExpectedVersion);
+        Assert.Equal(provisioned.Version, receipt.ResultVersion);
+    }
+
     private static async Task VerifyOwnerStateAsync(
         ServiceProvider services,
         Guid staffMemberId,
@@ -536,27 +627,34 @@ public sealed class StaffMemberMutationOperationIntegrationTests
         Assert.Equal(StaffMemberMutationKind.Resume, resumeOperation.Kind);
         Assert.Equal(departReceipt, departOperation.ToReceipt());
         Assert.Equal(StaffMemberMutationKind.Depart, departOperation.Kind);
+        List<OutboxMessage> memberOutboxMessages = (await dbContext
+                .OutboxMessages
+                .AsNoTracking()
+                .ToListAsync()
+                .ConfigureAwait(false))
+            .Where(message => message.Payload.Contains(
+                staffMemberId.ToString("D"),
+                StringComparison.OrdinalIgnoreCase))
+            .ToList();
         Assert.Single(
-            dbContext.OutboxMessages,
+            memberOutboxMessages,
             message => message.EventType.Contains(
                 nameof(StaffMemberUpdatedIntegrationEvent),
                 StringComparison.Ordinal));
-        int assignmentEventCount = await dbContext.OutboxMessages.CountAsync(
-            message => EF.Functions.Like(
-                message.EventType,
-                $"%{nameof(StaffPropertyAssignmentChangedIntegrationEvent)}%"))
-            .ConfigureAwait(false);
+        int assignmentEventCount = memberOutboxMessages.Count(
+            message => message.EventType.Contains(
+                nameof(StaffPropertyAssignmentChangedIntegrationEvent),
+                StringComparison.Ordinal));
         Assert.Equal(2, assignmentEventCount);
         Assert.Single(
-            dbContext.OutboxMessages,
+            memberOutboxMessages,
             message => message.EventType.Contains(
                 nameof(StaffAuthSubjectChangedIntegrationEvent),
                 StringComparison.Ordinal));
-        int lifecycleEventCount = await dbContext.OutboxMessages.CountAsync(
-            message => EF.Functions.Like(
-                message.EventType,
-                $"%{nameof(StaffMemberLifecycleChangedIntegrationEvent)}%"))
-            .ConfigureAwait(false);
+        int lifecycleEventCount = memberOutboxMessages.Count(
+            message => message.EventType.Contains(
+                nameof(StaffMemberLifecycleChangedIntegrationEvent),
+                StringComparison.Ordinal));
         Assert.Equal(3, lifecycleEventCount);
     }
 

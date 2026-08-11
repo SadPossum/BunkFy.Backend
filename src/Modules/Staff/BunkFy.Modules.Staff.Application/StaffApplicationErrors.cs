@@ -23,6 +23,18 @@ public static class StaffApplicationErrors
     public static readonly Error CreationOperationConflict = new(
         "Staff.CreationOperationConflict",
         "The Staff creation operation was already used for different profile data.");
+    public static readonly Error OnboardingOperationInvalid = new(
+        "Staff.OnboardingOperationInvalid",
+        "A valid Staff onboarding operation id is required.");
+    public static readonly Error OnboardingApplicantInvalid = new(
+        "Staff.OnboardingApplicantInvalid",
+        "A Staff onboarding Auth subject is required.");
+    public static readonly Error OnboardingOperationConflict = new(
+        "Staff.OnboardingOperationConflict",
+        "The Staff onboarding operation was already used for different applicant data.");
+    public static readonly Error OnboardingReplayUnavailable = new(
+        "Staff.OnboardingReplayUnavailable",
+        "The Staff onboarding operation can no longer be replayed safely.");
     public static readonly Error ProfileUpdateOperationInvalid = new(
         "Staff.ProfileUpdateOperationInvalid",
         "A valid Staff profile-update operation id is required.");

@@ -41,6 +41,7 @@ public static class DependencyInjection
             IStaffPropertyAssignmentProvisioner,
             StaffPropertyAssignmentProvisioner>();
         services.TryAddScoped<StaffMemberMutationCoordinator>();
+        services.TryAddScoped<StaffOnboardingProvisioningCoordinator>();
         services.TryAddScoped<StaffProfileUpdateCoordinator>();
         services.TryAddScoped<StaffAuthSubjectChangeCoordinator>();
         services.TryAddScoped<StaffLifecycleChangeCoordinator>();

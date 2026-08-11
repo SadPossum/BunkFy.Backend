@@ -8,6 +8,16 @@ internal sealed class ProvisionStaffOnboardingCommandValidator
 {
     public IEnumerable<string> Validate(ProvisionStaffOnboardingCommand command)
     {
+        if (command.OperationId == Guid.Empty)
+        {
+            yield return "OperationId is required.";
+        }
+
+        if (string.IsNullOrWhiteSpace(command.AuthSubjectId))
+        {
+            yield return "AuthSubjectId is required.";
+        }
+
         foreach (string error in StaffValidation.Profile(
             command.DisplayName,
             command.LegalName,

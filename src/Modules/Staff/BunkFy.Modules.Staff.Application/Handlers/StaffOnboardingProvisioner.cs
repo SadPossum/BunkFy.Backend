@@ -15,6 +15,7 @@ internal sealed class StaffOnboardingProvisioner(IRequestDispatcher dispatcher)
         ArgumentNullException.ThrowIfNull(request);
         Result<StaffMemberDto> result = await dispatcher.SendAsync(
             new ProvisionStaffOnboardingCommand(
+                request.OperationId,
                 request.AuthSubjectId,
                 request.DisplayName,
                 request.LegalName,

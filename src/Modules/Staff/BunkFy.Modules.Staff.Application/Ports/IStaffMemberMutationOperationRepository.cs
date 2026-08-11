@@ -42,6 +42,14 @@ public sealed record StaffMemberMutationOperationRecord(
             requestFingerprint,
             StringComparison.Ordinal);
 
+    public bool MatchesOnboarding(string requestFingerprint) =>
+        this.Kind == StaffMemberMutationKind.OnboardingProvision &&
+        this.ResultStatus == StaffStatus.Active &&
+        string.Equals(
+            this.RequestFingerprint,
+            requestFingerprint,
+            StringComparison.Ordinal);
+
     public StaffMemberMutationReceiptDto ToReceipt() => new(
         this.StaffMemberId,
         this.ResultStatus,
@@ -57,5 +65,6 @@ public enum StaffMemberMutationKind
     Resume = 4,
     Depart = 5,
     AssignProperty = 6,
-    UnassignProperty = 7
+    UnassignProperty = 7,
+    OnboardingProvision = 8
 }

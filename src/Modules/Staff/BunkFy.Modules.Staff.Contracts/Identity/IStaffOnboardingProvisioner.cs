@@ -8,6 +8,7 @@ public interface IStaffOnboardingProvisioner
 }
 
 public sealed record StaffOnboardingProvisioningRequest(
+    Guid OperationId,
     string AuthSubjectId,
     string DisplayName,
     string? LegalName,

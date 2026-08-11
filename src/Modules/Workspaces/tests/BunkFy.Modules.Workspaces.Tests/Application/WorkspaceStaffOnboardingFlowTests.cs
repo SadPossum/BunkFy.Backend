@@ -66,6 +66,7 @@ public sealed class WorkspaceStaffOnboardingFlowTests
         Assert.Equal(WorkspaceStaffOnboardingState.Completed, application.Status);
         Assert.Equal(WorkspaceStaffAccessPlanState.Expired, acceptedPlan.Status);
         Assert.Equal(1, staff.CallCount);
+        Assert.Equal(application.Id, staff.LastRequest?.OperationId);
     }
 
     [Fact]
@@ -883,12 +884,14 @@ public sealed class WorkspaceStaffOnboardingFlowTests
         public Guid? StaffMemberId { get; init; } = Guid.NewGuid();
         public string? ErrorCode { get; init; }
         public int CallCount { get; private set; }
+        public StaffOnboardingProvisioningRequest? LastRequest { get; private set; }
 
         public Task<StaffOnboardingProvisioningResult> ProvisionAsync(
             StaffOnboardingProvisioningRequest request,
             CancellationToken cancellationToken = default)
         {
             this.CallCount++;
+            this.LastRequest = request;
             return Task.FromResult(this.ErrorCode is null
                 ? new StaffOnboardingProvisioningResult(true, this.StaffMemberId, null)
                 : new StaffOnboardingProvisioningResult(false, null, this.ErrorCode));

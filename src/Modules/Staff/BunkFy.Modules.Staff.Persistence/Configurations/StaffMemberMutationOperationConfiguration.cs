@@ -16,17 +16,19 @@ internal sealed class StaffMemberMutationOperationConfiguration
                 "CK_staff_member_mutation_operations_versions",
                 "\"ExpectedVersion\" > 0 AND " +
                 "\"ResultVersion\" >= \"ExpectedVersion\" AND " +
-                "\"ResultVersion\" <= \"ExpectedVersion\" + 1");
+                "\"ResultVersion\" <= \"ExpectedVersion\" + " +
+                "CASE WHEN \"Kind\" = 8 THEN 2 ELSE 1 END");
             table.HasCheckConstraint(
                 "CK_staff_member_mutation_operations_fingerprint",
                 "char_length(\"RequestFingerprint\") = 64 AND " +
                 "\"RequestFingerprint\" ~ '^[0-9a-f]{64}$'");
             table.HasCheckConstraint(
                 "CK_staff_member_mutation_operations_status",
-                "\"ResultStatus\" IN (1, 2, 3)");
+                "\"ResultStatus\" IN (1, 2, 3) AND " +
+                "(\"Kind\" <> 8 OR \"ResultStatus\" = 1)");
             table.HasCheckConstraint(
                 "CK_staff_member_mutation_operations_kind",
-                "\"Kind\" IN (1, 2, 3, 4, 5, 6, 7)");
+                "\"Kind\" IN (1, 2, 3, 4, 5, 6, 7, 8)");
         });
         builder.HasKey(operation => new
         {
@@ -65,5 +67,14 @@ internal sealed class StaffMemberMutationOperationConfiguration
             operation.CompletedAtUtc,
             operation.Id
         });
+        builder.HasIndex(operation => new
+        {
+            operation.ScopeId,
+            operation.Id
+        })
+            .HasDatabaseName(
+                "UX_staff_member_mutation_operations_onboarding_operation")
+            .HasFilter("\"Kind\" = 8")
+            .IsUnique();
     }
 }

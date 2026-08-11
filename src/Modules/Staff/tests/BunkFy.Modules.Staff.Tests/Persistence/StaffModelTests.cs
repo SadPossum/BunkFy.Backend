@@ -145,7 +145,19 @@ public sealed class StaffModelTests
             constraint => constraint.Name ==
                 "CK_staff_member_mutation_operations_kind");
         Assert.Contains("1, 2, 3", statusConstraint.Sql);
-        Assert.Contains("1, 2, 3, 4, 5", kindConstraint.Sql);
+        Assert.Contains("1, 2, 3, 4, 5, 6, 7, 8", kindConstraint.Sql);
+        Assert.Contains(
+            operation.GetIndexes(),
+            index => index.IsUnique &&
+                index.Properties.Select(property => property.Name)
+                    .SequenceEqual([
+                        nameof(StaffMemberMutationOperation.ScopeId),
+                        nameof(StaffMemberMutationOperation.Id)
+                    ]) &&
+                string.Equals(
+                    index.GetFilter(),
+                    "\"Kind\" = 8",
+                    StringComparison.Ordinal));
     }
 
     [Fact]

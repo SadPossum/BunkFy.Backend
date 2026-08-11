@@ -219,6 +219,7 @@ internal sealed class WorkspaceStaffOnboardingProcessor(
 
             StaffOnboardingProvisioningResult provisioned = await staff.ProvisionAsync(
                 new StaffOnboardingProvisioningRequest(
+                    application.Id,
                     application.SubjectId,
                     application.DisplayName,
                     application.LegalName,

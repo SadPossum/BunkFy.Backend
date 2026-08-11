@@ -12818,14 +12818,14 @@
       "classification": "pseudonymous-identifier",
       "sensitivity": "standard",
       "purposes": ["exact-retry", "mutation-correlation"],
-      "sources": ["authorized-staff-management-client"],
+      "sources": ["accepted-workspace-onboarding", "authorized-staff-management-client"],
       "authoritativeOwner": "staff",
       "controllerProcessorContext": "customer-controller-bunk-fy-processor",
       "accessPolicy": "staff-member-mutation-operations",
       "countryPolicyKey": "staff.member-mutation-operation",
       "retentionPolicy": "staff-member-mutation-operation-journal",
       "rightsPolicy": "staff-member-mutation-operation-replay",
-      "allowedSurfaces": ["admin-input", "api-input", "application-command", "persistence", "data-rights-export"],
+      "allowedSurfaces": ["admin-input", "api-input", "application-command", "integration-command", "persistence", "data-rights-export"],
       "allowedBoundaries": ["customer-api", "cross-module", "intra-module", "support"],
       "approvalState": "engineering-default",
       "bindings": [
@@ -12894,6 +12894,13 @@
         },
         {
           "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ProvisionStaffOnboardingCommand",
+          "member": "OperationId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
           "type": "BunkFy.Modules.Staff.Application.Commands.ResumeStaffMemberCommand",
           "member": "OperationId",
           "surface": "application-command",
@@ -12932,6 +12939,13 @@
           "type": "BunkFy.Modules.Staff.Application.Ports.StaffMemberMutationOperationRecord",
           "member": "OperationId",
           "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffOnboardingProvisioningRequest",
+          "member": "OperationId",
+          "surface": "integration-command",
           "retentionPolicy": "transient-request"
         },
         {

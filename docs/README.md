@@ -70,6 +70,7 @@ Useful entry points:
 - [Guests Read Surface Hardening Task](planning/guests-read-surface-hardening-task.md)
 - [Staff Profiles Module Task](planning/staff-profiles-module-task.md)
 - [Staff Operational Surface Hardening Task](planning/staff-operational-surface-hardening-task.md)
+- [Staff Onboarding Provisioning Idempotency Task](planning/staff-onboarding-provisioning-idempotency-task.md)
 - [Staff Retired Property Operational Visibility Task](planning/staff-retired-property-operational-visibility-task.md)
 - [Staff Management Create Idempotency And Lock Ordering Task](planning/staff-management-create-idempotency-task.md)
 - [Staff Profile Update Idempotency Task](planning/staff-profile-update-idempotency-task.md)

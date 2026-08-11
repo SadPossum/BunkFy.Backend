@@ -5,6 +5,7 @@ using BunkFy.Modules.Staff.Application.Ports;
 using Gma.Framework.Cqrs;
 
 public sealed record ProvisionStaffOnboardingCommand(
+    Guid OperationId,
     string AuthSubjectId,
     string DisplayName,
     string? LegalName,
