@@ -25,6 +25,8 @@ public static class DependencyInjection
         services.AddScoped<ManualInventoryBlockCreator>();
         services.AddScoped<BedRetirementCoordinator>();
         services.AddScoped<RoomRetirementCoordinator>();
+        services.AddScoped<BedRetirementOutcomeCoordinator>();
+        services.AddScoped<RoomRetirementOutcomeCoordinator>();
         services.AddScoped<InventoryRetirementCoordinator>();
         services.AddScoped<InventoryAllocationMutationCoordinator>();
         services.AddScoped<InventoryManagementMutationCoordinator>();

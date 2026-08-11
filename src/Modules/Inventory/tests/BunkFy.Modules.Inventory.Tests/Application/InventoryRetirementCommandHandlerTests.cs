@@ -439,6 +439,16 @@ public sealed class InventoryRetirementCommandHandlerTests
                     ? process
                     : null);
 
+        public Task<Guid?> GetTopologyChangeIdByBedAsync(
+            Guid propertyId,
+            Guid bedId,
+            CancellationToken cancellationToken) => Task.FromResult<Guid?>(
+                process is not null &&
+                process.PropertyId == propertyId &&
+                process.BedId == bedId
+                    ? process.Id
+                    : null);
+
         public Task<BedRetirementProcess?> GetByBedAsync(
             Guid propertyId,
             Guid bedId,
@@ -474,6 +484,16 @@ public sealed class InventoryRetirementCommandHandlerTests
                 process.PropertyId == propertyId &&
                 process.Id == topologyChangeId
                     ? process
+                    : null);
+
+        public Task<Guid?> GetTopologyChangeIdByRoomAsync(
+            Guid propertyId,
+            Guid roomId,
+            CancellationToken cancellationToken) => Task.FromResult<Guid?>(
+                process is not null &&
+                process.PropertyId == propertyId &&
+                process.RoomId == roomId
+                    ? process.Id
                     : null);
 
         public Task<RoomRetirementProcess?> GetByRoomAsync(

@@ -17,6 +17,19 @@ internal sealed class RoomRetirementRepository(InventoryDbContext dbContext) : I
                 process => process.Id == topologyChangeId && process.PropertyId == propertyId,
                 cancellationToken);
 
+    public Task<Guid?> GetTopologyChangeIdByRoomAsync(
+        Guid propertyId,
+        Guid roomId,
+        CancellationToken cancellationToken) =>
+        dbContext.RoomRetirements.Local.FirstOrDefault(
+            process => process.RoomId == roomId && process.PropertyId == propertyId) is { } tracked
+            ? Task.FromResult<Guid?>(tracked.Id)
+            : dbContext.RoomRetirements
+                .AsNoTracking()
+                .Where(process => process.RoomId == roomId && process.PropertyId == propertyId)
+                .Select(process => (Guid?)process.Id)
+                .SingleOrDefaultAsync(cancellationToken);
+
     public Task<RoomRetirementProcess?> GetByRoomAsync(
         Guid propertyId,
         Guid roomId,

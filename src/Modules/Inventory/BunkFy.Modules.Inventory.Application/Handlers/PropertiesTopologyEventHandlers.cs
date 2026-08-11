@@ -3,10 +3,7 @@ namespace BunkFy.Modules.Inventory.Application.Handlers;
 using Gma.Framework.Messaging;
 using BunkFy.Modules.Inventory.Application.Ports;
 using BunkFy.Modules.Inventory.Contracts;
-using BunkFy.Modules.Inventory.Domain.Aggregates;
 using BunkFy.Modules.Properties.Contracts;
-using Gma.Framework.Results;
-using Gma.Framework.Runtime.Time;
 
 [IntegrationEventHandler(InventoryModuleMetadata.PropertyCreatedHandlerName)]
 internal sealed class PropertyCreatedTopologyHandler(
@@ -88,30 +85,18 @@ internal sealed class RoomUpdatedTopologyHandler(
 internal sealed class RoomRetiredTopologyHandler(
     IInventoryTopologyRepository repository,
     IRoomInventoryConfigurationRepository configurations,
-    IRoomRetirementRepository retirements,
-    InventoryUnitDefinitionPublisher definitions,
-    ISystemClock clock)
+    RoomRetirementOutcomeCoordinator outcomes,
+    InventoryUnitDefinitionPublisher definitions)
     : IIntegrationEventHandler<RoomRetiredIntegrationEvent>
 {
     public async Task HandleAsync(RoomRetiredIntegrationEvent e, CancellationToken token)
     {
+        await outcomes.CompleteFromTopologyAsync(e.PropertyId, e.RoomId, token)
+            .ConfigureAwait(false);
         await repository.ApplyRoomAsync(
             new(e.ScopeId, e.PropertyId, e.RoomId, null, null, null, RoomStatus.Retired, e.RoomVersion),
             token).ConfigureAwait(false);
         await configurations.EnsureAsync(e.ScopeId, e.PropertyId, e.RoomId, e.OccurredAtUtc, token).ConfigureAwait(false);
-        RoomRetirementProcess? process = await retirements
-            .GetByRoomAsync(e.PropertyId, e.RoomId, token)
-            .ConfigureAwait(false);
-        if (process is not null && process.State != InventoryRetirementProcessState.Completed)
-        {
-            Result completed = process.Complete(clock.UtcNow);
-            if (completed.IsFailure)
-            {
-                throw new InvalidOperationException(
-                    $"Room-retirement topology completion failed with '{completed.Error.Code}'.");
-            }
-        }
-
         await definitions.PublishRoomAsync(e.PropertyId, e.RoomId, e.OccurredAtUtc, token).ConfigureAwait(false);
     }
 }
@@ -147,28 +132,20 @@ internal sealed class BedUpdatedTopologyHandler(
 [IntegrationEventHandler(InventoryModuleMetadata.BedRetiredHandlerName)]
 internal sealed class BedRetiredTopologyHandler(
     IInventoryTopologyRepository repository,
-    IBedRetirementRepository retirements,
-    InventoryUnitDefinitionPublisher definitions,
-    ISystemClock clock)
+    BedRetirementOutcomeCoordinator outcomes,
+    InventoryUnitDefinitionPublisher definitions)
     : IIntegrationEventHandler<BedRetiredIntegrationEvent>
 {
     public async Task HandleAsync(BedRetiredIntegrationEvent e, CancellationToken token)
     {
+        await outcomes.CompleteFromTopologyAsync(
+                e.PropertyId,
+                e.RoomId,
+                e.BedId,
+                token)
+            .ConfigureAwait(false);
         await repository.ApplyBedAsync(
             new(e.ScopeId, e.PropertyId, e.RoomId, e.BedId, null, BedStatus.Retired, e.BedVersion), token).ConfigureAwait(false);
-        BedRetirementProcess? process = await retirements
-            .GetByBedAsync(e.PropertyId, e.BedId, token)
-            .ConfigureAwait(false);
-        if (process is not null && process.State != InventoryRetirementProcessState.Completed)
-        {
-            Result completed = process.Complete(clock.UtcNow);
-            if (completed.IsFailure)
-            {
-                throw new InvalidOperationException(
-                    $"Bed-retirement topology completion failed with '{completed.Error.Code}'.");
-            }
-        }
-
         await definitions.PublishRoomAsync(e.PropertyId, e.RoomId, e.OccurredAtUtc, token).ConfigureAwait(false);
     }
 }

@@ -5,6 +5,10 @@ using BunkFy.Modules.Inventory.Domain.Aggregates;
 public interface IBedRetirementRepository
 {
     Task<BedRetirementProcess?> GetAsync(Guid propertyId, Guid topologyChangeId, CancellationToken cancellationToken);
+    Task<Guid?> GetTopologyChangeIdByBedAsync(
+        Guid propertyId,
+        Guid bedId,
+        CancellationToken cancellationToken);
     Task<BedRetirementProcess?> GetByBedAsync(Guid propertyId, Guid bedId, CancellationToken cancellationToken);
     Task<IReadOnlyCollection<BedRetirementProcess>> ListActiveForUnitsAsync(
         Guid propertyId,

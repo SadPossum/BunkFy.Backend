@@ -318,6 +318,11 @@ public sealed class InventoryAllocationAmendmentRequestedHandlerTests
             Guid topologyChangeId,
             CancellationToken cancellationToken) => Task.FromResult<BedRetirementProcess?>(null);
 
+        public Task<Guid?> GetTopologyChangeIdByBedAsync(
+            Guid propertyId,
+            Guid bedId,
+            CancellationToken cancellationToken) => Task.FromResult<Guid?>(null);
+
         public Task<BedRetirementProcess?> GetByBedAsync(
             Guid propertyId,
             Guid bedId,
@@ -339,6 +344,11 @@ public sealed class InventoryAllocationAmendmentRequestedHandlerTests
             Guid propertyId,
             Guid topologyChangeId,
             CancellationToken cancellationToken) => Task.FromResult<RoomRetirementProcess?>(null);
+
+        public Task<Guid?> GetTopologyChangeIdByRoomAsync(
+            Guid propertyId,
+            Guid roomId,
+            CancellationToken cancellationToken) => Task.FromResult<Guid?>(null);
 
         public Task<RoomRetirementProcess?> GetByRoomAsync(
             Guid propertyId,

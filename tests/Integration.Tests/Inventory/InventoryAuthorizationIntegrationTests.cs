@@ -718,13 +718,23 @@ public sealed class InventoryAuthorizationIntegrationTests
             bedVersion = bed.Version;
         }
 
-        using (IServiceScope outcomeScope = api.Services.CreateScope())
+        using (IServiceScope topologyScope = api.Services.CreateScope())
+        using (IServiceScope finalizationScope = api.Services.CreateScope())
         {
-            outcomeScope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantA);
+            topologyScope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantA);
+            finalizationScope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantA);
+            InventoryDbContext topologyDb = topologyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
+            InventoryDbContext finalizationDb = finalizationScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
+            await using var topologyTransaction = await topologyDb.Database
+                .BeginTransactionAsync()
+                .ConfigureAwait(false);
+            await using var finalizationTransaction = await finalizationDb.Database
+                .BeginTransactionAsync()
+                .ConfigureAwait(false);
             IIntegrationEventHandler<BedRetiredIntegrationEvent> topology =
-                ResolveInventoryHandler<BedRetiredIntegrationEvent>(outcomeScope.ServiceProvider);
+                ResolveInventoryHandler<BedRetiredIntegrationEvent>(topologyScope.ServiceProvider);
             IIntegrationEventHandler<BedRetirementFinalizedIntegrationEvent> finalized =
-                ResolveInventoryHandler<BedRetirementFinalizedIntegrationEvent>(outcomeScope.ServiceProvider);
+                ResolveInventoryHandler<BedRetirementFinalizedIntegrationEvent>(finalizationScope.ServiceProvider);
 
             await topology.HandleAsync(
                 new(
@@ -737,7 +747,7 @@ public sealed class InventoryAuthorizationIntegrationTests
                     roomVersion,
                     bedVersion),
                 CancellationToken.None).ConfigureAwait(false);
-            await finalized.HandleAsync(
+            Task finalizationHandling = finalized.HandleAsync(
                 new(
                     Guid.NewGuid(),
                     TenantA,
@@ -748,10 +758,21 @@ public sealed class InventoryAuthorizationIntegrationTests
                     BedB,
                     roomVersion,
                     bedVersion),
-                CancellationToken.None).ConfigureAwait(false);
+                CancellationToken.None);
+            await Task.Delay(TimeSpan.FromMilliseconds(250)).ConfigureAwait(false);
+            Assert.False(finalizationHandling.IsCompleted);
 
-            InventoryDbContext inventoryDb = outcomeScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
-            await inventoryDb.SaveChangesAsync().ConfigureAwait(false);
+            await topologyDb.SaveChangesAsync().ConfigureAwait(false);
+            await topologyTransaction.CommitAsync().ConfigureAwait(false);
+            await finalizationHandling.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            await finalizationDb.SaveChangesAsync().ConfigureAwait(false);
+            await finalizationTransaction.CommitAsync().ConfigureAwait(false);
+        }
+
+        using (IServiceScope verificationScope = api.Services.CreateScope())
+        {
+            verificationScope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantA);
+            InventoryDbContext inventoryDb = verificationScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
             BedRetirementProcess process = await inventoryDb.BedRetirements
                 .AsNoTracking()
                 .SingleAsync(item => item.Id == topologyChangeId)
@@ -919,52 +940,24 @@ public sealed class InventoryAuthorizationIntegrationTests
                 message.EventType == typeof(RoomRetirementFinalizedIntegrationEvent).FullName));
         }
 
-        using (IServiceScope roomOutcomeScope = api.Services.CreateScope())
+        using (IServiceScope finalizationScope = api.Services.CreateScope())
+        using (IServiceScope topologyScope = api.Services.CreateScope())
         {
-            roomOutcomeScope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantA);
-            IIntegrationEventHandler<RoomRetiredIntegrationEvent> topology =
-                ResolveInventoryHandler<RoomRetiredIntegrationEvent>(roomOutcomeScope.ServiceProvider);
-
-            await topology.HandleAsync(
-                new(
-                    Guid.NewGuid(),
-                    TenantA,
-                    DateTimeOffset.UtcNow,
-                    PropertyB,
-                    RoomB,
-                    roomVersion),
-                CancellationToken.None).ConfigureAwait(false);
-
-            InventoryDbContext inventoryDb = roomOutcomeScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
-            await inventoryDb.SaveChangesAsync().ConfigureAwait(false);
-            RoomRetirementProcess process = await inventoryDb.RoomRetirements
-                .AsNoTracking()
-                .SingleAsync(item => item.Id == topologyChangeId)
+            finalizationScope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantA);
+            topologyScope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantA);
+            InventoryDbContext finalizationDb = finalizationScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
+            InventoryDbContext topologyDb = topologyScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
+            await using var finalizationTransaction = await finalizationDb.Database
+                .BeginTransactionAsync()
                 .ConfigureAwait(false);
-            Assert.Equal(InventoryRetirementProcessState.Completed, process.State);
-            Assert.NotNull(process.CompletedAtUtc);
-            Assert.Equal(
-                RoomStatus.Retired,
-                (await inventoryDb.RoomTopology.AsNoTracking().SingleAsync(item => item.Id == RoomB)).Status);
-
-            IInventoryAvailabilityRepository availability = roomOutcomeScope.ServiceProvider
-                .GetRequiredService<IInventoryAvailabilityRepository>();
-            InventoryAvailabilityContextSnapshot context = await availability.GetContextAsync(
-                PropertyB,
-                [RoomB, BedB2],
-                CancellationToken.None).ConfigureAwait(false);
-            Assert.All(context.Units, unit =>
-            {
-                Assert.False(unit.IsTopologyActive);
-                Assert.False(unit.IsSellable);
-            });
-        }
-
-        using (IServiceScope finalizationOutcomeScope = api.Services.CreateScope())
-        {
-            finalizationOutcomeScope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantA);
+            await using var topologyTransaction = await topologyDb.Database
+                .BeginTransactionAsync()
+                .ConfigureAwait(false);
             IIntegrationEventHandler<RoomRetirementFinalizedIntegrationEvent> finalized =
-                ResolveInventoryHandler<RoomRetirementFinalizedIntegrationEvent>(finalizationOutcomeScope.ServiceProvider);
+                ResolveInventoryHandler<RoomRetirementFinalizedIntegrationEvent>(finalizationScope.ServiceProvider);
+            IIntegrationEventHandler<RoomRetiredIntegrationEvent> topology =
+                ResolveInventoryHandler<RoomRetiredIntegrationEvent>(topologyScope.ServiceProvider);
+
             await finalized.HandleAsync(
                 new(
                     Guid.NewGuid(),
@@ -975,15 +968,50 @@ public sealed class InventoryAuthorizationIntegrationTests
                     RoomB,
                     roomVersion),
                 CancellationToken.None).ConfigureAwait(false);
+            Task topologyHandling = topology.HandleAsync(
+                new(
+                    Guid.NewGuid(),
+                    TenantA,
+                    DateTimeOffset.UtcNow,
+                    PropertyB,
+                    RoomB,
+                    roomVersion),
+                CancellationToken.None);
+            await Task.Delay(TimeSpan.FromMilliseconds(250)).ConfigureAwait(false);
+            Assert.False(topologyHandling.IsCompleted);
 
-            InventoryDbContext inventoryDb = finalizationOutcomeScope.ServiceProvider
-                .GetRequiredService<InventoryDbContext>();
-            await inventoryDb.SaveChangesAsync().ConfigureAwait(false);
+            await finalizationDb.SaveChangesAsync().ConfigureAwait(false);
+            await finalizationTransaction.CommitAsync().ConfigureAwait(false);
+            await topologyHandling.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            await topologyDb.SaveChangesAsync().ConfigureAwait(false);
+            await topologyTransaction.CommitAsync().ConfigureAwait(false);
+        }
+
+        using (IServiceScope verificationScope = api.Services.CreateScope())
+        {
+            verificationScope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantA);
+            InventoryDbContext inventoryDb = verificationScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
             RoomRetirementProcess process = await inventoryDb.RoomRetirements
                 .AsNoTracking()
                 .SingleAsync(item => item.Id == topologyChangeId)
                 .ConfigureAwait(false);
             Assert.Equal(InventoryRetirementProcessState.Completed, process.State);
+            Assert.NotNull(process.CompletedAtUtc);
+            Assert.Equal(
+                RoomStatus.Retired,
+                (await inventoryDb.RoomTopology.AsNoTracking().SingleAsync(item => item.Id == RoomB)).Status);
+
+            IInventoryAvailabilityRepository availability = verificationScope.ServiceProvider
+                .GetRequiredService<IInventoryAvailabilityRepository>();
+            InventoryAvailabilityContextSnapshot context = await availability.GetContextAsync(
+                PropertyB,
+                [RoomB, BedB2],
+                CancellationToken.None).ConfigureAwait(false);
+            Assert.All(context.Units, unit =>
+            {
+                Assert.False(unit.IsTopologyActive);
+                Assert.False(unit.IsSellable);
+            });
         }
 
         using (IServiceScope bedOutcomeScope = api.Services.CreateScope())
