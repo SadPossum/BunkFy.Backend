@@ -9,6 +9,7 @@ RUN --mount=type=cache,id=bunkfy-nuget,target=/root/.nuget/packages \
     && dotnet publish src/BunkFy.Host.Worker/BunkFy.Host.Worker.csproj -c Release -o /out/worker --nologo \
     && dotnet publish src/BunkFy.Host.AdminApi/BunkFy.Host.AdminApi.csproj -c Release -o /out/admin-api --nologo \
     && dotnet publish src/BunkFy.Host.AdminCli/BunkFy.Host.AdminCli.csproj -c Release -o /out/admin-cli --nologo \
+    && dotnet publish src/BunkFy.AdapterHost/BunkFy.AdapterHost.csproj -c Release -o /out/adapter-host --nologo \
     && dotnet publish src/BunkFy.Host.Migrations/BunkFy.Host.Migrations.csproj -c Release -o /out/migrations --nologo
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:1fa23fc4872d95fd71c2833ebe65d7e84a43b2d51a31d119516852f13d9505a7 AS runtime-base
