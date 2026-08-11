@@ -32,6 +32,57 @@ public sealed class InventoryRetirementCommandHandlerTests
         TimeSpan.Zero);
 
     [Fact]
+    public async Task Bed_request_requires_confirmation_before_write_side_work()
+    {
+        RecordingOperationRepository operations = new();
+        Harness harness = CreateHarness(
+            bedProcess: null,
+            roomProcess: null,
+            operations);
+
+        Result<BedRetirementDto> result = await harness.BedRequest.HandleAsync(
+            new(
+                Guid.NewGuid(),
+                PropertyId,
+                RoomId,
+                BedId,
+                false,
+                "Maintenance",
+                "user:operator"),
+            CancellationToken.None);
+
+        Assert.Equal(InventoryApplicationErrors.ConfirmationRequired, result.Error);
+        Assert.Empty(harness.Lock.ResourceKinds);
+        Assert.Empty(operations.Added);
+        Assert.Equal(0, harness.Ids.CallCount);
+    }
+
+    [Fact]
+    public async Task Room_request_requires_confirmation_before_write_side_work()
+    {
+        RecordingOperationRepository operations = new();
+        Harness harness = CreateHarness(
+            bedProcess: null,
+            roomProcess: null,
+            operations);
+
+        Result<RoomRetirementDto> result = await harness.RoomRequest.HandleAsync(
+            new(
+                Guid.NewGuid(),
+                PropertyId,
+                RoomId,
+                false,
+                "Repurpose room",
+                "user:operator"),
+            CancellationToken.None);
+
+        Assert.Equal(InventoryApplicationErrors.ConfirmationRequired, result.Error);
+        Assert.Empty(harness.Lock.ResourceKinds);
+        Assert.Empty(operations.Added);
+        Assert.Equal(0, harness.Ids.CallCount);
+    }
+
+    [Fact]
     public async Task Bed_request_exact_replay_returns_the_fresh_process_view()
     {
         BedRetirementProcess process = CreateBedProcess();
@@ -64,6 +115,7 @@ public sealed class InventoryRetirementCommandHandlerTests
                 PropertyId,
                 RoomId,
                 BedId,
+                true,
                 "  Maintenance  ",
                 "user:other"),
             CancellationToken.None);
@@ -90,6 +142,7 @@ public sealed class InventoryRetirementCommandHandlerTests
                 PropertyId,
                 RoomId,
                 BedId,
+                true,
                 " Maintenance ",
                 "user:other"),
             CancellationToken.None);
@@ -99,6 +152,7 @@ public sealed class InventoryRetirementCommandHandlerTests
                 PropertyId,
                 RoomId,
                 BedId,
+                true,
                 "Replace the frame",
                 "user:other"),
             CancellationToken.None);
@@ -130,6 +184,7 @@ public sealed class InventoryRetirementCommandHandlerTests
                 PropertyId,
                 Guid.NewGuid(),
                 BedId,
+                true,
                 "Maintenance",
                 "user:other"),
             CancellationToken.None);
@@ -202,6 +257,7 @@ public sealed class InventoryRetirementCommandHandlerTests
                 Guid.NewGuid(),
                 PropertyId,
                 RoomId,
+                true,
                 "  Repurpose room  ",
                 "user:other"),
             CancellationToken.None);

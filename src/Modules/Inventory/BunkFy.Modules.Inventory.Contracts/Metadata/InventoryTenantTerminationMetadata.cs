@@ -9,7 +9,7 @@ public static class InventoryTenantTerminationMetadata
     public const string ExportDependencyOwnerKey = "properties";
     public const string DestroyDependencyOwnerKey = "reservations";
     public const int CatalogVersion = 5;
-    public const int PersonalDataCatalogVersion = 4;
+    public const int PersonalDataCatalogVersion = 5;
     public const string ExportCatalogId = "inventory.tenant-portability";
     public const int ExportCatalogSchemaVersion = 1;
     public const string ExportSchemaId =

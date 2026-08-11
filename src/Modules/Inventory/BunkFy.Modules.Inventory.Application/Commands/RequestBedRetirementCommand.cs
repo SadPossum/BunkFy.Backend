@@ -8,6 +8,7 @@ public sealed record RequestBedRetirementCommand(
     Guid PropertyId,
     Guid RoomId,
     Guid BedId,
+    bool Confirmed,
     string Reason,
     string RequestedBy)
     : ITransactionalCommand<BedRetirementDto>;

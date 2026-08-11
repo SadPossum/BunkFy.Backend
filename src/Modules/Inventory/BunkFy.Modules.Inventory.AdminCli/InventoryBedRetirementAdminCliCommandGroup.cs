@@ -30,13 +30,15 @@ internal static class InventoryBedRetirementAdminCliCommandGroup
         Option<Guid> room = RequiredId("--room-id");
         Option<Guid> bed = RequiredId("--bed-id");
         Option<string> reason = new("--reason") { Required = true };
+        Option<bool> yes = new("--yes");
         Command command = new("request", "Drain a bed and retire it when active claims are clear.")
         {
             operation,
             property,
             room,
             bed,
-            reason
+            reason,
+            yes
         };
         command.SetAction((parse, cancellationToken) => ExecuteAsync(
             services,
@@ -49,6 +51,7 @@ internal static class InventoryBedRetirementAdminCliCommandGroup
                     parse.GetValue(property),
                     parse.GetValue(room),
                     parse.GetValue(bed),
+                    parse.GetValue(yes),
                     parse.GetRequiredValue(reason),
                     ResolveActor(parse, globalOptions)),
                 token),
@@ -114,7 +117,7 @@ internal static class InventoryBedRetirementAdminCliCommandGroup
         CancellationToken cancellationToken) =>
         services.GetRequiredService<AdminCliExecutor>().ExecuteAsync(
             parse,
-            AdminOperation.Create(operationName, InventoryAdminPermissions.Configure),
+            AdminOperation.Create(operationName, InventoryAdminPermissions.Retire),
             parse.GetValue(globalOptions.TenantOption),
             requireTenant: true,
             async (provider, token) =>

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "inventory.personal-data",
-  "catalogVersion": 4,
+  "catalogVersion": 5,
   "module": "inventory",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -37,11 +37,13 @@
       "readers": [
         "permission:inventory.configure",
         "permission:inventory.read",
+        "permission:inventory.retire",
         "system:authorized-module-consumer"
       ],
       "writers": [
         "permission:inventory.blocks.manage",
-        "permission:inventory.configure"
+        "permission:inventory.configure",
+        "permission:inventory.retire"
       ]
     },
     {
@@ -49,11 +51,13 @@
       "scope": "tenant-property-authorized-unstructured-operational-note",
       "readers": [
         "permission:inventory.configure",
-        "permission:inventory.read"
+        "permission:inventory.read",
+        "permission:inventory.retire"
       ],
       "writers": [
         "permission:inventory.blocks.manage",
-        "permission:inventory.configure"
+        "permission:inventory.configure",
+        "permission:inventory.retire"
       ]
     },
     {

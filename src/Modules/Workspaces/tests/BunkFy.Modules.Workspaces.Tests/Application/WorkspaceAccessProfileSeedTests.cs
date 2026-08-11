@@ -3,6 +3,8 @@ namespace BunkFy.Modules.Workspaces.Tests;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Ingestion.Contracts;
+using BunkFy.Modules.Inventory.Contracts;
+using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Retention.Contracts;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Workspaces.Contracts;
@@ -127,7 +129,7 @@ public sealed class WorkspaceAccessProfileSeedTests
     [Fact]
     public void Staff_onboarding_management_is_sensitive_delegable_and_manager_only()
     {
-        Assert.Equal(3, WorkspaceAccessProfileSeeds.Version);
+        Assert.Equal(4, WorkspaceAccessProfileSeeds.Version);
         WorkspaceAccessPermissionDto permission = Assert.Single(
             WorkspaceAccessPermissionCatalogue.All,
             item => item.Code ==
@@ -155,6 +157,31 @@ public sealed class WorkspaceAccessProfileSeedTests
             profile => Assert.DoesNotContain(
                 permission.Code,
                 profile.Permissions));
+    }
+
+    [Fact]
+    public void Inventory_retirement_is_sensitive_delegable_and_manager_only()
+    {
+        WorkspaceAccessPermissionDto permission = Assert.Single(
+            WorkspaceAccessPermissionCatalogue.All,
+            item => item.Code == InventoryAdminPermissionCodes.Retire);
+
+        Assert.True(permission.IsSensitive);
+        Assert.Equal(
+            [
+                PropertiesAdminPermissionCodes.RoomsManage,
+                PropertiesAdminPermissionCodes.BedsManage,
+                InventoryAdminPermissionCodes.Read
+            ],
+            permission.RequiredPermissions);
+        Assert.Contains(permission.Code, WorkspaceAccessRoles.DelegablePermissions);
+        Assert.Contains(permission.Code, WorkspaceAccessProfileSeeds.Manager.Permissions);
+        Assert.DoesNotContain(permission.Code, WorkspaceAccessRoles.LegacyMemberPermissions);
+        Assert.DoesNotContain(permission.Code, WorkspaceAccessRoles.CompanySupportPermissionCeiling);
+        Assert.All(
+            WorkspaceAccessProfileSeeds.All.Where(
+                profile => profile.Key != WorkspaceAccessProfileSeeds.ManagerKey),
+            profile => Assert.DoesNotContain(permission.Code, profile.Permissions));
     }
 
     [Theory]

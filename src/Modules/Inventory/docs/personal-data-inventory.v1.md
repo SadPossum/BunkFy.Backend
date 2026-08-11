@@ -1,4 +1,4 @@
-# inventory Personal-Data Inventory v4
+# inventory Personal-Data Inventory v5
 
 Generated from `inventory.personal-data` schema v1.
 Catalogue approval: `engineering-default`.
@@ -11,9 +11,9 @@ Engineering metadata is not legal or country-launch approval.
 |---|---|---|---|
 | inventory-anonymisation-owner-proof | tenant-property-authorized-data-rights-operation | permission:data-rights.read<br>system:inventory.anonymisation-proof<br>system:inventory.data-rights-export | permission:data-rights.execute<br>system:inventory.anonymisation |
 | inventory-guest-operations | tenant-property-authorized-reservation-operations | permission:inventory.read<br>system:authorized-module-consumer<br>system:authorized-projection-consumer<br>system:reservations-allocation-consumer | system:inventory-allocation-runtime |
-| inventory-staff-operations | tenant-property-authorized-inventory-operations | permission:inventory.configure<br>permission:inventory.read<br>system:authorized-module-consumer | permission:inventory.blocks.manage<br>permission:inventory.configure |
+| inventory-staff-operations | tenant-property-authorized-inventory-operations | permission:inventory.configure<br>permission:inventory.read<br>permission:inventory.retire<br>system:authorized-module-consumer | permission:inventory.blocks.manage<br>permission:inventory.configure<br>permission:inventory.retire |
 | inventory-tenant-destruction-proof | tenant-termination-control-and-accountability-proof | permission:data-rights.tenant-termination<br>system:authorized-audit-consumer<br>system:tenant-termination-coordinator | system:authorized-tenant-termination-owner |
-| inventory-unstructured-reason | tenant-property-authorized-unstructured-operational-note | permission:inventory.configure<br>permission:inventory.read | permission:inventory.blocks.manage<br>permission:inventory.configure |
+| inventory-unstructured-reason | tenant-property-authorized-unstructured-operational-note | permission:inventory.configure<br>permission:inventory.read<br>permission:inventory.retire | permission:inventory.blocks.manage<br>permission:inventory.configure<br>permission:inventory.retire |
 
 ## Retention Policies
 

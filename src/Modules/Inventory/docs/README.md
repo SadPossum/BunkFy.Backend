@@ -24,7 +24,8 @@ values are engineering defaults until country, retention, and rights approval.
 - exact-reservation Data Rights discovery/export plus terminal allocation
   anonymisation and restore-safe owner proof;
 - date-range availability reads over the currently sellable units;
-- scoped `inventory.read`, `inventory.configure`, and `inventory.blocks.manage` permissions;
+- scoped `inventory.read`, `inventory.configure`, `inventory.blocks.manage`, and
+  sensitive `inventory.retire` permissions;
 - public API, Admin API, Admin CLI, PostgreSQL migration, NATS handlers, and worker rebuild composition;
 - versioned unit-definition, sales-mode, block, and allocation events plus `IInventoryAvailabilityProjectionExportSource` for downstream Reservations rebuilds.
 
@@ -72,7 +73,7 @@ and removes all 18 tenant-owned record families in foreign-key-safe stages.
 One invocation removes at most one non-empty batch of 500 physical rows;
 allocation units are explicitly removed before allocations. Completion retains
 only a closed lifecycle row and one immutable, PII-free destruction receipt
-with a versioned SHA-256 proof chain. Personal-data catalogue version 4 binds
+with a versioned SHA-256 proof chain. Personal-data catalogue version 5 binds
 the retained proof to its dedicated tenant-destruction policy.
 
 Relational writes and export selection share the tenant mutation transaction

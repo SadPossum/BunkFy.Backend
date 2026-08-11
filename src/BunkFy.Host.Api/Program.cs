@@ -139,6 +139,8 @@ builder.Services.Configure<PropertiesApiSecurityOptions>(options =>
     options.ProcessingActivationAssurance = privilegedOperationAssurance;
     options.PropertyRetirementAssurance = privilegedOperationAssurance;
 });
+builder.Services.Configure<InventoryApiSecurityOptions>(options =>
+    options.TopologyRetirementAssurance = privilegedOperationAssurance);
 builder.Services.Configure<IngestionApiSecurityOptions>(options =>
 {
     options.CredentialManagementAssurance = privilegedOperationAssurance;

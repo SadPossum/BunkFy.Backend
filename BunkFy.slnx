@@ -121,6 +121,7 @@
     <File Path="docs/planning/inventory-room-sales-mode-idempotency-task.md" />
     <File Path="docs/planning/inventory-tenant-termination-owner-task.md" />
     <File Path="docs/planning/inventory-topology-change-safety-task.md" />
+    <File Path="docs/planning/inventory-topology-retirement-control-assurance-task.md" />
     <File Path="docs/planning/json-file-drop-adapter-task.md" />
     <File Path="docs/planning/json-file-drop-local-retention-task.md" />
     <File Path="docs/planning/json-file-drop-quarantine-task.md" />

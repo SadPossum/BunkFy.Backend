@@ -33,15 +33,15 @@ public sealed class InventoryPersonalDataCatalogTests
         [typeof(InventoryModule.CreateManualBlockRequest)] = OperationIdMember(),
         [typeof(InventoryModule.CreateManualBlockGroupRequest)] = OperationIdMember(),
         [typeof(InventoryModule.RequestBedRetirementRequest)] =
-            OperationIdMember(),
+            OperationAndConfirmationMembers(),
         [typeof(InventoryModule.RequestRoomRetirementRequest)] =
-            OperationIdMember(),
+            OperationAndConfirmationMembers(),
         [typeof(CreateManualInventoryBlockCommand)] = OperationIdMember(),
         [typeof(CreateManualInventoryBlockGroupCommand)] = OperationIdMember(),
         [typeof(ReleaseManualInventoryBlockCommand)] = OperationIdMember(),
         [typeof(ReleaseManualInventoryBlockGroupCommand)] = OperationIdMember(),
-        [typeof(RequestBedRetirementCommand)] = OperationIdMember(),
-        [typeof(RequestRoomRetirementCommand)] = OperationIdMember(),
+        [typeof(RequestBedRetirementCommand)] = OperationAndConfirmationMembers(),
+        [typeof(RequestRoomRetirementCommand)] = OperationAndConfirmationMembers(),
         [typeof(RetryBedRetirementCommand)] = OperationAndVersionMembers(),
         [typeof(RetryRoomRetirementCommand)] = OperationAndVersionMembers(),
         [typeof(ManualInventoryBlockListResponse)] = PaginationMembers(),
@@ -57,6 +57,10 @@ public sealed class InventoryPersonalDataCatalogTests
 
     private static HashSet<string> OperationAndVersionMembers() => new(
         ["OperationId", "ExpectedVersion"],
+        StringComparer.Ordinal);
+
+    private static HashSet<string> OperationAndConfirmationMembers() => new(
+        ["OperationId", "Confirmed"],
         StringComparer.Ordinal);
 
     [Fact]

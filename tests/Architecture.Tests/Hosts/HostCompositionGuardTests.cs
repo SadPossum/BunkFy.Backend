@@ -93,6 +93,7 @@ public sealed class HostCompositionGuardTests
             "options => options.StaffOnboardingManagementAssurance =",
             "options.ProcessingActivationAssurance = privilegedOperationAssurance",
             "options.PropertyRetirementAssurance = privilegedOperationAssurance",
+            "options.TopologyRetirementAssurance = privilegedOperationAssurance",
             "options.CredentialManagementAssurance = privilegedOperationAssurance",
             "options.CheckpointResetAssurance = privilegedOperationAssurance",
             "options.IngressResumeAssurance = privilegedOperationAssurance",

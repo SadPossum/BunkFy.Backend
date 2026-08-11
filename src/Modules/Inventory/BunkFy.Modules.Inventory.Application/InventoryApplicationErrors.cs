@@ -6,6 +6,9 @@ using Gma.Framework.Results;
 public static class InventoryApplicationErrors
 {
     public static readonly Error AccessDenied = new("Inventory.AccessDenied", "The subject cannot access the requested inventory scope.");
+    public static readonly Error ConfirmationRequired = new(
+        "Inventory.ConfirmationRequired",
+        "Confirmation is required.");
     public static readonly Error TenantRequired = new("Inventory.TenantRequired", "A tenant context is required.");
     public static readonly Error PropertyNotFound = new("Inventory.PropertyNotFound", "The inventory property was not found.");
     public static Error RoomNotFound => InventoryDomainErrors.RoomNotFound;
