@@ -578,15 +578,21 @@ public sealed class WorkspaceStaffIdentityAnchorCutoverIntegrationTests
             jobTitle: null,
             department: null,
             Now).Value;
+        workspaces.StaffOnboardingApplications.Add(onboarding);
+        await workspaces.SaveChangesAsync().ConfigureAwait(false);
+
         Assert.True(onboarding.ObserveInvitationAccepted(
             Now.AddMinutes(1)).IsSuccess);
+        await workspaces.SaveChangesAsync().ConfigureAwait(false);
+
         Assert.True(onboarding.MarkStaffReady(
             staffMemberId,
             Guid.NewGuid(),
             Guid.NewGuid(),
             Now.AddMinutes(2)).IsSuccess);
+        await workspaces.SaveChangesAsync().ConfigureAwait(false);
+
         Assert.True(onboarding.Complete(Now.AddMinutes(3)).IsSuccess);
-        workspaces.StaffOnboardingApplications.Add(onboarding);
         await workspaces.SaveChangesAsync().ConfigureAwait(false);
     }
 

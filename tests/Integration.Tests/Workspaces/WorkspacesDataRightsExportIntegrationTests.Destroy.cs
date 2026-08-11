@@ -322,7 +322,7 @@ public sealed partial class WorkspacesDataRightsExportIntegrationTests
         using IServiceScope scope = services.CreateScope();
         WorkspacesDbContext context = scope.ServiceProvider
             .GetRequiredService<WorkspacesDbContext>();
-        _ = SeedGraph(context, TenantA, SubjectId);
+        _ = await SeedGraphAsync(context, TenantA, SubjectId);
         WorkspaceStaffOnboarding onboarding =
             context.StaffOnboardingApplications.Local.Single();
 
