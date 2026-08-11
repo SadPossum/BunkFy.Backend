@@ -1,6 +1,6 @@
 # Reservations Aggregate Query Shape Task
 
-Status: in progress
+Status: complete
 
 ## Goal
 
@@ -60,3 +60,22 @@ guest-link history in one result set.
 - Run the Reservations non-Docker tests during implementation, then one
   consolidated backend gate and one targeted PostgreSQL/runtime proof at slice
   completion.
+
+## Completion Evidence
+
+- Backend candidate `fd249b459fedefd23d823c937d95e37dd25f8b92`
+  passed a zero-warning build, migration-drift checks, all non-Docker tests,
+  the 261-test Reservations suite, and the 102-test architecture suite.
+- Root candidate `f9371904d16a6dd15525133e49f8792646ff2130` ran as
+  Preview release `preview-f937190` with API and Worker bound to backend image
+  digest `sha256:ecd42ff3f041dbf30bf801046bd279111aff196093ed86158b0faddbf5e7dd92`.
+- The self-contained Preview onboarding rehearsal passed 11 checks, including
+  its 11-check Reservations/Inventory child lifecycle. The child evidence is
+  `.tmp/deployment-probes/preview-onboarding-20260811T025745Z.reservations-inventory.json`;
+  the umbrella evidence is
+  `.tmp/deployment-probes/preview-onboarding-20260811T025745Z.json`.
+- Fresh candidate API and Worker logs contained no
+  `MultipleCollectionIncludeWarning` or equivalent ambiguous-collection query
+  warning. One unrelated Inventory room-retirement delivery retried after an
+  optimistic conflict and reached `Processed` on attempt 2; that convergence
+  observation belongs to the next Inventory slice.
