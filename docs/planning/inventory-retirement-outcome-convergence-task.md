@@ -1,6 +1,6 @@
 # Inventory Retirement Outcome Convergence Task
 
-Status: in progress
+Status: complete
 
 ## Goal
 
@@ -72,4 +72,30 @@ attempt 2, but normal completion should not depend on that retry.
 
 ## Completion Evidence
 
-Pending implementation and final slice verification.
+- Backend candidate `33b1cad26315f021734c33fc517ac98f606b0302`
+  passed the zero-warning build and migration-drift checks, the 137-test
+  Inventory suite, the 102-test architecture suite, and the remaining 60-test
+  non-Docker integration tail. The focused PostgreSQL lock-order scenario also
+  passed once under the slice's Docker gate.
+- GitHub completed both backend candidate workflows successfully: Security
+  Baseline run `31456841806` and validate run `31456841808`.
+- Root candidate `ec423ec` passed repository security, product-image policy,
+  latest-submodule, solution-graph, and operations evidence-contract guards.
+  It ran as Preview release `preview-ec423ec`; API and Worker used the same
+  backend image digest
+  `sha256:ff5fa98dab4b310167339e40d5732289b2c74e463291f19e334920e97c41c05d`.
+- The self-contained Preview onboarding rehearsal passed 11 checks, including
+  its 11-check Reservations/Inventory child lifecycle. The child evidence is
+  `.tmp/deployment-probes/preview-onboarding-20260811T040504Z.reservations-inventory.json`;
+  the umbrella evidence is
+  `.tmp/deployment-probes/preview-onboarding-20260811T040504Z.json`.
+- The rehearsal emitted the room-retirement facts about 1.5 milliseconds
+  apart. Inventory inbox record `52314f15-46e6-4069-9e4d-ec07dded8d73`
+  (`room-retirement-finalized`) and record
+  `40f2cbd3-1daf-4499-9a66-d75dcf2578db`
+  (`room-retired-topology`) both reached `Processed` on attempt 1 with no last
+  error. The durable retirement process reached `Completed` at
+  `2026-08-11T04:06:18.952451Z`.
+- Fresh candidate Worker logs contained no matching message failure, retry,
+  concurrency, or exception entry. Broker redelivery was not needed for the
+  normal paired outcome.
