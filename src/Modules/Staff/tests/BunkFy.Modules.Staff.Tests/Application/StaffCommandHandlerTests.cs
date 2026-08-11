@@ -1341,6 +1341,40 @@ public sealed class StaffCommandHandlerTests
     }
 
     [Fact]
+    public async Task Property_plan_rejects_legacy_future_assignments_before_mutating_staff()
+    {
+        StaffMember member = CreateMember("member-100");
+        Guid currentPropertyId = Guid.NewGuid();
+        Guid futurePropertyId = Guid.NewGuid();
+        Assert.True(member.AssignProperty(
+            Guid.NewGuid(), currentPropertyId, null, false, new DateOnly(2026, 7, 1),
+            member.Version, "user:owner", Guid.NewGuid(), TestClock.Now).IsSuccess);
+        Assert.True(member.AssignProperty(
+            Guid.NewGuid(), futurePropertyId, null, false, new DateOnly(2026, 7, 13),
+            member.Version, "user:owner", Guid.NewGuid(), TestClock.Now.AddDays(1)).IsSuccess);
+        long originalVersion = member.Version;
+        int originalEventCount = member.DomainEvents.Count;
+        using ServiceProvider provider = CreateProvider(
+            new FakeStaffMemberRepository(member),
+            new FakePropertyProjectionRepository());
+        var handler = provider.GetRequiredService<
+            ICommandHandler<ReconcileStaffPropertyAssignmentsCommand, IReadOnlyCollection<Guid>>>();
+
+        Result<IReadOnlyCollection<Guid>> result = await handler.HandleAsync(
+            new ReconcileStaffPropertyAssignmentsCommand(
+                member.Id,
+                [],
+                "integration:workspaces",
+                "Workspace access plan changed."),
+            CancellationToken.None);
+
+        Assert.Equal(StaffDomainErrors.AssignmentDateInvalid, result.Error);
+        Assert.Equal(originalVersion, member.Version);
+        Assert.Equal(originalEventCount, member.DomainEvents.Count);
+        Assert.All(member.Assignments, assignment => Assert.True(assignment.IsCurrent));
+    }
+
+    [Fact]
     public async Task Suspend_prepares_workspace_lifecycle_before_returning_success()
     {
         StaffMember member = CreateMember("member-100");
@@ -1591,7 +1625,7 @@ public sealed class StaffCommandHandlerTests
             lifecyclePolicy: policy);
         var handler = provider.GetRequiredService<
             ICommandHandler<DepartStaffMemberCommand, StaffMemberMutationReceiptDto>>();
-        DateOnly effectiveOn = new(2026, 7, 21);
+        DateOnly effectiveOn = DateOnly.FromDateTime(TestClock.Now.UtcDateTime);
 
         Result<StaffMemberMutationReceiptDto> result = await handler.HandleAsync(
             new DepartStaffMemberCommand(
@@ -1633,7 +1667,7 @@ public sealed class StaffCommandHandlerTests
         DepartStaffMemberCommand command = new(
             Guid.NewGuid(),
             member.Id,
-            new DateOnly(2026, 7, 21),
+            DateOnly.FromDateTime(TestClock.Now.UtcDateTime),
             "Contract ended",
             member.Version,
             "user:owner");
@@ -1656,6 +1690,54 @@ public sealed class StaffCommandHandlerTests
         Assert.Equal(
             StaffMemberMutationKind.Depart,
             Assert.Single(operations.Records).Kind);
+    }
+
+    [Fact]
+    public async Task Future_departure_does_not_bind_operation_or_prepare_workspace()
+    {
+        StaffMember member = CreateMember("member-100");
+        RecordingLifecyclePolicy policy = new(
+            StaffLifecyclePolicyDecision.Allowed);
+        RecordingMemberMutationOperations operations = new();
+        using ServiceProvider provider = CreateProvider(
+            new FakeStaffMemberRepository(member),
+            new FakePropertyProjectionRepository(),
+            lifecyclePolicy: policy,
+            memberMutationOperations: operations);
+        var handler = provider.GetRequiredService<
+            ICommandHandler<DepartStaffMemberCommand, StaffMemberMutationReceiptDto>>();
+        Guid operationId = Guid.NewGuid();
+        DateOnly today = DateOnly.FromDateTime(TestClock.Now.UtcDateTime);
+
+        Result<StaffMemberMutationReceiptDto> denied = await handler.HandleAsync(
+            new DepartStaffMemberCommand(
+                operationId,
+                member.Id,
+                today.AddDays(1),
+                "Contract ended",
+                member.Version,
+                "user:owner"),
+            CancellationToken.None);
+
+        Assert.Equal(StaffDomainErrors.AssignmentDateInvalid, denied.Error);
+        Assert.Equal(StaffMemberState.Active, member.Status);
+        Assert.Empty(policy.Contexts);
+        Assert.Empty(operations.Records);
+
+        Result<StaffMemberMutationReceiptDto> retried = await handler.HandleAsync(
+            new DepartStaffMemberCommand(
+                operationId,
+                member.Id,
+                today,
+                "Contract ended",
+                member.Version,
+                "user:owner"),
+            CancellationToken.None);
+
+        Assert.True(retried.IsSuccess, retried.Error.Code);
+        Assert.Equal(StaffStatus.Departed, retried.Value.Status);
+        Assert.Single(policy.Contexts);
+        Assert.Single(operations.Records);
     }
 
     [Fact]

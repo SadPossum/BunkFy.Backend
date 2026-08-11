@@ -234,6 +234,125 @@ public sealed class StaffMemberTests
     }
 
     [Fact]
+    public void Immediate_transitions_reject_future_effective_dates_without_mutation()
+    {
+        StaffMember member = Create("Ada", null, null);
+        Guid propertyId = Guid.NewGuid();
+        DateOnly today = DateOnly.FromDateTime(Now.UtcDateTime);
+        DateOnly tomorrow = today.AddDays(1);
+        int initialEventCount = member.DomainEvents.Count;
+
+        Assert.Equal(
+            "Staff.AssignmentDateInvalid",
+            member.AssignProperty(
+                Guid.NewGuid(),
+                propertyId,
+                null,
+                false,
+                tomorrow,
+                member.Version,
+                "user:owner",
+                Guid.NewGuid(),
+                Now).Error.Code);
+        Assert.Equal(1, member.Version);
+        Assert.Empty(member.Assignments);
+        Assert.Equal(initialEventCount, member.DomainEvents.Count);
+
+        Assert.True(member.AssignProperty(
+            Guid.NewGuid(),
+            propertyId,
+            null,
+            false,
+            today,
+            member.Version,
+            "user:owner",
+            Guid.NewGuid(),
+            Now).IsSuccess);
+        long assignedVersion = member.Version;
+        int assignedEventCount = member.DomainEvents.Count;
+
+        Assert.Equal(
+            "Staff.AssignmentDateInvalid",
+            member.UnassignProperty(
+                propertyId,
+                tomorrow,
+                member.Version,
+                "user:owner",
+                "Transfer scheduled.",
+                Guid.NewGuid(),
+                Now).Error.Code);
+        Assert.Equal(
+            "Staff.AssignmentDateInvalid",
+            member.Depart(
+                tomorrow,
+                member.Version,
+                "user:owner",
+                "Departure scheduled.",
+                Guid.NewGuid(),
+                [Guid.NewGuid()],
+                Now).Error.Code);
+        Assert.Equal(assignedVersion, member.Version);
+        Assert.Equal(StaffMemberState.Active, member.Status);
+        Assert.True(Assert.Single(member.Assignments).IsCurrent);
+        Assert.Equal(assignedEventCount, member.DomainEvents.Count);
+    }
+
+    [Fact]
+    public void Reassignment_cannot_overlap_same_property_history()
+    {
+        StaffMember member = Create("Ada", null, null);
+        Guid propertyId = Guid.NewGuid();
+        Assert.True(member.AssignProperty(
+            Guid.NewGuid(),
+            propertyId,
+            null,
+            false,
+            new DateOnly(2026, 7, 1),
+            member.Version,
+            "user:owner",
+            Guid.NewGuid(),
+            Now).IsSuccess);
+        Assert.True(member.UnassignProperty(
+            propertyId,
+            new DateOnly(2026, 7, 10),
+            member.Version,
+            "user:owner",
+            "Transferred.",
+            Guid.NewGuid(),
+            Now).IsSuccess);
+        long endedVersion = member.Version;
+        int endedEventCount = member.DomainEvents.Count;
+
+        Assert.Equal(
+            "Staff.AssignmentDateInvalid",
+            member.AssignProperty(
+                Guid.NewGuid(),
+                propertyId,
+                null,
+                false,
+                new DateOnly(2026, 7, 10),
+                member.Version,
+                "user:owner",
+                Guid.NewGuid(),
+                Now).Error.Code);
+        Assert.Equal(endedVersion, member.Version);
+        Assert.Equal(endedEventCount, member.DomainEvents.Count);
+
+        Assert.True(member.AssignProperty(
+            Guid.NewGuid(),
+            propertyId,
+            null,
+            false,
+            new DateOnly(2026, 7, 11),
+            member.Version,
+            "user:owner",
+            Guid.NewGuid(),
+            Now).IsSuccess);
+        Assert.Equal(2, member.Assignments.Count);
+        Assert.Single(member.Assignments, assignment => assignment.IsCurrent);
+    }
+
+    [Fact]
     public void Approved_correction_updates_departed_profile_without_changing_lifecycle()
     {
         StaffMember member = Create("Ada", "EMP-1", "account-1");

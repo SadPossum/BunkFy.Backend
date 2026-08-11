@@ -3,6 +3,11 @@
 Status: complete
 Date: 2026-08-11
 
+Current lifecycle ownership was tightened by
+[Staff Onboarding Employment Lifecycle Boundary](staff-onboarding-employment-lifecycle-boundary-task.md).
+Onboarding now rejects an existing suspended Staff identity and requires an
+explicit permissioned resume before the same operation can be retried.
+
 ## Goal
 
 Make the Staff side of accepted workspace onboarding safe across independent
@@ -39,8 +44,8 @@ operator changes or reverse a later suspension.
   is bound to a versioned fingerprint of the normalized Staff profile,
   including the Auth subject.
 - The operation lock is acquired before receipt or Staff-member lookup.
-- A first operation may create a missing member, update an existing active
-  member, or update and explicitly resume an existing suspended member.
+- A first operation may create a missing member or update an existing active
+  member. A suspended member fails before profile mutation or receipt creation.
 - The successful Staff mutation and onboarding receipt commit atomically.
 - An exact replay never reapplies profile fields and never increments the Staff
   version.
@@ -67,8 +72,8 @@ operator changes or reverse a later suspension.
    the Staff PostgreSQL migration snapshot plus generated personal-data
    inventories.
 5. Prove exact replay, changed-payload conflict, suspended/departed/restricted
-   replay denial, first-operation resume, Workspaces operation propagation,
-   and PostgreSQL concurrency/migration behavior.
+   replay denial, first-operation suspended denial, Workspaces operation
+   propagation, and PostgreSQL concurrency/migration behavior.
 
 ## Verification Cadence
 
@@ -90,8 +95,9 @@ operator changes or reverse a later suspension.
   restoring the applicant profile or advancing the member version.
 - Changed applicant data conflicts, while suspension, departure, processing
   restriction, anonymisation, or Auth-subject relinking makes replay unavailable.
-- The first operation may still explicitly resume an existing suspended member;
-  later employment-safety transitions are never undone by replay.
+- A first operation against an existing suspended member now fails before
+  mutation. Only the explicit Staff lifecycle command may resume employment;
+  later employment-safety transitions are never undone by onboarding.
 - GMA required no change because the generic transactional command and lock
   primitives already cover the infrastructure concern.
 

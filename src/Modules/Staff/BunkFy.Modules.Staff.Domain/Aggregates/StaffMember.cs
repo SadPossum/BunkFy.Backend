@@ -84,6 +84,12 @@ public sealed partial class StaffMember : ScopedAggregateRoot<Guid>
             : Result.Success();
     }
 
+    private static bool IsImmediateEffectiveDate(
+        DateOnly effectiveDate,
+        DateTimeOffset nowUtc) =>
+        effectiveDate != default &&
+        effectiveDate <= DateOnly.FromDateTime(nowUtc.UtcDateTime);
+
     private void ApplyProfile(StaffProfile profile)
     {
         this.DisplayName = profile.DisplayName;

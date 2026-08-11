@@ -4,6 +4,7 @@ using BunkFy.Modules.Staff.Application.Commands;
 using BunkFy.Modules.Staff.Application.Ports;
 using BunkFy.Modules.Staff.Domain.Aggregates;
 using BunkFy.Modules.Staff.Domain.Entities;
+using BunkFy.Modules.Staff.Domain.Errors;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
 using Gma.Framework.Runtime.Identity;
@@ -73,15 +74,18 @@ internal sealed class ReconcileStaffPropertyAssignmentsCommandHandler(
             .OrderBy(assignment => assignment.PropertyId)
             .ToArray();
 
+        if (current.Any(assignment => assignment.EffectiveFrom > effectiveOn))
+        {
+            return Result.Failure<IReadOnlyCollection<Guid>>(
+                StaffDomainErrors.AssignmentDateInvalid);
+        }
+
         foreach (StaffPropertyAssignment stale in current.Where(
                      assignment => !desired.Contains(assignment.PropertyId)))
         {
-            DateOnly effectiveTo = stale.EffectiveFrom > effectiveOn
-                ? stale.EffectiveFrom
-                : effectiveOn;
             Result ended = member.UnassignProperty(
                 stale.PropertyId,
-                effectiveTo,
+                effectiveOn,
                 member.Version,
                 command.ActorId,
                 command.Reason,

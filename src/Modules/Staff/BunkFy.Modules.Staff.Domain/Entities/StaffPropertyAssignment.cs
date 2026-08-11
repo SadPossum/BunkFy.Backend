@@ -45,6 +45,10 @@ public sealed class StaffPropertyAssignment : Entity<Guid>, IScopedEntity
 
     internal void DemotePrimary() => this.IsPrimary = false;
 
+    internal bool OverlapsOpenEndedFrom(DateOnly effectiveFrom) =>
+        !this.EffectiveTo.HasValue ||
+        effectiveFrom <= this.EffectiveTo.Value;
+
     internal void AnonymiseFreeText()
     {
         this.PropertyJobTitle = null;

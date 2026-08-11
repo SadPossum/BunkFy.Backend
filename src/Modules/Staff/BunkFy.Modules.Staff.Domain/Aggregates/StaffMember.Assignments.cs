@@ -11,7 +11,7 @@ public sealed partial class StaffMember
         string? propertyJobTitle, bool isPrimary, DateOnly effectiveFrom, long expectedVersion,
         string actorId, Guid eventId, DateTimeOffset nowUtc)
     {
-        if (effectiveFrom == default)
+        if (!IsImmediateEffectiveDate(effectiveFrom, nowUtc))
         {
             return Result.Failure<StaffPropertyAssignment>(StaffDomainErrors.AssignmentDateInvalid);
         }
@@ -57,6 +57,14 @@ public sealed partial class StaffMember
             return Result.Failure<StaffPropertyAssignment>(StaffDomainErrors.AssignmentAlreadyExists);
         }
 
+        if (this.assignments.Any(item =>
+                item.PropertyId == propertyId &&
+                item.OverlapsOpenEndedFrom(effectiveFrom)))
+        {
+            return Result.Failure<StaffPropertyAssignment>(
+                StaffDomainErrors.AssignmentDateInvalid);
+        }
+
         if (isPrimary && this.assignments.Any(item => item.IsCurrent && item.IsPrimary))
         {
             return Result.Failure<StaffPropertyAssignment>(StaffDomainErrors.PrimaryAssignmentExists);
@@ -78,7 +86,7 @@ public sealed partial class StaffMember
             return Result.Failure<StaffPropertyAssignment>(StaffDomainErrors.PropertyIdRequired);
         }
 
-        if (effectiveTo == default)
+        if (!IsImmediateEffectiveDate(effectiveTo, nowUtc))
         {
             return Result.Failure<StaffPropertyAssignment>(StaffDomainErrors.AssignmentDateInvalid);
         }

@@ -51,7 +51,7 @@ public sealed partial class StaffMember
     public Result Depart(DateOnly effectiveOn, long expectedVersion, string actorId, string reason,
         Guid lifecycleEventId, IReadOnlyCollection<Guid> assignmentEventIds, DateTimeOffset nowUtc)
     {
-        if (effectiveOn == default)
+        if (!IsImmediateEffectiveDate(effectiveOn, nowUtc))
         {
             return Result.Failure(StaffDomainErrors.AssignmentDateInvalid);
         }
