@@ -65,6 +65,9 @@ deterministically generated
   subject-scoped, cross-module, one-hour transient fragment;
 - a neutral streaming contributor/sink contract; callers must discard partial
   fragments unless the owner returns success;
+- a Data Rights-owned, short-lived protected-export aggregate that assembles
+  bounded owner fragments, stores only encrypted artifacts in `IFileStorage`,
+  and streams authenticated plaintext only through assurance-gated endpoints;
 - scoped permissions that are not granted to ordinary seeded roles;
 - public controller API plus tenant-termination Admin API and Admin CLI
   operator controls;
@@ -87,12 +90,15 @@ tasks runs enqueue --tenant <tenant-id> --module data-rights --task rebuild-data
 The case does not contain guest names, contacts, documents, search criteria,
 provider payloads or free text. It stores only the selected owner's opaque
 record coordinate and selection audit attribution. Guest data remains owned by
-its source module. The export contract prepares owner fragments only; DataRights
-does not persist fragments or expose download artifacts. Guest anonymisation
-now reaches immutable owner and processing-ledger proof, with protected
-pre-readiness replay after database restore. Existing reservation facts remain
-owned by Reservations; only its local Guest-link eligibility projection is
-updated from the PII-free Guests event.
+its source module. Data Rights never persists owner fragments or plaintext
+exports: it persists bounded artifact lifecycle and integrity metadata while
+encrypted artifact bytes remain in the configured file-storage adapter.
+Protected downloads revalidate scope, permission, expiry, integrity, and fresh
+MFA/two-step assurance. Guest anonymisation now reaches immutable owner and
+processing-ledger proof, with protected pre-readiness replay after database
+restore. Existing reservation facts remain owned by Reservations; only its
+local Guest-link eligibility projection is updated from the PII-free Guests
+event.
 
 ## Operational Surfaces
 
