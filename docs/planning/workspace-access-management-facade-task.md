@@ -1,7 +1,9 @@
 # Workspace Access Management Facade Task
 
-Status: backend and capability-driven UX implemented; multi-account proof pending
+Status: backend and capability-driven UX implemented; default-profile
+multi-account browser proof complete; custom-profile and estate proof pending
 Date: 2026-07-22
+Updated: 2026-08-12
 
 ## Goal
 
@@ -69,5 +71,8 @@ module administration APIs or leaking BunkFy policy into reusable modules.
 - The Workspace settings UX is permission-driven: Members remains owner-only,
   Roles supports read-only and management modes, and Invites requires both
   `staff.manage` and profile visibility.
-- Remaining work in this task is the real owner/applicant multi-account browser
-  proof and deployment-by-deployment activation evidence.
+- The trusted-HTTPS Preview browser rehearsal now proves separate owner and
+  applicant accounts, Front desk assignment, property-scoped allow/deny,
+  permission-filtered management denial, replay stability, and Worker-restart
+  convergence. Remaining work is the custom-profile create/edit/assignment
+  browser proof and deployment-by-deployment seed-version activation evidence.

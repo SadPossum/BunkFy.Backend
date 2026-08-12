@@ -1,7 +1,9 @@
 # Workspace Access Profiles Task
 
-Status: backend and owner-facing least-privilege cutover implemented; deployed-estate and multi-account proof remain
+Status: backend and owner-facing least-privilege cutover implemented;
+default-profile browser proof complete; custom-profile and estate proof remain
 Date: 2026-07-22
+Updated: 2026-08-12
 
 ## Goal
 
@@ -91,8 +93,9 @@ versioned seeds, default onboarding assignment, per-workspace migration tool,
 membership-driven cleanup, Staff-driven offboarding orchestration,
 invitation-time profile/property plans, product facade, and capability-driven
 workspace-admin UI are complete. Every deployed workspace still needs version
-2 status/bootstrap evidence, and the deployed multi-account workflow remains a
-production proof gate.
+2 status/bootstrap evidence. The deployed default Front desk onboarding path is
+now browser-proven with separate accounts; custom-profile administration and
+post-onboarding assignment changes remain a production proof gate.
 
 ## Delivery Order
 
@@ -103,7 +106,7 @@ production proof gate.
 5. [Complete] Extend invitation/enrollment coordination with server-owned profile and property-assignment plans. Applicants may review but never author authority-bearing fields.
 6. [Complete] Add durable Staff suspension/departure orchestration that denies membership first, revokes profile assignments, preserves unrelated workspaces/global Auth, and supports explicit recovery.
 7. [Complete for the current single-role product workflow] Build workspace-admin role/profile UI, permission summaries, assignment controls, and invitation-time selection.
-8. [Local production proof complete; deployed smoke pending] Keep the PostgreSQL/NATS concurrency and Worker restart proof green, then run the deployed owner/applicant multi-account browser smoke. See `workspace-onboarding-production-proof-task.md`.
+8. [Default-profile deployed browser proof complete; custom-profile smoke pending] Keep the PostgreSQL/NATS concurrency and Worker restart proof green, then cover custom profile administration and reassignment with separate owner/member accounts.
 
 ## Completion Proof
 
