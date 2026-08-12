@@ -126,3 +126,9 @@ workspaces through authorized contracts, bootstrapped all 3 from one drifted
 seed to version 4 convergence, observed zero legacy members, and retained only
 aggregate counts plus one-way workspace fingerprints. Production classes
 beyond Preview remain a separate estate gate.
+
+The root production-admission boundary now requires a distinct private
+`workspace-access-seed-estate` record for the exact hosted candidate. The
+Preview-only evidence cannot satisfy it. Global legacy-role retirement remains
+blocked until every production deployment has an accepted current estate
+record.

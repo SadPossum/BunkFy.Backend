@@ -82,3 +82,7 @@ module administration APIs or leaking BunkFy policy into reusable modules.
   authorized Preview catalog, bootstrapped all 3 active workspaces, and proved
   each one converged on seed version 4 without retaining raw tenant identity.
   Hosted or future deployment estates remain separately admitted.
+- Final production admission now requires a distinct private Workspace Access
+  estate reference bound to the exact hosted candidate. The public bundle
+  validates and retains only the non-secret reference; hosted execution,
+  authenticity, and approval remain deployment-owned.
