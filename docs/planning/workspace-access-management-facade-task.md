@@ -1,7 +1,7 @@
 # Workspace Access Management Facade Task
 
 Status: backend and capability-driven UX implemented; default/custom-profile
-multi-account browser proof complete; deployed estate proof pending
+multi-account browser and Preview seed-estate proofs complete
 Date: 2026-07-22
 Updated: 2026-08-12
 
@@ -67,7 +67,8 @@ module administration APIs or leaking BunkFy policy into reusable modules.
 - Desktop and 390px mobile preview checks pass. Legacy Organizations invitations without a BunkFy access plan render as lifecycle-only records instead of failing the page.
 - Current seed version `4` protects and reconciles built-ins, exposes drift in
   bootstrap status, and includes profile read/manage/assign in the Manager seed.
-  Deployed workspaces require fresh version 4 activation evidence.
+  Preview now has fresh version 4 activation evidence for every active
+  workspace; other deployment classes require their own estate evidence.
 - The Workspace settings UX is permission-driven: Members remains owner-only,
   Roles supports read-only and management modes, and Invites requires both
   `staff.manage` and profile visibility.
@@ -77,4 +78,7 @@ module administration APIs or leaking BunkFy policy into reusable modules.
   convergence. Exact release `preview-workspace-access-0257a44` additionally
   proves custom-profile create/edit/assignment, live permission convergence,
   exact reassignment, archive, and exclusion from active assignment controls.
-  Deployment-by-deployment seed-version activation evidence remains pending.
+- Exact release `preview-workspace-access-estate-651107f` then enumerated the
+  authorized Preview catalog, bootstrapped all 3 active workspaces, and proved
+  each one converged on seed version 4 without retaining raw tenant identity.
+  Hosted or future deployment estates remain separately admitted.

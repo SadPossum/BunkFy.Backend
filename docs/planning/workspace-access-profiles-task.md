@@ -1,7 +1,7 @@
 # Workspace Access Profiles Task
 
 Status: backend and owner-facing least-privilege cutover implemented;
-default/custom-profile browser proof complete; deployed estate proof remains
+default/custom-profile browser and Preview seed-estate proofs complete
 Date: 2026-07-22
 Updated: 2026-08-12
 
@@ -92,16 +92,17 @@ The backend allowlist, workspace/property-scoped assignment eligibility policy,
 versioned seeds, default onboarding assignment, per-workspace migration tool,
 membership-driven cleanup, Staff-driven offboarding orchestration,
 invitation-time profile/property plans, product facade, and capability-driven
-workspace-admin UI are complete. Every deployed workspace still needs current
+workspace-admin UI are complete. The Preview deployment estate now has current
 version 4 status/bootstrap evidence. The deployed default Front desk onboarding,
-custom-profile administration, and post-onboarding assignment paths are now
-browser-proven with separate accounts.
+custom-profile administration, and post-onboarding assignment paths are also
+browser-proven with separate accounts. Other deployment classes still require
+their own explicit estate proof before the global legacy role can be retired.
 
 ## Delivery Order
 
 1. [Complete] Prepare and land the two generic Contracts facades in their owning GMA modules, with provider-neutral behavior, PostgreSQL/SQL Server coverage where applicable, concurrency tests, and no BunkFy vocabulary.
 2. [Complete] Pull the released GMA revisions through GMA-Skeleton and BunkFy without local framework forks.
-3. [Code complete; deployed estate pending] Add versioned BunkFy seed definitions and an idempotent workspace access bootstrap/backfill process. Prove existing members retain the intended Front desk access before removing their compatibility grants. Run current version 4 status/bootstrap for every deployed workspace before globally retiring the legacy role definition.
+3. [Complete for Preview; other deployment classes deferred] Add versioned BunkFy seed definitions and an idempotent workspace access bootstrap/backfill process. Prove existing members retain the intended Front desk access before removing their compatibility grants. Run current version 4 status/bootstrap for every deployed workspace before globally retiring the legacy role definition.
 4. [Complete] Add a BunkFy workspace-role facade and permission catalogue for the web. Reconciliation is exact-scope, anti-escalating, and deny-first.
 5. [Complete] Extend invitation/enrollment coordination with server-owned profile and property-assignment plans. Applicants may review but never author authority-bearing fields.
 6. [Complete] Add durable Staff suspension/departure orchestration that denies membership first, revokes profile assignments, preserves unrelated workspaces/global Auth, and supports explicit recovery.
@@ -119,5 +120,9 @@ browser-proven with separate accounts.
 The exact-release Preview rehearsal `preview-workspace-access-0257a44` passed 22
 trusted-HTTPS checks. Its custom-role slice proved create, property-scoped
 assignment, live permission update, exact reassignment, archive, and exclusion
-from active assignment controls. Deployment-by-deployment seed version 4
-activation remains a separate estate gate.
+from active assignment controls. The later exact-release estate rehearsal
+`preview-workspace-access-estate-651107f` inspected all 3 active Preview
+workspaces through authorized contracts, bootstrapped all 3 from one drifted
+seed to version 4 convergence, observed zero legacy members, and retained only
+aggregate counts plus one-way workspace fingerprints. Production classes
+beyond Preview remain a separate estate gate.

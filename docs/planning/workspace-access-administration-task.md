@@ -92,4 +92,8 @@ The later exact-release Preview rehearsal
 proved this administration path with separate owner/member accounts. The seed
 version 2 wording above records what this original slice introduced; the current
 code-owned BunkFy seed is version 4, whose estate-wide activation evidence
-remains separate.
+is now complete for Preview. Exact release
+`preview-workspace-access-estate-651107f` bootstrapped all 3 active Preview
+workspaces from one drifted seed to version 4 convergence and observed zero
+legacy members. This does not retire the separate estate gate for future or
+hosted deployment classes.
