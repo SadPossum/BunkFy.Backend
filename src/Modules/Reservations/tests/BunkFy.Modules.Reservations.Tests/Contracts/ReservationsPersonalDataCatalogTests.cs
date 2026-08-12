@@ -15,6 +15,7 @@ using BunkFy.Modules.Reservations.Domain.DataRights;
 using BunkFy.Modules.Reservations.Domain.Entities;
 using BunkFy.Modules.Reservations.Domain.GuestRecords;
 using BunkFy.Modules.Reservations.Domain.Retention;
+using BunkFy.Modules.Reservations.Domain.StayAmendments;
 using BunkFy.Modules.Reservations.Persistence;
 using Gma.Framework.Messaging;
 using Gma.Framework.Scoping;
@@ -85,6 +86,9 @@ public sealed class ReservationsPersonalDataCatalogTests
                 nameof(ReservationGuestRecordWriteRequest.PreferredLanguageTag),
                 nameof(ReservationGuestRecordWriteRequest.Notes)
             ],
+            StringComparer.Ordinal),
+        [typeof(ListReservationStayAmendmentRecoveryQuery)] = new(
+            [nameof(ListReservationStayAmendmentRecoveryQuery.PageSize)],
             StringComparer.Ordinal)
     };
 
@@ -399,6 +403,7 @@ public sealed class ReservationsPersonalDataCatalogTests
         typeof(ReservationDetailsHistoryEntry),
         typeof(ReservationExternalOperation),
         typeof(ReservationManagementOperation),
+        typeof(ReservationStayAmendmentOperation),
         typeof(ReservationGuestProfileProjection),
         typeof(ReservationGuestProcessingRestrictionProjection),
         typeof(ReservationArrivalReminder),

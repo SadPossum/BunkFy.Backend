@@ -185,6 +185,7 @@
     <File Path="docs/planning/reservations-mutation-serialization-task.md" />
     <File Path="docs/planning/reservations-operational-surface-hardening-task.md" />
     <File Path="docs/planning/reservations-pii-minimization-task.md" />
+    <File Path="docs/planning/reservations-stay-amendment-convergence-task.md" />
     <File Path="docs/planning/reservations-stay-lifecycle-task.md" />
     <File Path="docs/planning/reservations-tenant-termination-owner-task.md" />
     <File Path="docs/planning/retention-mutation-serialization-task.md" />

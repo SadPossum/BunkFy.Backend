@@ -2,6 +2,7 @@ namespace BunkFy.Modules.Reservations.Persistence.Repositories;
 
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Reservations.Contracts;
+using BunkFy.Modules.Reservations.Domain.StayAmendments;
 using Microsoft.EntityFrameworkCore;
 
 internal sealed partial class ReservationsTenantTerminationContributor
@@ -23,6 +24,11 @@ internal sealed partial class ReservationsTenantTerminationContributor
             count,
             cancellationToken).ConfigureAwait(false);
         count = await this.ExportManagementOperationsAsync(
+            tenantId,
+            sink,
+            count,
+            cancellationToken).ConfigureAwait(false);
+        count = await this.ExportStayAmendmentOperationsAsync(
             tenantId,
             sink,
             count,
@@ -163,6 +169,71 @@ internal sealed partial class ReservationsTenantTerminationContributor
                     operation.ReservationId,
                     operation.Id.ToString("N")),
                 recordVersion: 3,
+                record,
+                sink,
+                cancellationToken).ConfigureAwait(false);
+            count = checked(count + 1);
+        }
+
+        return count;
+    }
+
+    private async Task<long> ExportStayAmendmentOperationsAsync(
+        string tenantId,
+        IDataRightsExportSink sink,
+        long count,
+        CancellationToken cancellationToken)
+    {
+        await foreach (ReservationStayAmendmentOperation operation in
+            dbContext.StayAmendmentOperations
+                .AsNoTracking()
+                .Where(item => item.ScopeId == tenantId)
+                .OrderBy(item => item.ReservationId)
+                .ThenBy(item => item.Id)
+                .AsAsyncEnumerable()
+                .WithCancellation(cancellationToken)
+                .ConfigureAwait(false))
+        {
+            ReservationStayAmendmentOperationTenantExport record = new(
+                operation.ScopeId,
+                operation.PropertyId,
+                operation.ReservationId,
+                operation.Id,
+                new ReservationStayAmendmentOperationStateTenantExport(
+                    operation.InventoryRequestId,
+                    operation.RequestSchemaVersion,
+                    operation.RequestFingerprint,
+                    operation.TargetArrival,
+                    operation.TargetDeparture,
+                    operation.TargetExpectedArrivalTime,
+                    operation.TargetExpectedDepartureTime,
+                    operation.TargetInventoryUnitIds is null
+                        ? null
+                        : operation.GetTargetInventoryUnitIds()
+                            .Order()
+                            .ToArray(),
+                    operation.ExpectedDetailsRevision,
+                    operation.Outcome,
+                    operation.OperationVersion,
+                    operation.RequestedAtUtc,
+                    operation.UpdatedAtUtc,
+                    operation.CompletedAtUtc,
+                    operation.ResultingDetailsRevision,
+                    operation.ResultingReservationVersion,
+                    operation.ResultingAllocationVersion,
+                    operation.RejectionCode,
+                    operation.ReconciliationCount,
+                    operation.LastReconciledAtUtc),
+                new ReservationStayAmendmentOperationStaffTenantExport(
+                    operation.RequestedBy,
+                    operation.LastReconciledBy));
+            await WriteAsync(
+                ReservationsTenantTerminationMetadata
+                    .StayAmendmentOperationRecordType,
+                DataRightsExportRecordIds.CreateDeterministicChild(
+                    operation.ReservationId,
+                    operation.Id.ToString("N")),
+                operation.OperationVersion,
                 record,
                 sink,
                 cancellationToken).ConfigureAwait(false);

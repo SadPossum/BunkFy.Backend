@@ -16,6 +16,25 @@ using Xunit;
 public sealed class ReservationsModelTests
 {
     [Fact]
+    public void Tenant_owned_operation_history_and_guest_projection_are_query_scoped()
+    {
+        using ReservationsDbContext dbContext = CreateDbContext();
+
+        Type[] scopedTypes =
+        [
+            typeof(ReservationManagementOperation),
+            typeof(ReservationExternalOperation),
+            typeof(ReservationDetailsHistoryEntry),
+            typeof(ReservationGuestProfileProjection)
+        ];
+
+        Assert.All(
+            scopedTypes,
+            type => Assert.NotEmpty(
+                dbContext.Model.FindEntityType(type)!.GetDeclaredQueryFilters()));
+    }
+
+    [Fact]
     public void Tenant_revision_is_scope_keyed_and_concurrency_guarded()
     {
         using ReservationsDbContext dbContext = CreateDbContext();
@@ -256,6 +275,17 @@ public sealed class ReservationsModelTests
             constraint => Assert.Contains(
                 operation.GetCheckConstraints(),
                 candidate => candidate.Name == constraint));
+        Assert.Contains(
+            "1, 2, 3, 4, 5, 6, 7",
+            operation.GetCheckConstraints().Single(constraint =>
+                constraint.Name == "CK_management_operations_kind").Sql,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "IN (6, 7)",
+            operation.GetCheckConstraints().Single(constraint =>
+                constraint.Name ==
+                    "CK_management_operations_request_fingerprint").Sql,
+            StringComparison.Ordinal);
     }
 
     [Fact]

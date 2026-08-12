@@ -1,5 +1,8 @@
 namespace Integration.Tests;
 
+using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using BunkFy.DataGovernance;
 using BunkFy.Modules.DataRights.Application.Commands;
 using BunkFy.Modules.DataRights.Application.Models;
@@ -17,6 +20,7 @@ using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
 using BunkFy.Modules.Reservations.Domain.DataRights;
 using BunkFy.Modules.Reservations.Domain.Models;
+using BunkFy.Modules.Reservations.Domain.StayAmendments;
 using BunkFy.Modules.Reservations.Persistence;
 using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Persistence;
@@ -102,6 +106,263 @@ public sealed class ReservationDataRightsIntegrationTests
             Assert.Single(
                 record.Fields,
                 field => field.FieldId == "reservation.guest.email").Value.GetString());
+    }
+
+    [DockerFact]
+    [Trait("Category", "Docker")]
+    [Trait("Category", "Integration")]
+    public async Task Export_uses_one_snapshot_when_reservation_changes_after_the_first_record()
+    {
+        await using PostgreSqlContainer postgreSql = new PostgreSqlBuilder("postgres:16-alpine")
+            .WithDatabase("bunkfy_reservation_data_rights_barrier_tests")
+            .Build();
+        await postgreSql.StartAsync();
+
+        Guid propertyId = Guid.NewGuid();
+        Reservation reservation = CreateReservation(propertyId);
+        using ServiceProvider provider = CreatePersistenceProvider(postgreSql.GetConnectionString());
+        using IServiceScope exportScope = provider.CreateScope();
+        ReservationsDbContext exportDbContext =
+            exportScope.ServiceProvider.GetRequiredService<ReservationsDbContext>();
+        await exportDbContext.Database.MigrateAsync();
+        await exportDbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"""
+             INSERT INTO reservations.property_projection
+                 ("Id", "ScopeId", "TimeZoneId", "IsActive", "IsKnown",
+                  "ProcessingStatus", "TopologySourceVersion", "PolicySourceVersion")
+             VALUES
+                 ({propertyId}, {"tenant-a"}, {"UTC"}, {true}, {true}, {1}, {1L}, {0L});
+             """);
+        exportDbContext.Reservations.Add(reservation);
+        await exportDbContext.SaveChangesAsync();
+
+        IDataRightsSubjectExportContributor exporter = exportScope.ServiceProvider
+            .GetServices<IDataRightsSubjectExportContributor>()
+            .Single(contributor => contributor.OwnerKey == "reservations");
+        BlockingFirstWriteSink sink = new();
+        Task<DataRightsSubjectExportResult> exportTask = exporter.ExportAsync(
+            new(
+                "tenant-a",
+                DataRightsCaseType.GuestRights,
+                propertyId,
+                new DataRightsSubjectCoordinate(
+                    "reservations",
+                    "reservation",
+                    reservation.Id,
+                    reservation.Version)),
+            sink,
+            CancellationToken.None);
+        await sink.FirstWriteReached;
+
+        try
+        {
+            using IServiceScope mutationScope = provider.CreateScope();
+            ReservationsDbContext mutationDbContext = mutationScope
+                .ServiceProvider.GetRequiredService<ReservationsDbContext>();
+            int changed = await mutationDbContext.Database
+                .ExecuteSqlInterpolatedAsync(
+                    $"""
+                     UPDATE reservations.reservations
+                     SET "Version" = "Version" + 1,
+                         "UpdatedAtUtc" = {Now.AddMinutes(1)}
+                     WHERE "ScopeId" = {"tenant-a"}
+                       AND "PropertyId" = {propertyId}
+                       AND "Id" = {reservation.Id};
+                     """);
+            Assert.Equal(1, changed);
+        }
+        finally
+        {
+            sink.Release();
+        }
+
+        DataRightsSubjectExportResult result = await exportTask;
+
+        Assert.Equal(DataRightsSubjectExportStatus.Succeeded, result.Status);
+        DataRightsExportRecord reservationRecord = Assert.Single(
+            sink.Records,
+            record => record.RecordType == "reservation");
+        Assert.Equal(reservation.Version, reservationRecord.RecordVersion);
+    }
+
+    [DockerFact]
+    [Trait("Category", "Docker")]
+    [Trait("Category", "Integration")]
+    public async Task Export_excludes_child_only_writes_committed_after_snapshot_selection()
+    {
+        await using PostgreSqlContainer postgreSql = new PostgreSqlBuilder("postgres:16-alpine")
+            .WithDatabase("bunkfy_reservation_data_rights_child_snapshot_tests")
+            .Build();
+        await postgreSql.StartAsync();
+
+        Guid propertyId = Guid.NewGuid();
+        Reservation reservation = CreateReservation(propertyId);
+        Assert.True(reservation.ConfirmAllocation(
+            reservation.AllocationRequestId,
+            Guid.NewGuid(),
+            allocationVersion: 1,
+            Guid.NewGuid(),
+            Now.AddMinutes(1)).IsSuccess);
+        reservation.ClearDomainEvents();
+
+        using ServiceProvider provider = CreatePersistenceProvider(postgreSql.GetConnectionString());
+        using IServiceScope exportScope = provider.CreateScope();
+        ReservationsDbContext exportDbContext =
+            exportScope.ServiceProvider.GetRequiredService<ReservationsDbContext>();
+        await exportDbContext.Database.MigrateAsync();
+        await exportDbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"""
+             INSERT INTO reservations.property_projection
+                 ("Id", "ScopeId", "TimeZoneId", "IsActive", "IsKnown",
+                  "ProcessingStatus", "TopologySourceVersion", "PolicySourceVersion")
+             VALUES
+                 ({propertyId}, {"tenant-a"}, {"UTC"}, {true}, {true}, {1}, {1L}, {0L});
+             """);
+        exportDbContext.Reservations.Add(reservation);
+        await exportDbContext.SaveChangesAsync();
+
+        IDataRightsSubjectExportContributor exporter = exportScope.ServiceProvider
+            .GetServices<IDataRightsSubjectExportContributor>()
+            .Single(contributor => contributor.OwnerKey == "reservations");
+        BlockingFirstWriteSink sink = new();
+        Task<DataRightsSubjectExportResult> exportTask = exporter.ExportAsync(
+            new(
+                "tenant-a",
+                DataRightsCaseType.GuestRights,
+                propertyId,
+                new DataRightsSubjectCoordinate(
+                    "reservations",
+                    "reservation",
+                    reservation.Id,
+                    reservation.Version)),
+            sink,
+            CancellationToken.None);
+        await sink.FirstWriteReached;
+
+        Guid operationId = Guid.NewGuid();
+        Guid[] inventoryUnitIds = reservation.RequestedUnits
+            .Select(unit => unit.InventoryUnitId)
+            .ToArray();
+        string fingerprint = StayAmendmentFingerprint(
+            reservation,
+            operationId,
+            inventoryUnitIds);
+        DateTimeOffset requestedAtUtc = Now.AddMinutes(2);
+        try
+        {
+            using IServiceScope mutationScope = provider.CreateScope();
+            ReservationsDbContext mutationDbContext =
+                mutationScope.ServiceProvider.GetRequiredService<ReservationsDbContext>();
+            Reservation mutableReservation = await mutationDbContext.Reservations
+                .Include(candidate => candidate.RequestedUnits)
+                .SingleAsync(candidate => candidate.Id == reservation.Id);
+            Assert.Equal(
+                ReservationDetailsChangeOutcome.Unchanged,
+                mutableReservation.BeginAllocationAmendment(
+                    operationId,
+                    Guid.NewGuid(),
+                    fingerprint,
+                    mutableReservation.Arrival,
+                    mutableReservation.Departure,
+                    inventoryUnitIds,
+                    mutableReservation.PrimaryGuestName,
+                    mutableReservation.Email,
+                    mutableReservation.Phone,
+                    mutableReservation.GuestCount,
+                    mutableReservation.Notes,
+                    mutableReservation.DetailsRevision,
+                    ReservationDetailsChangeOrigin.Staff,
+                    "user:stay-operator",
+                    adapterConnectionId: null,
+                    externalOperationId: null,
+                    operationId,
+                    Guid.NewGuid(),
+                    requestedAtUtc,
+                    mutableReservation.ExpectedArrivalTime,
+                    mutableReservation.ExpectedDepartureTime).Value);
+            Assert.True(
+                mutableReservation.AdvanceStayAmendmentEvidenceCoordinate(
+                    requestedAtUtc).IsSuccess);
+            Assert.Equal(
+                EntityState.Modified,
+                mutationDbContext.Entry(mutableReservation).State);
+            Assert.True(
+                mutationDbContext.Entry(mutableReservation)
+                    .Property(candidate => candidate.Version)
+                    .IsModified);
+            IReservationManagementOperationRepository managementOperations =
+                mutationScope.ServiceProvider
+                    .GetRequiredService<IReservationManagementOperationRepository>();
+            await managementOperations.AddAsync(
+                new ReservationManagementOperationRecord(
+                    operationId,
+                    "tenant-a",
+                    propertyId,
+                    reservation.Id,
+                    ReservationManagementOperationKind.StayAmendment,
+                    ExpectedVersion: null,
+                    mutableReservation.DetailsRevision,
+                    BusinessDate: null,
+                    requestedAtUtc,
+                    fingerprint),
+                CancellationToken.None);
+            mutationDbContext.Set<ReservationStayAmendmentOperation>().Add(
+                ReservationStayAmendmentOperation.CreateAppliedNoOp(
+                    operationId,
+                    "tenant-a",
+                    propertyId,
+                    reservation.Id,
+                    ReservationStayAmendmentOperation.CurrentRequestSchemaVersion,
+                    fingerprint,
+                    mutableReservation.Arrival,
+                    mutableReservation.Departure,
+                    mutableReservation.ExpectedArrivalTime,
+                    mutableReservation.ExpectedDepartureTime,
+                    inventoryUnitIds,
+                    mutableReservation.DetailsRevision,
+                    "user:stay-operator",
+                    mutableReservation.DetailsRevision,
+                    mutableReservation.Version,
+                    mutableReservation.AllocationVersion!.Value,
+                    requestedAtUtc).Value);
+            await mutationDbContext.SaveChangesAsync();
+        }
+        finally
+        {
+            sink.Release();
+        }
+
+        DataRightsSubjectExportResult result = await exportTask;
+        Assert.Equal(DataRightsSubjectExportStatus.Succeeded, result.Status);
+        Assert.DoesNotContain(
+            sink.Records,
+            record => record.RecordType == "reservation-stay-amendment-operation");
+
+        using IServiceScope verificationScope = provider.CreateScope();
+        ReservationsDbContext verificationDbContext =
+            verificationScope.ServiceProvider.GetRequiredService<ReservationsDbContext>();
+        Assert.True(await verificationDbContext
+            .Set<ReservationStayAmendmentOperation>()
+            .AnyAsync(operation => operation.Id == operationId));
+
+        IDataRightsSubjectExportContributor freshExporter = verificationScope
+            .ServiceProvider.GetServices<IDataRightsSubjectExportContributor>()
+            .Single(contributor => contributor.OwnerKey == "reservations");
+        CollectingSink staleSink = new();
+        DataRightsSubjectExportResult stale = await freshExporter.ExportAsync(
+            new(
+                "tenant-a",
+                DataRightsCaseType.GuestRights,
+                propertyId,
+                new DataRightsSubjectCoordinate(
+                    "reservations",
+                    "reservation",
+                    reservation.Id,
+                    reservation.Version)),
+            staleSink,
+            CancellationToken.None);
+        Assert.Equal(DataRightsSubjectExportStatus.Stale, stale.Status);
+        Assert.Empty(staleSink.Records);
     }
 
     [DockerFact]
@@ -1284,6 +1545,26 @@ public sealed class ReservationDataRightsIntegrationTests
             Guid.NewGuid(),
             Now).Value;
 
+    private static string StayAmendmentFingerprint(
+        Reservation reservation,
+        Guid operationId,
+        IReadOnlyCollection<Guid> inventoryUnitIds)
+    {
+        string canonical = string.Join(
+            '|',
+            "v2",
+            $"reservation={reservation.Id:N}",
+            $"operation={operationId:N}",
+            $"expected-details-revision={reservation.DetailsRevision.ToString(CultureInfo.InvariantCulture)}",
+            $"arrival={reservation.Arrival.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}",
+            $"departure={reservation.Departure.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}",
+            $"expected-arrival-time={reservation.ExpectedArrivalTime?.ToString("HH:mm", CultureInfo.InvariantCulture) ?? "-"}",
+            $"expected-departure-time={reservation.ExpectedDepartureTime?.ToString("HH:mm", CultureInfo.InvariantCulture) ?? "-"}",
+            $"units={string.Join(',', inventoryUnitIds.Order().Select(id => id.ToString("N")))}");
+        return Convert.ToHexStringLower(
+            SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
+    }
+
     private static ServiceProvider CreatePersistenceProvider(string connectionString)
     {
         HostApplicationBuilder builder = Host.CreateApplicationBuilder();
@@ -1308,6 +1589,32 @@ public sealed class ReservationDataRightsIntegrationTests
             this.Records.Add(record);
             return ValueTask.CompletedTask;
         }
+    }
+
+    private sealed class BlockingFirstWriteSink : IDataRightsExportSink
+    {
+        private readonly TaskCompletionSource<bool> firstWrite = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource<bool> release = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public List<DataRightsExportRecord> Records { get; } = [];
+        public Task FirstWriteReached => this.firstWrite.Task;
+
+        public async ValueTask WriteAsync(
+            DataRightsExportRecord record,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            this.Records.Add(record);
+            if (this.Records.Count == 1)
+            {
+                this.firstWrite.TrySetResult(true);
+                await this.release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        public void Release() => this.release.TrySetResult(true);
     }
 
     private sealed class TestScopeContext(string scopeId) : IScopeContext

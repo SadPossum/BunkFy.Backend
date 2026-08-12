@@ -11,6 +11,7 @@ using BunkFy.Modules.Reservations.Application.External;
 using BunkFy.Modules.Reservations.Application.Handlers;
 using BunkFy.Modules.Reservations.Application.Policies;
 using BunkFy.Modules.Reservations.Application.Ports;
+using BunkFy.Modules.Reservations.Application.StayAmendments;
 using BunkFy.Modules.Reservations.Application.Tasks;
 using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Retention.Contracts;
@@ -146,6 +147,7 @@ public static class DependencyInjection
         services.TryAddScoped<ReservationInboxDomainEventDispatcher>();
         services.TryAddScoped<ReservationMutationCoordinator>();
         services.TryAddScoped<ReservationManagementLifecycleCoordinator>();
+        services.TryAddScoped<ReservationStayAmendmentCoordinator>();
         services.TryAddScoped<
             IReservationGuestRecordLinkCapability,
             ReservationGuestRecordLinkCapability>();

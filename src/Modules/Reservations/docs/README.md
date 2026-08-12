@@ -51,8 +51,9 @@ retention, and rights policies receive production approval.
   configured recent-authentication assurance in addition to scoped execution
   permission and approved-claim validation;
 - catalogue-driven, transient DataRights export of Reservations-owned booking,
-  pending amendment, Guest-link, details-history, adapter-receipt, and reminder
-  records without staff actor attribution;
+  pending amendment, durable stay-amendment operation, Guest-link,
+  details-history, adapter-receipt, and reminder records without staff actor
+  attribution;
 - immutable terminal lifecycle timestamps plus tenant-fair, country-policy
   retention scans that recheck property policy, processing restriction,
   pending operations, and owner-local holds before mutation;
@@ -78,9 +79,10 @@ section is omitted.
 ## Tenant Termination
 
 Reservations is the versioned `reservations` mandatory export owner and runs
-after Inventory. It streams 19 deterministic, flat record types directly from
-Reservations-owned booking, requested-unit, amendment, Guest-link, history,
-adapter-operation, reminder, data-rights, anonymisation, and retention tables.
+after Inventory. It streams 20 deterministic, flat record types directly from
+Reservations-owned booking, requested-unit, amendment operation, Guest-link,
+history, adapter-operation, reminder, data-rights, anonymisation, and retention
+tables.
 Consumer projections, inbox/outbox state, rebuild checkpoints, and the internal
 tenant-revision row are excluded.
 
@@ -109,8 +111,41 @@ controls, and termination admission remain disabled until every mandatory
 owner and the cross-owner recovery contract are complete.
 
 The Guest restriction projection starts empty after its migration by design.
+
+### Stay-amendment convergence deployment contract
+
+The stay-amendment convergence migration and Reservations binaries are a coordinated,
+stop/drain deployment. They are not rolling-compatible with the preceding Reservations
+binary. Before applying `20260812011925_AddReservationStayAmendmentConvergence`, stop every
+Reservations API, Admin API, Admin CLI mutation, message consumer, data-rights export, and
+tenant-termination worker, then drain active Reservations database transactions and inbox
+handler executions. Apply the migration only while those processes remain stopped, deploy
+the same new artifact to every Reservations host, and only then resume traffic and workers.
+
+This fence is required because a new stay request needs a child-aware outcome consumer, and
+the migration backfills operation evidence that predecessor export and destruction code does
+not understand. The migration's `NOWAIT` locks prove that active writers make the upgrade fail
+without a partial schema; they do not prove that old processes cannot write again afterward.
+Predecessor-shaped writes after the schema exists fail closed. Historical Kind 6 operations
+committed before the drain are backfilled during the migration; there is intentionally no
+post-migration bridge that would make a mixed-version rollout safe.
+
+Before resuming, verify the migration history, resolve the Reservations service graph from the
+new artifact, confirm no old Reservations process remains, and check that Pending and
+OutcomeUnknown recovery queries are healthy.
+
+Downgrade uses the same stop/drain boundary in reverse. Stop every Reservations surface and
+worker listed above, drain transactions and inbox handlers, verify and back up the state, and
+run the migration guard while the processes remain stopped. Apply `Down` only when the guard
+finds no non-representable stay-amendment evidence. Deploy the predecessor artifact to every
+Reservations host, verify that no new-binary process remains, and only then resume traffic or
+workers. A new-binary writer must never be allowed to queue behind the downgrade locks and run
+after the stay-amendment schema has been removed.
+
+This runbook is a release contract, not evidence that any particular environment has executed
+it.
 Until `rebuild-reservation-guest-restrictions` completes for a tenant, missing
 state denies new canonical Guest links. Existing factual links are preserved;
 Guests transition events maintain the rebuilt projection afterward.
 
-Expected times are minute-precision local wall-clock values and never replace the actual UTC timestamps recorded by check-in/check-out. Allocation-affecting adapter changes use a correlated Inventory amendment of the existing allocation and are not accepted by the guest-details command. Direct staff date/unit amendment surfaces, property-level expected-time defaults, rates, billing, identity documents, business-day close/reopen policy, room moves, and temporary holds remain later slices.
+Expected times are minute-precision local wall-clock values and never replace the actual UTC timestamps recorded by check-in/check-out. Allocation-affecting staff and adapter changes use a correlated Inventory amendment of the existing allocation and are not accepted by the guest-details command. Property-level expected-time defaults, rates, billing, identity documents, business-day close/reopen policy, checked-in room moves, and temporary holds remain later slices.

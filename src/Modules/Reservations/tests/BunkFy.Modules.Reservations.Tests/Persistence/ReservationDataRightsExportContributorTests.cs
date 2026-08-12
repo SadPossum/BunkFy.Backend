@@ -1,11 +1,13 @@
 namespace BunkFy.Modules.Reservations.Tests.Persistence;
 
+using System.Text.Json;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Reservations.Application.Ports;
 using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
 using BunkFy.Modules.Reservations.Domain.DataRights;
 using BunkFy.Modules.Reservations.Domain.Models;
+using BunkFy.Modules.Reservations.Domain.StayAmendments;
 using BunkFy.Modules.Reservations.Persistence;
 using BunkFy.Modules.Reservations.Persistence.Repositories;
 using Gma.Framework.Scoping;
@@ -67,8 +69,10 @@ public sealed class ReservationDataRightsExportContributorTests
             Now.AddMinutes(2)).IsSuccess);
         Guid adapterConnectionId = Guid.NewGuid();
         Guid externalOperationId = Guid.NewGuid();
+        Guid inventoryRequestId = Guid.NewGuid();
         Assert.True(reservation.BeginAllocationAmendment(
             Guid.NewGuid(),
+            inventoryRequestId,
             new string('a', Reservation.RequestFingerprintLength),
             reservation.Arrival,
             reservation.Departure.AddDays(1),
@@ -225,12 +229,32 @@ public sealed class ReservationDataRightsExportContributorTests
                 "tenant-a",
                 propertyId,
                 reservation.Id,
-                ReservationManagementOperationKind.InventoryAmendment,
+                ReservationManagementOperationKind.StayAmendment,
                 ExpectedVersion: null,
                 reservation.DetailsRevision,
                 BusinessDate: null,
                 Now.AddMinutes(5),
                 managementRequestFingerprint)));
+        ReservationStayAmendmentOperation stayAmendment =
+            ReservationStayAmendmentOperation.CreatePending(
+                managementOperationId,
+                "tenant-a",
+                propertyId,
+                reservation.Id,
+                inventoryRequestId,
+                ReservationStayAmendmentOperation.CurrentRequestSchemaVersion,
+                managementRequestFingerprint,
+                reservation.Arrival,
+                reservation.Departure.AddDays(1),
+                reservation.ExpectedArrivalTime,
+                reservation.ExpectedDepartureTime,
+                reservation.RequestedUnits
+                    .Select(unit => unit.InventoryUnitId)
+                    .ToArray(),
+                reservation.DetailsRevision,
+                "user:stay-operator",
+                Now.AddMinutes(5)).Value;
+        dbContext.StayAmendmentOperations.Add(stayAmendment);
 
         dbContext.ArrivalReminders.Add(ReservationArrivalReminder.Create(
             Guid.NewGuid(),
@@ -268,8 +292,8 @@ public sealed class ReservationDataRightsExportContributorTests
             CancellationToken.None);
 
         Assert.Equal(DataRightsSubjectExportStatus.Succeeded, result.Status);
-        Assert.Equal(14, result.RecordCount);
-        Assert.Equal(14, sink.Records.Count);
+        Assert.Equal(15, result.RecordCount);
+        Assert.Equal(15, sink.Records.Count);
         Assert.Equal(
             [
                 ReservationDataRightsDiscoveryContributor.ReservationRecordType,
@@ -285,6 +309,7 @@ public sealed class ReservationDataRightsExportContributorTests
                 ReservationDataRightsExportContributor.DataHoldReceiptRecordType,
                 ReservationDataRightsExportContributor.ExternalOperationRecordType,
                 ReservationDataRightsExportContributor.ManagementOperationRecordType,
+                ReservationDataRightsExportContributor.StayAmendmentOperationRecordType,
                 ReservationDataRightsExportContributor.ArrivalReminderRecordType
             ],
             sink.Records.Select(record => record.RecordType));
@@ -313,6 +338,56 @@ public sealed class ReservationDataRightsExportContributorTests
         Assert.DoesNotContain(
             sink.Records.SelectMany(record => record.Fields),
             field => field.FieldId == "reservation.audit.actor-id");
+        DataRightsExportRecord reservationExport = Assert.Single(
+            sink.Records,
+            record => record.RecordType ==
+                ReservationDataRightsDiscoveryContributor.ReservationRecordType);
+        Assert.Equal(
+            inventoryRequestId,
+            Assert.Single(
+                reservationExport.Fields,
+                field => field.FieldId ==
+                    "reservation.stay-amendment.inventory-request-id")
+                .Value.GetGuid());
+        DataRightsExportRecord stayAmendmentExport = Assert.Single(
+            sink.Records,
+            record => record.RecordType ==
+                ReservationDataRightsExportContributor
+                    .StayAmendmentOperationRecordType);
+        Assert.Equal(
+            DataRightsExportRecordIds.CreateDeterministicChild(
+                reservation.Id,
+                managementOperationId.ToString("N")),
+            stayAmendmentExport.RecordId);
+        Assert.Equal(
+            stayAmendment.OperationVersion,
+            stayAmendmentExport.RecordVersion);
+        Assert.Equal(
+            inventoryRequestId,
+            Assert.Single(
+                stayAmendmentExport.Fields,
+                field => field.FieldId ==
+                    "reservation.stay-amendment.inventory-request-id")
+                .Value.GetGuid());
+        Assert.Equal(
+            "pending",
+            Assert.Single(
+                stayAmendmentExport.Fields,
+                field => field.FieldId ==
+                    "reservation.stay-amendment.outcome")
+                .Value.GetString());
+        Assert.Equal(
+            "2026-08-04",
+            Assert.Single(
+                stayAmendmentExport.Fields,
+                field => field.FieldId ==
+                    "reservation.stay-amendment.target-departure")
+                .Value.GetString());
+        Assert.DoesNotContain(
+            stayAmendmentExport.Fields,
+            field => field.FieldId is
+                "reservation.stay-amendment.requested-by" or
+                "reservation.stay-amendment.last-reconciled-by");
         DataRightsExportRecord correctionExport = Assert.Single(
             sink.Records,
             record => record.RecordType ==
@@ -405,6 +480,228 @@ public sealed class ReservationDataRightsExportContributorTests
         Assert.Empty(staleSink.Records);
         Assert.Empty(otherPropertySink.Records);
         Assert.Empty(unknownPropertySink.Records);
+    }
+
+    [Fact]
+    public async Task Export_preserves_truthful_unknown_legacy_stay_amendment_evidence()
+    {
+        await using ReservationsDbContext dbContext = CreateDbContext("tenant-a");
+        Guid propertyId = AddKnownProperty(dbContext);
+        Reservation reservation = CreateReservation(propertyId, "Legacy Guest");
+        Guid operationId = Guid.NewGuid();
+        string fingerprint = new('e', Reservation.RequestFingerprintLength);
+        dbContext.Reservations.Add(reservation);
+        dbContext.ManagementOperations.Add(new ReservationManagementOperation(
+            new ReservationManagementOperationRecord(
+                operationId,
+                "tenant-a",
+                propertyId,
+                reservation.Id,
+                ReservationManagementOperationKind.StayAmendment,
+                ExpectedVersion: null,
+                reservation.DetailsRevision,
+                BusinessDate: null,
+                Now,
+                fingerprint)));
+        dbContext.StayAmendmentOperations.Add(
+            ReservationStayAmendmentOperation.CreateOutcomeUnknown(
+                operationId,
+                "tenant-a",
+                propertyId,
+                reservation.Id,
+                ReservationStayAmendmentOperation.LegacyRequestSchemaVersion,
+                fingerprint,
+                reservation.DetailsRevision,
+                Now).Value);
+        await dbContext.SaveChangesAsync();
+        ReservationDataRightsExportContributor contributor =
+            new(dbContext, new TestScopeContext("tenant-a"));
+        CollectingSink sink = new();
+
+        DataRightsSubjectExportResult result = await contributor.ExportAsync(
+            CreateRequest(propertyId, reservation),
+            sink,
+            CancellationToken.None);
+
+        Assert.Equal(DataRightsSubjectExportStatus.Succeeded, result.Status);
+        DataRightsExportRecord operation = Assert.Single(
+            sink.Records,
+            record => record.RecordType ==
+                ReservationDataRightsExportContributor
+                    .StayAmendmentOperationRecordType);
+        Assert.Equal(
+            "outcome-unknown",
+            Assert.Single(
+                operation.Fields,
+                field => field.FieldId ==
+                    "reservation.stay-amendment.outcome")
+                .Value.GetString());
+        Assert.Equal(
+            JsonValueKind.Null,
+            Assert.Single(
+                operation.Fields,
+                field => field.FieldId ==
+                    "reservation.stay-amendment.target-arrival")
+                .Value.ValueKind);
+        Assert.Equal(
+            JsonValueKind.Null,
+            Assert.Single(
+                operation.Fields,
+                field => field.FieldId ==
+                    "reservation.stay-amendment.target-inventory-unit-ids")
+                .Value.ValueKind);
+        Assert.Equal(
+            JsonValueKind.Null,
+            Assert.Single(
+                operation.Fields,
+                field => field.FieldId ==
+                    "reservation.stay-amendment.inventory-request-id")
+                .Value.ValueKind);
+        Assert.DoesNotContain(
+            operation.Fields,
+            field => field.FieldId is
+                "reservation.stay-amendment.requested-by" or
+                "reservation.stay-amendment.last-reconciled-by");
+    }
+
+    [Fact]
+    public async Task Export_retains_terminal_inventory_request_identity_and_nulls_applied_no_op()
+    {
+        await using ReservationsDbContext dbContext = CreateDbContext("tenant-a");
+        Guid propertyId = AddKnownProperty(dbContext);
+        Reservation reservation = CreateReservation(propertyId, "Terminal Guest");
+        Guid terminalOperationId = Guid.NewGuid();
+        Guid noOpOperationId = Guid.NewGuid();
+        Guid inventoryRequestId = Guid.NewGuid();
+        string terminalFingerprint = new('f', Reservation.RequestFingerprintLength);
+        string noOpFingerprint = new('a', Reservation.RequestFingerprintLength);
+        Assert.True(reservation.ConfirmAllocation(
+            reservation.AllocationRequestId,
+            Guid.NewGuid(),
+            allocationVersion: 1,
+            Guid.NewGuid(),
+            Now).IsSuccess);
+        dbContext.Reservations.Add(reservation);
+        dbContext.ManagementOperations.AddRange(
+            new ReservationManagementOperation(
+                new ReservationManagementOperationRecord(
+                    terminalOperationId,
+                    "tenant-a",
+                    propertyId,
+                    reservation.Id,
+                    ReservationManagementOperationKind.StayAmendment,
+                    ExpectedVersion: null,
+                    reservation.DetailsRevision,
+                    BusinessDate: null,
+                    Now,
+                    terminalFingerprint)),
+            new ReservationManagementOperation(
+                new ReservationManagementOperationRecord(
+                    noOpOperationId,
+                    "tenant-a",
+                    propertyId,
+                    reservation.Id,
+                    ReservationManagementOperationKind.StayAmendment,
+                    ExpectedVersion: null,
+                    reservation.DetailsRevision,
+                    BusinessDate: null,
+                    Now.AddMinutes(2),
+                    noOpFingerprint)));
+        ReservationStayAmendmentOperation terminal =
+            ReservationStayAmendmentOperation.CreatePending(
+                terminalOperationId,
+                "tenant-a",
+                propertyId,
+                reservation.Id,
+                inventoryRequestId,
+                ReservationStayAmendmentOperation.CurrentRequestSchemaVersion,
+                terminalFingerprint,
+                reservation.Arrival,
+                reservation.Departure.AddDays(1),
+                reservation.ExpectedArrivalTime,
+                reservation.ExpectedDepartureTime,
+                reservation.RequestedUnits
+                    .Select(unit => unit.InventoryUnitId)
+                    .ToArray(),
+                reservation.DetailsRevision,
+                "user:stay-operator",
+                Now).Value;
+        Assert.True(terminal.MarkRejected(
+            rejectionCode: 1,
+            reservation.DetailsRevision,
+            reservation.Version,
+            Now.AddMinutes(1)).IsSuccess);
+        ReservationStayAmendmentOperation noOp =
+            ReservationStayAmendmentOperation.CreateAppliedNoOp(
+                noOpOperationId,
+                "tenant-a",
+                propertyId,
+                reservation.Id,
+                ReservationStayAmendmentOperation.CurrentRequestSchemaVersion,
+                noOpFingerprint,
+                reservation.Arrival,
+                reservation.Departure,
+                reservation.ExpectedArrivalTime,
+                reservation.ExpectedDepartureTime,
+                reservation.RequestedUnits
+                    .Select(unit => unit.InventoryUnitId)
+                    .ToArray(),
+                reservation.DetailsRevision,
+                "user:stay-operator",
+                reservation.DetailsRevision,
+                reservation.Version,
+                reservation.AllocationVersion!.Value,
+                Now.AddMinutes(2)).Value;
+        dbContext.StayAmendmentOperations.AddRange(terminal, noOp);
+        await dbContext.SaveChangesAsync();
+        ReservationDataRightsExportContributor contributor =
+            new(dbContext, new TestScopeContext("tenant-a"));
+        CollectingSink sink = new();
+
+        DataRightsSubjectExportResult result = await contributor.ExportAsync(
+            CreateRequest(propertyId, reservation),
+            sink,
+            CancellationToken.None);
+
+        Assert.Equal(DataRightsSubjectExportStatus.Succeeded, result.Status);
+        DataRightsExportRecord terminalExport = Assert.Single(
+            sink.Records,
+            record => record.RecordId ==
+                DataRightsExportRecordIds.CreateDeterministicChild(
+                    reservation.Id,
+                    terminalOperationId.ToString("N")));
+        Assert.Equal(
+            inventoryRequestId,
+            Assert.Single(
+                terminalExport.Fields,
+                field => field.FieldId ==
+                    "reservation.stay-amendment.inventory-request-id")
+                .Value.GetGuid());
+        Assert.Equal(
+            "rejected",
+            Assert.Single(
+                terminalExport.Fields,
+                field => field.FieldId ==
+                    "reservation.stay-amendment.outcome")
+                .Value.GetString());
+        DataRightsExportRecord noOpExport = Assert.Single(
+            sink.Records,
+            record => record.RecordId ==
+                DataRightsExportRecordIds.CreateDeterministicChild(
+                    reservation.Id,
+                    noOpOperationId.ToString("N")));
+        Assert.Equal(
+            JsonValueKind.Null,
+            Assert.Single(
+                noOpExport.Fields,
+                field => field.FieldId ==
+                    "reservation.stay-amendment.inventory-request-id")
+                .Value.ValueKind);
+        Assert.DoesNotContain(
+            terminalExport.Fields.Concat(noOpExport.Fields),
+            field => field.FieldId is
+                "reservation.stay-amendment.requested-by" or
+                "reservation.stay-amendment.last-reconciled-by");
     }
 
     [Fact]
@@ -508,9 +805,9 @@ public sealed class ReservationDataRightsExportContributorTests
             ReservationDataRightsExportSchema.Descriptor;
         Assert.Equal(ReservationDataRightsDiscoveryContributor.Owner, descriptor.OwnerKey);
         Assert.Equal("reservations.personal-data", descriptor.CatalogId);
-        Assert.Equal(16, descriptor.CatalogVersion);
+        Assert.Equal(19, descriptor.CatalogVersion);
         Assert.Equal("reservations.subject-export", descriptor.ExportSchemaId);
-        Assert.Equal(6, descriptor.ExportSchemaVersion);
+        Assert.Equal(9, descriptor.ExportSchemaVersion);
         Assert.NotEmpty(descriptor.FieldIds);
     }
 

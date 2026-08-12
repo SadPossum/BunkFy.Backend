@@ -79,6 +79,9 @@ public static class DependencyInjection
         builder.Services.TryAddScoped<
             IReservationManagementOperationRepository,
             ReservationManagementOperationRepository>();
+        builder.Services.TryAddScoped<
+            IReservationStayAmendmentOperationRepository,
+            ReservationStayAmendmentOperationRepository>();
         builder.Services.TryAddScoped<IInventoryProjectionRepository, InventoryProjectionRepository>();
         builder.Services.TryAddScoped<IReservationGuestProfileProjectionRepository, ReservationGuestProfileProjectionRepository>();
         builder.Services.TryAddScoped<ReservationArrivalReminderRepository>();

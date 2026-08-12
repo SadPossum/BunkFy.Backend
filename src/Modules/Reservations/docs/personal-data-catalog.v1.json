@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "reservations.personal-data",
-  "catalogVersion": 16,
+  "catalogVersion": 19,
   "module": "reservations",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -240,7 +240,7 @@
     {
       "id": "reservation-management-operation-journal",
       "approvalState": "engineering-default",
-      "startsAt": "successful-lifecycle-operation",
+      "startsAt": "management-operation-coordinate-recorded",
       "endsAt": "owning-reservation-removal-or-tenant-termination",
       "legalHoldBehavior": "retain-with-owning-reservation"
     },
@@ -16943,6 +16943,13 @@
           "member": "StaffAttribution",
           "surface": "data-rights-export",
           "retentionPolicy": "reservations-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationStayAmendmentOperationTenantExport",
+          "member": "StaffAttribution",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservations-tenant-termination-export-fragment"
         }
       ]
     },
@@ -17419,6 +17426,1892 @@
           "assembly": "BunkFy.Modules.Reservations.Persistence",
           "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationGuestRecordLinkProcessTenantExport",
           "member": "Process",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservations-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.stay-amendment.operation-id",
+      "dataSubject": "guest",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": [
+        "reservation-stay-amendment",
+        "workflow-recovery"
+      ],
+      "sources": [
+        "staff-action",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.details.history",
+      "retentionPolicy": "reservation-management-operation-journal",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "application-command",
+        "application-query",
+        "api-response",
+        "persistence",
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "intra-module",
+        "customer-api",
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.AmendReservationStayCommand",
+          "member": "OperationId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ReconcileReservationStayAmendmentCommand",
+          "member": "OperationId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Queries.GetReservationStayAmendmentQuery",
+          "member": "OperationId",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationStayAmendmentReceiptDto",
+          "member": "OperationId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationStayAmendmentRecoveryCursorDto",
+          "member": "OperationId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationStayAmendmentRecoveryItemDto",
+          "member": "OperationId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Ports.ReservationStayAmendmentRecoveryCursorRecord",
+          "member": "OperationId",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.StayAmendments.ReservationStayAmendmentOperation",
+          "member": "Id",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationStayAmendmentOperationDataRightsExport",
+          "member": "OperationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.stay-amendment.property-id",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "reservation-stay-amendment",
+        "workflow-recovery"
+      ],
+      "sources": [
+        "staff-action",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.details.history",
+      "retentionPolicy": "reservation-management-operation-journal",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "application-command",
+        "application-query",
+        "api-response",
+        "persistence",
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "intra-module",
+        "customer-api",
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.AmendReservationStayCommand",
+          "member": "PropertyId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ReconcileReservationStayAmendmentCommand",
+          "member": "PropertyId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Queries.GetReservationStayAmendmentQuery",
+          "member": "PropertyId",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Queries.ListReservationStayAmendmentRecoveryQuery",
+          "member": "PropertyId",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationStayAmendmentReceiptDto",
+          "member": "PropertyId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationStayAmendmentRecoveryItemDto",
+          "member": "PropertyId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.StayAmendments.ReservationStayAmendmentOperation",
+          "member": "PropertyId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationStayAmendmentOperationDataRightsExport",
+          "member": "PropertyId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.stay-amendment.reservation-id",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "reservation-stay-amendment",
+        "workflow-recovery"
+      ],
+      "sources": [
+        "staff-action",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.details.history",
+      "retentionPolicy": "reservation-management-operation-journal",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "application-command",
+        "application-query",
+        "api-response",
+        "persistence",
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "intra-module",
+        "customer-api",
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.AmendReservationStayCommand",
+          "member": "ReservationId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ReconcileReservationStayAmendmentCommand",
+          "member": "ReservationId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Queries.GetReservationStayAmendmentQuery",
+          "member": "ReservationId",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationStayAmendmentReceiptDto",
+          "member": "ReservationId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationStayAmendmentRecoveryCursorDto",
+          "member": "ReservationId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationStayAmendmentRecoveryItemDto",
+          "member": "ReservationId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Ports.ReservationStayAmendmentRecoveryCursorRecord",
+          "member": "ReservationId",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.StayAmendments.ReservationStayAmendmentOperation",
+          "member": "ReservationId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationStayAmendmentOperationDataRightsExport",
+          "member": "ReservationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.stay-amendment.scope-id",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "reservation-stay-amendment",
+        "workflow-recovery"
+      ],
+      "sources": [
+        "staff-action",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.details.history",
+      "retentionPolicy": "reservation-management-operation-journal",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.StayAmendments.ReservationStayAmendmentOperation",
+          "member": "ScopeId",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "reservation.stay-amendment.request-schema-version",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "reservation-stay-amendment",
+        "workflow-recovery"
+      ],
+      "sources": [
+        "staff-action",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.details.history",
+      "retentionPolicy": "reservation-management-operation-journal",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "persistence",
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "intra-module",
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.StayAmendments.ReservationStayAmendmentOperation",
+          "member": "RequestSchemaVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationStayAmendmentOperationDataRightsExport",
+          "member": "RequestSchemaVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.stay-amendment.request-fingerprint",
+      "dataSubject": "guest",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": [
+        "reservation-stay-amendment",
+        "workflow-recovery"
+      ],
+      "sources": [
+        "staff-action",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.details.history",
+      "retentionPolicy": "reservation-management-operation-journal",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "persistence",
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "intra-module",
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.StayAmendments.ReservationStayAmendmentOperation",
+          "member": "RequestFingerprint",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationStayAmendmentOperationDataRightsExport",
+          "member": "RequestFingerprint",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.stay-amendment.target-arrival",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "reservation-stay-amendment",
+        "workflow-recovery"
+      ],
+      "sources": [
+        "staff-action",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.details.history",
+      "retentionPolicy": "reservation-management-operation-journal",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "application-command",
+        "api-input",
+        "api-response",
+        "persistence",
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "intra-module",
+        "customer-api",
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.AmendReservationStayCommand",
+          "member": "Arrival",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Api",
+          "type": "BunkFy.Modules.Reservations.Api.ReservationsModule+AmendReservationStayRequest",
+          "member": "Arrival",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationStayAmendmentTargetDto",
+          "member": "Arrival",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.StayAmendments.ReservationStayAmendmentOperation",
+          "member": "TargetArrival",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationStayAmendmentOperationDataRightsExport",
+          "member": "TargetArrival",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.stay-amendment.target-departure",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "reservation-stay-amendment",
+        "workflow-recovery"
+      ],
+      "sources": [
+        "staff-action",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.details.history",
+      "retentionPolicy": "reservation-management-operation-journal",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "application-command",
+        "api-input",
+        "api-response",
+        "persistence",
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "intra-module",
+        "customer-api",
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.AmendReservationStayCommand",
+          "member": "Departure",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Api",
+          "type": "BunkFy.Modules.Reservations.Api.ReservationsModule+AmendReservationStayRequest",
+          "member": "Departure",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationStayAmendmentTargetDto",
+          "member": "Departure",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.StayAmendments.ReservationStayAmendmentOperation",
+          "member": "TargetDeparture",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationStayAmendmentOperationDataRightsExport",
+          "member": "TargetDeparture",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.stay-amendment.target-expected-arrival-time",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "reservation-stay-amendment",
+        "workflow-recovery"
+      ],
+      "sources": [
+        "staff-action",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.details.history",
+      "retentionPolicy": "reservation-management-operation-journal",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "application-command",
+        "api-input",
+        "api-response",
+        "persistence",
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "intra-module",
+        "customer-api",
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.AmendReservationStayCommand",
+          "member": "ExpectedArrivalTime",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Api",
+          "type": "BunkFy.Modules.Reservations.Api.ReservationsModule+AmendReservationStayRequest",
+          "member": "ExpectedArrivalTime",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationStayAmendmentTargetDto",
+          "member": "ExpectedArrivalTime",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.StayAmendments.ReservationStayAmendmentOperation",
+          "member": "TargetExpectedArrivalTime",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationStayAmendmentOperationDataRightsExport",
+          "member": "TargetExpectedArrivalTime",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.stay-amendment.target-expected-departure-time",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "reservation-stay-amendment",
+        "workflow-recovery"
+      ],
+      "sources": [
+        "staff-action",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.details.history",
+      "retentionPolicy": "reservation-management-operation-journal",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "application-command",
+        "api-input",
+        "api-response",
+        "persistence",
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "intra-module",
+        "customer-api",
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.AmendReservationStayCommand",
+          "member": "ExpectedDepartureTime",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Api",
+          "type": "BunkFy.Modules.Reservations.Api.ReservationsModule+AmendReservationStayRequest",
+          "member": "ExpectedDepartureTime",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationStayAmendmentTargetDto",
+          "member": "ExpectedDepartureTime",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.StayAmendments.ReservationStayAmendmentOperation",
+          "member": "TargetExpectedDepartureTime",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationStayAmendmentOperationDataRightsExport",
+          "member": "TargetExpectedDepartureTime",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.stay-amendment.target-inventory-unit-ids",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "reservation-stay-amendment",
+        "workflow-recovery"
+      ],
+      "sources": [
+        "staff-action",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.details.history",
+      "retentionPolicy": "reservation-management-operation-journal",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "application-command",
+        "api-input",
+        "api-response",
+        "persistence",
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "intra-module",
+        "customer-api",
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.AmendReservationStayCommand",
+          "member": "InventoryUnitIds",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Api",
+          "type": "BunkFy.Modules.Reservations.Api.ReservationsModule+AmendReservationStayRequest",
+          "member": "InventoryUnitIds",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationStayAmendmentTargetDto",
+          "member": "InventoryUnitIds",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.StayAmendments.ReservationStayAmendmentOperation",
+          "member": "TargetInventoryUnitIds",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationStayAmendmentOperationDataRightsExport",
+          "member": "TargetInventoryUnitIds",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.stay-amendment.expected-details-revision",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "reservation-stay-amendment",
+        "workflow-recovery"
+      ],
+      "sources": [
+        "staff-action",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.details.history",
+      "retentionPolicy": "reservation-management-operation-journal",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "application-command",
+        "api-input",
+        "api-response",
+        "persistence",
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "intra-module",
+        "customer-api",
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.AmendReservationStayCommand",
+          "member": "ExpectedDetailsRevision",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Api",
+          "type": "BunkFy.Modules.Reservations.Api.ReservationsModule+AmendReservationStayRequest",
+          "member": "ExpectedDetailsRevision",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationStayAmendmentReceiptDto",
+          "member": "ExpectedDetailsRevision",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.StayAmendments.ReservationStayAmendmentOperation",
+          "member": "ExpectedDetailsRevision",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationStayAmendmentOperationDataRightsExport",
+          "member": "ExpectedDetailsRevision",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.stay-amendment.requested-by",
+      "dataSubject": "staff",
+      "classification": "audit-attribution",
+      "sensitivity": "standard",
+      "purposes": [
+        "reservation-stay-amendment",
+        "workflow-recovery"
+      ],
+      "sources": [
+        "authenticated-subject"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "staff.audit-attribution",
+      "retentionPolicy": "reservation-management-operation-journal",
+      "rightsPolicy": "staff-audit-attribution",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.AmendReservationStayCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.StayAmendments.ReservationStayAmendmentOperation",
+          "member": "RequestedBy",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "reservation.stay-amendment.outcome",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "reservation-stay-amendment",
+        "workflow-recovery"
+      ],
+      "sources": [
+        "staff-action",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.details.history",
+      "retentionPolicy": "reservation-management-operation-journal",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "api-response",
+        "application-query",
+        "persistence",
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "intra-module",
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationStayAmendmentReceiptDto",
+          "member": "Outcome",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationStayAmendmentRecoveryCursorDto",
+          "member": "Outcome",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationStayAmendmentRecoveryItemDto",
+          "member": "Outcome",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Ports.ReservationStayAmendmentRecoveryCursorRecord",
+          "member": "Outcome",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.StayAmendments.ReservationStayAmendmentOperation",
+          "member": "Outcome",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationStayAmendmentOperationDataRightsExport",
+          "member": "Outcome",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.stay-amendment.operation-version",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "reservation-stay-amendment",
+        "workflow-recovery"
+      ],
+      "sources": [
+        "staff-action",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.details.history",
+      "retentionPolicy": "reservation-management-operation-journal",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "application-command",
+        "api-input",
+        "api-response",
+        "persistence",
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "intra-module",
+        "customer-api",
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ReconcileReservationStayAmendmentCommand",
+          "member": "ExpectedOperationVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Api",
+          "type": "BunkFy.Modules.Reservations.Api.ReservationsModule+ReconcileReservationStayAmendmentRequest",
+          "member": "ExpectedOperationVersion",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationStayAmendmentReceiptDto",
+          "member": "OperationVersion",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationStayAmendmentRecoveryItemDto",
+          "member": "OperationVersion",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.StayAmendments.ReservationStayAmendmentOperation",
+          "member": "OperationVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationStayAmendmentOperationDataRightsExport",
+          "member": "OperationVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.stay-amendment.requested-at-utc",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "reservation-stay-amendment",
+        "workflow-recovery"
+      ],
+      "sources": [
+        "staff-action",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.details.history",
+      "retentionPolicy": "reservation-management-operation-journal",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "api-response",
+        "persistence",
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "intra-module",
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationStayAmendmentReceiptDto",
+          "member": "RequestedAtUtc",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationStayAmendmentRecoveryItemDto",
+          "member": "RequestedAtUtc",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.StayAmendments.ReservationStayAmendmentOperation",
+          "member": "RequestedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationStayAmendmentOperationDataRightsExport",
+          "member": "RequestedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.stay-amendment.updated-at-utc",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "reservation-stay-amendment",
+        "workflow-recovery"
+      ],
+      "sources": [
+        "staff-action",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.details.history",
+      "retentionPolicy": "reservation-management-operation-journal",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "api-response",
+        "application-query",
+        "persistence",
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "intra-module",
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationStayAmendmentReceiptDto",
+          "member": "UpdatedAtUtc",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationStayAmendmentRecoveryCursorDto",
+          "member": "UpdatedAtUtc",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationStayAmendmentRecoveryItemDto",
+          "member": "UpdatedAtUtc",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Ports.ReservationStayAmendmentRecoveryCursorRecord",
+          "member": "UpdatedAtUtc",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.StayAmendments.ReservationStayAmendmentOperation",
+          "member": "UpdatedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationStayAmendmentOperationDataRightsExport",
+          "member": "UpdatedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.stay-amendment.completed-at-utc",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "reservation-stay-amendment",
+        "workflow-recovery"
+      ],
+      "sources": [
+        "staff-action",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.details.history",
+      "retentionPolicy": "reservation-management-operation-journal",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "api-response",
+        "persistence",
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "intra-module",
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationStayAmendmentReceiptDto",
+          "member": "CompletedAtUtc",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.StayAmendments.ReservationStayAmendmentOperation",
+          "member": "CompletedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationStayAmendmentOperationDataRightsExport",
+          "member": "CompletedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.stay-amendment.resulting-details-revision",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "reservation-stay-amendment",
+        "workflow-recovery"
+      ],
+      "sources": [
+        "staff-action",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.details.history",
+      "retentionPolicy": "reservation-management-operation-journal",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "api-response",
+        "persistence",
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "intra-module",
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationStayAmendmentReceiptDto",
+          "member": "ResultingDetailsRevision",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.StayAmendments.ReservationStayAmendmentOperation",
+          "member": "ResultingDetailsRevision",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationStayAmendmentOperationDataRightsExport",
+          "member": "ResultingDetailsRevision",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.stay-amendment.resulting-reservation-version",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "reservation-stay-amendment",
+        "workflow-recovery"
+      ],
+      "sources": [
+        "staff-action",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.details.history",
+      "retentionPolicy": "reservation-management-operation-journal",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "api-response",
+        "persistence",
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "intra-module",
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationStayAmendmentReceiptDto",
+          "member": "ResultingReservationVersion",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.StayAmendments.ReservationStayAmendmentOperation",
+          "member": "ResultingReservationVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationStayAmendmentOperationDataRightsExport",
+          "member": "ResultingReservationVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.stay-amendment.resulting-allocation-version",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "reservation-stay-amendment",
+        "workflow-recovery",
+        "inventory-allocation-consistency"
+      ],
+      "sources": [
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.allocation",
+      "retentionPolicy": "reservation-management-operation-journal",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "persistence",
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.StayAmendments.ReservationStayAmendmentOperation",
+          "member": "ResultingAllocationVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationStayAmendmentOperationDataRightsExport",
+          "member": "ResultingAllocationVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationStayAmendmentOperationStateTenantExport",
+          "member": "ResultingAllocationVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservations-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.stay-amendment.rejection-reason",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "reservation-stay-amendment",
+        "workflow-recovery"
+      ],
+      "sources": [
+        "staff-action",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.details.history",
+      "retentionPolicy": "reservation-management-operation-journal",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "api-response",
+        "persistence",
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "intra-module",
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationStayAmendmentReceiptDto",
+          "member": "RejectionReason",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.StayAmendments.ReservationStayAmendmentOperation",
+          "member": "RejectionCode",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationStayAmendmentOperationDataRightsExport",
+          "member": "RejectionCode",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.stay-amendment.reconciliation-count",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "reservation-stay-amendment",
+        "workflow-recovery"
+      ],
+      "sources": [
+        "staff-action",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.details.history",
+      "retentionPolicy": "reservation-management-operation-journal",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "api-response",
+        "persistence",
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "intra-module",
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationStayAmendmentReceiptDto",
+          "member": "ReconciliationCount",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.StayAmendments.ReservationStayAmendmentOperation",
+          "member": "ReconciliationCount",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationStayAmendmentOperationDataRightsExport",
+          "member": "ReconciliationCount",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.stay-amendment.last-reconciled-at-utc",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "reservation-stay-amendment",
+        "workflow-recovery"
+      ],
+      "sources": [
+        "staff-action",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.details.history",
+      "retentionPolicy": "reservation-management-operation-journal",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "api-response",
+        "persistence",
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "intra-module",
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationStayAmendmentReceiptDto",
+          "member": "LastReconciledAtUtc",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.StayAmendments.ReservationStayAmendmentOperation",
+          "member": "LastReconciledAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationStayAmendmentOperationDataRightsExport",
+          "member": "LastReconciledAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservation.stay-amendment.last-reconciled-by",
+      "dataSubject": "staff",
+      "classification": "audit-attribution",
+      "sensitivity": "standard",
+      "purposes": [
+        "reservation-stay-amendment",
+        "workflow-recovery"
+      ],
+      "sources": [
+        "authenticated-subject"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "staff.audit-attribution",
+      "retentionPolicy": "reservation-management-operation-journal",
+      "rightsPolicy": "staff-audit-attribution",
+      "allowedSurfaces": [
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ReconcileReservationStayAmendmentCommand",
+          "member": "ActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.StayAmendments.ReservationStayAmendmentOperation",
+          "member": "LastReconciledBy",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "reservation.stay-amendment.recovery-eligible",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "reservation-stay-amendment",
+        "workflow-recovery"
+      ],
+      "sources": [
+        "staff-action",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.details.history",
+      "retentionPolicy": "reservation-management-operation-journal",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "api-response"
+      ],
+      "allowedBoundaries": [
+        "customer-api"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationStayAmendmentReceiptDto",
+          "member": "RecoveryEligible",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationStayAmendmentRecoveryItemDto",
+          "member": "RecoveryEligible",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "reservation.stay-amendment.next-recovery-eligible-at-utc",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "reservation-stay-amendment",
+        "workflow-recovery"
+      ],
+      "sources": [
+        "staff-action",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.details.history",
+      "retentionPolicy": "reservation-management-operation-journal",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "api-response"
+      ],
+      "allowedBoundaries": [
+        "customer-api"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationStayAmendmentReceiptDto",
+          "member": "NextRecoveryEligibleAtUtc",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationStayAmendmentRecoveryItemDto",
+          "member": "NextRecoveryEligibleAtUtc",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "reservation.stay-amendment.target",
+      "dataSubject": "guest",
+      "classification": "structured-payload",
+      "sensitivity": "unstructured",
+      "purposes": [
+        "reservation-stay-amendment",
+        "workflow-recovery"
+      ],
+      "sources": [
+        "staff-action",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.details.history",
+      "retentionPolicy": "reservation-management-operation-journal",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "api-response"
+      ],
+      "allowedBoundaries": [
+        "customer-api"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationStayAmendmentReceiptDto",
+          "member": "Target",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "reservation.stay-amendment.recovery-cursor",
+      "dataSubject": "guest",
+      "classification": "structured-payload",
+      "sensitivity": "unstructured",
+      "purposes": [
+        "reservation-stay-amendment",
+        "workflow-recovery"
+      ],
+      "sources": [
+        "staff-action",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.details.history",
+      "retentionPolicy": "reservation-management-operation-journal",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "application-query",
+        "api-response"
+      ],
+      "allowedBoundaries": [
+        "intra-module",
+        "customer-api"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Queries.ListReservationStayAmendmentRecoveryQuery",
+          "member": "Cursor",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationStayAmendmentRecoveryPageDto",
+          "member": "NextCursor",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Ports.ReservationStayAmendmentRecoveryPageRecord",
+          "member": "NextCursor",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "reservation.stay-amendment.recovery-operations",
+      "dataSubject": "guest",
+      "classification": "structured-payload",
+      "sensitivity": "unstructured",
+      "purposes": [
+        "reservation-stay-amendment",
+        "workflow-recovery"
+      ],
+      "sources": [
+        "staff-action",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.details.history",
+      "retentionPolicy": "reservation-management-operation-journal",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "api-response",
+        "application-query"
+      ],
+      "allowedBoundaries": [
+        "customer-api",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationStayAmendmentRecoveryPageDto",
+          "member": "Operations",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Ports.ReservationStayAmendmentRecoveryPageRecord",
+          "member": "Operations",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "reservation.stay-amendment.inventory-request-id",
+      "dataSubject": "guest",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "elevated",
+      "purposes": [
+        "inventory-amendment-correlation",
+        "workflow-recovery"
+      ],
+      "sources": [
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.allocation",
+      "retentionPolicy": "reservation-management-operation-journal",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "persistence",
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "intra-module",
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.Aggregates.Reservation",
+          "member": "PendingInventoryAmendmentRequestId",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-record-lifecycle"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Domain",
+          "type": "BunkFy.Modules.Reservations.Domain.StayAmendments.ReservationStayAmendmentOperation",
+          "member": "InventoryRequestId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationDataRightsExport",
+          "member": "PendingInventoryAmendmentRequestId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationStayAmendmentOperationDataRightsExport",
+          "member": "InventoryRequestId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservation-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationBookingStateTenantExport",
+          "member": "PendingInventoryAmendmentRequestId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservations-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationStayAmendmentOperationStateTenantExport",
+          "member": "InventoryRequestId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservations-tenant-termination-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "reservations.stay-amendment-operation",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "authorized-export",
+        "workflow-recovery"
+      ],
+      "sources": [
+        "staff-action",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.details.history",
+      "retentionPolicy": "reservation-management-operation-journal",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationStayAmendmentOperationTenantExport",
+          "member": "StayAmendmentOperation",
           "surface": "data-rights-export",
           "retentionPolicy": "reservations-tenant-termination-export-fragment"
         }

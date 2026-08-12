@@ -45,6 +45,22 @@ public static class ReservationsApplicationErrors
     public static Error DetailsChangeProvenanceInvalid => ReservationsDomainErrors.DetailsChangeProvenanceInvalid;
     public static Error AllocationAmendmentInProgress => ReservationsDomainErrors.AllocationAmendmentInProgress;
     public static Error AllocationAmendmentInvalid => ReservationsDomainErrors.AllocationAmendmentInvalid;
+    public static readonly Error StayAmendmentRequestInvalid = new(
+        "Reservations.StayAmendmentRequestInvalid",
+        "The stay-amendment request is invalid.");
+    public static readonly Error StayAmendmentOperationNotFound = new(
+        "Reservations.StayAmendmentOperationNotFound",
+        "The stay-amendment operation was not found.");
+    public static readonly Error StayAmendmentOperationConflict = new(
+        "Reservations.StayAmendmentOperationConflict",
+        "The stay-amendment operation id is already bound to a different request.");
+    public static Error StayAmendmentOperationVersionConflict =>
+        ReservationsDomainErrors.StayAmendmentOperationVersionConflict;
+    public static readonly Error StayAmendmentReconcileInvalid = new(
+        "Reservations.StayAmendmentReconcileInvalid",
+        "Only a pending stay-amendment operation can be reconciled.");
+    public static Error StayAmendmentReconcileTooSoon =>
+        ReservationsDomainErrors.StayAmendmentReconcileTooSoon;
     public static Error StayBusinessDateInvalid => ReservationsDomainErrors.StayBusinessDateInvalid;
     public static Error StayProvenanceInvalid => ReservationsDomainErrors.StayProvenanceInvalid;
     public static readonly Error GuestNotLinkable = new("Reservations.GuestNotLinkable", "The guest is not active and visible at this property.");

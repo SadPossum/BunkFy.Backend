@@ -40,6 +40,7 @@ public sealed class ReservationsAdminCliModule : IAdminCliModule
             CreateCancelCommand(commands.Services, globalOptions),
             CreateLinkGuestCommand(commands.Services, globalOptions),
             ReservationInventoryAdminCliCommand.Create(commands.Services, globalOptions),
+            ReservationStayAmendmentAdminCliCommand.Create(commands.Services, globalOptions),
             CreateStayLifecycleCommand(
                 commands.Services,
                 globalOptions,

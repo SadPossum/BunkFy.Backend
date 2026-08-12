@@ -140,6 +140,7 @@ Useful entry points:
 - [Reservation Guest Record Convergence Task](planning/reservation-guest-record-convergence-task.md)
 - [Reservation Guest Record Resume Attribution Task](planning/reservation-guest-record-resume-attribution-task.md)
 - [Reservations Management Inventory Amendment Replay Task](planning/reservations-management-inventory-amendment-replay-task.md)
+- [Reservations Stay Amendment Convergence Task](planning/reservations-stay-amendment-convergence-task.md)
 - [Reservations Data Rights Workflow Task](planning/reservations-data-rights-workflow-task.md)
 - [Reservation Record Retention Task](planning/reservation-record-retention-task.md)
 - [Executable Personal-Data Catalogue Task](planning/executable-personal-data-catalog-task.md)

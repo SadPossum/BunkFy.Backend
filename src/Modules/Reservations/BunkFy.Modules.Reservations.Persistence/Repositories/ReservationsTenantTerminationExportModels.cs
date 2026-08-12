@@ -7,6 +7,7 @@ using BunkFy.Modules.Reservations.Domain.DataRights;
 using BunkFy.Modules.Reservations.Domain.GuestRecords;
 using BunkFy.Modules.Reservations.Domain.Models;
 using BunkFy.Modules.Reservations.Domain.Retention;
+using BunkFy.Modules.Reservations.Domain.StayAmendments;
 using DomainAnonymisationDisposition =
     BunkFy.Modules.Reservations.Domain.DataRights
         .ReservationAnonymisationDisposition;
@@ -52,6 +53,7 @@ internal sealed record ReservationBookingStateTenantExport(
     Guid? ReleaseRequestId,
     int? LastReleaseRejectionCode,
     Guid? PendingAllocationAmendmentId,
+    Guid? PendingInventoryAmendmentRequestId,
     int? LastAllocationAmendmentRejectionCode,
     DateOnly? PendingStayBusinessDate,
     DateOnly? CheckedInBusinessDate,
@@ -290,6 +292,48 @@ internal sealed record ReservationManagementOperationStateTenantExport(
     DateOnly? BusinessDate,
     string? RequestFingerprint,
     DateTimeOffset CreatedAtUtc);
+
+internal sealed record ReservationStayAmendmentOperationTenantExport(
+    [property: ReservationsTenantExportField("reservations.scope-id")]
+    string ScopeId,
+    [property: ReservationsTenantExportField("reservations.property-id")]
+    Guid PropertyId,
+    [property: ReservationsTenantExportField("reservations.reservation-id")]
+    Guid ReservationId,
+    [property: ReservationsTenantExportField("reservations.record-id")]
+    Guid OperationId,
+    [property: ReservationsTenantExportField(
+        "reservations.stay-amendment-operation")]
+    ReservationStayAmendmentOperationStateTenantExport StayAmendmentOperation,
+    [property: ReservationsTenantExportField(
+        "reservations.staff-attribution")]
+    ReservationStayAmendmentOperationStaffTenantExport StaffAttribution);
+
+internal sealed record ReservationStayAmendmentOperationStateTenantExport(
+    Guid? InventoryRequestId,
+    int RequestSchemaVersion,
+    string RequestFingerprint,
+    DateOnly? TargetArrival,
+    DateOnly? TargetDeparture,
+    TimeOnly? TargetExpectedArrivalTime,
+    TimeOnly? TargetExpectedDepartureTime,
+    IReadOnlyCollection<Guid>? TargetInventoryUnitIds,
+    long ExpectedDetailsRevision,
+    ReservationStayAmendmentOperationOutcome Outcome,
+    long OperationVersion,
+    DateTimeOffset RequestedAtUtc,
+    DateTimeOffset UpdatedAtUtc,
+    DateTimeOffset? CompletedAtUtc,
+    long? ResultingDetailsRevision,
+    long? ResultingReservationVersion,
+    long? ResultingAllocationVersion,
+    int? RejectionCode,
+    int ReconciliationCount,
+    DateTimeOffset? LastReconciledAtUtc);
+
+internal sealed record ReservationStayAmendmentOperationStaffTenantExport(
+    string? RequestedBy,
+    string? LastReconciledBy);
 
 internal sealed record ReservationArrivalReminderTenantExport(
     [property: ReservationsTenantExportField("reservations.scope-id")]
