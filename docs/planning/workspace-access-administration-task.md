@@ -2,6 +2,7 @@
 
 Status: complete
 Date: 2026-08-04
+Updated: 2026-08-12
 
 ## Goal
 
@@ -85,3 +86,10 @@ needed unless persistence behavior changes.
 
 No Docker scenario was rerun because the slice changes neither persistence
 shape nor broker/restart behavior.
+
+The later exact-release Preview rehearsal
+`preview-workspace-access-0257a44` passed 22 trusted-HTTPS browser checks and
+proved this administration path with separate owner/member accounts. The seed
+version 2 wording above records what this original slice introduced; the current
+code-owned BunkFy seed is version 4, whose estate-wide activation evidence
+remains separate.

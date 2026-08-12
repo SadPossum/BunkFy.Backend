@@ -1,7 +1,7 @@
 # Workspace Access Profiles Task
 
 Status: backend and owner-facing least-privilege cutover implemented;
-default-profile browser proof complete; custom-profile and estate proof remain
+default/custom-profile browser proof complete; deployed estate proof remains
 Date: 2026-07-22
 Updated: 2026-08-12
 
@@ -32,7 +32,7 @@ The backend now implements the target least-privilege model:
 - Profile replacement and offboarding are deny-first, transactional or durably recoverable. A partial failure may temporarily deny access, but must never retain broader authority than the requested result.
 - Existing member assignments require an explicit, idempotent backfill before their compatibility grant is removed.
 
-Seed version `2` is code-owned and its keys are protected from product and raw
+Seed version `4` is code-owned and its keys are protected from product and raw
 generic mutation routes. GMA's generic `Ensure` operation remains
 non-overwriting; BunkFy bootstrap explicitly detects drift and reconciles an
 active built-in profile through the generic profile manager as the exact system
@@ -92,21 +92,21 @@ The backend allowlist, workspace/property-scoped assignment eligibility policy,
 versioned seeds, default onboarding assignment, per-workspace migration tool,
 membership-driven cleanup, Staff-driven offboarding orchestration,
 invitation-time profile/property plans, product facade, and capability-driven
-workspace-admin UI are complete. Every deployed workspace still needs version
-2 status/bootstrap evidence. The deployed default Front desk onboarding path is
-now browser-proven with separate accounts; custom-profile administration and
-post-onboarding assignment changes remain a production proof gate.
+workspace-admin UI are complete. Every deployed workspace still needs current
+version 4 status/bootstrap evidence. The deployed default Front desk onboarding,
+custom-profile administration, and post-onboarding assignment paths are now
+browser-proven with separate accounts.
 
 ## Delivery Order
 
 1. [Complete] Prepare and land the two generic Contracts facades in their owning GMA modules, with provider-neutral behavior, PostgreSQL/SQL Server coverage where applicable, concurrency tests, and no BunkFy vocabulary.
 2. [Complete] Pull the released GMA revisions through GMA-Skeleton and BunkFy without local framework forks.
-3. [Code complete; deployed estate pending] Add versioned BunkFy seed definitions and an idempotent workspace access bootstrap/backfill process. Prove existing members retain the intended Front desk access before removing their compatibility grants. Run version 2 status/bootstrap for every deployed workspace before globally retiring the legacy role definition.
+3. [Code complete; deployed estate pending] Add versioned BunkFy seed definitions and an idempotent workspace access bootstrap/backfill process. Prove existing members retain the intended Front desk access before removing their compatibility grants. Run current version 4 status/bootstrap for every deployed workspace before globally retiring the legacy role definition.
 4. [Complete] Add a BunkFy workspace-role facade and permission catalogue for the web. Reconciliation is exact-scope, anti-escalating, and deny-first.
 5. [Complete] Extend invitation/enrollment coordination with server-owned profile and property-assignment plans. Applicants may review but never author authority-bearing fields.
 6. [Complete] Add durable Staff suspension/departure orchestration that denies membership first, revokes profile assignments, preserves unrelated workspaces/global Auth, and supports explicit recovery.
 7. [Complete for the current single-role product workflow] Build workspace-admin role/profile UI, permission summaries, assignment controls, and invitation-time selection.
-8. [Default-profile deployed browser proof complete; custom-profile smoke pending] Keep the PostgreSQL/NATS concurrency and Worker restart proof green, then cover custom profile administration and reassignment with separate owner/member accounts.
+8. [Complete] Keep the PostgreSQL/NATS concurrency and Worker restart proof green, then cover custom profile administration and reassignment with separate owner/member accounts.
 
 ## Completion Proof
 
@@ -115,3 +115,9 @@ post-onboarding assignment changes remain a production proof gate.
 - ordinary members cannot grant owner or integration/security administration privileges;
 - role changes update permission-filtered navigation and API authorization consistently;
 - PostgreSQL, API contract, concurrency, isolation, and browser workflow tests pass.
+
+The exact-release Preview rehearsal `preview-workspace-access-0257a44` passed 22
+trusted-HTTPS checks. Its custom-role slice proved create, property-scoped
+assignment, live permission update, exact reassignment, archive, and exclusion
+from active assignment controls. Deployment-by-deployment seed version 4
+activation remains a separate estate gate.
