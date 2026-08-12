@@ -635,7 +635,7 @@ public sealed class HostCompositionGuardTests
     }
 
     [Fact]
-    public void Public_api_rate_limit_allows_the_supported_onboarding_sequence()
+    public void Public_api_rate_limits_separate_shared_network_reads_from_sensitive_writes()
     {
         using JsonDocument document = JsonDocument.Parse(
             RepositoryPaths.Read("src", "BunkFy.Host.Api", "appsettings.json"));
@@ -647,6 +647,61 @@ public sealed class HostCompositionGuardTests
         Assert.True(
             rateLimiting.GetProperty("GlobalPermitLimit").GetInt32() >=
             rateLimiting.GetProperty("SensitivePermitLimit").GetInt32());
+        Assert.Empty(rateLimiting
+            .GetProperty("SensitivePathPrefixes")
+            .EnumerateArray());
+
+        Dictionary<string, JsonElement> policies = rateLimiting
+            .GetProperty("Policies")
+            .EnumerateArray()
+            .ToDictionary(
+                policy => policy.GetProperty("Name").GetString()!,
+                StringComparer.Ordinal);
+        Assert.Equal(
+            ["authentication-write", "workspace-join-write"],
+            policies.Keys.Order(StringComparer.Ordinal));
+
+        AssertRateLimitPolicy(
+            policies["authentication-write"],
+            60,
+            [
+                "/api/auth/register",
+                "/api/auth/login",
+                "/api/auth/refresh",
+                "/api/auth/browser",
+                "/api/auth/password",
+                "/api/auth/mfa",
+                "/api/auth/external",
+                "/api/auth/email-verification"
+            ]);
+        AssertRateLimitPolicy(
+            policies["workspace-join-write"],
+            60,
+            [
+                "/api/organization-invitations",
+                "/api/organization-enrollment",
+                "/api/workspace-staff-enrollment"
+            ]);
+    }
+
+    private static void AssertRateLimitPolicy(
+        JsonElement policy,
+        int permitLimit,
+        string[] expectedPaths)
+    {
+        Assert.Equal(permitLimit, policy.GetProperty("PermitLimit").GetInt32());
+        Assert.Equal(
+            expectedPaths,
+            policy.GetProperty("PathPrefixes")
+                .EnumerateArray()
+                .Select(value => value.GetString()!)
+                .ToArray());
+        Assert.Equal(
+            ["POST", "PUT", "PATCH", "DELETE"],
+            policy.GetProperty("Methods")
+                .EnumerateArray()
+                .Select(value => value.GetString()!)
+                .ToArray());
     }
 
     [Fact]
