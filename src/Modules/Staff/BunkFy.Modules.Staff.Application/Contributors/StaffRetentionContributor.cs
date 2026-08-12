@@ -363,6 +363,10 @@ internal sealed class StaffRetentionContributor
                     .PrerequisiteUnavailable:
                 prerequisiteUnavailable = true;
                 break;
+            case StaffRetentionMutationFailure
+                    .IdentityAnchorResolutionRequired:
+                mutationFailed = true;
+                break;
             case StaffRetentionMutationFailure.MutationFailed:
             case StaffRetentionMutationFailure.None:
             default:

@@ -28,8 +28,17 @@ public sealed class OrganizationMembershipAccessHandlerTests
             .Select(descriptor => descriptor.ImplementationInstance)
             .OfType<IntegrationEventSubscription>()
             .ToArray();
-        Assert.Equal(2, subscriptions.Length);
+        Assert.Equal(3, subscriptions.Length);
         Assert.All(subscriptions, subscription => Assert.True(subscription.IsTenantScoped()));
+        Assert.Contains(
+            subscriptions,
+            subscription =>
+                subscription.EventType == typeof(
+                    WorkspaceStaffOnboardingIdentityAnchorResolvedIntegrationEvent) &&
+                subscription.HandlerType == typeof(
+                    WorkspaceStaffOnboardingIdentityAnchorResolutionHandler) &&
+                subscription.ConsumerModule == StaffModuleMetadata.Name &&
+                subscription.ProducerModule == WorkspacesModuleMetadata.Name);
         Assert.Contains(services, descriptor =>
             descriptor.ServiceType == typeof(IAccessProfileAssignmentPolicy) &&
             descriptor.ImplementationType == typeof(WorkspaceAccessProfileAssignmentPolicy));

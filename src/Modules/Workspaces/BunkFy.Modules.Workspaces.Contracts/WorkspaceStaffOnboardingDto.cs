@@ -24,7 +24,20 @@ public sealed record WorkspaceStaffOnboardingDto(
     DateTimeOffset LastChangedAtUtc);
 
 public sealed record WorkspaceStaffOnboardingListResponse(
-    IReadOnlyList<WorkspaceStaffOnboardingDto> Items,
+    IReadOnlyList<WorkspaceStaffOnboardingActionableSummaryDto> Items,
     int Page,
     int PageSize,
     bool HasMore);
+
+public sealed record WorkspaceStaffOnboardingActionableSummaryDto(
+    Guid ApplicationId,
+    WorkspaceStaffOnboardingSourceKind SourceKind,
+    Guid SourceId,
+    Guid? ClaimId,
+    long? ClaimVersion,
+    WorkspaceStaffOnboardingStatus Status,
+    long Version,
+    string? FailureCode,
+    DateTimeOffset CreatedAtUtc,
+    DateTimeOffset LastChangedAtUtc,
+    bool HasStaffTarget);

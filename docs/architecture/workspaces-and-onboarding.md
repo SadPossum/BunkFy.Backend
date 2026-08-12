@@ -220,6 +220,65 @@ BunkFy's current composition uses global Auth identities and no workspace-id log
 
 The migration and the steady-state schema must be covered against PostgreSQL. Provider-specific migration code remains outside Auth domain/application behavior.
 
+### Identity-Anchor Stop/Drain Deployment Contract
+
+The following migrations form one non-rolling-compatible release boundary:
+
+- Staff `20260811110753_AddStaffIdentityProvisioningAnchors`;
+- Workspaces `20260811205004_AddWorkspaceStaffIdentityProvisioningAnchors`.
+
+The generic [Migrations Host Production Safety](../operations/migrations-host-production-safety.md)
+contract still applies. This feature additionally requires one stop-the-world
+cutover:
+
+1. Freeze one reviewed immutable release whose Migrations, API, Admin, and
+   Worker artifacts have the same source identity and contain the two expected
+   migration artifacts. Retain the matching Production `Plan` output.
+2. Stop every API, Admin, Worker, scheduled-task, and ad hoc maintenance
+   instance that can write Staff or Workspaces on the target database,
+   including old replicas and canaries. Block new traffic and task delivery.
+3. Wait for active Staff and Workspaces database transactions to finish. Drain
+   identity-anchor inbox/outbox deliveries and reconciliation tasks to reviewed
+   safe states: processed/terminal, or an explicitly recorded retry/failed item
+   whose coordinates and forward-replay owner have been reviewed. Unknown or
+   still-running work is not a safe drain state.
+4. Apply `20260811110753_AddStaffIdentityProvisioningAnchors` first and
+   `20260811205004_AddWorkspaceStaffIdentityProvisioningAnchors` second from the
+   same approved Migrations artifact. A partial run remains stopped and uses
+   the approved same-release forward-resume or restore procedure.
+5. Deploy the matching API, Admin, and Worker binaries together before any
+   ordinary writer resumes. Keep external traffic, schedules, and general
+   consumer delivery paused while controlled cutover checks run. Once the
+   Staff migration has committed, no pre-cutover binary may reconnect to the
+   advanced database.
+6. For every tenant, run `workspaces.identity-anchors.status` with the reviewed
+   owner manifest, reconcile only against the accepted evidence hashes, and
+   rerun status until it reports a ready, conflict-free state. Complete a
+   bounded identity-anchor sweep under the stable-universe barrier and verify
+   its checkpoint, high-water mark, and zero deferred/conflict backlog.
+   Reconcile the Staff anchor/resolution ledger with Workspaces application and
+   historical-review receipts, and confirm that identity-anchor inbox/outbox
+   and task backlogs contain no unreviewed pending, retryable, running, or
+   failed work.
+7. Resume the new Worker consumers and maintenance schedules deliberately,
+   verify the ledgers and backlogs remain converged, and only then reopen API
+   and Admin write traffic.
+
+The `Down` methods are safety guards, not the rollback plan. Staff refuses a
+downgrade while durable anchors or resolutions exist. Workspaces refuses while
+identity-anchor receipts or checkpoints, active new destruction stages,
+onboarding anchor coordinates, suppressed restorations, irreversible
+redactions, pending identity-anchor messages, or reconciliation tasks remain.
+A guard refusal is a hard stop: keep writers stopped and use reviewed forward
+repair or restore the complete pre-change database and artifact set.
+
+This section defines repository procedure only. Its presence, review, or
+passing repository checks is not evidence that any environment was stopped,
+drained, migrated, verified, or resumed. Environment-specific evidence must
+record the stopped instance set, drain observations, exact artifact identities,
+Plan/Apply output, cutover status, sweep/ledger/backlog results, approvals, and
+resume decision.
+
 ## Rejected Shapes
 
 - Put workspace lifecycle in Tenancy: mixes domain registry behavior into scope plumbing.

@@ -4,6 +4,8 @@ using System.Data;
 using System.Data.Common;
 using System.Text.Json;
 using BunkFy.Modules.DataRights.Contracts;
+using BunkFy.Modules.Staff.Application;
+using BunkFy.Modules.Staff.Application.Ports;
 using BunkFy.Modules.Staff.Contracts;
 using BunkFy.Modules.Staff.Domain.Aggregates;
 using BunkFy.Modules.Staff.Persistence;
@@ -11,6 +13,7 @@ using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Domain;
 using BunkFy.Modules.Workspaces.Domain.Termination;
 using BunkFy.Modules.Workspaces.Persistence;
+using Gma.Framework.Cqrs.Infrastructure;
 using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
 using Microsoft.EntityFrameworkCore;
@@ -66,8 +69,10 @@ public sealed partial class WorkspacesDataRightsExportIntegrationTests
             await dbContext.Database.GetService<IMigrator>()
                 .MigrateAsync(PreviousMigration);
             await dbContext.Database.MigrateAsync();
-            graph = SeedGraph(dbContext, TenantA, SubjectId);
-            await dbContext.SaveChangesAsync();
+            graph = await SeedGraphAsync(
+                dbContext,
+                TenantA,
+                SubjectId);
         }
 
         using ServiceProvider tenantBProvider =
@@ -95,6 +100,15 @@ public sealed partial class WorkspacesDataRightsExportIntegrationTests
                     employeeNumber: null,
                     jobTitle: null,
                     department: null,
+                    Now).Value);
+            dbContext.StaffDeferredClaimWithdrawals.Add(
+                WorkspaceStaffDeferredClaimWithdrawal.Create(
+                    TenantB,
+                    Guid.Parse(TenantB),
+                    Guid.Parse("40000000-0000-0000-0000-000000000097"),
+                    Guid.Parse("50000000-0000-0000-0000-000000000097"),
+                    claimVersion: 2,
+                    Guid.Parse("60000000-0000-0000-0000-000000000097"),
                     Now).Value);
             await dbContext.SaveChangesAsync();
         }
@@ -125,9 +139,54 @@ public sealed partial class WorkspacesDataRightsExportIntegrationTests
                         "91000000-0000-0000-0000-000000000001"),
                     Now).Value);
             await staffDbContext.SaveChangesAsync();
-            WorkspaceTerminationFence fence = CreateTerminationFence();
-            dbContext.WorkspaceTerminationFences.Add(fence);
+
+            Guid resolutionEventId = Assert.IsType<Guid>(
+                graph.Onboarding.IdentityAnchorResolutionEventId);
+            long workspaceApplicationVersion = Assert.IsType<long>(
+                graph.Onboarding.IdentityAnchorResolutionApplicationVersion);
+            IStaffIdentityProvisioningAnchorRepository anchors =
+                scope.ServiceProvider.GetRequiredService<
+                    IStaffIdentityProvisioningAnchorRepository>();
+            await anchors.AddAsync(
+                new StaffIdentityProvisioningAnchorRecord(
+                    TenantA,
+                    StaffIdentityProvisioningSourceKind.WorkspaceOnboarding,
+                    graph.Onboarding.Id,
+                    StaffMemberId,
+                    Now.AddMinutes(2),
+                    resolutionEventId),
+                CancellationToken.None);
+            await staffDbContext.SaveChangesAsync();
+
+            IStaffIdentityProvisioningAnchorResolutionRepository resolutions =
+                scope.ServiceProvider.GetRequiredService<
+                    IStaffIdentityProvisioningAnchorResolutionRepository>();
+            await resolutions.AddAsync(
+                new StaffIdentityProvisioningAnchorResolutionRecord(
+                    TenantA,
+                    StaffIdentityProvisioningSourceKind.WorkspaceOnboarding,
+                    graph.Onboarding.Id,
+                    StaffMemberId,
+                    workspaceApplicationVersion,
+                    StaffWorkspaceOnboardingIdentityAnchorResolutionDisposition
+                        .CompletedRedacted,
+                    resolutionEventId,
+                    Now.AddMinutes(3)),
+                CancellationToken.None);
+            await staffDbContext.SaveChangesAsync();
+
+            WorkspaceStaffOnboarding onboardingForObservation =
+                await dbContext.StaffOnboardingApplications.SingleAsync(
+                    application => application.Id == graph.Onboarding.Id);
+            Assert.True(onboardingForObservation.ObserveResolution(
+                resolutionEventId,
+                StaffMemberId,
+                workspaceApplicationVersion,
+                onboardingForObservation
+                    .IdentityAnchorResolutionDisposition!.Value,
+                Now.AddMinutes(4)).IsSuccess);
             await dbContext.SaveChangesAsync();
+
             dbContext.ChangeTracker.Clear();
 
             IDataRightsSubjectDiscoveryContributor[] discoveries =
@@ -367,6 +426,12 @@ public sealed partial class WorkspacesDataRightsExportIntegrationTests
                     .Select(record => record.RecordId)
                     .ToArray());
 
+            dbContext.ChangeTracker.Clear();
+            WorkspaceTerminationFence fence = CreateTerminationFence();
+            dbContext.WorkspaceTerminationFences.Add(fence);
+            await dbContext.SaveChangesAsync();
+            dbContext.ChangeTracker.Clear();
+
             await AssertTenantTerminationExportAsync(
                 scope.ServiceProvider,
                 tenantAProvider,
@@ -396,12 +461,13 @@ public sealed partial class WorkspacesDataRightsExportIntegrationTests
             TenantTerminationContributionStatus.Completed,
             result.Status);
         Assert.Equal("workspace.termination.exported", result.ResultCode);
-        Assert.Equal(8, result.AffectedCount);
+        Assert.Equal(9, result.AffectedCount);
         Assert.Equal(fence.Version, result.SelectedProofRevision);
         Assert.Equal(fence.Version, result.ResultingProofRevision);
         Assert.Equal(
             [
                 WorkspacesDataRightsCoordinates.StaffOnboardingRecordType,
+                "staff-deferred-claim-withdrawal",
                 WorkspacesDataRightsCoordinates.StaffAccessProcessRecordType,
                 "staff-access-profile-snapshot",
                 "staff-access-profile-snapshot",
@@ -412,6 +478,29 @@ public sealed partial class WorkspacesDataRightsExportIntegrationTests
                     .StaffRetentionCorrelationReceiptRecordType
             ],
             first.Records.Select(record => record.RecordType).ToArray());
+        DataRightsExportRecord deferred = first.Records[1];
+        Assert.Equal(
+            Guid.Parse("50000000-0000-0000-0000-000000000096"),
+            deferred.RecordId);
+        Assert.Equal(2, deferred.RecordVersion);
+        Assert.Equal(
+            [
+                "workspaces.enrollment-claim-id",
+                "workspaces.enrollment-claim-version",
+                "workspaces.integration-event-id",
+                "workspaces.integration-event-occurred-at",
+                "workspaces.join-source-id",
+                "workspaces.workspace-scope-id"
+            ],
+            deferred.Fields.Select(field => field.FieldId)
+                .Order(StringComparer.Ordinal)
+                .ToArray());
+        Assert.Equal(
+            TenantA,
+            Field(deferred, "workspaces.workspace-scope-id").GetString());
+        Assert.Equal(
+            Guid.Parse("40000000-0000-0000-0000-000000000096"),
+            Field(deferred, "workspaces.join-source-id").GetGuid());
 
         CollectingSink replay = new();
         TenantTerminationContributionResult replayResult =
@@ -428,6 +517,10 @@ public sealed partial class WorkspacesDataRightsExportIntegrationTests
             replay.Records,
             record => record.RecordId ==
                 Guid.Parse("50000000-0000-0000-0000-000000000099"));
+        Assert.DoesNotContain(
+            replay.Records,
+            record => record.RecordId ==
+                Guid.Parse("50000000-0000-0000-0000-000000000097"));
 
         await AssertExportSerializesOperationalMutationAsync(
             contributor,
@@ -564,7 +657,7 @@ public sealed partial class WorkspacesDataRightsExportIntegrationTests
         }
     }
 
-    private static SeededGraph SeedGraph(
+    private static async Task<SeededGraph> SeedGraphAsync(
         WorkspacesDbContext dbContext,
         string tenantId,
         string subjectId)
@@ -588,17 +681,6 @@ public sealed partial class WorkspacesDataRightsExportIntegrationTests
                 "Manager",
                 "Operations",
                 Now).Value;
-        Assert.True(
-            onboarding.ObserveInvitationAccepted(
-                Now.AddMinutes(1)).IsSuccess);
-        Assert.True(
-            onboarding.MarkStaffReady(
-                StaffMemberId,
-                Now.AddMinutes(2)).IsSuccess);
-        Assert.True(
-            onboarding.Complete(
-                Now.AddMinutes(3)).IsSuccess);
-
         WorkspaceStaffAccessProcess process =
             WorkspaceStaffAccessProcess.Create(
                 Guid.Parse(
@@ -654,12 +736,39 @@ public sealed partial class WorkspacesDataRightsExportIntegrationTests
                 accessProcessRecordsScrubbed: 1,
                 accessPlanRecordsScrubbed: 1,
                 Now.AddDays(1)).Value;
+        WorkspaceStaffDeferredClaimWithdrawal deferred =
+            WorkspaceStaffDeferredClaimWithdrawal.Create(
+                tenantId,
+                Guid.Parse(tenantId),
+                Guid.Parse("40000000-0000-0000-0000-000000000096"),
+                Guid.Parse("50000000-0000-0000-0000-000000000096"),
+                claimVersion: 2,
+                Guid.Parse("60000000-0000-0000-0000-000000000096"),
+                Now.AddHours(1)).Value;
 
         dbContext.StaffOnboardingApplications.Add(onboarding);
+        dbContext.StaffDeferredClaimWithdrawals.Add(deferred);
         dbContext.StaffAccessProcesses.Add(process);
         dbContext.StaffAccessPlans.Add(plan);
         dbContext.StaffRetentionCorrelationReceipts.Add(receipt);
-        return new SeededGraph(receipt);
+
+        await dbContext.SaveChangesAsync();
+        Assert.True(
+            onboarding.ObserveInvitationAccepted(
+                Now.AddMinutes(1)).IsSuccess);
+        await dbContext.SaveChangesAsync();
+        Assert.True(
+            onboarding.MarkStaffReady(
+                StaffMemberId,
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                Now.AddMinutes(2)).IsSuccess);
+        await dbContext.SaveChangesAsync();
+        Assert.True(
+            onboarding.Complete(
+                Now.AddMinutes(3)).IsSuccess);
+        await dbContext.SaveChangesAsync();
+        return new SeededGraph(receipt, onboarding);
     }
 
     private static DataRightsSubjectDiscoveryRequest DiscoveryRequest(
@@ -750,6 +859,8 @@ public sealed partial class WorkspacesDataRightsExportIntegrationTests
             new TestScopeContext(tenantId));
         builder.Services.AddSingleton<ISystemClock>(
             clock ?? new TestClock(ExportNowUtc));
+        builder.AddCqrsInfrastructure();
+        builder.Services.AddStaffApplication();
         builder.AddStaffPersistence();
         builder.AddWorkspacesPersistence();
         return builder.Services.BuildServiceProvider();
@@ -806,5 +917,6 @@ public sealed partial class WorkspacesDataRightsExportIntegrationTests
     }
 
     private sealed record SeededGraph(
-        WorkspaceStaffRetentionCorrelationReceipt Receipt);
+        WorkspaceStaffRetentionCorrelationReceipt Receipt,
+        WorkspaceStaffOnboarding Onboarding);
 }

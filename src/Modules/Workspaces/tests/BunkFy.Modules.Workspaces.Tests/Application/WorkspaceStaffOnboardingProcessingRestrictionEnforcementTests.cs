@@ -215,7 +215,10 @@ public sealed class
         WorkspaceStaffOnboardingProcessingRestrictionRecoveryHandler handler =
             new(
                 applications,
+                new RecordingPlanRepository(),
+                new FakeWorkspaceStaffDeferredClaimWithdrawalRepository(),
                 processor,
+                new TestClock(),
                 NullLogger<
                     WorkspaceStaffOnboardingProcessingRestrictionRecoveryHandler>
                     .Instance);
@@ -244,7 +247,7 @@ public sealed class
 
         Assert.Equal(1, applications.GetCount);
         Assert.Equal(
-            ["get", "source", "lock", "reload", "projection"],
+            ["get", "source-write", "lock", "reload", "projection"],
             calls);
         Assert.Equal(1, operationLock.CallCount);
         Assert.Equal(0, staff.CallCount);
@@ -279,7 +282,10 @@ public sealed class
         WorkspaceStaffOnboardingProcessingRestrictionRecoveryHandler handler =
             new(
                 applications,
+                new RecordingPlanRepository(),
+                new FakeWorkspaceStaffDeferredClaimWithdrawalRepository(),
                 processor,
+                new TestClock(),
                 NullLogger<
                     WorkspaceStaffOnboardingProcessingRestrictionRecoveryHandler>
                     .Instance);
@@ -321,10 +327,13 @@ public sealed class
             WorkspaceStaffOnboardingMutationTestSupport.Create(
                 applications,
                 operationLock),
+            WorkspaceStaffOnboardingMutationTestSupport
+                .CreateIdentityAnchorConvergence(),
             new RecordingPlanRepository(plan),
             new WorkspaceStaffJoinTokenAuthorityResolver(
                 new EnrollmentTokenInspector(OrganizationId, sourceId)),
             admissions,
+            new FakeOrganizationEnrollmentClaimInspector(),
             Options.Create(new WorkspaceStaffOnboardingOptions
             {
                 GlobalAuthScopeId = "global"
@@ -375,6 +384,17 @@ public sealed class
             WorkspaceStaffOnboardingMutationTestSupport.Create(
                 applications,
                 operationLock),
+            new WorkspaceStaffOnboardingIdentityAnchorConvergence(
+                new StubStaffWorkspaceOnboardingIdentityAnchorOutcomeReader(),
+                WorkspaceStaffAccessMutationTestSupport.Create(
+                    WorkspaceStaffAccessMutationTestSupport.NoOpenProcesses),
+                WorkspaceStaffAccessMutationTestSupport.NoOpenProcesses,
+                new WorkspaceAccessProvisioner(
+                    roles: null!,
+                    profiles: null!,
+                    scopedProfiles: null!),
+                new TestClock(),
+                new TestIds()),
             plans,
             new WorkspaceStaffAccessPlanPolicy(
                 profiles: null!,
@@ -388,6 +408,7 @@ public sealed class
             operationalAdmission ??
                 WorkspaceOperationalAdmissionTestSupport.Allowed(TenantId),
             new TestClock(),
+            new TestIds(),
             NullLogger<WorkspaceStaffOnboardingProcessor>.Instance);
 
     private static

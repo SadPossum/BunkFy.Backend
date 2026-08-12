@@ -13,6 +13,7 @@ using Gma.Framework.AccessControl;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Pagination;
 using Gma.Framework.Results;
+using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
 using Gma.Modules.AccessControl.Contracts;
 using Gma.Modules.Organizations.Contracts;
@@ -244,6 +245,61 @@ public sealed class WorkspaceStaffOnboardingRetentionTests
     }
 
     [Fact]
+    public async Task Deferred_withdrawal_and_authoritative_expiry_fail_closed_and_retain_the_fact()
+    {
+        WorkspaceStaffOnboarding application =
+            WorkspaceStaffOnboardingTests.CreateApplication();
+        Guid claimId = Guid.NewGuid();
+        Assert.True(application.ObserveClaimRequested(
+            claimId,
+            1,
+            Now.AddHours(-4)).IsSuccess);
+        WorkspaceStaffAccessPlan plan = CreatePlan(
+            application,
+            Now.AddHours(-3),
+            active: true);
+        OrganizationEnrollmentClaimDto authoritative = new(
+            claimId,
+            application.SourceId,
+            WorkspaceStaffOnboardingTests.OrganizationId,
+            application.SubjectId,
+            OrganizationEnrollmentClaimStatus.Expired,
+            MembershipId: null,
+            Version: 2,
+            CreatedAtUtc: Now.AddHours(-4),
+            LastChangedAtUtc: Now.AddHours(-2));
+        WorkspaceStaffDeferredClaimWithdrawal withdrawal =
+            WorkspaceStaffDeferredClaimWithdrawal.Create(
+                application.ScopeId,
+                WorkspaceStaffOnboardingTests.OrganizationId,
+                application.SourceId,
+                claimId,
+                2,
+                Guid.NewGuid(),
+                Now.AddHours(-2)).Value;
+        FakeWorkspaceStaffDeferredClaimWithdrawalRepository deferred = new(withdrawal);
+        ReconcileWorkspaceStaffOnboardingRetentionCandidateCommandHandler handler =
+            CreateHandler(
+                new FakeOnboardingRepository(application),
+                new FakeAccessPlanRepository(plan),
+                new FakeClaimInspector(authoritative),
+                deferred);
+
+        Result<WorkspaceStaffOnboardingRetentionReconciliation> result =
+            await handler.HandleAsync(
+                new(application.Id, application.Version),
+                CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(
+            WorkspaceStaffOnboardingApplicationErrors.RetentionClaimInconsistent,
+            result.Error);
+        Assert.Equal(WorkspaceStaffOnboardingState.PendingApproval, application.Status);
+        Assert.NotNull(application.DisplayName);
+        Assert.Same(withdrawal, Assert.Single(deferred.Items));
+    }
+
+    [Fact]
     public async Task Accepted_claim_enters_existing_recoverable_processing_path()
     {
         WorkspaceStaffOnboarding application =
@@ -266,16 +322,26 @@ public sealed class WorkspaceStaffOnboardingRetentionTests
             WorkspaceStaffOnboardingMutationTestSupport.Create(
                 applications,
                 new FakeOperationLock()),
+            new WorkspaceStaffOnboardingIdentityAnchorConvergence(
+                new StubStaffWorkspaceOnboardingIdentityAnchorOutcomeReader(),
+                WorkspaceStaffAccessMutationTestSupport.Create(
+                    WorkspaceStaffAccessMutationTestSupport.NoOpenProcesses),
+                WorkspaceStaffAccessMutationTestSupport.NoOpenProcesses,
+                null!,
+                new FakeClock(),
+                new TestIds()),
             plans,
             planPolicy,
             null!,
             WorkspaceOperationalAdmissionTestSupport.Allowed(
                 application.ScopeId),
             new FakeClock(),
+            new TestIds(),
             NullLogger<WorkspaceStaffOnboardingProcessor>.Instance);
         ReconcileWorkspaceStaffOnboardingRetentionCandidateCommandHandler handler = new(
             applications,
             plans,
+            new FakeWorkspaceStaffDeferredClaimWithdrawalRepository(),
             WorkspaceStaffOnboardingMutationTestSupport.Create(
                 applications,
                 new FakeOperationLock()),
@@ -333,10 +399,12 @@ public sealed class WorkspaceStaffOnboardingRetentionTests
         CreateHandler(
             FakeOnboardingRepository applications,
             FakeAccessPlanRepository plans,
-            FakeClaimInspector inspector) =>
+            FakeClaimInspector inspector,
+            FakeWorkspaceStaffDeferredClaimWithdrawalRepository? deferred = null) =>
         new(
             applications,
             plans,
+            deferred ?? new FakeWorkspaceStaffDeferredClaimWithdrawalRepository(),
             WorkspaceStaffOnboardingMutationTestSupport.Create(
                 applications,
                 new FakeOperationLock()),
@@ -390,6 +458,11 @@ public sealed class WorkspaceStaffOnboardingRetentionTests
     private sealed class FakeClock : ISystemClock
     {
         public DateTimeOffset UtcNow => Now;
+    }
+
+    private sealed class TestIds : IIdGenerator
+    {
+        public Guid NewId() => Guid.CreateVersion7();
     }
 
     private sealed class FakeClaimInspector(OrganizationEnrollmentClaimDto? claim)
@@ -720,6 +793,11 @@ public sealed class WorkspaceStaffOnboardingRetentionContributorTests
     private sealed class FakeClock : ISystemClock
     {
         public DateTimeOffset UtcNow => Now;
+    }
+
+    private sealed class TestIds : IIdGenerator
+    {
+        public Guid NewId() => Guid.CreateVersion7();
     }
 
     private sealed class FakeCandidateRepository(

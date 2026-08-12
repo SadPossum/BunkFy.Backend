@@ -21,10 +21,28 @@ internal sealed record WorkspaceStaffOnboardingDataRightsExport(
     string? Department,
     WorkspaceStaffOnboardingState Status,
     Guid? StaffMemberId,
+    Guid? IdentityAnchorExpectedResolutionEventId,
+    Guid? IdentityAnchorContinuationEventId,
+    Guid? IdentityAnchorResolutionEventId,
+    Guid? IdentityAnchorResolutionStaffMemberId,
+    long? IdentityAnchorResolutionApplicationVersion,
+    WorkspaceStaffOnboardingIdentityAnchorResolutionDisposition?
+        IdentityAnchorResolutionDisposition,
+    DateTimeOffset? IdentityAnchorResolutionIntentAtUtc,
+    DateTimeOffset? IdentityAnchorResolutionObservedAtUtc,
+    long IdentityAnchorSweepOrdinal,
     string? FailureCode,
     long Version,
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset LastChangedAtUtc);
+
+internal sealed record WorkspaceStaffDeferredClaimWithdrawalDataRightsExport(
+    Guid ClaimId,
+    string ScopeId,
+    Guid EnrollmentLinkId,
+    long ClaimVersion,
+    Guid EventId,
+    DateTimeOffset OccurredAtUtc);
 
 internal sealed record
     WorkspaceStaffOnboardingCorrectionReceiptDataRightsExport(
@@ -82,6 +100,7 @@ internal sealed record WorkspaceStaffAccessProcessDataRightsExport(
     DateOnly EffectiveOn,
     string RequestedBy,
     WorkspaceStaffAccessProcessState State,
+    WorkspaceStaffAccessRestorationDisposition RestorationDisposition,
     string? FailureCode,
     long Version,
     DateTimeOffset CreatedAtUtc,
@@ -126,3 +145,45 @@ internal sealed record WorkspaceStaffRetentionCorrelationProofDataRightsExport(
     int AccessPlanRecordsScrubbed,
     DateTimeOffset CompletedAtUtc,
     string CanonicalSha256);
+
+internal sealed record
+    WorkspaceStaffIdentityAnchorSweepCheckpointDataRightsExport(
+        WorkspaceStaffIdentityAnchorSweepCheckpointExportState Checkpoint);
+
+internal sealed record
+    WorkspaceStaffHistoricalNoProvisionReceiptDataRightsExport(
+        int ContractVersion,
+        Guid ReceiptId,
+        string ScopeId,
+        Guid OperationId,
+        Guid ApplicationId,
+        WorkspaceStaffOnboardingSource SourceKind,
+        Guid SourceId,
+        long ExpectedApplicationVersion,
+        WorkspaceStaffOnboardingState ExpectedApplicationStatus,
+        long ResultApplicationVersion,
+        WorkspaceStaffOnboardingState ResultApplicationStatus,
+        long OrganizationsScopeRevision,
+        long OrganizationsSourceVersion,
+        WorkspaceStaffHistoricalNoProvisionAuthorityStatus
+            OrganizationsSourceStatus,
+        string StaffEvidenceSha256,
+        Guid ExternalEvidenceManifestId,
+        string ExternalEvidenceSha256,
+        string ReviewerId,
+        DateTimeOffset ReviewedAtUtc,
+        string CanonicalSha256);
+
+internal sealed record WorkspaceStaffIdentityAnchorSweepCheckpointExportState(
+    int ProtocolVersion,
+    bool HasActiveCycle,
+    long? CycleUpperOrdinal,
+    long? AfterOrdinal,
+    DateTimeOffset? CycleStartedAtUtc,
+    long CycleScannedCount,
+    long CycleBacklogCount,
+    long? LastCompletedUpperOrdinal,
+    DateTimeOffset? LastCompletedAtUtc,
+    long LastCompletedScannedCount,
+    long LastCompletedBacklogCount,
+    DateTimeOffset UpdatedAtUtc);

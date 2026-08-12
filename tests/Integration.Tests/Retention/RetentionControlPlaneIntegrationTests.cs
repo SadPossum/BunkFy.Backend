@@ -669,6 +669,8 @@ public sealed class RetentionControlPlaneIntegrationTests
         Assert.True(
             onboarding.MarkStaffReady(
                 member.Id,
+                Guid.NewGuid(),
+                Guid.NewGuid(),
                 nowUtc.AddSeconds(2)).IsSuccess);
         Assert.True(
             onboarding.Complete(

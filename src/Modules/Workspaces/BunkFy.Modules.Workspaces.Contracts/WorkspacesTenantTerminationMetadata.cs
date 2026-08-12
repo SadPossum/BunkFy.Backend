@@ -8,11 +8,11 @@ public static class WorkspacesTenantTerminationMetadata
     public const string OwnerKey = "workspaces";
     public const string PropertiesDestroyDependencyOwnerKey = "properties";
     public const string TaskRuntimeDestroyDependencyOwnerKey = "task-runtime";
-    public const int CatalogVersion = 11;
-    public const int PersonalDataCatalogVersion = 11;
+    public const int CatalogVersion = 15;
+    public const int PersonalDataCatalogVersion = 15;
     public const string ExportSchemaId =
         "workspaces.tenant-termination-export";
-    public const int ExportSchemaVersion = 1;
+    public const int ExportSchemaVersion = 4;
 
     public static IReadOnlyList<string> DestroyDependencyOwnerKeys { get; } =
         Array.AsReadOnly(
