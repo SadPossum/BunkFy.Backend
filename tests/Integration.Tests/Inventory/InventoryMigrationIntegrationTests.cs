@@ -139,6 +139,9 @@ public sealed class InventoryMigrationIntegrationTests
                 .SingleAsync(process => process.Id == historicalBedRetirementId);
             RoomRetirementProcess historicalRoom = await upgraded.RoomRetirements
                 .SingleAsync(process => process.Id == historicalRoomRetirementId);
+            InventoryPropertyTopology selectionEpoch = await upgraded
+                .PropertyTopology.SingleAsync(property =>
+                    property.Id == propertyId);
             DateTimeOffset canceledAtUtc = createdAtUtc.AddHours(1);
             Assert.True(historicalBed.Cancel(
                 historicalBed.Version,
@@ -150,6 +153,11 @@ public sealed class InventoryMigrationIntegrationTests
                 "Keep room in service",
                 "user:operator",
                 canceledAtUtc).IsSuccess);
+            selectionEpoch.AdvanceAvailabilitySelection();
+            upgraded.ChangeTracker.DetectChanges();
+            Assert.True(upgraded.Entry(selectionEpoch)
+                .Property(property => property.AvailabilitySelectionVersion)
+                .IsModified);
             await upgraded.SaveChangesAsync();
 
             BedRetirementProcess activeBed = BedRetirementProcess.Create(
@@ -184,6 +192,11 @@ public sealed class InventoryMigrationIntegrationTests
                 "user:manager",
                 canceledAtUtc.AddMinutes(1)).Value;
             upgraded.AddRange(activeBed, anotherHistoricalBed, activeRoom);
+            selectionEpoch.AdvanceAvailabilitySelection();
+            upgraded.ChangeTracker.DetectChanges();
+            Assert.True(upgraded.Entry(selectionEpoch)
+                .Property(property => property.AvailabilitySelectionVersion)
+                .IsModified);
             await upgraded.SaveChangesAsync();
 
             Assert.Equal(3, await upgraded.BedRetirements.CountAsync(process => process.BedId == bedId));
