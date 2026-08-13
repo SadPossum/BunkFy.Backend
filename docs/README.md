@@ -39,6 +39,7 @@ Useful entry points:
 - [Properties Topology Lifecycle Task](planning/properties-topology-lifecycle-task.md)
 - [Properties Deployed Topology Lifecycle Proof Task](planning/properties-deployed-topology-lifecycle-proof-task.md)
 - [Properties Mutation Serialization Task](planning/properties-mutation-serialization-task.md)
+- [Property Projection Bootstrap Serialization Task](planning/property-projection-bootstrap-serialization-task.md)
 - [Properties Management Create Idempotency Task](planning/properties-management-create-idempotency-task.md)
 - [Properties Details Update Idempotency Task](planning/properties-details-update-idempotency-task.md)
 - [Properties Lifecycle Idempotency Task](planning/properties-lifecycle-idempotency-task.md)

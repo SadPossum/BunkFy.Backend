@@ -460,6 +460,8 @@ public sealed class ReservationsTenantTerminationIntegrationTests
             .GetRequiredService<IReservationManagementOperationRepository>();
         IReservationArrivalReminderRepository reminders = services
             .GetRequiredService<IReservationArrivalReminderRepository>();
+        await using var transaction =
+            await context.Database.BeginTransactionAsync();
         Reservation reservation = CreateReservation(
             tenantId,
             propertyId,
@@ -665,6 +667,7 @@ public sealed class ReservationsTenantTerminationIntegrationTests
             SeedRetentionProof(context, tenantId, propertyId);
 
         await context.SaveChangesAsync();
+        await transaction.CommitAsync();
         return (
             reservation.Id,
             new(

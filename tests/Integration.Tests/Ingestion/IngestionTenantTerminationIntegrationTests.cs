@@ -200,18 +200,23 @@ public sealed partial class IngestionTenantTerminationIntegrationTests
             : TenantBPropertyId;
         IIngestionPropertyProjectionRepository properties = services
             .GetRequiredService<IIngestionPropertyProjectionRepository>();
-        await properties.ApplySnapshotAsync(
-            new(
-                tenantId,
-                propertyId,
-                "Tenant Export House",
-                "tenant-export-house",
-                IsActive: true,
-                PropertyProcessingStatus.Unconfigured,
-                GovernancePolicy: null,
-                SourceVersion: 1),
-            CancellationToken.None);
-        await context.SaveChangesAsync();
+        await using (var transaction =
+            await context.Database.BeginTransactionAsync())
+        {
+            await properties.ApplySnapshotAsync(
+                new(
+                    tenantId,
+                    propertyId,
+                    "Tenant Export House",
+                    "tenant-export-house",
+                    IsActive: true,
+                    PropertyProcessingStatus.Unconfigured,
+                    GovernancePolicy: null,
+                    SourceVersion: 1),
+                CancellationToken.None);
+            await context.SaveChangesAsync();
+            await transaction.CommitAsync();
+        }
 
         Guid connectionId = Guid.NewGuid();
         AdapterConnection connection = CreateConnection(

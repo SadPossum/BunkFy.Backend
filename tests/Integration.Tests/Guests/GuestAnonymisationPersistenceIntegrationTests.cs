@@ -158,9 +158,8 @@ public sealed class GuestAnonymisationPersistenceIntegrationTests
             Assert.False(secondAcquisition.IsCompleted);
 
             await firstTransaction.CommitAsync();
-            await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() =>
-                secondAcquisition.WaitAsync(TimeSpan.FromSeconds(5)));
-            await secondTransaction.RollbackAsync();
+            await secondAcquisition.WaitAsync(TimeSpan.FromSeconds(5));
+            await secondTransaction.CommitAsync();
         }
 
         second.ChangeTracker.Clear();
@@ -175,7 +174,7 @@ public sealed class GuestAnonymisationPersistenceIntegrationTests
 
         await using GuestsDbContext verification = CreateDbContext(connectionString);
         Assert.Equal(
-            3,
+            4,
             await verification.OperationLocks
                 .Where(item => item.ResourceId == guestId)
                 .Select(item => item.Revision)

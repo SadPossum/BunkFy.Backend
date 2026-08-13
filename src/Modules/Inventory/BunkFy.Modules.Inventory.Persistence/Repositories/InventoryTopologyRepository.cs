@@ -3,15 +3,26 @@ namespace BunkFy.Modules.Inventory.Persistence.Repositories;
 using BunkFy.Modules.Inventory.Application.Ports;
 using BunkFy.Modules.Inventory.Contracts;
 using BunkFy.Modules.Inventory.Domain.Aggregates;
-using Microsoft.EntityFrameworkCore;
 using BunkFy.Modules.Properties.Contracts;
+using Gma.Framework.Persistence.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 
 internal sealed class InventoryTopologyRepository(InventoryDbContext dbContext) : IInventoryTopologyRepository
 {
+    private const string PropertyLockPrefix = "bunkfy:inventory:topology:property:";
+    private const string RoomLockPrefix = "bunkfy:inventory:topology:room:";
+    private const string BedLockPrefix = "bunkfy:inventory:topology:bed:";
+
     public async Task ApplyPropertyAsync(
         InventoryPropertyTopologyWriteModel property,
         CancellationToken cancellationToken)
     {
+        await this.AcquireTopologyLocksAsync(
+            property.ScopeId,
+            property.PropertyId,
+            roomId: null,
+            bedId: null,
+            cancellationToken).ConfigureAwait(false);
         InventoryPropertyTopology? projection = dbContext.PropertyTopology.Local
             .FirstOrDefault(item => item.Id == property.PropertyId && item.ScopeId == property.ScopeId) ??
             await dbContext.PropertyTopology
@@ -34,6 +45,12 @@ internal sealed class InventoryTopologyRepository(InventoryDbContext dbContext) 
 
     public async Task ApplyRoomAsync(InventoryRoomTopologyWriteModel room, CancellationToken cancellationToken)
     {
+        await this.AcquireTopologyLocksAsync(
+            room.ScopeId,
+            room.PropertyId,
+            room.RoomId,
+            bedId: null,
+            cancellationToken).ConfigureAwait(false);
         await this.EnsurePropertyPlaceholderAsync(room.ScopeId, room.PropertyId, cancellationToken).ConfigureAwait(false);
         InventoryRoomTopology? projection = dbContext.RoomTopology.Local
             .FirstOrDefault(item => item.Id == room.RoomId && item.ScopeId == room.ScopeId) ??
@@ -68,6 +85,12 @@ internal sealed class InventoryTopologyRepository(InventoryDbContext dbContext) 
 
     public async Task ApplyBedAsync(InventoryBedTopologyWriteModel bed, CancellationToken cancellationToken)
     {
+        await this.AcquireTopologyLocksAsync(
+            bed.ScopeId,
+            bed.PropertyId,
+            bed.RoomId,
+            bed.BedId,
+            cancellationToken).ConfigureAwait(false);
         await this.EnsurePropertyPlaceholderAsync(bed.ScopeId, bed.PropertyId, cancellationToken).ConfigureAwait(false);
         await this.EnsureRoomPlaceholderAsync(
             bed.ScopeId,
@@ -263,6 +286,57 @@ internal sealed class InventoryTopologyRepository(InventoryDbContext dbContext) 
         }
 
         return snapshots;
+    }
+
+    private async Task AcquireTopologyLocksAsync(
+        string tenantId,
+        Guid propertyId,
+        Guid? roomId,
+        Guid? bedId,
+        CancellationToken cancellationToken)
+    {
+        string scopeId = tenantId?.Trim() ?? string.Empty;
+        if (scopeId.Length == 0 ||
+            !string.Equals(scopeId, dbContext.CurrentScopeId, StringComparison.Ordinal) ||
+            propertyId == Guid.Empty ||
+            roomId == Guid.Empty ||
+            bedId == Guid.Empty ||
+            (bedId.HasValue && !roomId.HasValue))
+        {
+            throw new InvalidOperationException(
+                "An Inventory topology lock requires valid scoped coordinates.");
+        }
+
+        if (!dbContext.Database.IsRelational())
+        {
+            return;
+        }
+
+        if (dbContext.Database.CurrentTransaction is null)
+        {
+            throw new InvalidOperationException(
+                "An Inventory topology lock requires an active database transaction.");
+        }
+
+        await EfTransactionKeyLock.AcquireAsync(
+            dbContext,
+            PropertyLockPrefix + scopeId + ':' + propertyId.ToString("N"),
+            cancellationToken).ConfigureAwait(false);
+        if (roomId.HasValue)
+        {
+            await EfTransactionKeyLock.AcquireAsync(
+                dbContext,
+                RoomLockPrefix + scopeId + ':' + roomId.Value.ToString("N"),
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        if (bedId.HasValue)
+        {
+            await EfTransactionKeyLock.AcquireAsync(
+                dbContext,
+                BedLockPrefix + scopeId + ':' + bedId.Value.ToString("N"),
+                cancellationToken).ConfigureAwait(false);
+        }
     }
 
     private async Task EnsurePropertyPlaceholderAsync(
