@@ -144,6 +144,167 @@ public sealed class ReservationDispatchFlowTests
     }
 
     [Fact]
+    public async Task Newer_suggestions_only_observation_supersedes_all_older_pending_proposals()
+    {
+        TestContext context = CreateContext(
+            conflictPolicy: IngestionConflictPolicy.SuggestionsOnly);
+        Guid reservationId = await CreateAppliedReservationAsync(context);
+
+        ObservationReceipt firstReceipt = CreateReceipt(context.Connection, "2", 2, "Adapter First");
+        context.Receipts.Items.Add(firstReceipt);
+        Result<ReservationObservationDispatchResult> firstResult = await context.Dispatcher.HandleAsync(
+            new DispatchNormalizedReservationObservationCommand(
+                firstReceipt.Id,
+                Observation(2, "Adapter First")),
+            CancellationToken.None);
+
+        Assert.True(firstResult.IsSuccess);
+        Assert.Equal(ReservationObservationDispatchDisposition.ProposalRequired, firstResult.Value.Disposition);
+        ChangeProposal firstProposal = Assert.Single(context.Proposals.Items);
+        Assert.Equal(ChangeProposalState.Pending, firstProposal.State);
+
+        ObservationReceipt legacyReceipt = CreateReceipt(
+            context.Connection,
+            "legacy-pending",
+            1,
+            "Adapter Legacy");
+        context.Receipts.Items.Add(legacyReceipt);
+        ChangeProposal legacyProposal = ChangeProposal.Create(
+            Guid.NewGuid(),
+            "tenant-a",
+            context.Connection.PropertyId,
+            context.Connection.Id,
+            legacyReceipt.Id,
+            reservationId,
+            legacyReceipt.RawPayloadFileId,
+            1,
+            "legacy-pending",
+            "{\"change\":true}",
+            Now.AddMinutes(-1)).Value;
+        context.Proposals.Items.Add(legacyProposal);
+
+        ObservationReceipt unrelatedReceipt = CreateReceipt(
+            context.Connection,
+            "unrelated-pending",
+            1,
+            "Unrelated Adapter",
+            externalId: "booking-unrelated");
+        context.Receipts.Items.Add(unrelatedReceipt);
+        ChangeProposal unrelatedProposal = ChangeProposal.Create(
+            Guid.NewGuid(),
+            "tenant-a",
+            context.Connection.PropertyId,
+            context.Connection.Id,
+            unrelatedReceipt.Id,
+            reservationId,
+            unrelatedReceipt.RawPayloadFileId,
+            1,
+            "unrelated-pending",
+            "{\"change\":true}",
+            Now.AddMinutes(-1)).Value;
+        context.Proposals.Items.Add(unrelatedProposal);
+
+        ObservationReceipt secondReceipt = CreateReceipt(context.Connection, "3", 3, "Adapter Newest");
+        context.Receipts.Items.Add(secondReceipt);
+        Result<ReservationObservationDispatchResult> secondResult = await context.Dispatcher.HandleAsync(
+            new DispatchNormalizedReservationObservationCommand(
+                secondReceipt.Id,
+                Observation(3, "Adapter Newest")),
+            CancellationToken.None);
+
+        Assert.True(secondResult.IsSuccess);
+        Assert.Equal(ReservationObservationDispatchDisposition.ProposalRequired, secondResult.Value.Disposition);
+        ChangeProposal newestProposal = Assert.Single(
+            context.Proposals.Items,
+            proposal => proposal.ReceiptId == secondReceipt.Id);
+        Assert.Equal(ChangeProposalState.Superseded, firstProposal.State);
+        Assert.Equal("system", firstProposal.DecisionActor);
+        Assert.Equal(PendingChangeProposalSuperseder.SupersessionReason, firstProposal.DecisionReason);
+        Assert.Equal(Now.AddDays(90), firstProposal.SensitiveDataRetainUntilUtc);
+        Assert.Equal(ChangeProposalState.Superseded, legacyProposal.State);
+        Assert.Equal("system", legacyProposal.DecisionActor);
+        Assert.Equal(PendingChangeProposalSuperseder.SupersessionReason, legacyProposal.DecisionReason);
+        Assert.Equal(Now.AddDays(90), legacyProposal.SensitiveDataRetainUntilUtc);
+        Assert.Equal(ChangeProposalState.Pending, unrelatedProposal.State);
+        Assert.Equal(ChangeProposalState.Pending, newestProposal.State);
+        Assert.Equal(reservationId, newestProposal.ReservationId);
+        Assert.Equal(
+            2,
+            context.Proposals.Items.Count(
+                proposal => proposal.State == ChangeProposalState.Superseded));
+        Assert.Equal(
+            2,
+            context.Proposals.Items.Count(
+                proposal => proposal.State == ChangeProposalState.Pending));
+
+        Result<ChangeProposalMutationReceiptDto> staleDecision = await context.AcceptHandler.HandleAsync(
+            new AcceptChangeProposalCommand(
+                context.Connection.PropertyId,
+                firstProposal.Id,
+                "staff:42",
+                firstProposal.Version,
+                ExpectedReservationDetailsRevision: 2),
+            CancellationToken.None);
+        Assert.Equal(IngestionApplicationErrors.ProposalDecisionConflict, staleDecision.Error);
+    }
+
+    [Fact]
+    public async Task Newer_revision_conflict_supersedes_the_older_pending_proposal()
+    {
+        TestContext context = CreateContext();
+        Guid reservationId = await CreateAppliedReservationAsync(context);
+
+        ObservationReceipt firstReceipt = CreateReceipt(context.Connection, "2", 2, "Adapter First");
+        context.Receipts.Items.Add(firstReceipt);
+        Assert.True((await context.Dispatcher.HandleAsync(
+            new DispatchNormalizedReservationObservationCommand(
+                firstReceipt.Id,
+                Observation(2, "Adapter First")),
+            CancellationToken.None)).IsSuccess);
+        ExternalReservationGuestDetailsChangeRequestedIntegrationEvent firstRequest =
+            Assert.IsType<ExternalReservationGuestDetailsChangeRequestedIntegrationEvent>(
+                Assert.Single(context.Outbox.Events));
+        await context.OutcomeHandler.HandleAsync(
+            Outcome(
+                firstRequest,
+                ExternalReservationOperationOutcome.DetailsRevisionConflict,
+                reservationId,
+                detailsRevision: 2),
+            CancellationToken.None);
+        ChangeProposal firstProposal = Assert.Single(context.Proposals.Items);
+        context.Outbox.Events.Clear();
+
+        ObservationReceipt secondReceipt = CreateReceipt(context.Connection, "3", 3, "Adapter Newest");
+        context.Receipts.Items.Add(secondReceipt);
+        Assert.True((await context.Dispatcher.HandleAsync(
+            new DispatchNormalizedReservationObservationCommand(
+                secondReceipt.Id,
+                Observation(3, "Adapter Newest")),
+            CancellationToken.None)).IsSuccess);
+        ExternalReservationGuestDetailsChangeRequestedIntegrationEvent secondRequest =
+            Assert.IsType<ExternalReservationGuestDetailsChangeRequestedIntegrationEvent>(
+                Assert.Single(context.Outbox.Events));
+        await context.OutcomeHandler.HandleAsync(
+            Outcome(
+                secondRequest,
+                ExternalReservationOperationOutcome.DetailsRevisionConflict,
+                reservationId,
+                detailsRevision: 2),
+            CancellationToken.None);
+
+        ChangeProposal newestProposal = Assert.Single(
+            context.Proposals.Items,
+            proposal => proposal.ReceiptId == secondReceipt.Id);
+        Assert.Equal(ChangeProposalState.Superseded, firstProposal.State);
+        Assert.Equal(PendingChangeProposalSuperseder.SupersessionReason, firstProposal.DecisionReason);
+        Assert.Equal(Now.AddDays(90), firstProposal.SensitiveDataRetainUntilUtc);
+        Assert.Equal(ChangeProposalState.Pending, newestProposal.State);
+        Assert.Single(
+            context.Proposals.Items,
+            proposal => proposal.State == ChangeProposalState.Pending);
+    }
+
+    [Fact]
     public async Task Normalized_dispatch_fails_closed_before_writing_product_state()
     {
         TestContext context = CreateContext(policyAllowed: false);
@@ -310,7 +471,8 @@ public sealed class ReservationDispatchFlowTests
 
     private static TestContext CreateContext(
         bool policyAllowed = true,
-        bool anonymisationBlocked = false)
+        bool anonymisationBlocked = false,
+        IngestionConflictPolicy conflictPolicy = IngestionConflictPolicy.AutoApplyWhenAdapterBaselineUnchanged)
     {
         AdapterConnection connection = AdapterConnection.Create(
             Guid.NewGuid(),
@@ -318,14 +480,14 @@ public sealed class ReservationDispatchFlowTests
             Guid.NewGuid(),
             "fake.http",
             BunkFy.Adapter.Abstractions.AdapterExecutionMode.Polling,
-            IngestionConflictPolicy.AutoApplyWhenAdapterBaselineUnchanged,
+            conflictPolicy,
             "configuration://fake",
             null,
             Now).Value;
         FakeReceiptRepository receipts = new();
         FakeSourceLinkRepository links = new();
         FakeDispatchRepository dispatches = new();
-        FakeProposalRepository proposals = new();
+        FakeProposalRepository proposals = new(receipts);
         FakeRawPayloadStore rawPayloads = new();
         RecordingOutbox outbox = new();
         ServiceCollection services = new();
@@ -375,7 +537,8 @@ public sealed class ReservationDispatchFlowTests
         AdapterConnection connection,
         string revision,
         long sequence,
-        string guestName)
+        string guestName,
+        string externalId = "booking-42")
     {
         Guid receiptId = Guid.NewGuid();
         byte[] payload = Payload(sequence, guestName);
@@ -387,9 +550,9 @@ public sealed class ReservationDispatchFlowTests
             runId: null,
             Guid.NewGuid(),
             "reservation.v1",
-            "booking-42",
+            externalId,
             revision,
-            $"reservation.v1|booking-42|{revision}",
+            $"reservation.v1|{externalId}|{revision}",
             AdapterPayloadHash.ComputeSha256(payload),
             TestObservationCountryPolicyEvidence.Create(Now.AddMinutes(sequence)),
             receiptId,
@@ -397,6 +560,31 @@ public sealed class ReservationDispatchFlowTests
             Now.AddMinutes(sequence),
             Now.AddMinutes(sequence),
             Now.AddMinutes(sequence)).Value;
+    }
+
+    private static async Task<Guid> CreateAppliedReservationAsync(TestContext context)
+    {
+        ObservationReceipt createReceipt = CreateReceipt(context.Connection, "1", 1, "Adapter Guest");
+        context.Receipts.Items.Add(createReceipt);
+        Result<ReservationObservationDispatchResult> created = await context.Dispatcher.HandleAsync(
+            new DispatchNormalizedReservationObservationCommand(
+                createReceipt.Id,
+                Observation(1, "Adapter Guest")),
+            CancellationToken.None);
+        Assert.True(created.IsSuccess);
+        ExternalReservationCreateRequestedIntegrationEvent request =
+            Assert.IsType<ExternalReservationCreateRequestedIntegrationEvent>(
+                Assert.Single(context.Outbox.Events));
+        Guid reservationId = Guid.NewGuid();
+        await context.OutcomeHandler.HandleAsync(
+            Outcome(
+                request,
+                ExternalReservationOperationOutcome.Applied,
+                reservationId,
+                detailsRevision: 1),
+            CancellationToken.None);
+        context.Outbox.Events.Clear();
+        return reservationId;
     }
 
     private static byte[] Payload(long sequence, string guestName) => System.Text.Encoding.UTF8.GetBytes(
@@ -609,13 +797,32 @@ public sealed class ReservationDispatchFlowTests
         }
     }
 
-    private sealed class FakeProposalRepository : IChangeProposalRepository
+    private sealed class FakeProposalRepository(FakeReceiptRepository receipts) : IChangeProposalRepository
     {
         public List<ChangeProposal> Items { get; } = [];
         public Task<ChangeProposal?> GetAsync(Guid proposalId, CancellationToken cancellationToken) =>
             Task.FromResult(this.Items.SingleOrDefault(proposal => proposal.Id == proposalId));
         public Task<ChangeProposal?> FindByReceiptAsync(Guid receiptId, CancellationToken cancellationToken) =>
             Task.FromResult(this.Items.SingleOrDefault(proposal => proposal.ReceiptId == receiptId));
+        public Task<IReadOnlyCollection<ChangeProposal>> ListPendingForSourceAsync(
+            Guid connectionId,
+            string externalId,
+            Guid reservationId,
+            Guid excludingReceiptId,
+            CancellationToken cancellationToken) => Task.FromResult<IReadOnlyCollection<ChangeProposal>>(
+            (from proposal in this.Items
+             join receipt in receipts.Items on proposal.ReceiptId equals receipt.Id
+             where
+                    proposal.ConnectionId == connectionId &&
+                    proposal.ReservationId == reservationId &&
+                    proposal.ReceiptId != excludingReceiptId &&
+                    proposal.State == ChangeProposalState.Pending &&
+                    receipt.ConnectionId == connectionId &&
+                    receipt.ExternalId == externalId
+             select proposal)
+                .OrderBy(proposal => proposal.CreatedAtUtc)
+                .ThenBy(proposal => proposal.Id)
+                .ToArray());
         public Task AddAsync(ChangeProposal proposal, CancellationToken cancellationToken)
         {
             this.Items.Add(proposal);
