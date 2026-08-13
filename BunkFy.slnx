@@ -84,6 +84,7 @@
     <File Path="docs/planning/guest-data-rights-restriction-task.md" />
     <File Path="docs/planning/guest-record-retention-task.md" />
     <File Path="docs/planning/guest-records-module-task.md" />
+    <File Path="docs/planning/guests-deployed-stay-history-proof-task.md" />
     <File Path="docs/planning/guests-management-create-idempotency-task.md" />
     <File Path="docs/planning/guests-management-update-archive-idempotency-task.md" />
     <File Path="docs/planning/guests-operational-surface-hardening-task.md" />
@@ -100,6 +101,7 @@
     <File Path="docs/planning/ingestion-connection-update-idempotency-task.md" />
     <File Path="docs/planning/ingestion-credential-mutation-idempotency-task.md" />
     <File Path="docs/planning/ingestion-data-rights-workflow-task.md" />
+    <File Path="docs/planning/ingestion-deployed-connection-lifecycle-proof-task.md" />
     <File Path="docs/planning/ingestion-execution-mutation-serialization-task.md" />
     <File Path="docs/planning/ingestion-legal-holds-task.md" />
     <File Path="docs/planning/ingestion-module-task.md" />
@@ -143,6 +145,7 @@
     <File Path="docs/planning/production-authentication-admission-task.md" />
     <File Path="docs/planning/production-file-surface-lockdown-task.md" />
     <File Path="docs/planning/properties-bed-mutation-idempotency-task.md" />
+    <File Path="docs/planning/properties-deployed-topology-lifecycle-proof-task.md" />
     <File Path="docs/planning/properties-details-update-idempotency-task.md" />
     <File Path="docs/planning/properties-follow-up-notes.md" />
     <File Path="docs/planning/properties-lifecycle-idempotency-task.md" />
@@ -187,6 +190,7 @@
     <File Path="docs/planning/staff-data-rights-correction-task.md" />
     <File Path="docs/planning/staff-data-rights-owner-capability-task.md" />
     <File Path="docs/planning/staff-data-rights-restriction-task.md" />
+    <File Path="docs/planning/staff-deployed-employment-lifecycle-proof-task.md" />
     <File Path="docs/planning/staff-employment-lifecycle-idempotency-task.md" />
     <File Path="docs/planning/staff-identity-bootstrap-replay-envelope-task.md" />
     <File Path="docs/planning/staff-immediate-effective-date-integrity-task.md" />
