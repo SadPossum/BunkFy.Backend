@@ -2,6 +2,7 @@ namespace Integration.Tests;
 
 using BunkFy.Modules.Inventory.Application;
 using BunkFy.Modules.Inventory.Application.Commands;
+using BunkFy.Modules.Inventory.Application.Queries;
 using BunkFy.Modules.Inventory.Contracts;
 using BunkFy.Modules.Inventory.Domain.Aggregates;
 using BunkFy.Modules.Inventory.Persistence;
@@ -229,14 +230,30 @@ public sealed class InventoryRoomSalesModeOperationIntegrationTests
         Assert.True(recoveredRelease.IsSuccess, recoveredRelease.Error.Code);
 
         Guid groupCreateOperationId = Guid.NewGuid();
+        InventoryBlockTarget groupTarget = new(InventoryBlockTargetKind.Property);
+        Result<ManualInventoryBlockGroupSelectionPreviewDto> groupPreview =
+            await SendAsync(
+                services,
+                new PreviewManualInventoryBlockGroupQuery(
+                    PropertyId,
+                    groupTarget,
+                    new DateOnly(2026, 10, 5),
+                    new DateOnly(2026, 10, 7),
+                    "Property maintenance"))
+                .ConfigureAwait(false);
+        Assert.True(groupPreview.IsSuccess, groupPreview.Error.Code);
+        Assert.Equal(ManualInventoryBlockGroupPreviewStatus.Ready, groupPreview.Value.Status);
         CreateManualInventoryBlockGroupCommand createGroup = new(
             groupCreateOperationId,
             PropertyId,
-            new(InventoryBlockTargetKind.Property),
+            groupTarget,
             new DateOnly(2026, 10, 5),
             new DateOnly(2026, 10, 7),
             "Property maintenance",
-            "user:operator");
+            groupPreview.Value.SelectionDigest!,
+            groupPreview.Value.AffectedBlockCount!.Value,
+            Confirmed: true,
+            ActorId: "user:operator");
         Result<ManualInventoryBlockGroupMutationReceiptDto>[] groups =
             await Task.WhenAll(
                 SendAsync(services, createGroup),
@@ -264,7 +281,9 @@ public sealed class InventoryRoomSalesModeOperationIntegrationTests
             groupReleaseOperationId,
             PropertyId,
             groups[0].Value.BlockGroupId,
-            "user:operator");
+            groups[0].Value.Version!.Value,
+            Confirmed: true,
+            ActorId: "user:operator");
         Result<ManualInventoryBlockGroupMutationReceiptDto>[] releasedGroups =
             await Task.WhenAll(
                 SendAsync(services, releaseGroup),
@@ -412,7 +431,7 @@ public sealed class InventoryRoomSalesModeOperationIntegrationTests
                     SELECT COUNT(*) AS "Value"
                     FROM inventory.management_operations
                     WHERE "ScopeId" = {TenantId}
-                      AND "Kind" BETWEEN 2 AND 5
+                      AND "Kind" IN (2, 4, 12, 14)
                     """).SingleAsync().ConfigureAwait(false));
         Assert.Equal(6, blockOperationIds.Distinct().Count());
         Assert.Equal(
@@ -559,6 +578,18 @@ public sealed class InventoryRoomSalesModeOperationIntegrationTests
         return await scope.ServiceProvider
             .GetRequiredService<IRequestDispatcher>()
             .SendAsync(command, CancellationToken.None)
+            .ConfigureAwait(false);
+    }
+
+    private static async Task<Result<ManualInventoryBlockGroupSelectionPreviewDto>>
+        SendAsync(
+            ServiceProvider services,
+            PreviewManualInventoryBlockGroupQuery query)
+    {
+        using IServiceScope scope = services.CreateScope();
+        return await scope.ServiceProvider
+            .GetRequiredService<IRequestDispatcher>()
+            .QueryAsync(query, CancellationToken.None)
             .ConfigureAwait(false);
     }
 

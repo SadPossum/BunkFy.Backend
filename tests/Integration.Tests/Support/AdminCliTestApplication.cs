@@ -3,6 +3,9 @@ namespace Integration.Tests.Support;
 using System.CommandLine;
 using System.CommandLine.Parsing;
 using System.Text.RegularExpressions;
+using BunkFy.Host.AdminCli.Security;
+using BunkFy.Modules.Inventory.AdminCli;
+using BunkFy.Modules.Inventory.Persistence;
 using BunkFy.Parsers.ReservationMail;
 using Gma.Framework.Administration.Cli;
 using Gma.Framework.Caching.Cqrs;
@@ -17,6 +20,7 @@ using Gma.Modules.AccessControl.AdminCli;
 using Gma.Modules.AccessControl.Persistence;
 using Gma.Modules.Administration.AdminCli;
 using Gma.Modules.Administration.Persistence;
+using Gma.Modules.Administration.Persistence.Entities;
 using Gma.Modules.Auth.AdminCli;
 using Gma.Modules.Auth.Application;
 using Gma.Modules.Auth.Application.Commands;
@@ -37,7 +41,11 @@ internal sealed class AdminCliTestApplication : IAsyncDisposable
     private readonly IHost host;
     private readonly RootCommand rootCommand;
 
-    public AdminCliTestApplication(string provider, string connectionString, bool includeIngestion = false)
+    public AdminCliTestApplication(
+        string provider,
+        string connectionString,
+        bool includeIngestion = false,
+        bool includeInventory = false)
     {
         HostApplicationBuilder builder = Host.CreateApplicationBuilder([]);
         builder.Environment.EnvironmentName = "Integration";
@@ -58,6 +66,7 @@ internal sealed class AdminCliTestApplication : IAsyncDisposable
         });
 
         builder.Services.AddGmaAdministrationCli();
+        builder.Services.AddBunkFyAdminCliResourceScopes();
         builder.AddCachingCqrs();
         builder.AddGmaInfrastructure();
         builder.AddTenantCaching();
@@ -66,6 +75,12 @@ internal sealed class AdminCliTestApplication : IAsyncDisposable
         builder.AddAdminModule<AdministrationAdminCliModule>();
         builder.AddAdminModule<AccessControlAdminCliModule>();
         builder.AddAdminModule<AuthAdminCliModule>();
+        if (includeInventory)
+        {
+            builder.AddWorkspacesTerminationAdmissionPersistence();
+            builder.AddAdminModule<InventoryAdminCliModule>();
+        }
+
         if (includeIngestion)
         {
             builder.Services.AddReservationMailParserDescriptor();
@@ -84,6 +99,14 @@ internal sealed class AdminCliTestApplication : IAsyncDisposable
         await scope.ServiceProvider.GetRequiredService<AdminDbContext>().Database.MigrateAsync().ConfigureAwait(false);
         await scope.ServiceProvider.GetRequiredService<AccessControlDbContext>().Database.MigrateAsync().ConfigureAwait(false);
         await scope.ServiceProvider.GetRequiredService<AuthDbContext>().Database.MigrateAsync().ConfigureAwait(false);
+        InventoryDbContext? inventory = scope.ServiceProvider.GetService<InventoryDbContext>();
+        if (inventory is not null)
+        {
+            await scope.ServiceProvider.GetRequiredService<WorkspacesDbContext>()
+                .Database.MigrateAsync().ConfigureAwait(false);
+            await inventory.Database.MigrateAsync().ConfigureAwait(false);
+        }
+
         IngestionDbContext? ingestion = scope.ServiceProvider.GetService<IngestionDbContext>();
         if (ingestion is not null)
         {
@@ -168,6 +191,30 @@ internal sealed class AdminCliTestApplication : IAsyncDisposable
                 entry.Permission.Contains(value) ||
                 (entry.ErrorCode != null && entry.ErrorCode.Contains(value)))
             .ConfigureAwait(false);
+    }
+
+    public async Task<int> CountAuditEntriesAsync(
+        string operation,
+        string? errorCode = null,
+        string? actorId = null)
+    {
+        using IServiceScope scope = this.host.Services.CreateScope();
+        AdminDbContext dbContext = scope.ServiceProvider
+            .GetRequiredService<AdminDbContext>();
+        IQueryable<AdminAuditEntry> query = dbContext.AuditEntries
+            .AsNoTracking()
+            .Where(entry => entry.Operation == operation);
+        if (!string.IsNullOrWhiteSpace(errorCode))
+        {
+            query = query.Where(entry => entry.ErrorCode == errorCode);
+        }
+
+        if (!string.IsNullOrWhiteSpace(actorId))
+        {
+            query = query.Where(entry => entry.ActorId == actorId);
+        }
+
+        return await query.CountAsync().ConfigureAwait(false);
     }
 
     public ValueTask DisposeAsync()
