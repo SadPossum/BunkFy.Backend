@@ -3,7 +3,10 @@ namespace Integration.Tests.Support;
 using System.CommandLine;
 using System.CommandLine.Parsing;
 using System.Text.RegularExpressions;
+using BunkFy.Host.AdminCli.Security;
 using BunkFy.Parsers.ReservationMail;
+using BunkFy.Modules.Reservations.AdminCli;
+using BunkFy.Modules.Reservations.Persistence;
 using Gma.Framework.Administration.Cli;
 using Gma.Framework.Caching.Cqrs;
 using Gma.Framework.Cqrs;
@@ -37,7 +40,11 @@ internal sealed class AdminCliTestApplication : IAsyncDisposable
     private readonly IHost host;
     private readonly RootCommand rootCommand;
 
-    public AdminCliTestApplication(string provider, string connectionString, bool includeIngestion = false)
+    public AdminCliTestApplication(
+        string provider,
+        string connectionString,
+        bool includeIngestion = false,
+        bool includeReservations = false)
     {
         HostApplicationBuilder builder = Host.CreateApplicationBuilder([]);
         builder.Environment.EnvironmentName = "Integration";
@@ -66,11 +73,21 @@ internal sealed class AdminCliTestApplication : IAsyncDisposable
         builder.AddAdminModule<AdministrationAdminCliModule>();
         builder.AddAdminModule<AccessControlAdminCliModule>();
         builder.AddAdminModule<AuthAdminCliModule>();
+        if (includeIngestion || includeReservations)
+        {
+            builder.AddWorkspacesTerminationAdmissionPersistence();
+        }
+
         if (includeIngestion)
         {
             builder.Services.AddReservationMailParserDescriptor();
-            builder.AddWorkspacesTerminationAdmissionPersistence();
             builder.AddAdminModule<IngestionAdminCliModule>();
+        }
+
+        if (includeReservations)
+        {
+            builder.AddAdminModule<ReservationsAdminCliModule>();
+            builder.Services.AddBunkFyAdminCliResourceScopes();
         }
 
         this.host = builder.Build();
@@ -85,11 +102,21 @@ internal sealed class AdminCliTestApplication : IAsyncDisposable
         await scope.ServiceProvider.GetRequiredService<AccessControlDbContext>().Database.MigrateAsync().ConfigureAwait(false);
         await scope.ServiceProvider.GetRequiredService<AuthDbContext>().Database.MigrateAsync().ConfigureAwait(false);
         IngestionDbContext? ingestion = scope.ServiceProvider.GetService<IngestionDbContext>();
-        if (ingestion is not null)
+        ReservationsDbContext? reservations = scope.ServiceProvider.GetService<ReservationsDbContext>();
+        if (ingestion is not null || reservations is not null)
         {
             await scope.ServiceProvider.GetRequiredService<WorkspacesDbContext>()
                 .Database.MigrateAsync().ConfigureAwait(false);
+        }
+
+        if (ingestion is not null)
+        {
             await ingestion.Database.MigrateAsync().ConfigureAwait(false);
+        }
+
+        if (reservations is not null)
+        {
+            await reservations.Database.MigrateAsync().ConfigureAwait(false);
         }
     }
 

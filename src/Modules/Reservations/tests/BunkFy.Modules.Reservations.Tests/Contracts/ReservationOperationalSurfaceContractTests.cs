@@ -41,6 +41,43 @@ public sealed class ReservationOperationalSurfaceContractTests
         AssertProperties<ReservationDetailsHistoryListResponse>("HasMore", "Items", "Page", "PageSize");
     }
 
+    [Fact]
+    public void Operations_snapshot_contract_is_explicit_bounded_and_property_local()
+    {
+        AssertProperties<ReservationOperationsCountDto>("GuestCount", "ReservationCount");
+        AssertProperties<ReservationOperationsCohortCountsDto>(
+            "ConfirmedArrivalsOnLocalDate",
+            "CurrentlyInHouse",
+            "ScheduledDeparturesOnLocalDate");
+        AssertProperties<ReservationOperationsAttentionCountsDto>(
+            "AllocationRejected",
+            "ArrivalBeforeLocalDateStillConfirmed",
+            "CancellationPending",
+            "CheckoutPending",
+            "DepartureBeforeLocalDateStillInHouse",
+            "NoShowPending",
+            "PendingAllocation",
+            "Total");
+        AssertProperties<ReservationOperationsSnapshotDto>(
+            "Attention",
+            "Cohorts",
+            "DateSource",
+            "HasMoreUpcoming",
+            "LocalDate",
+            "ObservedAtUtc",
+            "PropertyId",
+            "TimeZoneId",
+            "Upcoming",
+            "UpcomingLimit");
+
+        Assert.Equal(25, ReservationsContractLimits.DefaultOperationsSnapshotUpcomingLimit);
+        Assert.Equal(50, ReservationsContractLimits.MaximumOperationsSnapshotUpcomingLimit);
+        Assert.False(
+            typeof(ReservationOperationsSnapshotDto)
+                .GetProperty(nameof(ReservationOperationsSnapshotDto.TimeZoneId))!
+                .PropertyType.IsGenericType);
+    }
+
     private static void AssertProperties<T>(params string[] expected)
     {
         string[] actual = typeof(T)

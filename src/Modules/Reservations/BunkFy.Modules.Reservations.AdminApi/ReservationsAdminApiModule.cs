@@ -9,8 +9,11 @@ using Gma.Framework.Cqrs;
 using Gma.Framework.ModuleComposition;
 using Gma.Framework.Pagination;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using BunkFy.Modules.Reservations.Admin.Contracts;
 using BunkFy.Modules.Reservations.Application;
@@ -26,6 +29,8 @@ public sealed class ReservationsAdminApiModule : IAdminApiModule
     public void AddServices(IHostApplicationBuilder builder)
     {
         builder.SelectModuleProfile(ReservationsProfiles.Default, "BunkFy.Modules.Reservations.AdminApi");
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IStartupFilter, ReservationsAdminNoStoreStartupFilter>());
         builder.Services.AddReservationsApplication();
         builder.AddReservationsPersistence();
     }
@@ -36,6 +41,32 @@ public sealed class ReservationsAdminApiModule : IAdminApiModule
             .WithModuleName(this.Name)
             .WithTags("Reservations Admin")
             .RequireAuthorization();
+
+        group.MapGet("/operations-snapshot", async (
+            Guid propertyId,
+            [AsParameters] OperationsSnapshotRequest request,
+            HttpContext httpContext,
+            AdminApiExecutor executor,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+        {
+            MarkPersonalDataResponse(httpContext);
+            return await executor.ExecuteAsync(
+                httpContext,
+                AdminOperation.Create(
+                    ReservationsAdminOperationNames.OperationsSnapshot,
+                    ReservationsAdminPermissions.Read),
+                requireTenant: true,
+                token => dispatcher.QueryAsync(
+                    new GetReservationOperationsSnapshotQuery(
+                        propertyId,
+                        request.LocalDate,
+                        request.UpcomingLimit ?? ReservationsContractLimits.DefaultOperationsSnapshotUpcomingLimit),
+                    token),
+                cancellationToken,
+                errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false);
+        })
+            .Produces<ReservationOperationsSnapshotDto>(StatusCodes.Status200OK);
 
         group.MapGet("", async (
             Guid propertyId,
@@ -327,6 +358,10 @@ public sealed class ReservationsAdminApiModule : IAdminApiModule
         long ExpectedVersion,
         bool Confirmed);
 
+    public sealed record OperationsSnapshotRequest(
+        DateOnly? LocalDate,
+        int? UpcomingLimit);
+
     public sealed record LinkReservationGuestRequest(
         Guid GuestId,
         ReservationGuestRoleKind Role,
@@ -341,6 +376,10 @@ public sealed class ReservationsAdminApiModule : IAdminApiModule
     private static readonly ApiErrorStatusCodeMap ErrorStatusCodes = ApiErrorStatusCodeMap.Create(
         new(ReservationsApplicationErrors.WorkspaceProcessingRestricted.Code, StatusCodes.Status423Locked),
         new(ReservationsApplicationErrors.WorkspaceProcessingAdmissionUnavailable.Code, StatusCodes.Status503ServiceUnavailable),
+        new(ReservationsApplicationErrors.PropertyNotFound.Code, StatusCodes.Status404NotFound),
+        new(ReservationsApplicationErrors.PropertyInactive.Code, StatusCodes.Status409Conflict),
+        new(ReservationsApplicationErrors.PropertyTimeZoneUnavailable.Code, StatusCodes.Status503ServiceUnavailable),
+        new(ReservationsApplicationErrors.OperationsSnapshotLimitInvalid.Code, StatusCodes.Status400BadRequest),
         new(ReservationsApplicationErrors.ReservationNotFound.Code, StatusCodes.Status404NotFound),
         new(ReservationsApplicationErrors.ExternalSourceAlreadyExists.Code, StatusCodes.Status409Conflict),
         new(ReservationsApplicationErrors.CreationOperationConflict.Code, StatusCodes.Status409Conflict),

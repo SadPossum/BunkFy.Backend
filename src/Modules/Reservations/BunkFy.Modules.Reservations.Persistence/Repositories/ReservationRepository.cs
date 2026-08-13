@@ -220,14 +220,7 @@ internal sealed class ReservationRepository(
     }
 
     private IQueryable<Reservation> OrdinaryReservations() =>
-        dbContext.Reservations.Where(reservation =>
-            !reservation.IsAnonymised &&
-            dbContext.ProcessingRestrictionProjections.Any(projection =>
-                projection.PropertyId == reservation.PropertyId &&
-                projection.ReservationId == reservation.Id &&
-                projection.ContractVersion ==
-                    ReservationProcessingRestrictionContract.CurrentVersion &&
-                !projection.IsRestricted));
+        ReservationVisibilityQueries.Ordinary(dbContext);
 
     private static ReservationListItemDto Map(ReservationListRow reservation) => new(
         reservation.ReservationId,

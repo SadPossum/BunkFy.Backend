@@ -16,6 +16,21 @@ public static class ReservationsApplicationErrors
             .Select(CountryPolicyDenied)
             .ToArray();
     public static readonly Error ReservationNotFound = new("Reservations.ReservationNotFound", "The reservation was not found.");
+    public static readonly Error PropertyNotFound = new(
+        "Reservations.PropertyNotFound",
+        "The property is not present in the Reservations projection.");
+    public static readonly Error PropertyInactive = new(
+        "Reservations.PropertyInactive",
+        "The property is not active.");
+    public static readonly Error PropertyTimeZoneUnavailable = new(
+        "Reservations.PropertyTimeZoneUnavailable",
+        "The property IANA time zone is unavailable or invalid.");
+    public static readonly Error OperationsSnapshotLimitInvalid = new(
+        "Reservations.OperationsSnapshotLimitInvalid",
+        $"The upcoming limit must be between 0 and {ReservationsContractLimits.MaximumOperationsSnapshotUpcomingLimit}.");
+    public static readonly Error OperationsSnapshotLocalDateInvalid = new(
+        "Reservations.OperationsSnapshotLocalDateInvalid",
+        "The local date must use yyyy-MM-dd format.");
     public static readonly Error ExternalSourceAlreadyExists = new("Reservations.ExternalSourceAlreadyExists", "A reservation already exists for this external source reference.");
     public static readonly Error CreationOperationConflict = new(
         "Reservations.CreationOperationConflict",
