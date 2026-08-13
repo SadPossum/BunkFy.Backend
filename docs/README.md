@@ -182,6 +182,7 @@ Useful entry points:
 - [Ingestion Data Rights Workflow Task](planning/ingestion-data-rights-workflow-task.md)
 - [Ingestion PII Minimization Task](planning/ingestion-pii-minimization-task.md)
 - [Ingestion Operational Surface Hardening Task](planning/ingestion-operational-surface-hardening-task.md)
+- [Ingestion Deployed Connection Lifecycle Proof Task](planning/ingestion-deployed-connection-lifecycle-proof-task.md)
 - [Ingestion Connection Creation Idempotency Task](planning/ingestion-connection-create-idempotency-task.md)
 - [Ingestion Connection Update Idempotency Task](planning/ingestion-connection-update-idempotency-task.md)
 - [Ingestion Connection Control Idempotency Task](planning/ingestion-connection-control-idempotency-task.md)
