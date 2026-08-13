@@ -6,6 +6,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Claims;
+using System.Text.Json;
 using BunkFy.Host.Worker;
 using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Guests.Domain.DataRights;
@@ -15,6 +16,7 @@ using BunkFy.Modules.Inventory.Contracts;
 using BunkFy.Modules.Inventory.Persistence;
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Reservations.Admin.Contracts;
+using BunkFy.Modules.Reservations.Application;
 using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Reservations.Persistence;
 using DotNet.Testcontainers.Containers;
@@ -38,6 +40,7 @@ public sealed partial class ReservationsSagaIntegrationTests
 {
     private const string TenantId = "a3000000-0000-0000-0000-000000000001";
     private const string TenantHeader = "X-Tenant-Id";
+    private static readonly JsonSerializerOptions WebJsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly Guid PropertyId = Guid.Parse("71000000-0000-0000-0000-000000000001");
     private static readonly Guid OtherPropertyId = Guid.Parse("71000000-0000-0000-0000-000000000002");
     private static readonly Guid RoomId = Guid.Parse("72000000-0000-0000-0000-000000000001");
@@ -69,7 +72,12 @@ public sealed partial class ReservationsSagaIntegrationTests
             connectionString,
             includeReservations: true);
         await admin.MigrateAsync().ConfigureAwait(false);
+        await using AdminApiTestApplication adminApi = new(
+            "PostgreSql",
+            connectionString,
+            natsConnectionString);
         using HttpClient client = api.CreateClient();
+        using HttpClient adminClient = adminApi.CreateClient();
 
         using IHost initialWorker = CreateWorker(connectionString, natsConnectionString);
         IHost? stayWorker = null;
@@ -85,6 +93,7 @@ public sealed partial class ReservationsSagaIntegrationTests
                 TenantId,
                 "operator@reservations.test").ConfigureAwait(false);
             Guid operatorId = GetSubjectId(tokens.AccessToken);
+            Guid adminActorId = Guid.NewGuid();
             await api.SeedOrganizationMembershipAsync(TenantId, operatorId).ConfigureAwait(false);
             await GrantReservationsAccessAsync(admin, operatorId).ConfigureAwait(false);
             AuthTokensResponse readerTokens = await AuthApiClient.RegisterAsync(
@@ -142,6 +151,203 @@ public sealed partial class ReservationsSagaIntegrationTests
                 overlapping.ReservationId,
                 ReservationStatus.AllocationRejected,
                 TimeSpan.FromSeconds(20)).ConfigureAwait(false);
+
+            const string operationsPathSuffix =
+                "operations-snapshot?localDate=2026-10-01&upcomingLimit=1";
+            using (HttpResponseMessage operations = await SendAsync(
+                       client,
+                       HttpMethod.Get,
+                       $"/api/reservations/properties/{PropertyId:D}/{operationsPathSuffix}",
+                       tokens.AccessToken).ConfigureAwait(false))
+            {
+                ReservationOperationsSnapshotDto snapshot =
+                    await ReadSuccessAsync<ReservationOperationsSnapshotDto>(operations)
+                        .ConfigureAwait(false);
+                AssertNoStore(operations);
+                Assert.Equal(PropertyId, snapshot.PropertyId);
+                Assert.Equal(new DateOnly(2026, 10, 1), snapshot.LocalDate);
+                Assert.Equal("UTC", snapshot.TimeZoneId);
+                Assert.Equal(ReservationOperationsDateSource.Explicit, snapshot.DateSource);
+                Assert.Equal(1, snapshot.UpcomingLimit);
+                Assert.Single(snapshot.Upcoming);
+                Assert.Equal("First Guest", snapshot.Upcoming.Single().PrimaryGuestName);
+                Assert.Equal(1, snapshot.Upcoming.Single().GuestCount);
+                Assert.Equal(1, snapshot.Cohorts.ConfirmedArrivalsOnLocalDate.ReservationCount);
+                Assert.Equal(1, snapshot.Cohorts.ConfirmedArrivalsOnLocalDate.GuestCount);
+                Assert.Equal(1, snapshot.Attention.AllocationRejected.ReservationCount);
+                Assert.Equal(1, snapshot.Attention.Total.ReservationCount);
+            }
+
+            using (HttpResponseMessage crossPropertyOperations = await SendAsync(
+                       client,
+                       HttpMethod.Get,
+                       $"/api/reservations/properties/{OtherPropertyId:D}/{operationsPathSuffix}",
+                       tokens.AccessToken).ConfigureAwait(false))
+            {
+                await AssertStatusAsync(HttpStatusCode.Forbidden, crossPropertyOperations)
+                    .ConfigureAwait(false);
+                AssertNoStore(crossPropertyOperations);
+            }
+
+            using (HttpResponseMessage anonymousOperations = await SendAsync(
+                       client,
+                       HttpMethod.Get,
+                       $"/api/reservations/properties/{PropertyId:D}/{operationsPathSuffix}")
+                       .ConfigureAwait(false))
+            {
+                await AssertStatusAsync(HttpStatusCode.Unauthorized, anonymousOperations)
+                    .ConfigureAwait(false);
+                AssertNoStore(anonymousOperations);
+            }
+
+            using (HttpResponseMessage malformedDate = await SendAsync(
+                       client,
+                       HttpMethod.Get,
+                       $"/api/reservations/properties/{PropertyId:D}/operations-snapshot?localDate=not-a-date",
+                       tokens.AccessToken).ConfigureAwait(false))
+            {
+                await AssertStatusAsync(HttpStatusCode.BadRequest, malformedDate)
+                    .ConfigureAwait(false);
+                AssertNoStore(malformedDate);
+            }
+
+            using (HttpResponseMessage invalidLimit = await SendAsync(
+                       client,
+                       HttpMethod.Get,
+                       $"/api/reservations/properties/{PropertyId:D}/operations-snapshot?upcomingLimit=51",
+                       tokens.AccessToken).ConfigureAwait(false))
+            {
+                await AssertStatusAsync(HttpStatusCode.BadRequest, invalidLimit)
+                    .ConfigureAwait(false);
+                AssertNoStore(invalidLimit);
+            }
+
+            string adminAccessToken = AdminApiTestApplication
+                .CreateAccessTokenWithTenantClaim(adminActorId, TenantId);
+            using (HttpResponseMessage adminOperations = await SendAsync(
+                       adminClient,
+                       HttpMethod.Get,
+                       $"/api/admin/reservations/properties/{PropertyId:D}/{operationsPathSuffix}",
+                       adminAccessToken).ConfigureAwait(false))
+            {
+                ReservationOperationsSnapshotDto adminSnapshot =
+                    await ReadSuccessAsync<ReservationOperationsSnapshotDto>(adminOperations)
+                        .ConfigureAwait(false);
+                AssertNoStore(adminOperations);
+                Assert.Equal(PropertyId, adminSnapshot.PropertyId);
+                Assert.Equal(1, adminSnapshot.Cohorts.ConfirmedArrivalsOnLocalDate.ReservationCount);
+                Assert.Equal(1, adminSnapshot.Attention.AllocationRejected.ReservationCount);
+            }
+
+            using (HttpResponseMessage adminCrossProperty = await SendAsync(
+                       adminClient,
+                       HttpMethod.Get,
+                       $"/api/admin/reservations/properties/{OtherPropertyId:D}/{operationsPathSuffix}",
+                       adminAccessToken).ConfigureAwait(false))
+            {
+                await AssertStatusAsync(HttpStatusCode.Forbidden, adminCrossProperty)
+                    .ConfigureAwait(false);
+                AssertNoStore(adminCrossProperty);
+            }
+            Assert.Equal(
+                2,
+                await adminApi.CountAuditEntriesAsync(
+                    ReservationsAdminOperationNames.OperationsSnapshot)
+                    .ConfigureAwait(false));
+            Assert.Equal(
+                1,
+                await adminApi.CountAuditEntriesAsync(
+                    ReservationsAdminOperationNames.OperationsSnapshot,
+                    AdminErrors.Unauthorized.Code)
+                    .ConfigureAwait(false));
+
+            AdminCliResult operationsTable = await admin.ExecuteAsync(
+                    "reservations", "operations-snapshot",
+                    "--actor", adminActorId.ToString("D"),
+                    "--tenant", TenantId,
+                    "--property-id", PropertyId.ToString("D"),
+                    "--local-date", "2026-10-01",
+                    "--upcoming-limit", "1")
+                .ConfigureAwait(false);
+            Assert.Equal(AdminExitCodes.Success, operationsTable.ExitCode);
+            Assert.Contains("ArrivalsOnLocalDate", operationsTable.Output, StringComparison.Ordinal);
+            Assert.Contains("CurrentlyInHouse", operationsTable.Output, StringComparison.Ordinal);
+            Assert.Contains("PendingAllocation", operationsTable.Output, StringComparison.Ordinal);
+            Assert.Contains("AllocationRejected", operationsTable.Output, StringComparison.Ordinal);
+            Assert.Contains("CancellationPending", operationsTable.Output, StringComparison.Ordinal);
+            Assert.Contains("NoShowPending", operationsTable.Output, StringComparison.Ordinal);
+            Assert.Contains("CheckoutPending", operationsTable.Output, StringComparison.Ordinal);
+            Assert.Contains(
+                "ArrivalBeforeLocalDateStillConfirmed",
+                operationsTable.Output,
+                StringComparison.Ordinal);
+            Assert.Contains(
+                "DepartureBeforeLocalDateStillInHouse",
+                operationsTable.Output,
+                StringComparison.Ordinal);
+            Assert.Contains("Guests", operationsTable.Output, StringComparison.Ordinal);
+            Assert.Contains("First Guest", operationsTable.Output, StringComparison.Ordinal);
+
+            AdminCliResult operationsJson = await admin.ExecuteAsync(
+                    "reservations", "operations-snapshot",
+                    "--actor", adminActorId.ToString("D"),
+                    "--tenant", TenantId,
+                    "--property-id", PropertyId.ToString("D"),
+                    "--local-date", "2026-10-01",
+                    "--upcoming-limit", "0",
+                    "--output", "json")
+                .ConfigureAwait(false);
+            Assert.Equal(AdminExitCodes.Success, operationsJson.ExitCode);
+            Assert.True(
+                operationsJson.Output.TrimStart().StartsWith('{'),
+                $"Expected CLI JSON object output but received:{Environment.NewLine}{operationsJson.Output}");
+            ReservationOperationsSnapshotDto? cliSnapshot = JsonSerializer.Deserialize<
+                ReservationOperationsSnapshotDto>(
+                operationsJson.Output,
+                WebJsonOptions);
+            Assert.NotNull(cliSnapshot);
+            Assert.Equal(0, cliSnapshot.UpcomingLimit);
+            Assert.Empty(cliSnapshot.Upcoming);
+            Assert.True(cliSnapshot.HasMoreUpcoming);
+            Assert.Equal(1, cliSnapshot.Attention.AllocationRejected.ReservationCount);
+
+            AdminCliResult wrongProperty = await admin.ExecuteAsync(
+                    "reservations", "operations-snapshot",
+                    "--actor", adminActorId.ToString("D"),
+                    "--tenant", TenantId,
+                    "--property-id", OtherPropertyId.ToString("D"))
+                .ConfigureAwait(false);
+            Assert.Equal(AdminExitCodes.Unauthorized, wrongProperty.ExitCode);
+
+            AdminCliResult invalidCliDate = await admin.ExecuteAsync(
+                    "reservations", "operations-snapshot",
+                    "--actor", adminActorId.ToString("D"),
+                    "--tenant", TenantId,
+                    "--property-id", PropertyId.ToString("D"),
+                    "--local-date", "not-a-date")
+                .ConfigureAwait(false);
+            Assert.NotEqual(AdminExitCodes.Success, invalidCliDate.ExitCode);
+            Assert.Contains(
+                ReservationsApplicationErrors.OperationsSnapshotLocalDateInvalid.Message,
+                invalidCliDate.Error,
+                StringComparison.Ordinal);
+
+            AdminCliResult invalidCliLimit = await admin.ExecuteAsync(
+                    "reservations", "operations-snapshot",
+                    "--actor", adminActorId.ToString("D"),
+                    "--tenant", TenantId,
+                    "--property-id", PropertyId.ToString("D"),
+                    "--upcoming-limit", "51")
+                .ConfigureAwait(false);
+            Assert.NotEqual(AdminExitCodes.Success, invalidCliLimit.ExitCode);
+            Assert.Contains(
+                ReservationsApplicationErrors.OperationsSnapshotLimitInvalid.Message,
+                invalidCliLimit.Error,
+                StringComparison.Ordinal);
+            Assert.True(
+                await admin.CountAuditEntriesContainingAsync(
+                    ReservationsAdminOperationNames.OperationsSnapshot)
+                    .ConfigureAwait(false) >= 5);
 
             using (HttpResponseMessage crossScope = await SendAsync(
                        client,
@@ -1408,7 +1614,9 @@ public sealed partial class ReservationsSagaIntegrationTests
         throw new TimeoutException("Reservations did not receive the sellable Inventory unit projection.");
     }
 
-    private static async Task GrantReservationsAccessAsync(AdminCliTestApplication admin, Guid operatorId)
+    private static async Task GrantReservationsAccessAsync(
+        AdminCliTestApplication admin,
+        Guid operatorId)
     {
         await AssertAdminSuccessAsync(admin.ExecuteAsync("admin", "bootstrap", "--actor", "owner", "--yes"));
         await AssertAdminSuccessAsync(admin.ExecuteAsync(
@@ -1625,6 +1833,15 @@ public sealed partial class ReservationsSagaIntegrationTests
     {
         string body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
         Assert.True(response.StatusCode == expected, $"Expected {(int)expected} but received {(int)response.StatusCode}. Body: {body}");
+    }
+
+    private static void AssertNoStore(HttpResponseMessage response)
+    {
+        Assert.True(response.Headers.CacheControl?.NoStore is true);
+        Assert.Contains(response.Headers.Pragma, header =>
+            string.Equals(header.Name, "no-cache", StringComparison.OrdinalIgnoreCase));
+        Assert.True(response.Content.Headers.TryGetValues("Expires", out IEnumerable<string>? expires));
+        Assert.Equal("0", Assert.Single(expires));
     }
 
     private static async Task AssertAdminSuccessAsync(Task<AdminCliResult> resultTask)

@@ -176,7 +176,7 @@ public sealed class ReservationsTenantTerminationContributorTests
         Assert.Equal(7, contributor.ExportDescriptor.CatalogVersion);
         Assert.Equal(8, contributor.ExportDescriptor.ExportSchemaVersion);
         Assert.Equal(
-            19,
+            20,
             ReservationsTenantTerminationMetadata.PersonalDataCatalogVersion);
         Assert.Equal(
             ReservationsTenantTerminationMetadata.ExportFieldIds

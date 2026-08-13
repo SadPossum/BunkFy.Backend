@@ -12,6 +12,7 @@ using Gma.Framework.Security;
 using Gma.Framework.Security.AspNetCore;
 using Gma.Framework.Tenancy.AccessControl.AspNetCore;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
@@ -35,6 +36,8 @@ public sealed class ReservationsModule : IModule
         builder.Services.AddOptions<ReservationsApiSecurityOptions>();
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Scoped<IAccessHttpScopeResolver, ReservationsPropertyAccessScopeResolver>());
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IStartupFilter, ReservationsNoStoreStartupFilter>());
         builder.Services.AddReservationsApplication();
         builder.AddReservationsPersistence();
     }
@@ -48,6 +51,27 @@ public sealed class ReservationsModule : IModule
             .WithModuleName(this.Name)
             .WithTags("Reservations")
             .RequireAuthorization();
+
+        group.MapGet("/operations-snapshot", async (
+            Guid propertyId,
+            [AsParameters] OperationsSnapshotRequest request,
+            HttpContext httpContext,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+        {
+            MarkPersonalDataResponse(httpContext);
+            return (await dispatcher.QueryAsync(
+                new GetReservationOperationsSnapshotQuery(
+                    propertyId,
+                    request.LocalDate,
+                    request.UpcomingLimit ?? ReservationsContractLimits.DefaultOperationsSnapshotUpcomingLimit),
+                cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes);
+        })
+            .Produces<ReservationOperationsSnapshotDto>(StatusCodes.Status200OK)
+            .RequireTenant()
+            .RequireResolvedScopePermission(
+                ReservationsAdminPermissionCodes.Read,
+                ReservationsPropertyAccessScopeResolver.ResolverName);
 
         group.MapPost("", async (
             Guid propertyId,
@@ -543,6 +567,10 @@ public sealed class ReservationsModule : IModule
         DateOnly BusinessDate,
         long ExpectedVersion);
 
+    public sealed record OperationsSnapshotRequest(
+        DateOnly? LocalDate,
+        int? UpcomingLimit);
+
     public sealed record LinkReservationGuestRequest(
         Guid GuestId,
         ReservationGuestRoleKind Role,
@@ -578,6 +606,10 @@ public sealed class ReservationsModule : IModule
     private static readonly ApiErrorStatusCodeMap ErrorStatusCodes = CreateErrorStatusCodes(
         new(ReservationsApplicationErrors.WorkspaceProcessingRestricted.Code, StatusCodes.Status423Locked),
         new(ReservationsApplicationErrors.WorkspaceProcessingAdmissionUnavailable.Code, StatusCodes.Status503ServiceUnavailable),
+        new(ReservationsApplicationErrors.PropertyNotFound.Code, StatusCodes.Status404NotFound),
+        new(ReservationsApplicationErrors.PropertyInactive.Code, StatusCodes.Status409Conflict),
+        new(ReservationsApplicationErrors.PropertyTimeZoneUnavailable.Code, StatusCodes.Status503ServiceUnavailable),
+        new(ReservationsApplicationErrors.OperationsSnapshotLimitInvalid.Code, StatusCodes.Status400BadRequest),
         new(ReservationsApplicationErrors.ReservationNotFound.Code, StatusCodes.Status404NotFound),
         new(ReservationsApplicationErrors.ExternalSourceAlreadyExists.Code, StatusCodes.Status409Conflict),
         new(ReservationsApplicationErrors.CreationOperationConflict.Code, StatusCodes.Status409Conflict),

@@ -20,6 +20,9 @@ retention, and rights policies receive production approval.
 - distinct scoped permissions for read, create, manage, cancel, check-in, no-show, and check-out;
 - directly projected, bounded operational directory pages with look-ahead
   pagination and no aggregate hydration or count query;
+- one authoritative property-local operations snapshot with exact Reservation
+  and guest counts, a disjoint seven-category attention breakdown, and a
+  deterministic bounded upcoming-arrivals list;
 - public management API, Admin API, Admin CLI, PostgreSQL migration, and Worker composition;
 - a versioned local Inventory projection with live unit/block/allocation handlers and a rebuild task sourced from `IInventoryAvailabilityProjectionExportSource`;
 - an independent editable-details revision and provenance marker that does not move on allocation-only lifecycle changes;
@@ -62,6 +65,31 @@ retention, and rights policies receive production approval.
   plane only through bounded contract outcomes;
 
 The local Inventory projection validates unit/property relationships and supports management reads, but it is advisory for availability. Only an Inventory allocation outcome can confirm a reservation.
+
+## Property Operations Snapshot
+
+The public API, Admin API, and Admin CLI expose the same current-state read for
+one property under `reservations.read`. When no date is supplied, Reservations
+derives the property-local date from one captured `ObservedAtUtc` and the valid
+projected IANA time zone. An explicit `localDate` changes the date predicates
+but still requires a known, active property and valid projected IANA time zone;
+an identifier that is merely platform-resolvable but not IANA fails with
+`Reservations.PropertyTimeZoneUnavailable`. The read is not a
+historical as-of reconstruction. Projection lag can therefore affect current
+state briefly.
+
+Confirmed arrivals and scheduled departures are tied to the response
+`LocalDate`; `CurrentlyInHouse` is current state. Those top-level cohorts may
+overlap. The seven attention categories are disjoint, and their exact total is
+returned with Reservation and guest counts. Upcoming items are limited to 0
+through 50, ordered deterministically, reuse ordinary anonymisation and Guest
+restriction rules, and use one-item lookahead for `HasMoreUpcoming`.
+
+This is a property-local operational read, not a regional or fleet aggregate.
+A future fleet dashboard must use a dedicated rollup/projection instead of
+fanning this bounded personal-data response out across hundreds of properties.
+All exact Reservations API path responses are marked no-store, including
+binding and authorization failures before endpoint execution.
 
 ## Runtime
 

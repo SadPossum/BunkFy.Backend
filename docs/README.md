@@ -132,6 +132,7 @@ Useful entry points:
 - [Reservations Operational Surface Hardening Task](planning/reservations-operational-surface-hardening-task.md)
 - [Reservations Mutation Serialization Task](planning/reservations-mutation-serialization-task.md)
 - [Reservations Aggregate Query Shape Task](planning/reservations-aggregate-query-shape-task.md)
+- [Reservations Property Operations Snapshot Task](planning/reservations-property-operations-snapshot-task.md)
 - [Reservations Correction Assurance Task](planning/reservations-correction-assurance-task.md)
 - [Reservations Management Create Idempotency Task](planning/reservations-management-create-idempotency-task.md)
 - [Reservations Management Lifecycle Idempotency Task](planning/reservations-management-lifecycle-idempotency-task.md)
