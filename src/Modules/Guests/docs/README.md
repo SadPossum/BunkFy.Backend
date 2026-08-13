@@ -123,6 +123,17 @@ Guests owns BunkFy's tenant-wide canonical guest profiles and staff-facing stay 
 
 Reservations owns booking roles and current participant links. Guests owns profiles, visibility associations, and its history projection. Neither module writes the other's schema or uses cross-module foreign keys.
 
+## Deployment Assurance
+
+The BunkFy composition repository owns an exact-release deployment verifier for
+the existing durable Guest path. On 2026-08-13, its VPS Preview execution passed
+19 checks covering minimal create and versioned update replay, conflict and stale
+write rejection, the Reservations-owned primary link, monotonic stay-history
+projection through checkout, Inventory release, archive replay, archived-history
+visibility, nonmember denial, and release continuity. The proof changed no
+Guests, Reservations, Inventory, or GMA module source; hosted-production
+execution remains a separate admission requirement.
+
 Identity documents, consent, orphan-profile retention triggers, duplicate
 merge/split, entity resolution, guest flags, preferences, and guest accounts
 remain deferred.
