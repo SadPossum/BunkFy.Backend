@@ -1,6 +1,6 @@
 # Staff Deployed Employment Lifecycle Proof Task
 
-Status: planned
+Status: complete
 Date: 2026-08-13
 
 ## Goal
@@ -64,3 +64,19 @@ operations-script changes.
   current property assignment and produces minimized child evidence.
 - Loopback Preview evidence remains explicitly distinct from hosted-production
   proof.
+
+## Evidence
+
+The root superproject now carries a 21-check deployed verifier, deterministic
+success and replay-drift fixtures, Preview composition, cleanup enforcement, and
+production-admission parsing for the existing Staff public contracts. The
+focused Staff and admission fixtures and the complete root operations gate
+passed.
+
+The exact-release Preview run passed on 2026-08-13 for
+`preview-workspace-access-estate-651107f`: the synthetic unlinked profile ended
+departed with one closed historical assignment and zero current assignments.
+The minimized child SHA-256 is
+`1ddecd9a9e699855c554b7d72813dd4a8208aa0ee0dacfe3762f08954485c54a`.
+This is loopback deployment composition evidence and does not represent hosted
+production approval.

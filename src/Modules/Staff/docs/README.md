@@ -102,7 +102,7 @@ companion without reading Staff persistence or placing Auth identifiers in Data
 Rights coordinates.
 
 The
-[Staff anonymisation flow](../../../docs/planning/staff-data-rights-anonymisation-task.md)
+[Staff anonymisation flow](../../../../docs/planning/staff-data-rights-anonymisation-task.md)
 uses explicit employment-governance evidence, independently releasable Staff
 holds, per-member operation serialization, immutable owner receipts, and an
 authority-bound tombstone. Protected restore applies only to Data
@@ -119,7 +119,7 @@ its own append-only receipt and a `Retention`-authority tombstone; Retention
 receives only counts and stable outcome codes.
 
 The executable delivery contract is
-[Staff record automatic retention](../../../docs/planning/staff-record-retention-task.md).
+[Staff record automatic retention](../../../../docs/planning/staff-record-retention-task.md).
 
 ## Tenant termination export
 
@@ -170,9 +170,17 @@ controls, and final production admission are complete.
 
 The module is composed in public API, Admin API, Admin CLI, and the optional worker group. PostgreSQL migrations live in `BunkFy.Modules.Staff.Persistence.PostgreSqlMigrations`. The worker consumes Properties lifecycle facts and runs `rebuild-staff-properties` to repair the local projection.
 
+The root superproject's deployed Staff employment verifier, specified by the
+[Staff deployment-proof task](../../../../docs/planning/staff-deployed-employment-lifecycle-proof-task.md),
+exercises the public contracts for one minimal unlinked profile: idempotent and
+optimistic profile changes, property assignment, suspension and resume, and
+departure with atomic current-assignment closure. Its minimized evidence is a
+required production-admission input. Account linking, membership, roles, and
+session lifecycle remain independent invitation, enrollment, and access proofs.
+
 General integration events carry only tenant, staff, lifecycle, Auth-correlation, assignment, effective-date, and version facts. They exclude names, contact details, employee numbers, job labels, departments, and reasons.
 
 [`personal-data-catalog.v1.json`](personal-data-catalog.v1.json) is the executable Staff data contract. [`personal-data-inventory.v1.md`](personal-data-inventory.v1.md) is generated from it and checked by reflection tests against persistence, search copies, public/admin boundaries, cross-module requests, domain events, and integration events.
 
 Broader deferred work is tracked in
-[the Staff Profiles task](../../../docs/planning/staff-profiles-module-task.md).
+[the Staff Profiles task](../../../../docs/planning/staff-profiles-module-task.md).
