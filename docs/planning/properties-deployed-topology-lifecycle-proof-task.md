@@ -1,6 +1,6 @@
 # Properties Deployed Topology Lifecycle Proof Task
 
-Status: planned
+Status: implemented and exact-release deployment verified
 Date: 2026-08-13
 
 ## Goal
@@ -71,3 +71,17 @@ script changes.
   beds retired and produces minimized child evidence.
 - Loopback Preview evidence remains explicitly distinct from hosted-production
   proof.
+
+## Completion
+
+The BunkFy root now owns a 31-check public-API verifier, deterministic replay
+fixture, Preview composition, closed production-admission source, static guards,
+and operator documentation. Exact release
+`preview-workspace-access-estate-651107f` passed the deployed topology workflow,
+and the full root operations gate passed once afterward.
+
+No backend or GMA source change was needed. The existing Properties contracts
+already provide stable mutation receipts and optimistic versions, while
+Inventory already owns asynchronous bed and room retirement and Properties
+rejects direct public retirement. Country-policy selection remains deliberately
+outside this synthetic proof.
