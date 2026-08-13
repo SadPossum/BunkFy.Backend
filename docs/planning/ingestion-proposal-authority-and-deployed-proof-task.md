@@ -1,6 +1,6 @@
 # Ingestion Proposal Authority And Deployed Proof Task
 
-Status: in progress
+Status: implemented and exact-release deployment verified
 Date: 2026-08-13
 
 ## Goal
@@ -71,3 +71,26 @@ edit-by-edit verifier.
 - Existing automatic application and race-to-stale semantics remain intact.
 - Exact-release deployed evidence proves the public workflow and terminal
   cleanup without retaining personal or secret data.
+
+## Completion
+
+Ingestion now supersedes every older pending proposal for the exact connection,
+external source, and reservation graph before publishing a newer actionable
+proposal. Both review-only dispatch and Reservation revision-conflict outcomes
+use the same application service inside the existing source-graph transaction.
+Superseded proposals retain the configured sensitive-history deadline and
+cannot be decided; a distinct source that points at the same reservation remains
+independent. No schema or GMA change was required.
+
+The focused dispatch suite passed 14/14, the full Ingestion suite passed
+339/339, and Architecture passed 103/103. Web verification passed 277 tests plus
+type checking, lint, and production build. The root operations gate passed once
+in 188.8 seconds, including the deterministic supersession-drift cleanup case.
+
+Exact release `preview-ingestion-proposal-844f4c4` passed the 26-check public
+conflict/proposal lifecycle. It preserved authority revisions Adapter 1,
+Adapter 2, Staff 3, Adapter 4; retained one superseded, one rejected, and one
+applied proposal with zero pending; then cancelled the reservation, revoked the
+credential, and disabled the connection. This loopback Preview result proves
+the committed BunkFy composition, not hosted production or provider and country
+policy approval.
