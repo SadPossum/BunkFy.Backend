@@ -99,6 +99,7 @@ public sealed class CompositionToolingGuardTests
         Assert.Equal(2, source.Split(
             "'src/Extensions/*/docs/*.json'",
             StringSplitOptions.None).Length - 1);
+        Assert.Equal(2, source.Split("'.mjs'", StringSplitOptions.None).Length - 1);
         Assert.Contains("-not $isDataGovernanceCatalog", source, StringComparison.Ordinal);
         Assert.Contains("-Check:$Check", source, StringComparison.Ordinal);
         Assert.Contains("'SECURITY.md'", source, StringComparison.Ordinal);
