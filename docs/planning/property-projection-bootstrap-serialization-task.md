@@ -1,6 +1,6 @@
 # Property Projection Bootstrap Serialization Task
 
-Status: in progress
+Status: complete
 Date: 2026-08-13
 
 ## Goal
@@ -92,4 +92,37 @@ event types.
 - the complete non-Docker backend gate and contract drift check pass once;
 - the exact Preview lifecycle still passes with full cleanup and no projection
   unique-key or failed-handler log entries; and
-- GMA framework, skeleton, and extensions remain unchanged.
+- GMA runtime source, skeleton, and extensions remain unchanged; the framework
+  solution index may be synchronized independently when its own guard detects
+  metadata drift.
+
+## Completion
+
+Reservations, Ingestion, Data Rights, Staff, and Workspaces now acquire one
+module-owned property-projection key before the first read. Inventory uses the
+fixed property, room, then bed hierarchy, and Guests acquires an advisory key
+before reading or creating its durable operation-lock row. Relational calls
+still fail closed without an active transaction; in-memory test stores remain
+provider neutral. No contracts, schemas, or migrations changed.
+
+The seven focused module suites passed 2,041 tests, the new architecture guard
+passed eight cases, and the Integration Tests project built with zero warnings.
+The consolidated backend run passed solution and package guards, the complete
+build, and every migration drift check. Its only late failure was the missing
+index link for this task; after adding the link, the exact failed guard and the
+fast test rerun passed.
+
+Backend candidate `43733de` was deployed as root candidate `5c33c63` under
+release `preview-projection-bootstrap-5c33c63`. The exact Preview onboarding
+rehearsal passed invitation 8/8, enrollment 9/9, Reservations and Inventory
+12/12, and umbrella 11/11 checks. API and Worker logs from the rebuilt-container
+window through rehearsal contained no unique-key collision, failed handler,
+retry, exception, or transaction-lock error. The minimized Reservations and
+Inventory child SHA-256 is
+`1aad28c1f3193adc14394405f782755df2834f633f62551647507ba9ab45ca0f`;
+the umbrella SHA-256 is
+`548eac4e70887445a21033fa8159c1762941ac9b7124f2610d8b97483cf468d0`.
+
+GMA runtime behavior did not change. A separate metadata-only framework commit
+`a488677` added its already-tracked method-aware rate-limit task to
+`Gma.Framework.slnx` after the source-package guard exposed that stale index.
