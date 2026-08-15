@@ -26,6 +26,15 @@ public static class DataRightsApplicationErrors
     public static readonly Error SubjectOwnerUnavailable = new(
         "DataRights.SubjectOwnerUnavailable",
         "The selected subject owner is unavailable.");
+    public static readonly Error SubjectOwnerCatalogInvalid = new(
+        "DataRights.SubjectOwnerCatalogInvalid",
+        "The subject-owner catalogue is invalid.");
+    public static readonly Error SubjectOwnerRetryRequired = new(
+        "DataRights.SubjectOwnerRetryRequired",
+        "Subject-owner processing must be retried.");
+    public static readonly Error SubjectOwnerResultInvalid = new(
+        "DataRights.SubjectOwnerResultInvalid",
+        "A subject owner returned an invalid result.");
     public static readonly Error SubjectNotFound = new(
         "DataRights.SubjectNotFound",
         "The selected subject is not available in the requested scope.");

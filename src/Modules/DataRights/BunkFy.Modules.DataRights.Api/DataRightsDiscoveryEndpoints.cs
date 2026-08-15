@@ -8,6 +8,7 @@ using Gma.Framework.AccessControl.AspNetCore;
 using Gma.Framework.Api.Results;
 using Gma.Framework.Api.Tenancy;
 using Gma.Framework.Cqrs;
+using Gma.Framework.Results;
 using Gma.Framework.Tenancy.AccessControl.AspNetCore;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -47,7 +48,8 @@ internal static class DataRightsDiscoveryEndpoints
             CancellationToken cancellationToken) =>
         {
             DataRightsSensitiveResponseHeaders.Apply(context.Response);
-            return (await dispatcher.QueryAsync(
+            Result<DataRightsSubjectDiscoveryResponse> result =
+                await dispatcher.QueryAsync(
                 new DiscoverDataRightsSubjectsQuery(
                     DataRightsCaseScope.ForProperty(propertyId),
                     caseId,
@@ -59,8 +61,8 @@ internal static class DataRightsDiscoveryEndpoints
                         request.DateOfBirth,
                         request.AccountSubjectId),
                     request.OwnerKey),
-                cancellationToken).ConfigureAwait(false))
-                .ToHttpResult(DataRightsEndpointSupport.ErrorStatusCodes);
+                    cancellationToken).ConfigureAwait(false);
+            return DataRightsEndpointSupport.ToHttpResult(context, result);
         })
             .Produces<DataRightsSubjectDiscoveryResponse>()
             .RequireTenant()

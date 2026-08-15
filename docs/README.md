@@ -151,6 +151,7 @@ Useful entry points:
 - [Data Rights Operator Continuity And Recovery Task](planning/data-rights-operator-continuity-and-recovery-task.md)
 - [Data Rights Case Creation Idempotency Task](planning/data-rights-case-creation-idempotency-task.md)
 - [Data Rights Confirmation Revision Pinning Task](planning/data-rights-confirmation-revision-pinning-task.md)
+- [Data Rights Subject Owner Failure Taxonomy Task](planning/data-rights-subject-owner-failure-taxonomy-task.md)
 - [Data Rights Task Timeout Alignment Task](planning/data-rights-task-timeout-alignment-task.md)
 - [Data Rights Guest Response Deadline Policy Task](planning/data-rights-guest-response-deadline-policy-task.md)
 - [Operations Notifications Data Rights Deadline Alerts Task](planning/operations-notifications-data-rights-deadline-alerts-task.md)

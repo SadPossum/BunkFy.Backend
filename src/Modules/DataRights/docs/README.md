@@ -138,6 +138,12 @@ event.
   (`409`), owner unavailability or an explicit transient retry (`503`), and an
   invalid internal contributor result (`500`). Only the explicit retry signal
   carries a short `Retry-After`; review is never retried automatically.
+- Subject discovery and selection distinguish authoritative scope conflicts
+  (`409`), missing compatible owners (`503` without `Retry-After`), explicit or
+  exceptional owner retries (`503` with a bounded `Retry-After`), malformed
+  operator coordinates (`400`), and invalid owner catalogs or results (`500`).
+  Owner calls are never retried automatically and failure logs contain only the
+  bounded owner key and exception type.
 - Schema-v2 country packs define structural year/month/day response periods and
   allowlisted calculation time zones. Immutable v1 packs remain valid for
   ordinary processing but cannot authorize Guest Rights deadlines.

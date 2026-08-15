@@ -12,7 +12,7 @@ using Microsoft.AspNetCore.Http;
 
 internal static class DataRightsEndpointSupport
 {
-    internal const int RequiredCompanionRetryAfterSeconds = 15;
+    internal const int ExplicitDependencyRetryAfterSeconds = 15;
 
     public static ApiErrorStatusCodeMap ErrorStatusCodes { get; } =
         ApiErrorStatusCodeMap.Create([
@@ -31,7 +31,18 @@ internal static class DataRightsEndpointSupport
             new(DataRightsApplicationErrors.ResponseDeadlinePolicyUnavailable.Code, StatusCodes.Status409Conflict),
             new(DataRightsApplicationErrors.DiscoveryCriteriaInvalid.Code, StatusCodes.Status400BadRequest),
             new(DataRightsApplicationErrors.DiscoveryScopeUnavailable.Code, StatusCodes.Status409Conflict),
-            new(DataRightsApplicationErrors.SubjectOwnerUnavailable.Code, StatusCodes.Status409Conflict),
+            new(
+                DataRightsApplicationErrors.SubjectOwnerUnavailable.Code,
+                StatusCodes.Status503ServiceUnavailable),
+            new(
+                DataRightsApplicationErrors.SubjectOwnerCatalogInvalid.Code,
+                StatusCodes.Status500InternalServerError),
+            new(
+                DataRightsApplicationErrors.SubjectOwnerRetryRequired.Code,
+                StatusCodes.Status503ServiceUnavailable),
+            new(
+                DataRightsApplicationErrors.SubjectOwnerResultInvalid.Code,
+                StatusCodes.Status500InternalServerError),
             new(DataRightsApplicationErrors.SubjectNotFound.Code, StatusCodes.Status404NotFound),
             new(DataRightsApplicationErrors.SubjectStale.Code, StatusCodes.Status409Conflict),
             new(
@@ -113,19 +124,33 @@ internal static class DataRightsEndpointSupport
         Result<DataRightsCaseDto> result = await dispatcher.SendAsync(
             commandFactory(actor),
             cancellationToken).ConfigureAwait(false);
-        if (result.IsFailure && string.Equals(
-                result.Error.Code,
-                DataRightsApplicationErrors
-                    .RequiredCompanionRetryRequired.Code,
-                StringComparison.Ordinal))
+        return ToHttpResult(context, result);
+    }
+
+    public static IResult ToHttpResult<T>(
+        HttpContext context,
+        Result<T> result)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        if (result.IsFailure && IsExplicitRetry(result.Error.Code))
         {
             context.Response.Headers.RetryAfter =
-                RequiredCompanionRetryAfterSeconds.ToString(
+                ExplicitDependencyRetryAfterSeconds.ToString(
                     System.Globalization.CultureInfo.InvariantCulture);
         }
 
         return result.ToHttpResult(ErrorStatusCodes);
     }
+
+    private static bool IsExplicitRetry(string code) =>
+        string.Equals(
+            code,
+            DataRightsApplicationErrors.RequiredCompanionRetryRequired.Code,
+            StringComparison.Ordinal) ||
+        string.Equals(
+            code,
+            DataRightsApplicationErrors.SubjectOwnerRetryRequired.Code,
+            StringComparison.Ordinal);
 
     public static string? ResolveActor(
         HttpContext context,

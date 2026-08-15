@@ -15,6 +15,8 @@ using Gma.Framework.Pagination;
 using Gma.Framework.Results;
 using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 [Trait("Category", "Unit")]
@@ -36,7 +38,8 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
         DiscoverDataRightsSubjectsQueryHandler handler = new(
             new CaseRepository(dataRightsCase),
             [guests, reservations],
-            new TestScopeContext());
+            new TestScopeContext(),
+            NullLogger<DiscoverDataRightsSubjectsQueryHandler>.Instance);
 
         Result<DataRightsSubjectDiscoveryResponse> result = await handler.HandleAsync(
             new DiscoverDataRightsSubjectsQuery(
@@ -64,7 +67,8 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
         DiscoverDataRightsSubjectsQueryHandler handler = new(
             new CaseRepository(dataRightsCase),
             [guests],
-            new TestScopeContext());
+            new TestScopeContext(),
+            NullLogger<DiscoverDataRightsSubjectsQueryHandler>.Instance);
 
         Result<DataRightsSubjectDiscoveryResponse> result = await handler.HandleAsync(
             new DiscoverDataRightsSubjectsQuery(
@@ -92,7 +96,8 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
         DiscoverDataRightsSubjectsQueryHandler handler = new(
             new CaseRepository(dataRightsCase),
             [first, duplicate],
-            new TestScopeContext());
+            new TestScopeContext(),
+            NullLogger<DiscoverDataRightsSubjectsQueryHandler>.Instance);
 
         Result<DataRightsSubjectDiscoveryResponse> result = await handler.HandleAsync(
             new DiscoverDataRightsSubjectsQuery(
@@ -102,7 +107,7 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
                 "reservations"),
             CancellationToken.None);
 
-        Assert.Equal(DataRightsApplicationErrors.SubjectOwnerUnavailable, result.Error);
+        Assert.Equal(DataRightsApplicationErrors.SubjectOwnerCatalogInvalid, result.Error);
         Assert.Equal(0, first.DiscoveryInvocationCount);
         Assert.Equal(0, duplicate.DiscoveryInvocationCount);
     }
@@ -155,7 +160,8 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
         DiscoverDataRightsSubjectsQueryHandler handler = new(
             new CaseRepository(dataRightsCase),
             [beta, alpha],
-            new TestScopeContext());
+            new TestScopeContext(),
+            NullLogger<DiscoverDataRightsSubjectsQueryHandler>.Instance);
 
         Result<DataRightsSubjectDiscoveryResponse> result = await handler.HandleAsync(
             new DiscoverDataRightsSubjectsQuery(
@@ -184,7 +190,8 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
                     "guests",
                     _ => DataRightsSubjectDiscoveryResult.Success(candidates))
             ],
-            new TestScopeContext());
+            new TestScopeContext(),
+            NullLogger<DiscoverDataRightsSubjectsQueryHandler>.Instance);
 
         Result<DataRightsSubjectDiscoveryResponse> result = await handler.HandleAsync(
             new DiscoverDataRightsSubjectsQuery(
@@ -226,7 +233,8 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
         DiscoverDataRightsSubjectsQueryHandler handler = new(
             new CaseRepository(dataRightsCase),
             [guests, staff],
-            new TestScopeContext());
+            new TestScopeContext(),
+            NullLogger<DiscoverDataRightsSubjectsQueryHandler>.Instance);
 
         Result<DataRightsSubjectDiscoveryResponse> result = await handler.HandleAsync(
             new DiscoverDataRightsSubjectsQuery(
@@ -272,7 +280,8 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
                     "guests",
                     _ => DataRightsSubjectDiscoveryResult.Success([malformed]))
             ],
-            new TestScopeContext());
+            new TestScopeContext(),
+            NullLogger<DiscoverDataRightsSubjectsQueryHandler>.Instance);
 
         Result<DataRightsSubjectDiscoveryResponse> result = await handler.HandleAsync(
             new DiscoverDataRightsSubjectsQuery(
@@ -281,7 +290,7 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
                 new DataRightsSubjectLookup(null, null, "+44 20 1234 5678", null, null)),
             CancellationToken.None);
 
-        Assert.Equal(DataRightsApplicationErrors.SubjectCoordinateInvalid, result.Error);
+        Assert.Equal(DataRightsApplicationErrors.SubjectOwnerResultInvalid, result.Error);
     }
 
     [Fact]
@@ -292,7 +301,8 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
         DiscoverDataRightsSubjectsQueryHandler handler = new(
             new CaseRepository(dataRightsCase),
             [new StubContributor("guests", _ => null!)],
-            new TestScopeContext());
+            new TestScopeContext(),
+            NullLogger<DiscoverDataRightsSubjectsQueryHandler>.Instance);
 
         Result<DataRightsSubjectDiscoveryResponse> result = await handler.HandleAsync(
             new DiscoverDataRightsSubjectsQuery(
@@ -301,7 +311,136 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
                 new DataRightsSubjectLookup(null, "guest@example.test", null, null, null)),
             CancellationToken.None);
 
-        Assert.Equal(DataRightsApplicationErrors.DiscoveryScopeUnavailable, result.Error);
+        Assert.Equal(DataRightsApplicationErrors.SubjectOwnerResultInvalid, result.Error);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Discovery_owner_retry_is_explicit_for_result_or_exception(
+        bool throws)
+    {
+        Guid propertyId = Guid.NewGuid();
+        DataRightsCase dataRightsCase = CreateDiscoveryCase(propertyId);
+        DiscoverDataRightsSubjectsQueryHandler handler = new(
+            new CaseRepository(dataRightsCase),
+            [
+                new StubContributor(
+                    "guests",
+                    _ => throws
+                        ? throw new InvalidOperationException("owner unavailable")
+                        : DataRightsSubjectDiscoveryResult.RetryRequired())
+            ],
+            new TestScopeContext(),
+            NullLogger<DiscoverDataRightsSubjectsQueryHandler>.Instance);
+
+        Result<DataRightsSubjectDiscoveryResponse> result = await handler.HandleAsync(
+            new DiscoverDataRightsSubjectsQuery(
+                DataRightsCaseScope.ForProperty(propertyId),
+                dataRightsCase.Id,
+                new DataRightsSubjectLookup(
+                    null,
+                    "guest@example.test",
+                    null,
+                    null,
+                    null)),
+            CancellationToken.None);
+
+        Assert.Equal(DataRightsApplicationErrors.SubjectOwnerRetryRequired, result.Error);
+    }
+
+    [Fact]
+    public async Task Discovery_owner_retry_with_candidates_is_an_invalid_result()
+    {
+        Guid propertyId = Guid.NewGuid();
+        DataRightsCase dataRightsCase = CreateDiscoveryCase(propertyId);
+        DiscoverDataRightsSubjectsQueryHandler handler = new(
+            new CaseRepository(dataRightsCase),
+            [
+                new StubContributor(
+                    "guests",
+                    _ => new DataRightsSubjectDiscoveryResult(
+                        DataRightsSubjectDiscoveryStatus.RetryRequired,
+                        [Candidate("guests", Guid.NewGuid())]))
+            ],
+            new TestScopeContext(),
+            NullLogger<DiscoverDataRightsSubjectsQueryHandler>.Instance);
+
+        Result<DataRightsSubjectDiscoveryResponse> result = await handler.HandleAsync(
+            new DiscoverDataRightsSubjectsQuery(
+                DataRightsCaseScope.ForProperty(propertyId),
+                dataRightsCase.Id,
+                new DataRightsSubjectLookup(
+                    null,
+                    "guest@example.test",
+                    null,
+                    null,
+                    null)),
+            CancellationToken.None);
+
+        Assert.Equal(DataRightsApplicationErrors.SubjectOwnerResultInvalid, result.Error);
+    }
+
+    [Fact]
+    public async Task Discovery_cancellation_is_not_reclassified_as_a_retry()
+    {
+        Guid propertyId = Guid.NewGuid();
+        DataRightsCase dataRightsCase = CreateDiscoveryCase(propertyId);
+        using CancellationTokenSource source = new();
+        source.Cancel();
+        DiscoverDataRightsSubjectsQueryHandler handler = new(
+            new CaseRepository(dataRightsCase),
+            [
+                new StubContributor(
+                    "guests",
+                    _ => throw new OperationCanceledException(source.Token))
+            ],
+            new TestScopeContext(),
+            NullLogger<DiscoverDataRightsSubjectsQueryHandler>.Instance);
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() => handler.HandleAsync(
+            new DiscoverDataRightsSubjectsQuery(
+                DataRightsCaseScope.ForProperty(propertyId),
+                dataRightsCase.Id,
+                new DataRightsSubjectLookup(
+                    null,
+                    "guest@example.test",
+                    null,
+                    null,
+                    null)),
+            source.Token));
+    }
+
+    [Fact]
+    public async Task Discovery_owner_failure_log_excludes_lookup_and_exception_details()
+    {
+        const string email = "private.lookup@example.test";
+        Guid propertyId = Guid.NewGuid();
+        DataRightsCase dataRightsCase = CreateDiscoveryCase(propertyId);
+        CapturingLogger<DiscoverDataRightsSubjectsQueryHandler> logger = new();
+        DiscoverDataRightsSubjectsQueryHandler handler = new(
+            new CaseRepository(dataRightsCase),
+            [
+                new StubContributor(
+                    "guests",
+                    _ => throw new InvalidOperationException("private failure detail"))
+            ],
+            new TestScopeContext(),
+            logger);
+
+        Result<DataRightsSubjectDiscoveryResponse> result = await handler.HandleAsync(
+            new DiscoverDataRightsSubjectsQuery(
+                DataRightsCaseScope.ForProperty(propertyId),
+                dataRightsCase.Id,
+                new DataRightsSubjectLookup(null, email, null, null, null)),
+            CancellationToken.None);
+
+        Assert.Equal(DataRightsApplicationErrors.SubjectOwnerRetryRequired, result.Error);
+        string message = Assert.Single(logger.Messages);
+        Assert.Contains("guests", message, StringComparison.Ordinal);
+        Assert.Contains("InvalidOperationException", message, StringComparison.Ordinal);
+        Assert.DoesNotContain(email, message, StringComparison.Ordinal);
+        Assert.DoesNotContain("private failure detail", message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -324,7 +463,8 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
                 new CaseRepository(dataRightsCase)),
             [contributor],
             new TestScopeContext(),
-            new TestClock());
+            new TestClock(),
+            NullLogger<SelectDataRightsSubjectCommandHandler>.Instance);
 
         Result<DataRightsCaseDto> result = await handler.HandleAsync(
             new SelectDataRightsSubjectCommand(
@@ -335,7 +475,7 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
                 "user:operator"),
             CancellationToken.None);
 
-        Assert.Equal(DataRightsApplicationErrors.SubjectCoordinateInvalid, result.Error);
+        Assert.Equal(DataRightsApplicationErrors.SubjectOwnerResultInvalid, result.Error);
         Assert.Empty(dataRightsCase.SelectedSubjects);
     }
 
@@ -358,7 +498,8 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
                 new CaseRepository(dataRightsCase)),
             [contributor],
             new TestScopeContext(),
-            new TestClock());
+            new TestClock(),
+            NullLogger<SelectDataRightsSubjectCommandHandler>.Instance);
 
         Result<DataRightsCaseDto> result = await handler.HandleAsync(
             new SelectDataRightsSubjectCommand(
@@ -369,7 +510,122 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
                 "user:operator"),
             CancellationToken.None);
 
+        Assert.Equal(DataRightsApplicationErrors.SubjectOwnerResultInvalid, result.Error);
+        Assert.Empty(dataRightsCase.SelectedSubjects);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Selection_owner_retry_is_explicit_for_result_or_exception(
+        bool throws)
+    {
+        Guid propertyId = Guid.NewGuid();
+        DataRightsCase dataRightsCase = CreateDiscoveryCase(propertyId);
+        DataRightsSubjectCoordinate requested = new(
+            "guests",
+            "guest-profile",
+            Guid.NewGuid(),
+            4);
+        StubContributor contributor = new(
+            "guests",
+            _ => DataRightsSubjectDiscoveryResult.Success([]),
+            _ => throws
+                ? throw new InvalidOperationException("owner unavailable")
+                : DataRightsSubjectSelectionValidation.RetryRequired());
+        SelectDataRightsSubjectCommandHandler handler = new(
+            DataRightsMutationTestSupport.Case(
+                new CaseRepository(dataRightsCase)),
+            [contributor],
+            new TestScopeContext(),
+            new TestClock(),
+            NullLogger<SelectDataRightsSubjectCommandHandler>.Instance);
+
+        Result<DataRightsCaseDto> result = await handler.HandleAsync(
+            new SelectDataRightsSubjectCommand(
+                DataRightsCaseScope.ForProperty(propertyId),
+                dataRightsCase.Id,
+                requested,
+                dataRightsCase.Version,
+                "user:operator"),
+            CancellationToken.None);
+
+        Assert.Equal(DataRightsApplicationErrors.SubjectOwnerRetryRequired, result.Error);
+        Assert.Empty(dataRightsCase.SelectedSubjects);
+    }
+
+    [Fact]
+    public async Task Selection_owner_failure_log_excludes_coordinate_and_exception_details()
+    {
+        Guid propertyId = Guid.NewGuid();
+        DataRightsCase dataRightsCase = CreateDiscoveryCase(propertyId);
+        DataRightsSubjectCoordinate requested = new(
+            "guests",
+            "guest-profile",
+            Guid.NewGuid(),
+            4);
+        StubContributor contributor = new(
+            "guests",
+            _ => DataRightsSubjectDiscoveryResult.Success([]),
+            _ => throw new InvalidOperationException("private failure detail"));
+        CapturingLogger<SelectDataRightsSubjectCommandHandler> logger = new();
+        SelectDataRightsSubjectCommandHandler handler = new(
+            DataRightsMutationTestSupport.Case(
+                new CaseRepository(dataRightsCase)),
+            [contributor],
+            new TestScopeContext(),
+            new TestClock(),
+            logger);
+
+        Result<DataRightsCaseDto> result = await handler.HandleAsync(
+            new SelectDataRightsSubjectCommand(
+                DataRightsCaseScope.ForProperty(propertyId),
+                dataRightsCase.Id,
+                requested,
+                dataRightsCase.Version,
+                "user:operator"),
+            CancellationToken.None);
+
+        Assert.Equal(DataRightsApplicationErrors.SubjectOwnerRetryRequired, result.Error);
+        string message = Assert.Single(logger.Messages);
+        Assert.Contains("guests", message, StringComparison.Ordinal);
+        Assert.Contains("InvalidOperationException", message, StringComparison.Ordinal);
+        Assert.DoesNotContain(requested.RecordId.ToString("D"), message, StringComparison.Ordinal);
+        Assert.DoesNotContain("private failure detail", message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Malformed_selection_is_rejected_before_owner_dispatch()
+    {
+        Guid propertyId = Guid.NewGuid();
+        DataRightsCase dataRightsCase = CreateDiscoveryCase(propertyId);
+        StubContributor contributor = new(
+            "guests",
+            _ => DataRightsSubjectDiscoveryResult.Success([]),
+            _ => DataRightsSubjectSelectionValidation.NotFound());
+        SelectDataRightsSubjectCommandHandler handler = new(
+            DataRightsMutationTestSupport.Case(
+                new CaseRepository(dataRightsCase)),
+            [contributor],
+            new TestScopeContext(),
+            new TestClock(),
+            NullLogger<SelectDataRightsSubjectCommandHandler>.Instance);
+
+        Result<DataRightsCaseDto> result = await handler.HandleAsync(
+            new SelectDataRightsSubjectCommand(
+                DataRightsCaseScope.ForProperty(propertyId),
+                dataRightsCase.Id,
+                new DataRightsSubjectCoordinate(
+                    "guests",
+                    " ",
+                    Guid.NewGuid(),
+                    1),
+                dataRightsCase.Version,
+                "user:operator"),
+            CancellationToken.None);
+
         Assert.Equal(DataRightsApplicationErrors.SubjectCoordinateInvalid, result.Error);
+        Assert.Equal(0, contributor.SelectionInvocationCount);
         Assert.Empty(dataRightsCase.SelectedSubjects);
     }
 
@@ -432,7 +688,7 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
                 [first, duplicate],
                 DataRightsCaseType.GuestRights);
 
-        Assert.Equal(DataRightsApplicationErrors.SubjectOwnerUnavailable, result.Error);
+        Assert.Equal(DataRightsApplicationErrors.SubjectOwnerCatalogInvalid, result.Error);
     }
 
     [Fact]
@@ -475,7 +731,7 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
                     DataRightsCaseType.StaffRights);
 
             Assert.Equal(
-                DataRightsApplicationErrors.SubjectOwnerUnavailable,
+                DataRightsApplicationErrors.SubjectOwnerCatalogInvalid,
                 result.Error);
         });
     }
@@ -564,6 +820,8 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
 
         public int DiscoveryInvocationCount { get; private set; }
 
+        public int SelectionInvocationCount { get; private set; }
+
         public DataRightsSubjectDiscoveryRequest? LastDiscoveryRequest { get; private set; }
 
         public Task<DataRightsSubjectDiscoveryResult> DiscoverAsync(
@@ -577,9 +835,13 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
 
         public Task<DataRightsSubjectSelectionValidation> ValidateSelectionAsync(
             DataRightsSubjectSelectionRequest request,
-            CancellationToken cancellationToken) => validate is null
-            ? Task.FromResult(DataRightsSubjectSelectionValidation.NotFound())
-            : Task.FromResult(validate(request));
+            CancellationToken cancellationToken)
+        {
+            this.SelectionInvocationCount++;
+            return validate is null
+                ? Task.FromResult(DataRightsSubjectSelectionValidation.NotFound())
+                : Task.FromResult(validate(request));
+        }
     }
 
     private sealed class TestScopeContext : IScopeContext
@@ -592,5 +854,23 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
     {
         public DateTimeOffset UtcNow =>
             new(2026, 7, 23, 12, 2, 0, TimeSpan.Zero);
+    }
+
+    private sealed class CapturingLogger<T> : ILogger<T>
+    {
+        public List<string> Messages { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter) =>
+            this.Messages.Add(formatter(state, exception));
     }
 }

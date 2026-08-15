@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.DataRights.Tests.Api;
 
+using System.Text.Json;
 using BunkFy.Modules.DataRights.Api;
 using BunkFy.Modules.DataRights.Application;
 using BunkFy.Modules.DataRights.Contracts;
@@ -10,6 +11,7 @@ using Gma.Framework.Results;
 using Gma.Framework.Security;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
@@ -329,6 +331,40 @@ public sealed class DataRightsApiSecurityTests
     }
 
     [Fact]
+    public void Subject_owner_failures_have_distinct_http_semantics()
+    {
+        (Error Error, int StatusCode)[] expectations =
+        [
+            (
+                DataRightsApplicationErrors.DiscoveryScopeUnavailable,
+                StatusCodes.Status409Conflict),
+            (
+                DataRightsApplicationErrors.SubjectOwnerUnavailable,
+                StatusCodes.Status503ServiceUnavailable),
+            (
+                DataRightsApplicationErrors.SubjectOwnerRetryRequired,
+                StatusCodes.Status503ServiceUnavailable),
+            (
+                DataRightsApplicationErrors.SubjectOwnerCatalogInvalid,
+                StatusCodes.Status500InternalServerError),
+            (
+                DataRightsApplicationErrors.SubjectOwnerResultInvalid,
+                StatusCodes.Status500InternalServerError),
+            (
+                DataRightsApplicationErrors.SubjectCoordinateInvalid,
+                StatusCodes.Status400BadRequest)
+        ];
+
+        foreach ((Error error, int statusCode) in expectations)
+        {
+            Assert.Equal(
+                statusCode,
+                DataRightsEndpointSupport.ErrorStatusCodes
+                    .GetStatusCode(error));
+        }
+    }
+
+    [Fact]
     public void Case_creation_operation_failures_have_distinct_http_semantics()
     {
         Assert.Equal(
@@ -361,9 +397,123 @@ public sealed class DataRightsApiSecurityTests
                 .StatusCode);
         Assert.Equal(
             DataRightsEndpointSupport
-                .RequiredCompanionRetryAfterSeconds.ToString(
+                .ExplicitDependencyRetryAfterSeconds.ToString(
                     System.Globalization.CultureInfo.InvariantCulture),
             context.Response.Headers.RetryAfter);
+    }
+
+    [Fact]
+    public void Explicit_subject_owner_retry_publishes_a_bounded_retry_after()
+    {
+        DefaultHttpContext context = new();
+
+        IResult result = DataRightsEndpointSupport.ToHttpResult(
+            context,
+            Result.Failure<DataRightsSubjectDiscoveryResponse>(
+                DataRightsApplicationErrors.SubjectOwnerRetryRequired));
+
+        Assert.Equal(
+            StatusCodes.Status503ServiceUnavailable,
+            Assert.IsType<IStatusCodeHttpResult>(result, exactMatch: false)
+                .StatusCode);
+        Assert.Equal(
+            DataRightsEndpointSupport
+                .ExplicitDependencyRetryAfterSeconds.ToString(
+                    System.Globalization.CultureInfo.InvariantCulture),
+            context.Response.Headers.RetryAfter);
+    }
+
+    [Fact]
+    public void Missing_subject_owner_does_not_advertise_an_immediate_retry()
+    {
+        DefaultHttpContext context = new();
+
+        IResult result = DataRightsEndpointSupport.ToHttpResult(
+            context,
+            Result.Failure<DataRightsSubjectDiscoveryResponse>(
+                DataRightsApplicationErrors.SubjectOwnerUnavailable));
+
+        Assert.Equal(
+            StatusCodes.Status503ServiceUnavailable,
+            Assert.IsType<IStatusCodeHttpResult>(result, exactMatch: false)
+                .StatusCode);
+        Assert.False(context.Response.Headers.ContainsKey("Retry-After"));
+    }
+
+    [Fact]
+    public async Task Direct_discovery_routes_publish_explicit_retry_headers()
+    {
+        WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        builder.Services.AddSingleton<IRequestDispatcher>(
+            new QueryFailureDispatcher(
+                DataRightsApplicationErrors.SubjectOwnerRetryRequired));
+        builder.Services.AddSingleton<IAccessHttpSubjectResolver>(_ => null!);
+        await using WebApplication app = builder.Build();
+        new DataRightsModule().MapEndpoints(app);
+        RouteEndpoint[] endpoints = [.. ((IEndpointRouteBuilder)app).DataSources
+            .SelectMany(dataSource => dataSource.Endpoints)
+            .OfType<RouteEndpoint>()];
+        (string Route, Guid? PropertyId)[] routes =
+        [
+            (
+                "/api/data-rights/properties/{propertyId:guid}/cases/{caseId:guid}/subjects/discover",
+                Guid.NewGuid()),
+            (
+                "/api/data-rights/tenant/cases/{caseId:guid}/subjects/discover",
+                null)
+        ];
+
+        foreach ((string route, Guid? propertyId) in routes)
+        {
+            RouteEndpoint endpoint = FindEndpoint(
+                endpoints,
+                HttpMethods.Post,
+                route);
+            byte[] body = JsonSerializer.SerializeToUtf8Bytes(
+                new DataRightsDiscoveryEndpoints
+                    .DiscoverDataRightsSubjectsRequest(
+                        RecordId: null,
+                        Email: "guest@example.test",
+                        Phone: null,
+                        Name: null,
+                        DateOfBirth: null,
+                        AccountSubjectId: null,
+                        OwnerKey: null),
+                JsonSerializerOptions.Web);
+            DefaultHttpContext context = new()
+            {
+                RequestServices = app.Services,
+                Response = { Body = new MemoryStream() }
+            };
+            context.Request.Method = HttpMethods.Post;
+            context.Request.ContentType = "application/json";
+            context.Request.ContentLength = body.Length;
+            context.Request.Body = new MemoryStream(body);
+            context.Features.Set<IHttpRequestBodyDetectionFeature>(
+                new RequestBodyDetectionFeature());
+            context.Request.RouteValues["caseId"] =
+                Guid.NewGuid().ToString("D");
+            if (propertyId.HasValue)
+            {
+                context.Request.RouteValues["propertyId"] =
+                    propertyId.Value.ToString("D");
+            }
+
+            await endpoint.RequestDelegate!(context);
+
+            context.Response.Body.Position = 0;
+            string responseBody = await new StreamReader(
+                context.Response.Body).ReadToEndAsync();
+            Assert.True(
+                context.Response.StatusCode ==
+                    StatusCodes.Status503ServiceUnavailable,
+                $"Expected HTTP 503 but received {context.Response.StatusCode}: {responseBody}");
+            Assert.Equal(
+                DataRightsEndpointSupport
+                    .ExplicitDependencyRetryAfterSeconds.ToString(
+                        System.Globalization.CultureInfo.InvariantCulture),
+                context.Response.Headers.RetryAfter);
+        }
     }
 
     [Fact]
@@ -626,5 +776,24 @@ public sealed class DataRightsApiSecurityTests
             IQuery<TResponse> query,
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
+    }
+
+    private sealed class QueryFailureDispatcher(Error error) : IRequestDispatcher
+    {
+        public Task<Result<TResponse>> SendAsync<TResponse>(
+            ICommand<TResponse> command,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<Result<TResponse>> QueryAsync<TResponse>(
+            IQuery<TResponse> query,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(Result.Failure<TResponse>(error));
+    }
+
+    private sealed class RequestBodyDetectionFeature :
+        IHttpRequestBodyDetectionFeature
+    {
+        public bool CanHaveBody => true;
     }
 }
