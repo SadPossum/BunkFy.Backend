@@ -89,7 +89,7 @@ internal sealed class ExecuteRetentionScheduleTaskHandler(
                 "Retention owner {OwnerKey} failed for data class {DataClassKey} at attempt {Attempt}",
                 payload.OwnerKey,
                 payload.DataClassKey,
-                context.Attempt);
+                executionAttempt);
             ownerFailure = exception;
             result = new(
                 RetentionExecutionContract.CurrentVersion,

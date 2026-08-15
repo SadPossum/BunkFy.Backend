@@ -10,6 +10,7 @@ using Gma.Framework.Results;
 using Gma.Framework.Runtime.Time;
 using Gma.Framework.Tasks;
 using Gma.Framework.Tasks.Cqrs;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -203,6 +204,7 @@ public sealed class ExecuteRetentionScheduleTaskHandlerTests
     {
         FakeTaskDispatcher dispatcher = new();
         RecordingSecuritySignalRecorder securitySignals = new();
+        CapturingLogger<ExecuteRetentionScheduleTaskHandler> logger = new();
         TestContributor contributor = new(_ =>
             throw new InvalidOperationException("owner failed"));
         ExecuteRetentionScheduleTaskHandler handler = new(
@@ -210,8 +212,10 @@ public sealed class ExecuteRetentionScheduleTaskHandlerTests
             [contributor],
             new TestClock(),
             securitySignals,
-            NullLogger<ExecuteRetentionScheduleTaskHandler>.Instance);
-        TaskExecutionContext context = Context();
+            logger);
+        TaskExecutionContext context = Context(
+            attempt: 1,
+            leaseGeneration: 4);
 
         InvalidOperationException exception =
             await Assert.ThrowsAsync<InvalidOperationException>(() =>
@@ -228,6 +232,11 @@ public sealed class ExecuteRetentionScheduleTaskHandlerTests
             securitySignals.Records);
         Assert.Equal("retention.scheduled-execution-failed", signal.Definition.Code);
         Assert.Equal(context.CorrelationId, signal.CorrelationId);
+        Assert.Contains(
+            logger.Messages,
+            message => message.EndsWith(
+                "at attempt 4",
+                StringComparison.Ordinal));
     }
 
     [Fact]
@@ -411,4 +420,22 @@ public sealed class ExecuteRetentionScheduleTaskHandlerTests
     private sealed record SecuritySignalRecordCapture(
         SecuritySignalDefinition Definition,
         Guid? CorrelationId);
+
+    private sealed class CapturingLogger<T> : ILogger<T>
+    {
+        public List<string> Messages { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter) =>
+            this.Messages.Add(formatter(state, exception));
+    }
 }

@@ -171,10 +171,12 @@ instant.
   as 1 through 1,000. Read at most `ScanSize + 1` candidate heads for end
   detection, but fully materialize at most `ScanSize` candidates and load their
   related facts with set-based queries.
-- Materialize at most 64 governance acknowledgements per property, using
-  bounded count and limit-plus-one checks. A pre-existing overflow or a 65th
-  acknowledgement introduced between those queries withholds that property's
-  governance policy and produces a fail-closed policy-unavailable result.
+- Materialize at most 64 governance acknowledgements per property from one
+  coherent, bounded policy statement. A 65th row visible to that statement
+  withholds the property's governance policy and produces a fail-closed
+  policy-unavailable result. A later policy change is observed by the
+  mutation-time reload or the next scan rather than mixed into the earlier
+  snapshot.
 - Mutate at most `MutationBatchSize` records per occurrence.
 - Reset the cursor only after reaching the end, so a large tenant cannot starve
   later records and newly terminal earlier ordinals are picked up on the next
@@ -202,13 +204,14 @@ instant.
 
 ## Evidence
 
-- The current local hardening pass is not publication or deployment evidence.
-  Its focused attempt, retry, timestamp, bounds, acknowledgement, eligibility,
-  and mutation unit suites pass 32/32; the combined Reservations catalogue,
-  Data Rights export, and tenant-termination suites pass 27/27; and the
-  documentation index, link, and solution guards pass 3/3. The PostgreSQL
-  provider scenario, complete repository matrix, hosted checks, and deployed
-  proof remain separate release gates for this amendment.
+- The current local hardening pass is not hosted or deployment evidence.
+  Focused retention tests pass 42/42, the complete Reservations and Retention
+  unit suites pass 365/365 and 50/50, and the strict touched-project builds
+  have zero warnings or errors. The exact PostgreSQL provider scenarios pass
+  2/2; the consolidated Reservations Docker admission passes 25/25; and both
+  saga facts pass twice consecutively. The post-rebase repository matrix,
+  hosted checks, and deployed proof remain separate release gates for this
+  amendment.
 - Focused Reservations retention tests pass 24/24, including domain,
   eligibility, contributor, mutation, policy-version cursor, append-only
   receipt, tenant boundary, and model constraints.
