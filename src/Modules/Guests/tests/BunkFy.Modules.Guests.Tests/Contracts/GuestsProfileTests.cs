@@ -19,7 +19,14 @@ public sealed class GuestsProfileTests
 
         Assert.Equal(5, permissions.Count);
         Assert.All(permissions, permission => Assert.Equal(PermissionScopeRequirement.Scoped, permission.ScopeRequirement));
-        Assert.Equal(7, GuestsModuleMetadata.Descriptor.GetSubscriptions().Count);
+        Assert.Equal(8, GuestsModuleMetadata.Descriptor.GetSubscriptions().Count);
+        Assert.Contains(
+            GuestsModuleMetadata.Descriptor.GetSubscriptions(),
+            subscription =>
+                subscription.EventType ==
+                    PropertyTimeZoneChangedIntegrationEvent.EventType &&
+                subscription.ProducerModule ==
+                    PropertiesModuleMetadata.Name);
         Assert.Contains(
             GuestsModuleMetadata.Descriptor.GetSubscriptions(),
             subscription =>

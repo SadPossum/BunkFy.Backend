@@ -12,6 +12,7 @@ using BunkFy.Modules.Guests.Persistence;
 using BunkFy.Modules.Guests.Persistence.Repositories;
 using BunkFy.Modules.Guests.Persistence.TenantTermination;
 using BunkFy.Modules.Workspaces.Contracts;
+using BunkFy.TimeZones;
 using Gma.Framework.Messaging.Infrastructure;
 using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
@@ -139,9 +140,43 @@ public sealed class GuestsTenantTerminationContributorTests
             GuestsTenantTerminationMetadata.ExportSchemaId,
             contributor.ExportDescriptor.ExportSchemaId);
         Assert.Equal(
+            GuestsTenantTerminationMetadata.ExportSchemaVersion,
+            contributor.ExportDescriptor.ExportSchemaVersion);
+        Assert.Equal(5, contributor.Descriptor.CatalogVersion);
+        Assert.Equal(
+            GuestsTenantTerminationMetadata.CatalogSha256,
+            contributor.Descriptor.CatalogSha256);
+        Assert.Equal(4, contributor.ExportDescriptor.ExportSchemaVersion);
+        Assert.Contains(
+            "catalog=5",
+            GuestsTenantTerminationMetadata.CatalogManifest,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "catalog=4",
+            GuestsTenantTerminationMetadata.CatalogManifest,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "export-schema=guests.tenant-termination-export:4",
+            GuestsTenantTerminationMetadata.CatalogManifest,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "export-schema=guests.tenant-termination-export:3",
+            GuestsTenantTerminationMetadata.CatalogManifest,
+            StringComparison.Ordinal);
+        Assert.Equal(
             GuestsTenantTerminationMetadata.ExportFieldIds
                 .OrderBy(field => field, StringComparer.Ordinal),
             contributor.ExportDescriptor.FieldIds);
+        DataRightsExportRecord retentionReceipt = Assert.Single(
+            first.Records,
+            record => record.RecordType ==
+                GuestsTenantTerminationMetadata
+                    .RetentionAnonymisationReceiptRecordType);
+        Assert.Equal(
+            TimeZoneCatalog.Default.CatalogVersion,
+            Field(retentionReceipt, "guests.retention-proof")
+                .GetProperty("timeZoneCatalogVersion")
+                .GetString());
         Assert.Equal(
             [
                 TenantTerminationContributionPhase.Export,
@@ -162,6 +197,12 @@ public sealed class GuestsTenantTerminationContributorTests
                 CancellationToken.None);
 
         Assert.Equal(result.AffectedCount, replayResult.AffectedCount);
+        Assert.Equal(5, result.CatalogVersion);
+        Assert.Equal(
+            GuestsTenantTerminationMetadata.CatalogSha256,
+            result.CatalogSha256);
+        Assert.Equal(result.CatalogVersion, replayResult.CatalogVersion);
+        Assert.Equal(result.CatalogSha256, replayResult.CatalogSha256);
         Assert.Equal(
             first.Records.Select(Identity).ToArray(),
             replay.Records.Select(Identity).ToArray());
@@ -358,6 +399,10 @@ public sealed class GuestsTenantTerminationContributorTests
 
         TenantTerminationContributionResult replay =
             await contributor.ExecuteAsync(request, CancellationToken.None);
+        Assert.Equal(5, result.CatalogVersion);
+        Assert.Equal(
+            GuestsTenantTerminationMetadata.CatalogSha256,
+            result.CatalogSha256);
         Assert.Equal(result, replay);
 
         TenantTerminationContributionResult conflict =
@@ -738,7 +783,8 @@ public sealed class GuestsTenantTerminationContributorTests
                 Guid.NewGuid(),
                 TenantId,
                 "guest-operational",
-                executionPolicyVersion: 1,
+                executionPolicyVersion:
+                    GuestRetentionExecution.MinimumRunningPolicyVersion,
                 attempt: 1,
                 startingProjectionOrdinal: 0,
                 Now.AddMinutes(-2),
@@ -760,6 +806,7 @@ public sealed class GuestsTenantTerminationContributorTests
                 affectedPropertyCount: 1,
                 Now.AddDays(-1),
                 Digest,
+                TimeZoneCatalog.Default.CatalogVersion,
                 outcome.EventId,
                 "system:retention",
                 Now).Value;

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "guests.personal-data",
-  "catalogVersion": 15,
+  "catalogVersion": 16,
   "module": "guests",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -3223,6 +3223,28 @@
         { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.Retention.GuestRetentionAnonymisationReceipt", "member": "ActorId", "surface": "persistence" },
         { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.Retention.GuestRetentionAnonymisationReceipt", "member": "CompletedAtUtc", "surface": "persistence" },
         { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.Retention.GuestRetentionAnonymisationReceipt", "member": "CanonicalSha256", "surface": "persistence" }
+      ]
+    },
+    {
+      "id": "guest.retention.time-zone-catalog-version",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": ["retention-anonymisation", "deterministic-time-zone-evidence", "immutable-owner-proof"],
+      "sources": ["embedded-time-zone-catalog", "guests-retention-evaluation"],
+      "authoritativeOwner": "guests",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "guest-retention-proof",
+      "countryPolicyKey": "guest.retention.guest-operational",
+      "retentionPolicy": "guest-retention-anonymisation-proof",
+      "rightsPolicy": "guest-retention-proof-control",
+      "allowedSurfaces": ["application-command", "persistence", "data-rights-export"],
+      "allowedBoundaries": ["intra-module", "cross-module"],
+      "approvalState": "engineering-default",
+      "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Application", "type": "BunkFy.Modules.Guests.Application.Policies.GuestRetentionEligibilityResult", "member": "TimeZoneCatalogVersion", "surface": "application-command" },
+        { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.Retention.GuestRetentionAnonymisationReceipt", "member": "TimeZoneCatalogVersion", "surface": "persistence" },
+        { "assembly": "BunkFy.Modules.Guests.Persistence", "type": "BunkFy.Modules.Guests.Persistence.Repositories.GuestRetentionAnonymisationProofTenantExport", "member": "TimeZoneCatalogVersion", "surface": "data-rights-export", "retentionPolicy": "guests-tenant-termination-export-fragment" }
       ]
     },
     {

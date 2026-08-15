@@ -17,7 +17,11 @@ internal sealed class GuestRetentionAnonymisationReceiptConfiguration
             {
                 table.HasCheckConstraint(
                     "CK_guest_retention_receipts_contract",
-                    $"\"ContractVersion\" = {GuestRetentionAnonymisationReceipt.CurrentContractVersion}");
+                    $"\"ContractVersion\" BETWEEN {GuestRetentionAnonymisationReceipt.MinimumSupportedContractVersion} AND {GuestRetentionAnonymisationReceipt.CurrentContractVersion} AND " +
+                    "((\"ContractVersion\" = 1 AND \"TimeZoneCatalogVersion\" IS NULL) OR " +
+                    "(\"ContractVersion\" = 2 AND char_length(\"TimeZoneCatalogVersion\") > 0 AND " +
+                    "\"TimeZoneCatalogVersion\" = btrim(\"TimeZoneCatalogVersion\") AND " +
+                    "\"TimeZoneCatalogVersion\" !~ '[[:cntrl:]]'))");
                 table.HasCheckConstraint(
                     "CK_guest_retention_receipts_actor",
                     "length(trim(\"ActorId\")) > 0");
@@ -49,6 +53,10 @@ internal sealed class GuestRetentionAnonymisationReceiptConfiguration
             .HasMaxLength(GuestRetentionAnonymisationReceipt.Sha256Length)
             .IsFixedLength()
             .IsRequired();
+        builder.Property(receipt => receipt.TimeZoneCatalogVersion)
+            .HasMaxLength(
+                GuestRetentionAnonymisationReceipt
+                    .TimeZoneCatalogVersionMaxLength);
         builder.Property(receipt => receipt.CanonicalSha256)
             .HasMaxLength(GuestRetentionAnonymisationReceipt.Sha256Length)
             .IsFixedLength()

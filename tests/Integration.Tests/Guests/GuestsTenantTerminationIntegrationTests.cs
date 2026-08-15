@@ -10,6 +10,7 @@ using BunkFy.Modules.Guests.Domain.Retention;
 using BunkFy.Modules.Guests.Persistence;
 using BunkFy.Modules.Workspaces.Domain.Termination;
 using BunkFy.Modules.Workspaces.Persistence;
+using BunkFy.TimeZones;
 using Gma.Framework.Messaging.Infrastructure;
 using Gma.Framework.Runtime.Identity;
 using Gma.Framework.Runtime.Time;
@@ -640,7 +641,7 @@ public sealed class GuestsTenantTerminationIntegrationTests
                 Guid.NewGuid(),
                 tenantId,
                 "guest-operational",
-                executionPolicyVersion: 1,
+                GuestRetentionExecution.MinimumRunningPolicyVersion,
                 attempt: 1,
                 startingProjectionOrdinal: 0,
                 ExportNowUtc.AddMinutes(-5),
@@ -662,6 +663,7 @@ public sealed class GuestsTenantTerminationIntegrationTests
                 affectedPropertyCount: 1,
                 ExportNowUtc.AddDays(-1),
                 Digest,
+                TimeZoneCatalog.Default.CatalogVersion,
                 outcome.EventId,
                 "system:retention",
                 ExportNowUtc.AddMinutes(-3)).Value;

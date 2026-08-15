@@ -9,6 +9,7 @@ public sealed class GuestRetentionExecution : ScopedAggregateRoot<Guid>
 {
     public const int DataClassKeyMaxLength = 64;
     public const int OutcomeCodeMaxLength = 100;
+    public const int MinimumRunningPolicyVersion = 2;
 
     private GuestRetentionExecution() { }
 
@@ -47,7 +48,7 @@ public sealed class GuestRetentionExecution : ScopedAggregateRoot<Guid>
         if (id == Guid.Empty ||
             !TenantIds.TryNormalize(tenantId, out string? scopeId) ||
             !IsKey(normalized) ||
-            executionPolicyVersion <= 0 ||
+            executionPolicyVersion < MinimumRunningPolicyVersion ||
             attempt <= 0 ||
             startingProjectionOrdinal < 0 ||
             startedAtUtc == default ||

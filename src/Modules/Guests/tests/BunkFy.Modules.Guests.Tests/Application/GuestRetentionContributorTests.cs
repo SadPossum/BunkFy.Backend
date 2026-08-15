@@ -7,6 +7,7 @@ using BunkFy.Modules.Guests.Application.Policies;
 using BunkFy.Modules.Guests.Application.Ports;
 using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Guests.Domain.Retention;
+using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Retention.Contracts;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
@@ -100,6 +101,39 @@ public sealed class GuestRetentionContributorTests
     }
 
     [Fact]
+    public async Task Completion_time_is_normalized_before_the_first_result()
+    {
+        GuestRetentionPolicyFixture policy =
+            GuestRetentionTestData.CreatePolicy();
+        GuestRetentionCandidateSnapshot currentStay =
+            GuestRetentionTestData.Snapshot(
+                policy.Binding,
+                GuestStayStatus.Confirmed,
+                new DateOnly(2025, 1, 1));
+        DateTimeOffset subMicrosecondClock = GuestRetentionTestData.Now
+            .ToOffset(TimeSpan.FromHours(2))
+            .AddTicks(7);
+        FakeDispatcher dispatcher = new(initialAffectedCount: 0);
+        GuestRetentionContributor contributor = CreateContributor(
+            dispatcher,
+            new(new([currentStay], ReachedEnd: true)),
+            new(),
+            policy,
+            subMicrosecondClock);
+
+        RetentionContributionResult result =
+            await contributor.ExecuteAsync(
+                Request(),
+                CancellationToken.None);
+
+        CompleteGuestRetentionExecutionCommand completed =
+            Assert.IsType<CompleteGuestRetentionExecutionCommand>(
+                dispatcher.CompletedCommand);
+        Assert.Equal(GuestRetentionTestData.Now, completed.CompletedAtUtc);
+        Assert.Equal(completed.CompletedAtUtc, result.CompletedAtUtc);
+    }
+
+    [Fact]
     public async Task Projection_failure_has_a_stable_distinct_outcome()
     {
         GuestRetentionPolicyFixture policy =
@@ -169,17 +203,63 @@ public sealed class GuestRetentionContributorTests
             result.OutcomeCode);
     }
 
+    [Fact]
+    public async Task Time_zone_failure_has_a_stable_distinct_outcome()
+    {
+        GuestRetentionPolicyFixture policy =
+            GuestRetentionTestData.CreatePolicy();
+        GuestRetentionCandidateSnapshot source =
+            GuestRetentionTestData.Snapshot(
+                policy.Binding,
+                GuestStayStatus.CheckedOut,
+                new DateOnly(2025, 1, 1));
+        GuestRetentionPropertySnapshot property =
+            Assert.Single(source.Properties);
+        GuestRetentionCandidateSnapshot candidate = source with
+        {
+            Properties =
+            [
+                property with
+                {
+                    TimeZoneId = "UTC",
+                    CanonicalTimeZoneId = "Etc/UTC",
+                    TimeZoneStatus =
+                        PropertyTimeZoneStatus.Alias,
+                    TimeZoneCatalogVersion = null
+                }
+            ]
+        };
+        FakeDispatcher dispatcher = new(initialAffectedCount: 0);
+        GuestRetentionContributor contributor = CreateContributor(
+            dispatcher,
+            new(new([candidate], ReachedEnd: true)),
+            new(),
+            policy);
+
+        RetentionContributionResult result =
+            await contributor.ExecuteAsync(
+                Request(),
+                CancellationToken.None);
+
+        Assert.Equal(RetentionContributionStatus.Failed, result.Status);
+        Assert.Equal(
+            GuestRetentionCoordinates.TimeZoneUnavailableOutcome,
+            result.OutcomeCode);
+        Assert.Equal(0, dispatcher.ApplyCount);
+    }
+
     private static GuestRetentionContributor CreateContributor(
         FakeDispatcher dispatcher,
         FakeCandidateRepository repository,
         GuestRetentionOptions options,
-        GuestRetentionPolicyFixture policy) =>
+        GuestRetentionPolicyFixture policy,
+        DateTimeOffset? clockUtcNow = null) =>
         new(
             dispatcher,
             repository,
             new GuestRetentionEligibilityEvaluator(policy.Registry),
             Options.Create(options),
-            new FakeClock());
+            new FakeClock(clockUtcNow ?? GuestRetentionTestData.Now));
 
     private static RetentionContributionRequest Request(int attempt = 1) =>
         new(
@@ -194,9 +274,9 @@ public sealed class GuestRetentionContributorTests
             GuestRetentionTestData.Now.AddMinutes(-1),
             GuestRetentionTestData.Now.AddMinutes(10));
 
-    private sealed class FakeClock : ISystemClock
+    private sealed class FakeClock(DateTimeOffset utcNow) : ISystemClock
     {
-        public DateTimeOffset UtcNow => GuestRetentionTestData.Now;
+        public DateTimeOffset UtcNow { get; } = utcNow;
     }
 
     private sealed class FakeCandidateRepository(

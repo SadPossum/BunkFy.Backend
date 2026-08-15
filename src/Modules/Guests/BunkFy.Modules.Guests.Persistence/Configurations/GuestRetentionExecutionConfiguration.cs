@@ -15,7 +15,9 @@ internal sealed class GuestRetentionExecutionConfiguration
             table.HasCheckConstraint(
                 "CK_guest_retention_executions_policy",
                 "\"ExecutionPolicyVersion\" >= 1 AND \"Attempt\" >= 1 AND " +
-                "\"DeadlineUtc\" > \"StartedAtUtc\"");
+                "\"DeadlineUtc\" > \"StartedAtUtc\" AND " +
+                $"(\"State\" <> {(int)GuestRetentionExecutionState.Running} OR " +
+                $"\"ExecutionPolicyVersion\" >= {GuestRetentionExecution.MinimumRunningPolicyVersion})");
             table.HasCheckConstraint(
                 "CK_guest_retention_executions_cursor",
                 "\"StartingProjectionOrdinal\" >= 0");

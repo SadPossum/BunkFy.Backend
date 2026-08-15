@@ -1,5 +1,6 @@
 namespace BunkFy.TimeZones.Tests;
 
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using Xunit;
@@ -264,5 +265,96 @@ public sealed class TimeZoneCatalogTests
         Assert.False(probe.IsCompatible(
             identifier,
             new DateTimeOffset(2026, 8, 13, 0, 0, 0, TimeSpan.Zero)));
+    }
+
+    [Theory]
+    [InlineData(
+        "Europe/London",
+        2026,
+        3,
+        28,
+        "2026-03-29T00:00:00+00:00")]
+    [InlineData(
+        "America/New_York",
+        2026,
+        3,
+        7,
+        "2026-03-08T05:00:00+00:00")]
+    [InlineData(
+        "Asia/Kathmandu",
+        2026,
+        1,
+        1,
+        "2026-01-01T18:15:00+00:00")]
+    public void Next_local_day_start_uses_embedded_tzdb(
+        string timeZoneId,
+        int year,
+        int month,
+        int day,
+        string expectedUtc)
+    {
+        Assert.True(TimeZoneCalendarMath.TryGetStartOfNextLocalDay(
+            new DateOnly(year, month, day),
+            timeZoneId,
+            out DateTimeOffset startAtUtc));
+        Assert.Equal(
+            DateTimeOffset.Parse(
+                expectedUtc,
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.RoundtripKind),
+            startAtUtc);
+    }
+
+    [Theory]
+    [InlineData("UTC")]
+    [InlineData("Pacific Standard Time")]
+    [InlineData("Missing/Zone")]
+    public void Next_local_day_start_rejects_non_primary_identifiers(
+        string timeZoneId) =>
+        Assert.False(TimeZoneCalendarMath.TryGetStartOfNextLocalDay(
+            new DateOnly(2026, 1, 1),
+            timeZoneId,
+            out _));
+
+    [Fact]
+    public void Next_local_day_start_fails_when_the_entire_day_was_skipped()
+    {
+        Assert.False(TimeZoneCalendarMath.TryGetStartOfNextLocalDay(
+            new DateOnly(2011, 12, 29),
+            "Pacific/Apia",
+            out _));
+    }
+
+    [Fact]
+    public void Next_local_day_start_uses_later_repeated_midnight()
+    {
+        Assert.True(TimeZoneCalendarMath.TryGetStartOfNextLocalDay(
+            new DateOnly(2020, 10, 31),
+            "America/Havana",
+            out DateTimeOffset startAtUtc));
+        Assert.Equal(
+            new DateTimeOffset(2020, 11, 1, 5, 0, 0, TimeSpan.Zero),
+            startAtUtc);
+    }
+
+    [Fact]
+    public void Next_local_day_start_uses_first_valid_time_after_short_gap()
+    {
+        Assert.True(TimeZoneCalendarMath.TryGetStartOfNextLocalDay(
+            new DateOnly(2018, 11, 3),
+            "America/Sao_Paulo",
+            out DateTimeOffset startAtUtc));
+        Assert.Equal(
+            new DateTimeOffset(2018, 11, 4, 3, 0, 0, TimeSpan.Zero),
+            startAtUtc);
+    }
+
+    [Fact]
+    public void Next_local_day_start_fails_closed_on_date_overflow()
+    {
+        Assert.False(TimeZoneCalendarMath.TryGetStartOfNextLocalDay(
+            DateOnly.MaxValue,
+            "Etc/UTC",
+            out _));
     }
 }

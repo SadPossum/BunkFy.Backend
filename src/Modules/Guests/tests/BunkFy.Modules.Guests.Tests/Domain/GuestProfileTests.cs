@@ -5,6 +5,7 @@ using BunkFy.Modules.Guests.Domain.DataRights;
 using BunkFy.Modules.Guests.Domain.Events;
 using BunkFy.Modules.Guests.Domain.Models;
 using BunkFy.Modules.Guests.Domain.Retention;
+using BunkFy.TimeZones;
 using BunkFy.Modules.Guests.Domain.ValueObjects;
 using Gma.Framework.Results;
 using Xunit;
@@ -459,6 +460,7 @@ public sealed class GuestProfileTests
                 affectedPropertyCount: 1,
                 completedAtUtc.AddDays(-1),
                 new string('a', 64),
+                TimeZoneCatalog.Default.CatalogVersion,
                 eventId,
                 "system:retention",
                 completedAtUtc).Value;

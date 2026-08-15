@@ -9,11 +9,15 @@ using BunkFy.Modules.Guests.Persistence.Models;
 using BunkFy.Modules.Guests.Persistence.Repositories;
 using BunkFy.Modules.Guests.Persistence.TenantTermination;
 using BunkFy.Modules.Properties.Contracts;
+using Gma.Framework.Persistence.EntityFrameworkCore;
 using Gma.Framework.Scoping;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Xunit;
+using GuestStayRole = BunkFy.Modules.Guests.Contracts.GuestStayRole;
+using GuestStayStatus = BunkFy.Modules.Guests.Contracts.GuestStayStatus;
+using GuestsModuleMetadata = BunkFy.Modules.Guests.Contracts.GuestsModuleMetadata;
 
 [Trait("Category", "Unit")]
 public sealed class GuestsModelTests
@@ -177,6 +181,8 @@ public sealed class GuestsModelTests
         Assert.Contains(designProfile.GetCheckConstraints(), constraint => constraint.Name == "CK_guest_profiles_lifecycle");
         Assert.Contains(designProfile.GetCheckConstraints(), constraint => constraint.Name == "CK_guest_profiles_created_by");
         IEntityType stay = dbContext.Model.FindEntityType(typeof(GuestStayHistoryEntry))!;
+        Assert.NotNull(stay.FindDeclaredQueryFilter(
+            ScopeFilterNames.ScopeFilter));
         Assert.True(stay.FindProperty(nameof(GuestStayHistoryEntry.ReservationVersion))!.IsConcurrencyToken);
         Assert.Contains(stay.GetIndexes(), index => index.Properties.Select(item => item.Name)
             .SequenceEqual([
@@ -197,6 +203,10 @@ public sealed class GuestsModelTests
         Assert.Contains(
             designStay.GetCheckConstraints(),
             constraint => constraint.Name == "CK_guests_stay_history_contract_version");
+        IEntityType propertyProjection = dbContext.Model.FindEntityType(
+            typeof(GuestPropertyProjection))!;
+        Assert.NotNull(propertyProjection.FindDeclaredQueryFilter(
+            ScopeFilterNames.ScopeFilter));
         IEntityType dataHold = dbContext.Model.FindEntityType(typeof(GuestDataHold))!;
         Assert.True(dataHold.FindProperty(nameof(GuestDataHold.Version))!.IsConcurrencyToken);
         Assert.Contains(dataHold.GetIndexes(), index =>
@@ -337,6 +347,83 @@ public sealed class GuestsModelTests
     }
 
     [Fact]
+    public async Task Plain_projection_roots_are_tenant_filtered_and_write_guarded()
+    {
+        string databaseName = $"guests-plain-scope-{Guid.NewGuid():N}";
+        DbContextOptions<GuestsDbContext> options =
+            new DbContextOptionsBuilder<GuestsDbContext>()
+                .UseInMemoryDatabase(databaseName)
+                .Options;
+        Guid propertyId = Guid.NewGuid();
+        Guid guestId = Guid.NewGuid();
+        Guid reservationId = Guid.NewGuid();
+
+        await using (GuestsDbContext tenantA = new(
+            options,
+            new TestScopeContext("tenant-a")))
+        {
+            tenantA.PropertyProjections.Add(new(
+                "tenant-a",
+                propertyId,
+                "Property A",
+                "UTC",
+                PropertyStatus.Active,
+                version: 1));
+            tenantA.StayHistory.Add(new(
+                "tenant-a",
+                guestId,
+                reservationId,
+                propertyId,
+                GuestStayRole.Primary,
+                new DateOnly(2026, 1, 1),
+                new DateOnly(2026, 1, 2),
+                GuestStayStatus.CheckedOut,
+                checkedInBusinessDate: null,
+                noShowBusinessDate: null,
+                new DateOnly(2026, 1, 2),
+                isCurrentParticipant: false,
+                reservationVersion: 1,
+                GuestsModuleMetadata.StayHistoryProjectionVersion));
+            await tenantA.SaveChangesAsync();
+        }
+
+        await using GuestsDbContext tenantB = new(
+            options,
+            new TestScopeContext("tenant-b"));
+        Assert.Empty(await tenantB.PropertyProjections.ToArrayAsync());
+        Assert.Empty(await tenantB.StayHistory.ToArrayAsync());
+
+        tenantB.PropertyProjections.Add(new(
+            "tenant-a",
+            Guid.NewGuid(),
+            "Mismatched property",
+            "UTC",
+            PropertyStatus.Active,
+            version: 1));
+        await Assert.ThrowsAsync<ScopeWriteGuardException>(
+            () => tenantB.SaveChangesAsync());
+        tenantB.ChangeTracker.Clear();
+
+        tenantB.StayHistory.Add(new(
+            "tenant-a",
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            GuestStayRole.Primary,
+            new DateOnly(2026, 2, 1),
+            new DateOnly(2026, 2, 2),
+            GuestStayStatus.CheckedOut,
+            checkedInBusinessDate: null,
+            noShowBusinessDate: null,
+            new DateOnly(2026, 2, 2),
+            isCurrentParticipant: false,
+            reservationVersion: 1,
+            GuestsModuleMetadata.StayHistoryProjectionVersion));
+        await Assert.ThrowsAsync<ScopeWriteGuardException>(
+            () => tenantB.SaveChangesAsync());
+    }
+
+    [Fact]
     public async Task Property_projection_orders_topology_and_policy_streams_independently()
     {
         await using GuestsDbContext dbContext = CreateDbContext();
@@ -365,6 +452,46 @@ public sealed class GuestsModelTests
         GuestPropertyProjection projection = await dbContext.PropertyProjections.SingleAsync();
         Assert.Equal(2, projection.TopologySourceVersion);
         Assert.Equal(4, projection.PolicySourceVersion);
+    }
+
+    [Fact]
+    public async Task Property_policy_lookup_does_not_read_a_foreign_projection()
+    {
+        string databaseName = $"guests-property-scope-{Guid.NewGuid():N}";
+        DbContextOptions<GuestsDbContext> options =
+            new DbContextOptionsBuilder<GuestsDbContext>()
+                .UseInMemoryDatabase(databaseName)
+                .Options;
+        Guid propertyId = Guid.NewGuid();
+        await using (GuestsDbContext tenantB = new(
+            options,
+            new TestScopeContext("tenant-b")))
+        {
+            GuestPropertyProjection foreign = new(
+                "tenant-b",
+                propertyId,
+                "Foreign property",
+                "UTC",
+                PropertyStatus.Active,
+                version: 1);
+            foreign.ApplyPolicy(
+                PropertyProcessingStatus.Enabled,
+                CreateGovernanceBinding(),
+                sourceVersion: 1);
+            tenantB.PropertyProjections.Add(foreign);
+            await tenantB.SaveChangesAsync();
+        }
+
+        await using GuestsDbContext tenantA = new(
+            options,
+            new TestScopeContext("tenant-a"));
+        GuestPropertyProjectionRepository repository = new(
+            tenantA,
+            new NoopGuestOperationLock());
+
+        Assert.Null(await repository.GetPolicyAsync(
+            propertyId,
+            CancellationToken.None));
     }
 
     [Fact]

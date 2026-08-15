@@ -11,6 +11,8 @@ using NodaTime.TimeZones;
 /// </summary>
 public sealed class TimeZoneCatalog
 {
+    public const string UniversalTimeZoneId = "Etc/UTC";
+
     private readonly IDateTimeZoneProvider provider;
     private readonly IDictionary<string, string> canonicalIdMap;
     private readonly HashSet<string> windowsIds;

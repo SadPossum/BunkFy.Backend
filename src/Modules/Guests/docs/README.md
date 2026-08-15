@@ -89,6 +89,30 @@ Guests owns BunkFy's tenant-wide canonical guest profiles and staff-facing stay 
   `guest-operational`, using a persisted fair-scan cursor, bounded set-based
   discovery, exact retry receipts, active-hold enforcement, and the latest
   applicable property-local stay deadline;
+- deterministic retention time-zone evidence projected from Properties through
+  generic v2 events, the dedicated time-zone event, and bounded rebuilds. Only
+  an exact primary ID proved by the running embedded TZDB catalog is eligible
+  for an active property. A retired alias may use its exact current-catalog
+  Generic/Rebuild mapping because Properties correctly disables mutation after
+  retirement; active aliases, Windows IDs, unknown IDs, stale evidence, catalog
+  mismatch, and a whole skipped civil day fail closed without consulting host
+  `TimeZoneInfo`;
+- current-converged property time-zone semantics for unreceipted terminal
+  `DateOnly` stays: a confirmed property correction recomputes future
+  eligibility and changes its proof digest, while committed receipts and exact
+  replays remain immutable;
+- retention receipt contract version 2 with the exact PII-free TZDB catalog
+  version, continued read/export support for version-1 receipts, and bounded
+  refusal above 256 affected property associations;
+- Guests tenant-termination owner catalog version 5, binding personal-data
+  catalog 16 and tenant export schema 4 without reusing the prior version-4
+  catalog coordinate. Frozen version-4 owner work fails the existing exact
+  catalog check; current-coordinate closed-receipt replay remains stable;
+- ordered adaptive scan pages: `ScanSize` is an upper bound, while a cumulative
+  256-property-association materialization budget may return a shorter prefix
+  with backlog for the next cursor. A single over-limit candidate fails closed
+  without hydrating its related graph, so a short page is neither data loss nor
+  a broken scan-size setting;
 - authority-bound automatic anonymisation proof that cannot be replayed as a
   DataRights approval. The proof is currently local to Guests and is
   deliberately excluded from the DataRights subject export and protected
@@ -123,6 +147,34 @@ Guests owns BunkFy's tenant-wide canonical guest profiles and staff-facing stay 
 
 Reservations owns booking roles and current participant links. Guests owns profiles, visibility associations, and its history projection. Neither module writes the other's schema or uses cross-module foreign keys.
 
+## Retention Time-Zone Recovery And Rollout
+
+The stable owner outcome
+`guests.guest-operational.time-zone-unavailable` is recovered through existing
+surfaces: correct an active property through Properties time-zone compliance,
+allow the dedicated event to converge or complete the existing Guests
+Properties projection rebuild, re-check Properties compliance, then trigger or
+await a new policy-version-2 retention execution and verify its PII-free
+outcome clears. A terminal failed execution remains immutable audit evidence;
+replaying its identifier returns the stored failure and does not redispatch
+work. A retired alias cannot be corrected; its current Properties snapshot plus
+a verified Guests rebuild is the bounded recovery path. There is no raw Guests
+projection editor or new Guest HTTP/Admin/CLI route.
+
+The schema upgrade deliberately marks legacy projections fail closed. A hosted
+rollout requires a bounded Guests maintenance window: quiesce all old-binary
+Guests database traffic, including writers, long-running reads, consumers, and
+retention workers; prove no retention execution is `Running` and no Guests
+tenant destruction is `Closing`; then migrate and deploy the matching
+binary/catalog. The migration takes `ACCESS EXCLUSIVE NOWAIT` over the complete
+Guests owner graph, so lock failure stops the rollout until the blocker is
+identified and drained; it is not retried against live API traffic. Keep other
+Guests traffic quiesced while rebuilding all relevant tenant projections,
+verify rebuild completion and Properties compliance, and only then resume
+traffic and execution policy version 2. Downgrade is refused after version-2
+execution, evidence, or receipts exist. Repository and Docker checks do not
+substitute for that deployment proof.
+
 ## Deployment Assurance
 
 The BunkFy composition repository owns an exact-release deployment verifier for
@@ -137,6 +189,8 @@ execution remains a separate admission requirement.
 Identity documents, consent, orphan-profile retention triggers, duplicate
 merge/split, entity resolution, guest flags, preferences, and guest accounts
 remain deferred.
+Immutable time-zone-at-stay provenance remains deferred; it would require a
+separate Reservations event and rebuild-export contract evolution.
 Protected export artifacts and download surfaces remain owned by DataRights.
 The production tenant-termination task, download route and cleanup runner stay
 disabled until every frozen mandatory owner, protected replay, operator
