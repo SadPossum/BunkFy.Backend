@@ -77,6 +77,7 @@ internal static class DataRightsTenantEndpoints
                 ? Results.Unauthorized()
                 : (await dispatcher.SendAsync(
                     new CreateDataRightsCaseCommand(
+                        request.OperationId,
                         DataRightsCaseScope.Staff,
                         request.RequestedOperations,
                         request.RestrictionDirective,

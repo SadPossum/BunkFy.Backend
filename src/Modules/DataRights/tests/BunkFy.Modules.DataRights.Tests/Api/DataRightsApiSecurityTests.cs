@@ -329,6 +329,19 @@ public sealed class DataRightsApiSecurityTests
     }
 
     [Fact]
+    public void Case_creation_operation_failures_have_distinct_http_semantics()
+    {
+        Assert.Equal(
+            StatusCodes.Status400BadRequest,
+            DataRightsEndpointSupport.ErrorStatusCodes.GetStatusCode(
+                DataRightsApplicationErrors.CreationOperationInvalid));
+        Assert.Equal(
+            StatusCodes.Status409Conflict,
+            DataRightsEndpointSupport.ErrorStatusCodes.GetStatusCode(
+                DataRightsApplicationErrors.CreationOperationConflict));
+    }
+
+    [Fact]
     public async Task Explicit_companion_retry_publishes_a_bounded_retry_after()
     {
         DefaultHttpContext context = new();

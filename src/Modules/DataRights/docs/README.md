@@ -10,6 +10,9 @@ deterministically generated
 ## Current Slice
 
 - tenant- and property-scoped, optimistic-concurrency case lifecycle;
+- idempotent case intake that uses an operator-attempt UUID as the aggregate
+  identity, serializes through the tenant-qualified case lock, and accepts a
+  replay only when immutable scope, request, and creator coordinates match;
 - explicit requester-verification and controller-routing gates before discovery;
 - calendar- and daylight-saving-safe response deadlines for externally
   requested Guest Rights cases, resolved from the property time zone and exact

@@ -16,6 +16,12 @@ internal static class DataRightsEndpointSupport
 
     public static ApiErrorStatusCodeMap ErrorStatusCodes { get; } =
         ApiErrorStatusCodeMap.Create([
+            new(
+                DataRightsApplicationErrors.CreationOperationInvalid.Code,
+                StatusCodes.Status400BadRequest),
+            new(
+                DataRightsApplicationErrors.CreationOperationConflict.Code,
+                StatusCodes.Status409Conflict),
             new(DataRightsApplicationErrors.CaseNotFound.Code, StatusCodes.Status404NotFound),
             new(DataRightsApplicationErrors.VersionConflict.Code, StatusCodes.Status409Conflict),
             new(DataRightsApplicationErrors.TransitionInvalid.Code, StatusCodes.Status409Conflict),

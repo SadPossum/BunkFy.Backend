@@ -552,6 +552,9 @@ public sealed class DataRightsModelTests
             root,
             "tenant-b");
         Assert.Empty(await tenantB.Cases.ToArrayAsync());
+        Assert.Null(await new DataRightsCaseRepository(tenantB).GetByIdAsync(
+            dataRightsCase.Id,
+            CancellationToken.None));
     }
 
     [Fact]
@@ -600,6 +603,16 @@ public sealed class DataRightsModelTests
             DataRightsCaseScope.Staff,
             termination.Id,
             CancellationToken.None));
+        Assert.Same(
+            guestA,
+            await repository.GetByIdAsync(
+                guestA.Id,
+                CancellationToken.None));
+        Assert.Same(
+            termination,
+            await repository.GetByIdAsync(
+                termination.Id,
+                CancellationToken.None));
         Assert.Same(
             termination,
             await repository.GetAsync(

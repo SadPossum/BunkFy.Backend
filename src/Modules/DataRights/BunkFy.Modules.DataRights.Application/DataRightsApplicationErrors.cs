@@ -8,6 +8,12 @@ public static class DataRightsApplicationErrors
     public static readonly Error TenantRequired = new(
         "DataRights.TenantRequired",
         "A tenant scope is required.");
+    public static readonly Error CreationOperationInvalid = new(
+        "DataRights.CreationOperationInvalid",
+        "A valid Data Rights case creation operation is required.");
+    public static readonly Error CreationOperationConflict = new(
+        "DataRights.CreationOperationConflict",
+        "The Data Rights case creation operation is already bound to another request.");
     public static readonly Error CaseNotFound = new(
         "DataRights.CaseNotFound",
         "The data-rights case was not found.");
