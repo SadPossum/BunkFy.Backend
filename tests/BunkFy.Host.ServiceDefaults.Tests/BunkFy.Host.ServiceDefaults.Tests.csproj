@@ -17,4 +17,9 @@
     <ProjectReference Include="$(GmaFrameworkRoot)FileManagement\Gma.Framework.FileManagement.Minio\Gma.Framework.FileManagement.Minio.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Observability\Gma.Framework.Observability\Gma.Framework.Observability.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\eng\country-policies\development\example-hostel-policy.v2.json"
+          Link="CountryPolicies\example-hostel-policy.v2.json"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

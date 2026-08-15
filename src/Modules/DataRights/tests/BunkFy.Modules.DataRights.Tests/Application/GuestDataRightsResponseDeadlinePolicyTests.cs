@@ -166,7 +166,8 @@ public sealed class GuestDataRightsResponseDeadlinePolicyTests
                 document.PolicyVersion,
                 artifact.ContentSha256,
                 CountryLaunchStatus.Engineering)],
-            CountryPolicyRuntimeMode.Engineering);
+            CountryPolicyRuntimeMode.Engineering,
+            PinnedTzdbCountryPolicyTimeZoneRules.Instance);
         PropertyGovernancePolicyBinding binding = new(
             document.OperatingCountryCode,
             document.PolicyId,

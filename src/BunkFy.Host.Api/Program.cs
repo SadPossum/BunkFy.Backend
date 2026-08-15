@@ -136,6 +136,7 @@ builder.Services.Configure<WorkspacesApiSecurityOptions>(
         privilegedOperationAssurance);
 builder.Services.Configure<PropertiesApiSecurityOptions>(options =>
 {
+    options.TimeZoneManagementAssurance = privilegedOperationAssurance;
     options.ProcessingActivationAssurance = privilegedOperationAssurance;
     options.PropertyRetirementAssurance = privilegedOperationAssurance;
 });

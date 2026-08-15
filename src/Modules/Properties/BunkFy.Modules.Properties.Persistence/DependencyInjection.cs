@@ -34,6 +34,15 @@ public static class DependencyInjection
         builder.Services.TryAddScoped<
             IPropertyMutationOperationRepository,
             PropertyMutationOperationRepository>();
+        builder.Services.TryAddScoped<
+            IPropertyTimeZoneRevisionWriter,
+            PropertyTimeZoneRevisionRepository>();
+        builder.Services.TryAddScoped<
+            IPropertyTimeZoneRevisionReader,
+            PropertyTimeZoneRevisionRepository>();
+        builder.Services.TryAddScoped<
+            IPropertyTimeZoneComplianceReader,
+            PropertyTimeZoneComplianceReader>();
         builder.Services.TryAddScoped<IRoomRepository, RoomRepository>();
         builder.Services.TryAddScoped<
             IPropertiesCreationOperationLock,

@@ -45,7 +45,8 @@ public sealed class PropertiesDetailsUpdateOperationIntegrationTests
                 propertyId,
                 "Harbour House",
                 "harbour-house",
-                "UTC")).ConfigureAwait(false);
+                "UTC",
+                "system:integration-test")).ConfigureAwait(false);
         Assert.True(created.IsSuccess, created.Error.Code);
 
         Guid updateOperationId = Guid.NewGuid();
@@ -88,7 +89,8 @@ public sealed class PropertiesDetailsUpdateOperationIntegrationTests
                 occupiedPropertyId,
                 "Occupied House",
                 "occupied-house",
-                "UTC")).ConfigureAwait(false);
+                "UTC",
+                "system:integration-test")).ConfigureAwait(false);
         Assert.True(occupiedCreated.IsSuccess, occupiedCreated.Error.Code);
 
         Guid correctedOperationId = Guid.NewGuid();

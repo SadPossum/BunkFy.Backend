@@ -44,6 +44,7 @@ Useful entry points:
 - [Properties Details Update Idempotency Task](planning/properties-details-update-idempotency-task.md)
 - [Properties Lifecycle Idempotency Task](planning/properties-lifecycle-idempotency-task.md)
 - [Properties Sensitive-Control Assurance Task](planning/properties-sensitive-control-assurance-task.md)
+- [Properties Canonical Time Zones Task](planning/properties-canonical-time-zones-task.md)
 - [Properties Room Mutation Idempotency Task](planning/properties-room-mutation-idempotency-task.md)
 - [Properties Bed Mutation Idempotency Task](planning/properties-bed-mutation-idempotency-task.md)
 - [Properties Personal-Data Catalogue Task](planning/properties-personal-data-catalogue-task.md)

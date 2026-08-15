@@ -26,6 +26,13 @@ public sealed class PropertiesDbContext(
         this.Set<RoomOperationLock>();
     internal DbSet<PropertyMutationOperation> PropertyMutationOperations =>
         this.Set<PropertyMutationOperation>();
+    internal DbSet<PropertyTimeZoneOperation> PropertyTimeZoneOperations =>
+        this.Set<PropertyTimeZoneOperation>();
+    internal DbSet<PropertyTimeZoneCatalogEntry> PropertyTimeZoneCatalogEntries =>
+        this.Set<PropertyTimeZoneCatalogEntry>();
+    internal DbSet<PropertyTimeZoneCatalogResolution>
+        PropertyTimeZoneCatalogResolutions =>
+            this.Set<PropertyTimeZoneCatalogResolution>();
     public DbSet<PropertyGovernanceRevision> GovernanceRevisions =>
         this.Set<PropertyGovernanceRevision>();
     public DbSet<OutboxMessage> OutboxMessages => this.Set<OutboxMessage>();
@@ -295,6 +302,35 @@ public sealed class PropertiesDbContext(
         {
             throw new InvalidOperationException(
                 "Property mutation operations are append-only.");
+        }
+
+        if (this.ChangeTracker
+            .Entries<PropertyTimeZoneOperation>()
+            .Any(entry =>
+                entry.State is EntityState.Modified or EntityState.Deleted))
+        {
+            throw new InvalidOperationException(
+                "Property time-zone operations are append-only.");
+        }
+
+        if (this.ChangeTracker
+            .Entries<PropertyTimeZoneCatalogEntry>()
+            .Any(entry =>
+                entry.State is EntityState.Added or
+                    EntityState.Modified or EntityState.Deleted))
+        {
+            throw new InvalidOperationException(
+                "Property time-zone catalog entries are migration-owned and immutable.");
+        }
+
+        if (this.ChangeTracker
+            .Entries<PropertyTimeZoneCatalogResolution>()
+            .Any(entry =>
+                entry.State is EntityState.Added or
+                    EntityState.Modified or EntityState.Deleted))
+        {
+            throw new InvalidOperationException(
+                "Property time-zone catalog resolutions are migration-owned and immutable.");
         }
 
         if (this.ChangeTracker

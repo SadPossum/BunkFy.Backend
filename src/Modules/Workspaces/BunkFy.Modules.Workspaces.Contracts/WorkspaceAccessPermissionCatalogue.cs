@@ -19,8 +19,9 @@ public static class WorkspaceAccessPermissionCatalogue
         Permission(AccessControlProfilePermissionCodes.Assign, "Workspace access", "Assign roles", "Assign operational roles to workspace members within the actor's own authority.", sensitive: true, requires: [AccessControlProfilePermissionCodes.Read]),
         Permission(WorkspacesPermissionCodes.StaffOnboardingManage, "Workspace access", "Manage staff onboarding", "Issue and manage staff join sources, review applicants, and retry provisioning.", sensitive: true, requires: [AccessControlProfilePermissionCodes.Read]),
 
-        Permission(PropertiesAdminPermissionCodes.Read, "Properties", "View properties", "View properties, rooms, and beds."),
+        Permission(PropertiesAdminPermissionCodes.Read, "Properties", "View properties", "View properties, rooms, beds, and the canonical time-zone catalog at the granted scope."),
         Permission(PropertiesAdminPermissionCodes.PropertiesManage, "Properties", "Manage properties", "Create and update properties.", requires: [PropertiesAdminPermissionCodes.Read]),
+        Permission(PropertiesAdminPermissionCodes.TimeZonesManage, "Properties", "Manage property time zones", "Inspect property time-zone compliance, recover operations, and perform bounded corrections.", sensitive: true, requires: [PropertiesAdminPermissionCodes.Read]),
         Permission(PropertiesAdminPermissionCodes.RoomsManage, "Properties", "Manage rooms", "Create, update, and retire rooms.", requires: [PropertiesAdminPermissionCodes.Read]),
         Permission(PropertiesAdminPermissionCodes.BedsManage, "Properties", "Manage beds", "Create, update, and retire beds.", requires: [PropertiesAdminPermissionCodes.Read]),
 
