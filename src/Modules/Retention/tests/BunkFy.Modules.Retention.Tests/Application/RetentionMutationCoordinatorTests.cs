@@ -143,6 +143,7 @@ public sealed class RetentionMutationCoordinatorTests
         RetentionExecutionMutationCoordinator coordinator = new(
             new RecordingMutationLock(calls),
             executions,
+            new RecordingScheduleHealthReader(snapshot: null, calls),
             new RecordingScopeRepository(calls),
             new TestScopeContext());
         RecordingScheduleStateRepository schedules = new();
