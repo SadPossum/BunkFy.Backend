@@ -43,6 +43,7 @@ using BunkFy.Modules.Workspaces.Domain;
 using BunkFy.Modules.Workspaces.Persistence;
 using Gma.Framework.Messaging;
 using Gma.Framework.ModuleComposition;
+using Gma.Framework.Runtime.Time;
 using Gma.Framework.Tasks;
 using Gma.Framework.Tasks.Infrastructure;
 using Gma.Framework.Tenancy;
@@ -54,6 +55,7 @@ using Gma.Modules.TaskRuntime.Persistence;
 using Integration.Tests.Support;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Testcontainers.PostgreSql;
@@ -61,7 +63,7 @@ using Xunit;
 using OrganizationMembershipDomainRole =
     Gma.Modules.Organizations.Domain.Enums.OrganizationMembershipRole;
 
-public sealed class RetentionControlPlaneIntegrationTests
+public sealed partial class RetentionControlPlaneIntegrationTests
 {
     private const string HeldTenantId =
         "9b000000-0000-0000-0000-000000000001";
@@ -185,7 +187,9 @@ public sealed class RetentionControlPlaneIntegrationTests
         }
     }
 
-    private static IHost CreateWorker(string connectionString)
+    private static IHost CreateWorker(
+        string connectionString,
+        ISystemClock? systemClock = null)
     {
         HostApplicationBuilder builder = Host.CreateApplicationBuilder(
             new HostApplicationBuilderSettings
@@ -263,6 +267,12 @@ public sealed class RetentionControlPlaneIntegrationTests
         AuthTestConfiguration.ConfigureTokenHashing(
             builder.Configuration);
         builder.AddWorkerHost();
+        if (systemClock is not null)
+        {
+            builder.Services.RemoveAll<ISystemClock>();
+            builder.Services.AddSingleton(systemClock);
+        }
+
         CountryPolicyIntegrationTestData.InstallRegistry(builder.Services);
         ModuleCompositionValidationResult composition =
             builder.ValidateModuleComposition();

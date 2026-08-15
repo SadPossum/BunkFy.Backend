@@ -5,6 +5,7 @@ using BunkFy.Modules.Guests.Domain.DataRights;
 using BunkFy.Modules.Guests.Domain.Models;
 using BunkFy.Modules.Guests.Domain.Retention;
 using BunkFy.Modules.Guests.Persistence;
+using BunkFy.TimeZones;
 using Gma.Framework.Scoping;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -103,7 +104,8 @@ public sealed class GuestRetentionModelTests
                 Guid.NewGuid(),
                 profile.ScopeId,
                 "guest-operational",
-                executionPolicyVersion: 1,
+                executionPolicyVersion:
+                    GuestRetentionExecution.MinimumRunningPolicyVersion,
                 attempt: 1,
                 startingProjectionOrdinal: 0,
                 now.AddMinutes(-1),
@@ -125,6 +127,7 @@ public sealed class GuestRetentionModelTests
                 affectedPropertyCount: 1,
                 now.AddDays(-1),
                 new string('a', 64),
+                TimeZoneCatalog.Default.CatalogVersion,
                 outcome.EventId,
                 "system:retention",
                 now).Value;

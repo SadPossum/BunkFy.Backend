@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.Guests.Application.Contributors;
 
 using BunkFy.Modules.Guests.Application.Commands;
+using BunkFy.Modules.Guests.Application.Handlers;
 using BunkFy.Modules.Guests.Application.Policies;
 using BunkFy.Modules.Guests.Application.Ports;
 using BunkFy.Modules.Guests.Domain.Retention;
@@ -77,6 +78,7 @@ internal sealed class GuestRetentionContributor
         bool blocked = false;
         bool projectionFailed = false;
         bool policyFailed = false;
+        bool timeZoneFailed = false;
         bool mutationFailed = false;
         DateTimeOffset? holdReviewDueAtUtc = null;
         DateTimeOffset evaluatedAtUtc = this.clock.UtcNow;
@@ -116,6 +118,7 @@ internal sealed class GuestRetentionContributor
                     decision.Code,
                     ref projectionFailed,
                     ref policyFailed,
+                    ref timeZoneFailed,
                     ref mutationFailed);
                 RecordScanned(
                     candidate,
@@ -156,6 +159,7 @@ internal sealed class GuestRetentionContributor
                         outcome.Failure,
                         ref projectionFailed,
                         ref policyFailed,
+                        ref timeZoneFailed,
                         ref mutationFailed);
                     break;
                 default:
@@ -180,7 +184,8 @@ internal sealed class GuestRetentionContributor
         int scannedCount = checked(
             start.AffectedCount + pageScannedCount);
         bool failed =
-            mutationFailed || projectionFailed || policyFailed;
+            mutationFailed || projectionFailed || policyFailed ||
+            timeZoneFailed;
         int remainingCount =
             !reachedEnd || blocked || failed
                 ? 1
@@ -192,7 +197,10 @@ internal sealed class GuestRetentionContributor
             state = GuestRetentionExecutionState.Failed;
             outcomeCode = mutationFailed
                 ? GuestRetentionCoordinates.MutationFailedOutcome
-                : projectionFailed
+                : timeZoneFailed
+                    ? GuestRetentionCoordinates
+                        .TimeZoneUnavailableOutcome
+                    : projectionFailed
                     ? GuestRetentionCoordinates
                         .ProjectionUnavailableOutcome
                     : GuestRetentionCoordinates
@@ -220,7 +228,7 @@ internal sealed class GuestRetentionContributor
                     scannedCount,
                     remainingCount,
                     outcomeCode,
-                    this.clock.UtcNow,
+                    GuestMutationTime.Normalize(this.clock.UtcNow),
                     holdReviewDueAtUtc,
                     start.StartingProjectionOrdinal,
                     nextAfterProjectionOrdinal),
@@ -268,6 +276,7 @@ internal sealed class GuestRetentionContributor
         GuestRetentionEligibilityCode code,
         ref bool projectionFailed,
         ref bool policyFailed,
+        ref bool timeZoneFailed,
         ref bool mutationFailed)
     {
         if (code == GuestRetentionEligibilityCode.ProjectionUnavailable)
@@ -277,6 +286,10 @@ internal sealed class GuestRetentionContributor
         else if (code == GuestRetentionEligibilityCode.PolicyUnavailable)
         {
             policyFailed = true;
+        }
+        else if (code == GuestRetentionEligibilityCode.TimeZoneUnavailable)
+        {
+            timeZoneFailed = true;
         }
         else
         {
@@ -288,6 +301,7 @@ internal sealed class GuestRetentionContributor
         GuestRetentionMutationFailure failure,
         ref bool projectionFailed,
         ref bool policyFailed,
+        ref bool timeZoneFailed,
         ref bool mutationFailed)
     {
         switch (failure)
@@ -297,6 +311,9 @@ internal sealed class GuestRetentionContributor
                 break;
             case GuestRetentionMutationFailure.PolicyUnavailable:
                 policyFailed = true;
+                break;
+            case GuestRetentionMutationFailure.TimeZoneUnavailable:
+                timeZoneFailed = true;
                 break;
             case GuestRetentionMutationFailure.MutationFailed:
             case GuestRetentionMutationFailure.None:

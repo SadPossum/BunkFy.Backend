@@ -95,6 +95,7 @@
     <File Path="docs/planning/guests-management-update-archive-idempotency-task.md" />
     <File Path="docs/planning/guests-operational-surface-hardening-task.md" />
     <File Path="docs/planning/guests-read-surface-hardening-task.md" />
+    <File Path="docs/planning/guests-retention-canonical-time-zone-evidence-task.md" />
     <File Path="docs/planning/guests-sensitive-mutation-assurance-task.md" />
     <File Path="docs/planning/guests-tenant-termination-owner-task.md" />
     <File Path="docs/planning/hosted-production-foundation-task.md" />

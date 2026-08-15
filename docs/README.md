@@ -186,6 +186,7 @@ Useful entry points:
 - [Guest Data Rights Anonymisation And Ledger Task](planning/guest-data-rights-anonymisation-and-ledger-task.md)
 - [Guest Data Rights Restriction Task](planning/guest-data-rights-restriction-task.md)
 - [Guest Record Retention Task](planning/guest-record-retention-task.md)
+- [Guests Retention Canonical Time-Zone Evidence Task](planning/guests-retention-canonical-time-zone-evidence-task.md)
 - [Guests Operational Surface Hardening Task](planning/guests-operational-surface-hardening-task.md)
 - [Guests Sensitive-Mutation Assurance Task](planning/guests-sensitive-mutation-assurance-task.md)
 - [Data Rights Module](../src/Modules/DataRights/docs/README.md)
