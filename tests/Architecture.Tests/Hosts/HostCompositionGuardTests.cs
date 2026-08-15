@@ -1266,6 +1266,16 @@ public sealed class HostCompositionGuardTests
     }
 
     [Fact]
+    public void Backend_container_pins_an_explicit_serviced_runtime()
+    {
+        string dockerfile = RepositoryPaths.Read("Dockerfile");
+
+        Assert.Matches(
+            @"(?m)^FROM mcr\.microsoft\.com/dotnet/aspnet:\d+\.\d+\.\d+@sha256:[0-9a-f]{64} AS runtime-base$",
+            dockerfile);
+    }
+
+    [Fact]
     public void Adapter_host_production_admission_is_fail_closed_and_status_is_gated()
     {
         string program = RepositoryPaths.Read(
