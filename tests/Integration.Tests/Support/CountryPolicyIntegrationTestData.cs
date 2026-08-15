@@ -5,8 +5,11 @@ using BunkFy.DataGovernance;
 using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Guests.Persistence;
 using BunkFy.Modules.Properties.Contracts;
+using BunkFy.Modules.Reservations.Contracts;
+using BunkFy.Modules.Reservations.Persistence;
 using BunkFy.Modules.Staff.Domain.Governance;
 using Gma.Framework.Messaging;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -79,12 +82,20 @@ internal static class CountryPolicyIntegrationTestData
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(services);
-        GuestsDbContext? guests = consumerModule == GuestsModuleMetadata.Name
-            ? services.GetRequiredService<GuestsDbContext>()
-            : null;
-        IDbContextTransaction? ownedTransaction = guests is not null &&
-                                                   guests.Database.CurrentTransaction is null
-            ? await guests.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false)
+        DbContext? consumerDbContext = consumerModule switch
+        {
+            GuestsModuleMetadata.Name =>
+                services.GetRequiredService<GuestsDbContext>(),
+            ReservationsModuleMetadata.Name =>
+                services.GetRequiredService<ReservationsDbContext>(),
+            _ => null
+        };
+        IDbContextTransaction? ownedTransaction =
+            consumerDbContext is not null &&
+            consumerDbContext.Database.CurrentTransaction is null
+            ? await consumerDbContext.Database
+                .BeginTransactionAsync(cancellationToken)
+                .ConfigureAwait(false)
             : null;
 
         try
@@ -98,8 +109,12 @@ internal static class CountryPolicyIntegrationTestData
                 cancellationToken).ConfigureAwait(false);
             if (ownedTransaction is not null)
             {
-                await guests!.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-                await ownedTransaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+                await consumerDbContext!
+                    .SaveChangesAsync(cancellationToken)
+                    .ConfigureAwait(false);
+                await ownedTransaction
+                    .CommitAsync(cancellationToken)
+                    .ConfigureAwait(false);
             }
         }
         finally

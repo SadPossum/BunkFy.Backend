@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Text.Json;
 using BunkFy.DataGovernance;
 using BunkFy.Extensions.ReservationGuestRecords;
+using BunkFy.Modules.Reservations.AdminApi;
 using BunkFy.Modules.Reservations.Api;
 using BunkFy.Modules.Reservations.Application.Commands;
 using BunkFy.Modules.Reservations.Application.Policies;
@@ -15,6 +16,7 @@ using BunkFy.Modules.Reservations.Domain.DataRights;
 using BunkFy.Modules.Reservations.Domain.Entities;
 using BunkFy.Modules.Reservations.Domain.GuestRecords;
 using BunkFy.Modules.Reservations.Domain.Retention;
+using BunkFy.Modules.Reservations.Domain.StayAmendments;
 using BunkFy.Modules.Reservations.Persistence;
 using Gma.Framework.Messaging;
 using Gma.Framework.Scoping;
@@ -37,6 +39,21 @@ public sealed class ReservationsPersonalDataCatalogTests
                 nameof(ListReservationsQuery.Order),
                 nameof(ListReservationsQuery.Page),
                 nameof(ListReservationsQuery.PageSize)
+            ],
+            StringComparer.Ordinal),
+        [typeof(GetReservationOperationsSnapshotQuery)] = new(
+            [nameof(GetReservationOperationsSnapshotQuery.UpcomingLimit)],
+            StringComparer.Ordinal),
+        [typeof(ReservationsModule.OperationsSnapshotRequest)] = new(
+            [nameof(ReservationsModule.OperationsSnapshotRequest.UpcomingLimit)],
+            StringComparer.Ordinal),
+        [typeof(ReservationsAdminApiModule.OperationsSnapshotRequest)] = new(
+            [nameof(ReservationsAdminApiModule.OperationsSnapshotRequest.UpcomingLimit)],
+            StringComparer.Ordinal),
+        [typeof(ReservationOperationsSnapshotDto)] = new(
+            [
+                nameof(ReservationOperationsSnapshotDto.UpcomingLimit),
+                nameof(ReservationOperationsSnapshotDto.HasMoreUpcoming)
             ],
             StringComparer.Ordinal),
         [typeof(GetReservationDetailsHistoryQuery)] = new(
@@ -85,6 +102,9 @@ public sealed class ReservationsPersonalDataCatalogTests
                 nameof(ReservationGuestRecordWriteRequest.PreferredLanguageTag),
                 nameof(ReservationGuestRecordWriteRequest.Notes)
             ],
+            StringComparer.Ordinal),
+        [typeof(ListReservationStayAmendmentRecoveryQuery)] = new(
+            [nameof(ListReservationStayAmendmentRecoveryQuery.PageSize)],
             StringComparer.Ordinal)
     };
 
@@ -123,6 +143,48 @@ public sealed class ReservationsPersonalDataCatalogTests
         {
             AssertType(type, surface);
         }
+    }
+
+    [Fact]
+    public void Operations_snapshot_admin_contract_is_independently_classified_for_support_boundary()
+    {
+        Type adminInput = typeof(ReservationsAdminApiModule.OperationsSnapshotRequest);
+        Type[] adminOutputs =
+        [
+            typeof(ReservationOperationsSnapshotDto),
+            typeof(ReservationOperationsCountDto),
+            typeof(ReservationOperationsCohortCountsDto),
+            typeof(ReservationOperationsAttentionCountsDto),
+            typeof(ReservationListItemDto)
+        ];
+
+        AssertType(adminInput, PersonalDataSurface.AdminInput);
+        Assert.DoesNotContain(
+            Bindings(),
+            binding => string.Equals(binding.Type, adminInput.FullName, StringComparison.Ordinal) &&
+                       binding.Surface == PersonalDataSurface.ApiInput);
+
+        foreach (Type type in adminOutputs)
+        {
+            AssertType(type, PersonalDataSurface.AdminOutput);
+        }
+
+        PersonalDataFieldDefinition[] adminFields = Catalogue.Fields
+            .Where(field => field.Bindings.Any(binding =>
+                binding.Surface is PersonalDataSurface.AdminInput or PersonalDataSurface.AdminOutput &&
+                (string.Equals(binding.Type, adminInput.FullName, StringComparison.Ordinal) ||
+                 adminOutputs.Any(type => string.Equals(binding.Type, type.FullName, StringComparison.Ordinal)))))
+            .ToArray();
+
+        Assert.NotEmpty(adminFields);
+        Assert.All(
+            adminFields,
+            field => Assert.Contains(PersonalDataBoundary.Support, field.AllowedBoundaries));
+        Assert.Contains(
+            Bindings(),
+            binding => binding.Surface == PersonalDataSurface.AdminOutput &&
+                       string.Equals(binding.Type, typeof(ReservationListItemDto).FullName, StringComparison.Ordinal) &&
+                       string.Equals(binding.Member, nameof(ReservationListItemDto.PrimaryGuestName), StringComparison.Ordinal));
     }
 
     [Fact]
@@ -340,6 +402,10 @@ public sealed class ReservationsPersonalDataCatalogTests
             yield return (PersonalDataSurface.ApiInput, type);
         }
 
+        yield return (
+            PersonalDataSurface.AdminInput,
+            typeof(ReservationsAdminApiModule.OperationsSnapshotRequest));
+
         Assembly contracts = typeof(ReservationsModuleMetadata).Assembly;
         foreach (Type type in contracts.GetTypes()
                      .Where(type => type.IsPublic && !type.IsAbstract)
@@ -357,6 +423,18 @@ public sealed class ReservationsPersonalDataCatalogTests
                     : PersonalDataSurface.IntegrationEvent
                 : PersonalDataSurface.ApiResponse;
             yield return (surface, type);
+        }
+
+        foreach (Type type in new[]
+                 {
+                     typeof(ReservationOperationsSnapshotDto),
+                     typeof(ReservationOperationsCountDto),
+                     typeof(ReservationOperationsCohortCountsDto),
+                     typeof(ReservationOperationsAttentionCountsDto),
+                     typeof(ReservationListItemDto)
+                 })
+        {
+            yield return (PersonalDataSurface.AdminOutput, type);
         }
 
         Assembly domain = typeof(Reservation).Assembly;
@@ -399,6 +477,7 @@ public sealed class ReservationsPersonalDataCatalogTests
         typeof(ReservationDetailsHistoryEntry),
         typeof(ReservationExternalOperation),
         typeof(ReservationManagementOperation),
+        typeof(ReservationStayAmendmentOperation),
         typeof(ReservationGuestProfileProjection),
         typeof(ReservationGuestProcessingRestrictionProjection),
         typeof(ReservationArrivalReminder),
@@ -410,6 +489,7 @@ public sealed class ReservationsPersonalDataCatalogTests
         new[]
         {
             typeof(ReservationsModule).Assembly,
+            typeof(ReservationsAdminApiModule).Assembly,
             typeof(CreateReservationCommand).Assembly,
             typeof(ReservationsModuleMetadata).Assembly,
             typeof(Reservation).Assembly,

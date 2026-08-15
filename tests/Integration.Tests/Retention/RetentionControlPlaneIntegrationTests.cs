@@ -54,6 +54,7 @@ using Gma.Modules.Organizations.Persistence;
 using Gma.Modules.TaskRuntime.Persistence;
 using Integration.Tests.Support;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
@@ -768,9 +769,32 @@ public sealed partial class RetentionControlPlaneIntegrationTests
         var handler =
             (IIntegrationEventHandler<PropertyCreatedIntegrationEvent>)
             services.GetRequiredService(subscription.HandlerType);
-        await handler.HandleAsync(
-            propertyCreated,
-            CancellationToken.None).ConfigureAwait(false);
+        ReservationsDbContext reservations =
+            services.GetRequiredService<ReservationsDbContext>();
+        IDbContextTransaction? ownedTransaction =
+            reservations.Database.CurrentTransaction is null
+            ? await reservations.Database.BeginTransactionAsync()
+                .ConfigureAwait(false)
+            : null;
+
+        try
+        {
+            await handler.HandleAsync(
+                propertyCreated,
+                CancellationToken.None).ConfigureAwait(false);
+            if (ownedTransaction is not null)
+            {
+                await reservations.SaveChangesAsync().ConfigureAwait(false);
+                await ownedTransaction.CommitAsync().ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            if (ownedTransaction is not null)
+            {
+                await ownedTransaction.DisposeAsync().ConfigureAwait(false);
+            }
+        }
     }
 
     private static async Task<Guid> SeedReservationAsync(

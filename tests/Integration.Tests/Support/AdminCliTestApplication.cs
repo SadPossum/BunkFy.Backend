@@ -3,10 +3,15 @@ namespace Integration.Tests.Support;
 using System.CommandLine;
 using System.CommandLine.Parsing;
 using System.Text.RegularExpressions;
-using BunkFy.Parsers.ReservationMail;
 using BunkFy.Host.AdminCli.Security;
+using BunkFy.Modules.Ingestion.AdminCli;
+using BunkFy.Modules.Ingestion.Persistence;
 using BunkFy.Modules.Properties.AdminCli;
 using BunkFy.Modules.Properties.Persistence;
+using BunkFy.Modules.Reservations.AdminCli;
+using BunkFy.Modules.Reservations.Persistence;
+using BunkFy.Modules.Workspaces.Persistence;
+using BunkFy.Parsers.ReservationMail;
 using Gma.Framework.Administration.Cli;
 using Gma.Framework.Caching.Cqrs;
 using Gma.Framework.Cqrs;
@@ -27,9 +32,6 @@ using Gma.Modules.Auth.Application.Commands;
 using Gma.Modules.Auth.Contracts;
 using Gma.Modules.Auth.Domain.Errors;
 using Gma.Modules.Auth.Persistence;
-using BunkFy.Modules.Ingestion.AdminCli;
-using BunkFy.Modules.Ingestion.Persistence;
-using BunkFy.Modules.Workspaces.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -47,6 +49,7 @@ internal sealed class AdminCliTestApplication : IAsyncDisposable
         string connectionString,
         bool includeIngestion = false,
         bool includeProperties = false,
+        bool includeReservations = false,
         ISystemClock? systemClock = null)
     {
         HostApplicationBuilder builder = Host.CreateApplicationBuilder([]);
@@ -76,9 +79,19 @@ internal sealed class AdminCliTestApplication : IAsyncDisposable
         builder.AddAdminModule<AdministrationAdminCliModule>();
         builder.AddAdminModule<AccessControlAdminCliModule>();
         builder.AddAdminModule<AuthAdminCliModule>();
-        if (includeIngestion || includeProperties)
+        if (includeIngestion || includeProperties || includeReservations)
         {
             builder.AddWorkspacesTerminationAdmissionPersistence();
+        }
+
+        if (includeProperties || includeReservations)
+        {
+            builder.Services.AddBunkFyAdminCliResourceScopes();
+        }
+
+        if (includeReservations)
+        {
+            builder.AddAdminModule<ReservationsAdminCliModule>();
         }
 
         if (includeIngestion)
@@ -89,7 +102,6 @@ internal sealed class AdminCliTestApplication : IAsyncDisposable
 
         if (includeProperties)
         {
-            builder.Services.AddBunkFyAdminCliResourceScopes();
             builder.AddAdminModule<PropertiesAdminCliModule>();
         }
 
@@ -114,6 +126,12 @@ internal sealed class AdminCliTestApplication : IAsyncDisposable
         if (workspaces is not null)
         {
             await workspaces.Database.MigrateAsync().ConfigureAwait(false);
+        }
+
+        ReservationsDbContext? reservations = scope.ServiceProvider.GetService<ReservationsDbContext>();
+        if (reservations is not null)
+        {
+            await reservations.Database.MigrateAsync().ConfigureAwait(false);
         }
 
         IngestionDbContext? ingestion = scope.ServiceProvider.GetService<IngestionDbContext>();

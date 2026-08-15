@@ -40,6 +40,34 @@ reads and schedule discovery and fail closed before either surface proceeds.
 Generic Task Runtime provider streaming, bounded scheduler memory, and
 Retention execution-history cleanup remain separate follow-up concerns.
 
+## Task Lease And Owner Recovery
+
+Task Runtime `Attempt` remains the retry-budget counter within the current task
+run. An operator `RetryAsync` starts that budget again, so Retention does not
+use the resettable value as an execution or owner idempotency fence. Every task
+claim also increments the persisted `LeaseGeneration`; that generation is
+monotonic across ordinary retry, lease reclaim, timeout recovery, and operator
+`RetryAsync`. Retention persists and forwards `LeaseGeneration` in its
+execution and owner-contract field named `Attempt`. A stale lease therefore
+cannot complete the Retention execution or owner attempt opened by a newer
+claim even when Task Runtime's budget counter has restarted.
+
+If a reclaimed lease finds the central Retention execution already `Completed`
+or `Blocked`, begin returns the persisted terminal state with dispatch disabled.
+The task converges without invoking the owner again. If the owner committed its
+terminal completion but the worker failed before central Retention committed
+that result, the newer lease generation opens a non-regressing central recovery
+window and asks the owner to replay. The owner's immutable terminal evidence is
+not rewritten. When its persisted completion predates the new central start,
+Retention records the same terminal counts, status, and outcome with the new
+window's start as the central completion time, keeping the central aggregate's
+time invariant without changing owner proof.
+
+Recovery windows may only move forward. A retry of a still-running central
+execution cannot start before its previous start, and a `Failed` execution
+cannot restart before its persisted completion. `Completed` and `Blocked`
+executions are terminal and do not open another owner window.
+
 ## Tenant Termination
 
 Retention is a mandatory `Export` and `Destroy` contributor after Ingestion.

@@ -52,6 +52,18 @@ public sealed record ReservationManagementOperationRecord(
             this.RequestFingerprint,
             requestFingerprint,
             StringComparison.Ordinal);
+
+    public bool MatchesStayAmendment(
+        long expectedDetailsRevision,
+        string requestFingerprint) =>
+        this.Kind == ReservationManagementOperationKind.StayAmendment &&
+        this.ExpectedVersion is null &&
+        this.ExpectedDetailsRevision == expectedDetailsRevision &&
+        this.BusinessDate is null &&
+        string.Equals(
+            this.RequestFingerprint,
+            requestFingerprint,
+            StringComparison.Ordinal);
 }
 
 public enum ReservationManagementOperationKind
@@ -62,5 +74,6 @@ public enum ReservationManagementOperationKind
     NoShow = 3,
     CheckOut = 4,
     GuestDetails = 5,
-    InventoryAmendment = 6
+    InventoryAmendment = 6,
+    StayAmendment = 7
 }

@@ -35,6 +35,9 @@ public static class DependencyInjection
 
         builder.Services.TryAddScoped<IReservationRepository, ReservationRepository>();
         builder.Services.TryAddScoped<
+            IReservationOperationsSnapshotReader,
+            ReservationOperationsSnapshotReader>();
+        builder.Services.TryAddScoped<
             IReservationGuestRecordLinkProcessRepository,
             ReservationGuestRecordLinkProcessRepository>();
         builder.Services.TryAddScoped<
@@ -79,6 +82,9 @@ public static class DependencyInjection
         builder.Services.TryAddScoped<
             IReservationManagementOperationRepository,
             ReservationManagementOperationRepository>();
+        builder.Services.TryAddScoped<
+            IReservationStayAmendmentOperationRepository,
+            ReservationStayAmendmentOperationRepository>();
         builder.Services.TryAddScoped<IInventoryProjectionRepository, InventoryProjectionRepository>();
         builder.Services.TryAddScoped<IReservationGuestProfileProjectionRepository, ReservationGuestProfileProjectionRepository>();
         builder.Services.TryAddScoped<ReservationArrivalReminderRepository>();

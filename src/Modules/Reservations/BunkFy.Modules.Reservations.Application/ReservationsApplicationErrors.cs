@@ -16,6 +16,21 @@ public static class ReservationsApplicationErrors
             .Select(CountryPolicyDenied)
             .ToArray();
     public static readonly Error ReservationNotFound = new("Reservations.ReservationNotFound", "The reservation was not found.");
+    public static readonly Error PropertyNotFound = new(
+        "Reservations.PropertyNotFound",
+        "The property is not present in the Reservations projection.");
+    public static readonly Error PropertyInactive = new(
+        "Reservations.PropertyInactive",
+        "The property is not active.");
+    public static readonly Error PropertyTimeZoneUnavailable = new(
+        "Reservations.PropertyTimeZoneUnavailable",
+        "The property IANA time zone is unavailable or invalid.");
+    public static readonly Error OperationsSnapshotLimitInvalid = new(
+        "Reservations.OperationsSnapshotLimitInvalid",
+        $"The upcoming limit must be between 0 and {ReservationsContractLimits.MaximumOperationsSnapshotUpcomingLimit}.");
+    public static readonly Error OperationsSnapshotLocalDateInvalid = new(
+        "Reservations.OperationsSnapshotLocalDateInvalid",
+        "The local date must use yyyy-MM-dd format.");
     public static readonly Error ExternalSourceAlreadyExists = new("Reservations.ExternalSourceAlreadyExists", "A reservation already exists for this external source reference.");
     public static readonly Error CreationOperationConflict = new(
         "Reservations.CreationOperationConflict",
@@ -45,6 +60,22 @@ public static class ReservationsApplicationErrors
     public static Error DetailsChangeProvenanceInvalid => ReservationsDomainErrors.DetailsChangeProvenanceInvalid;
     public static Error AllocationAmendmentInProgress => ReservationsDomainErrors.AllocationAmendmentInProgress;
     public static Error AllocationAmendmentInvalid => ReservationsDomainErrors.AllocationAmendmentInvalid;
+    public static readonly Error StayAmendmentRequestInvalid = new(
+        "Reservations.StayAmendmentRequestInvalid",
+        "The stay-amendment request is invalid.");
+    public static readonly Error StayAmendmentOperationNotFound = new(
+        "Reservations.StayAmendmentOperationNotFound",
+        "The stay-amendment operation was not found.");
+    public static readonly Error StayAmendmentOperationConflict = new(
+        "Reservations.StayAmendmentOperationConflict",
+        "The stay-amendment operation id is already bound to a different request.");
+    public static Error StayAmendmentOperationVersionConflict =>
+        ReservationsDomainErrors.StayAmendmentOperationVersionConflict;
+    public static readonly Error StayAmendmentReconcileInvalid = new(
+        "Reservations.StayAmendmentReconcileInvalid",
+        "Only a pending stay-amendment operation can be reconciled.");
+    public static Error StayAmendmentReconcileTooSoon =>
+        ReservationsDomainErrors.StayAmendmentReconcileTooSoon;
     public static Error StayBusinessDateInvalid => ReservationsDomainErrors.StayBusinessDateInvalid;
     public static Error StayProvenanceInvalid => ReservationsDomainErrors.StayProvenanceInvalid;
     public static readonly Error GuestNotLinkable = new("Reservations.GuestNotLinkable", "The guest is not active and visible at this property.");
@@ -97,6 +128,12 @@ public static class ReservationsApplicationErrors
     public static readonly Error ProcessingRestrictionProjectionUnavailable = new(
         "Reservations.ProcessingRestrictionProjectionUnavailable",
         "The reservation processing-restriction state is unavailable or unsupported.");
+    public static readonly Error ProcessingRestrictionActiveStateInvalid = new(
+        "Reservations.ProcessingRestrictionActiveStateInvalid",
+        "The active reservation processing-restriction state is inconsistent.");
+    public static readonly Error ProcessingRestrictionOwnerProofInvalid = new(
+        "Reservations.ProcessingRestrictionOwnerProofInvalid",
+        "The committed reservation processing-restriction proof is unavailable or inconsistent.");
     public static readonly Error DataHoldRequestInvalid = new(
         "Reservations.DataHoldRequestInvalid",
         "The reservation data-hold request is invalid.");

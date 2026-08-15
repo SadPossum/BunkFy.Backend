@@ -183,6 +183,9 @@ namespace BunkFy.Modules.Reservations.Persistence.PostgreSqlMigrations.Migration
                     b.Property<int?>("PendingGuestCount")
                         .HasColumnType("integer");
 
+                    b.Property<Guid?>("PendingInventoryAmendmentRequestId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("PendingInventoryUnitIds")
                         .HasMaxLength(3300)
                         .HasColumnType("character varying(3300)");
@@ -275,6 +278,9 @@ namespace BunkFy.Modules.Reservations.Persistence.PostgreSqlMigrations.Migration
 
                     b.HasKey("Id");
 
+                    b.HasIndex("PendingInventoryAmendmentRequestId")
+                        .IsUnique();
+
                     b.HasIndex("ProjectionOrdinal")
                         .IsUnique();
 
@@ -305,6 +311,8 @@ namespace BunkFy.Modules.Reservations.Persistence.PostgreSqlMigrations.Migration
                             t.HasCheckConstraint("CK_reservations_checked_out_complete", "(\"Status\" = 10 AND \"CheckedOutBusinessDate\" IS NOT NULL AND \"CheckedOutAtUtc\" IS NOT NULL AND \"CheckedOutBy\" IS NOT NULL AND length(trim(\"CheckedOutBy\")) > 0) OR (\"Status\" <> 10 AND \"CheckedOutBusinessDate\" IS NULL AND \"CheckedOutAtUtc\" IS NULL AND \"CheckedOutBy\" IS NULL)");
 
                             t.HasCheckConstraint("CK_reservations_no_show_complete", "(\"Status\" = 8 AND \"NoShowBusinessDate\" IS NOT NULL AND \"NoShowAtUtc\" IS NOT NULL AND \"NoShowBy\" IS NOT NULL AND length(trim(\"NoShowBy\")) > 0) OR (\"Status\" <> 8 AND \"NoShowBusinessDate\" IS NULL AND \"NoShowAtUtc\" IS NULL AND \"NoShowBy\" IS NULL)");
+
+                            t.HasCheckConstraint("CK_reservations_pending_inventory_request", "(\"PendingAllocationAmendmentId\" IS NULL AND \"PendingInventoryAmendmentRequestId\" IS NULL) OR (\"PendingAllocationAmendmentId\" IS NOT NULL AND \"PendingInventoryAmendmentRequestId\" IS NOT NULL)");
 
                             t.HasCheckConstraint("CK_reservations_pending_stay_complete", "(\"Status\" IN (7, 9) AND \"PendingStayBusinessDate\" IS NOT NULL AND \"PendingStayActorId\" IS NOT NULL AND length(trim(\"PendingStayActorId\")) > 0 AND \"ReleaseRequestId\" IS NOT NULL) OR (\"Status\" NOT IN (7, 9) AND \"PendingStayBusinessDate\" IS NULL AND \"PendingStayActorId\" IS NULL)");
 
@@ -1404,6 +1412,119 @@ namespace BunkFy.Modules.Reservations.Persistence.PostgreSqlMigrations.Migration
                         });
                 });
 
+            modelBuilder.Entity("BunkFy.Modules.Reservations.Domain.StayAmendments.ReservationStayAmendmentOperation", b =>
+                {
+                    b.Property<string>("ScopeId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<Guid>("ReservationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("ExpectedDetailsRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid?>("InventoryRequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("LastReconciledAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastReconciledBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<long>("OperationVersion")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Outcome")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ReconciliationCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("RejectionCode")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("RequestFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .IsFixedLength();
+
+                    b.Property<int>("RequestSchemaVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("RequestedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RequestedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<long?>("ResultingAllocationVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("ResultingDetailsRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("ResultingReservationVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateOnly?>("TargetArrival")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("TargetDeparture")
+                        .HasColumnType("date");
+
+                    b.Property<TimeOnly?>("TargetExpectedArrivalTime")
+                        .HasPrecision(0)
+                        .HasColumnType("time(0) without time zone");
+
+                    b.Property<TimeOnly?>("TargetExpectedDepartureTime")
+                        .HasPrecision(0)
+                        .HasColumnType("time(0) without time zone");
+
+                    b.Property<string>("TargetInventoryUnitIds")
+                        .HasMaxLength(3300)
+                        .HasColumnType("character varying(3300)");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("ScopeId", "ReservationId", "Id");
+
+                    b.HasIndex("InventoryRequestId")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "PropertyId", "Outcome", "UpdatedAtUtc", "Id", "ReservationId");
+
+                    b.ToTable("stay_amendment_operations", "reservations", t =>
+                        {
+                            t.HasCheckConstraint("CK_stay_amendment_operations_outcome", "(\"Outcome\" = 1 AND \"CompletedAtUtc\" IS NULL AND \"ResultingDetailsRevision\" IS NULL AND \"ResultingReservationVersion\" IS NULL AND \"ResultingAllocationVersion\" IS NULL AND \"RejectionCode\" IS NULL) OR (\"Outcome\" = 2 AND \"CompletedAtUtc\" IS NOT NULL AND \"ResultingDetailsRevision\" >= 1 AND \"ResultingReservationVersion\" >= 1 AND \"ResultingAllocationVersion\" >= 1 AND \"RejectionCode\" IS NULL) OR (\"Outcome\" = 3 AND \"CompletedAtUtc\" IS NOT NULL AND \"ResultingDetailsRevision\" >= 1 AND \"ResultingReservationVersion\" >= 1 AND \"ResultingAllocationVersion\" IS NULL AND \"RejectionCode\" >= 1) OR (\"Outcome\" = 4 AND \"CompletedAtUtc\" IS NULL AND \"ResultingDetailsRevision\" IS NULL AND \"ResultingReservationVersion\" IS NULL AND \"ResultingAllocationVersion\" IS NULL AND \"RejectionCode\" IS NULL AND \"ReconciliationCount\" = 0)");
+
+                            t.HasCheckConstraint("CK_stay_amendment_operations_reconciliation", "(\"ReconciliationCount\" = 0 AND \"LastReconciledAtUtc\" IS NULL AND \"LastReconciledBy\" IS NULL) OR (\"ReconciliationCount\" >= 1 AND \"LastReconciledAtUtc\" IS NOT NULL AND \"LastReconciledBy\" IS NOT NULL AND \"LastReconciledBy\" = trim(\"LastReconciledBy\") AND char_length(\"LastReconciledBy\") > 0 AND \"LastReconciledBy\" !~ '[[:cntrl:]]')");
+
+                            t.HasCheckConstraint("CK_stay_amendment_operations_request", "\"RequestSchemaVersion\" IN (1, 2) AND char_length(\"RequestFingerprint\") = 64 AND \"RequestFingerprint\" ~ '^[0-9a-f]{64}$' AND \"ExpectedDetailsRevision\" >= 1 AND ((\"Outcome\" = 4 AND \"RequestSchemaVersion\" = 1 AND \"RequestedBy\" IS NULL AND \"InventoryRequestId\" IS NULL) OR (\"Outcome\" = 1 AND \"InventoryRequestId\" IS NOT NULL AND \"RequestedBy\" IS NOT NULL AND \"RequestedBy\" = trim(\"RequestedBy\") AND char_length(\"RequestedBy\") > 0 AND \"RequestedBy\" !~ '[[:cntrl:]]') OR (\"Outcome\" IN (2, 3) AND ((\"OperationVersion\" = 1 AND \"InventoryRequestId\" IS NULL) OR (\"OperationVersion\" > 1 AND \"InventoryRequestId\" IS NOT NULL)) AND \"RequestedBy\" IS NOT NULL AND \"RequestedBy\" = trim(\"RequestedBy\") AND char_length(\"RequestedBy\") > 0 AND \"RequestedBy\" !~ '[[:cntrl:]]'))");
+
+                            t.HasCheckConstraint("CK_stay_amendment_operations_target", "(\"Outcome\" = 4 AND \"TargetArrival\" IS NULL AND \"TargetDeparture\" IS NULL AND \"TargetExpectedArrivalTime\" IS NULL AND \"TargetExpectedDepartureTime\" IS NULL AND \"TargetInventoryUnitIds\" IS NULL) OR (\"Outcome\" IN (1, 2, 3) AND \"TargetArrival\" IS NOT NULL AND \"TargetDeparture\" IS NOT NULL AND \"TargetArrival\" < \"TargetDeparture\" AND (\"TargetExpectedArrivalTime\" IS NULL OR date_part('second', \"TargetExpectedArrivalTime\") = 0) AND (\"TargetExpectedDepartureTime\" IS NULL OR date_part('second', \"TargetExpectedDepartureTime\") = 0) AND \"TargetInventoryUnitIds\" IS NOT NULL AND \"TargetInventoryUnitIds\" ~ '^[0-9a-f]{32}(,[0-9a-f]{32}){0,99}$')");
+
+                            t.HasCheckConstraint("CK_stay_amendment_operations_timestamps", "\"UpdatedAtUtc\" >= \"RequestedAtUtc\" AND (\"CompletedAtUtc\" IS NULL OR (\"CompletedAtUtc\" >= \"RequestedAtUtc\" AND \"CompletedAtUtc\" <= \"UpdatedAtUtc\")) AND (\"LastReconciledAtUtc\" IS NULL OR (\"LastReconciledAtUtc\" >= \"RequestedAtUtc\" AND \"LastReconciledAtUtc\" <= \"UpdatedAtUtc\"))");
+
+                            t.HasCheckConstraint("CK_stay_amendment_operations_version", "(\"Outcome\" = 1 AND \"OperationVersion\" = \"ReconciliationCount\" + 1) OR (\"Outcome\" = 2 AND ((\"OperationVersion\" = 1 AND \"ReconciliationCount\" = 0) OR \"OperationVersion\" = \"ReconciliationCount\" + 2)) OR (\"Outcome\" = 3 AND \"OperationVersion\" = \"ReconciliationCount\" + 2) OR (\"Outcome\" = 4 AND \"OperationVersion\" = 1 AND \"ReconciliationCount\" = 0)");
+                        });
+                });
+
             modelBuilder.Entity("BunkFy.Modules.Reservations.Persistence.ReservationArrivalReminder", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1861,13 +1982,13 @@ namespace BunkFy.Modules.Reservations.Persistence.PostgreSqlMigrations.Migration
 
                     b.ToTable("management_operations", "reservations", t =>
                         {
-                            t.HasCheckConstraint("CK_management_operations_business_date", "(\"Kind\" IN (1, 5, 6) AND \"BusinessDate\" IS NULL) OR (\"Kind\" IN (2, 3, 4) AND \"BusinessDate\" IS NOT NULL)");
+                            t.HasCheckConstraint("CK_management_operations_business_date", "(\"Kind\" IN (1, 5, 6, 7) AND \"BusinessDate\" IS NULL) OR (\"Kind\" IN (2, 3, 4) AND \"BusinessDate\" IS NOT NULL)");
 
-                            t.HasCheckConstraint("CK_management_operations_expected_revision", "(\"Kind\" IN (1, 2, 3, 4) AND \"ExpectedVersion\" > 0 AND \"ExpectedDetailsRevision\" IS NULL) OR (\"Kind\" IN (5, 6) AND \"ExpectedVersion\" IS NULL AND \"ExpectedDetailsRevision\" > 0)");
+                            t.HasCheckConstraint("CK_management_operations_expected_revision", "(\"Kind\" IN (1, 2, 3, 4) AND \"ExpectedVersion\" > 0 AND \"ExpectedDetailsRevision\" IS NULL) OR (\"Kind\" IN (5, 6, 7) AND \"ExpectedVersion\" IS NULL AND \"ExpectedDetailsRevision\" > 0)");
 
-                            t.HasCheckConstraint("CK_management_operations_kind", "\"Kind\" IN (1, 2, 3, 4, 5, 6)");
+                            t.HasCheckConstraint("CK_management_operations_kind", "\"Kind\" IN (1, 2, 3, 4, 5, 6, 7)");
 
-                            t.HasCheckConstraint("CK_management_operations_request_fingerprint", "(\"Kind\" IN (1, 2, 3, 4, 5) AND \"RequestFingerprint\" IS NULL) OR (\"Kind\" = 6 AND \"RequestFingerprint\" IS NOT NULL AND char_length(\"RequestFingerprint\") = 64 AND \"RequestFingerprint\" ~ '^[0-9a-f]{64}$')");
+                            t.HasCheckConstraint("CK_management_operations_request_fingerprint", "(\"Kind\" IN (1, 2, 3, 4, 5) AND \"RequestFingerprint\" IS NULL) OR (\"Kind\" IN (6, 7) AND \"RequestFingerprint\" IS NOT NULL AND char_length(\"RequestFingerprint\") = 64 AND \"RequestFingerprint\" ~ '^[0-9a-f]{64}$')");
                         });
                 });
 
@@ -2352,6 +2473,15 @@ namespace BunkFy.Modules.Reservations.Persistence.PostgreSqlMigrations.Migration
                         .HasForeignKey("BunkFy.Modules.Reservations.Domain.Retention.ReservationRetentionAnonymisationReceipt", "ScopeId", "ReservationId")
                         .HasPrincipalKey("BunkFy.Modules.Reservations.Domain.Aggregates.Reservation", "ScopeId", "Id")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Reservations.Domain.StayAmendments.ReservationStayAmendmentOperation", b =>
+                {
+                    b.HasOne("BunkFy.Modules.Reservations.Persistence.ReservationManagementOperation", null)
+                        .WithOne()
+                        .HasForeignKey("BunkFy.Modules.Reservations.Domain.StayAmendments.ReservationStayAmendmentOperation", "ScopeId", "ReservationId", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 

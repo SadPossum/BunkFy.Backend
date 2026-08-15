@@ -5,6 +5,7 @@ using BunkFy.Modules.Reservations.Domain.DataRights;
 using BunkFy.Modules.Reservations.Domain.Entities;
 using BunkFy.Modules.Reservations.Domain.GuestRecords;
 using BunkFy.Modules.Reservations.Domain.Retention;
+using BunkFy.Modules.Reservations.Domain.StayAmendments;
 using BunkFy.Modules.Reservations.Persistence.TenantTermination;
 using BunkFy.Modules.Workspaces.Contracts;
 using Gma.Framework.Messaging.Infrastructure;
@@ -67,6 +68,8 @@ public sealed class ReservationsDbContext(
     public DbSet<ReservationExternalOperation> ExternalOperations => this.Set<ReservationExternalOperation>();
     internal DbSet<ReservationManagementOperation> ManagementOperations =>
         this.Set<ReservationManagementOperation>();
+    internal DbSet<ReservationStayAmendmentOperation> StayAmendmentOperations =>
+        this.Set<ReservationStayAmendmentOperation>();
     internal DbSet<ReservationOperationLock> OperationLocks =>
         this.Set<ReservationOperationLock>();
     public DbSet<ReservationInventoryUnitProjection> InventoryUnitProjections => this.Set<ReservationInventoryUnitProjection>();
@@ -179,8 +182,18 @@ public sealed class ReservationsDbContext(
         {
             if (ownedTransaction is not null)
             {
-                await ownedTransaction.RollbackAsync(CancellationToken.None)
-                    .ConfigureAwait(false);
+                try
+                {
+                    await ownedTransaction.RollbackAsync(CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+                catch
+                {
+                    // A failed deferred-constraint commit can already have
+                    // completed the provider transaction. Preserve the
+                    // original commit exception instead of masking it with a
+                    // secondary rollback failure.
+                }
             }
 
             throw;

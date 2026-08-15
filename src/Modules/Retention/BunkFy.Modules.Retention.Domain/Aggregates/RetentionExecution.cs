@@ -77,8 +77,14 @@ public sealed class RetentionExecution : ScopedAggregateRoot<Guid>
         DateTimeOffset startedAtUtc,
         DateTimeOffset deadlineUtc)
     {
+        bool failedWindowInvalid =
+            this.State == RetentionExecutionState.Failed &&
+            (!this.CompletedAtUtc.HasValue ||
+             startedAtUtc < this.CompletedAtUtc.Value);
         if (attempt <= this.Attempt ||
             startedAtUtc == default ||
+            startedAtUtc < this.StartedAtUtc ||
+            failedWindowInvalid ||
             deadlineUtc <= startedAtUtc)
         {
             return Result.Failure(RetentionDomainErrors.AttemptInvalid);

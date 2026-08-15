@@ -118,6 +118,63 @@ public sealed class RetentionMutationCoordinatorTests
     }
 
     [Fact]
+    public async Task Reclaimed_lease_replays_terminal_execution()
+    {
+        Guid propertyId = Guid.Parse(
+            "10000000-0000-0000-0000-000000000004");
+        Guid executionId = Guid.Parse(
+            "20000000-0000-0000-0000-000000000004");
+        List<string> calls = [];
+        RetentionExecution execution = CreateExecution(
+            executionId,
+            propertyId);
+        Assert.True(execution.Complete(
+            RetentionExecutionState.Completed,
+            attempt: 1,
+            scannedCount: 2,
+            affectedCount: 1,
+            remainingCount: 0,
+            "guests.guest-operational.completed",
+            Now.AddMinutes(1),
+            holdReviewDueAtUtc: null).IsSuccess);
+        RecordingExecutionRepository executions = new(
+            execution,
+            calls);
+        RetentionExecutionMutationCoordinator coordinator = new(
+            new RecordingMutationLock(calls),
+            executions,
+            new RecordingScheduleHealthReader(snapshot: null, calls),
+            new RecordingScopeRepository(calls),
+            new TestScopeContext());
+        RecordingScheduleStateRepository schedules = new();
+        BeginRetentionExecutionCommandHandler handler = new(
+            coordinator,
+            executions,
+            schedules);
+        BeginRetentionExecutionCommand reclaimed =
+            CreateStartCommand(executionId, propertyId) with
+            {
+                Attempt = 2,
+                StartedAtUtc = Now.AddMinutes(2),
+                DeadlineUtc = Now.AddMinutes(7)
+            };
+
+        Result<RetentionExecutionStart> result =
+            await handler.HandleAsync(
+                reclaimed,
+                CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.False(result.Value.DispatchRequired);
+        Assert.Equal(
+            RetentionExecutionState.Completed,
+            result.Value.State);
+        Assert.Equal(1, result.Value.Request.Attempt);
+        Assert.Equal(1, execution.Attempt);
+        Assert.Equal(0, schedules.StartedCount);
+    }
+
+    [Fact]
     public async Task Property_projection_locks_before_merge()
     {
         Guid propertyId = Guid.Parse(
@@ -433,5 +490,25 @@ public sealed class RetentionMutationCoordinatorTests
     {
         public bool IsEnabled => true;
         public string ScopeId => TenantId;
+    }
+
+    private sealed class RecordingScheduleStateRepository
+        : IRetentionScheduleStateRepository
+    {
+        public int StartedCount { get; private set; }
+
+        public Task RecordStartedAsync(
+            RetentionExecution execution,
+            DateTimeOffset nextDueAtUtc,
+            CancellationToken cancellationToken)
+        {
+            this.StartedCount++;
+            return Task.CompletedTask;
+        }
+
+        public Task RecordCompletedAsync(
+            RetentionExecution execution,
+            CancellationToken cancellationToken) =>
+            Task.CompletedTask;
     }
 }
