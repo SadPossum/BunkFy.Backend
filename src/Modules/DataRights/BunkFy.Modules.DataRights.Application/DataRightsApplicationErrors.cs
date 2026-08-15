@@ -74,12 +74,18 @@ public static class DataRightsApplicationErrors
     public static readonly Error RestrictionOwnerUnavailable = new(
         "DataRights.RestrictionOwnerUnavailable",
         "The selected restriction owner is unavailable.");
+    public static readonly Error RestrictionOwnerCatalogInvalid = new(
+        "DataRights.RestrictionOwnerCatalogInvalid",
+        "The processing-restriction owner catalogue is invalid.");
+    public static readonly Error RestrictionOwnerRetryRequired = new(
+        "DataRights.RestrictionOwnerRetryRequired",
+        "Processing-restriction owner execution must be retried.");
     public static readonly Error RestrictionExecutionBlocked = new(
         "DataRights.RestrictionExecutionBlocked",
         "The selected owner cannot apply the approved processing restriction.");
     public static readonly Error RestrictionOwnerProofInvalid = new(
         "DataRights.RestrictionOwnerProofInvalid",
-        "The selected owner returned invalid processing-restriction proof.");
+        "The selected owner returned an invalid processing-restriction result or proof.");
     public static Error RestrictionExecutionConflict =>
         DataRightsDomainErrors.RestrictionExecutionConflict;
     public static readonly Error CorrectionExecutionDenied = new(
@@ -88,6 +94,9 @@ public static class DataRightsApplicationErrors
     public static readonly Error CorrectionOwnerUnavailable = new(
         "DataRights.CorrectionOwnerUnavailable",
         "The selected correction owner is unavailable.");
+    public static readonly Error CorrectionOwnerCatalogInvalid = new(
+        "DataRights.CorrectionOwnerCatalogInvalid",
+        "The correction-owner policy catalogue is invalid.");
     public static readonly Error CorrectionExecutionNotFound = new(
         "DataRights.CorrectionExecutionNotFound",
         "The correction execution was not found.");

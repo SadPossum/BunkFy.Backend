@@ -100,12 +100,15 @@ internal static class DataRightsEndpointSupport
             new(DataRightsApplicationErrors.ExecutionAlreadyStarted.Code, StatusCodes.Status409Conflict),
             new(DataRightsApplicationErrors.AnonymisationExecutionDenied.Code, StatusCodes.Status409Conflict),
             new(DataRightsApplicationErrors.RestrictionExecutionDenied.Code, StatusCodes.Status409Conflict),
-            new(DataRightsApplicationErrors.RestrictionOwnerUnavailable.Code, StatusCodes.Status409Conflict),
+            new(DataRightsApplicationErrors.RestrictionOwnerUnavailable.Code, StatusCodes.Status503ServiceUnavailable),
+            new(DataRightsApplicationErrors.RestrictionOwnerCatalogInvalid.Code, StatusCodes.Status500InternalServerError),
+            new(DataRightsApplicationErrors.RestrictionOwnerRetryRequired.Code, StatusCodes.Status503ServiceUnavailable),
             new(DataRightsApplicationErrors.RestrictionExecutionBlocked.Code, StatusCodes.Status409Conflict),
-            new(DataRightsApplicationErrors.RestrictionOwnerProofInvalid.Code, StatusCodes.Status409Conflict),
+            new(DataRightsApplicationErrors.RestrictionOwnerProofInvalid.Code, StatusCodes.Status500InternalServerError),
             new(DataRightsApplicationErrors.RestrictionExecutionConflict.Code, StatusCodes.Status409Conflict),
             new(DataRightsApplicationErrors.CorrectionExecutionDenied.Code, StatusCodes.Status409Conflict),
-            new(DataRightsApplicationErrors.CorrectionOwnerUnavailable.Code, StatusCodes.Status409Conflict),
+            new(DataRightsApplicationErrors.CorrectionOwnerUnavailable.Code, StatusCodes.Status503ServiceUnavailable),
+            new(DataRightsApplicationErrors.CorrectionOwnerCatalogInvalid.Code, StatusCodes.Status500InternalServerError),
             new(DataRightsApplicationErrors.CorrectionExecutionNotFound.Code, StatusCodes.Status404NotFound),
             new(DataRightsApplicationErrors.CorrectionExecutionConflict.Code, StatusCodes.Status409Conflict),
             new(DataRightsApplicationErrors.CorrectionExecutionExpired.Code, StatusCodes.Status409Conflict),
@@ -158,6 +161,10 @@ internal static class DataRightsEndpointSupport
         string.Equals(
             code,
             DataRightsApplicationErrors.SubjectOwnerRetryRequired.Code,
+            StringComparison.Ordinal) ||
+        string.Equals(
+            code,
+            DataRightsApplicationErrors.RestrictionOwnerRetryRequired.Code,
             StringComparison.Ordinal);
 
     public static string? ResolveActor(

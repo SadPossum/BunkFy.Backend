@@ -94,8 +94,12 @@ public sealed class DataRightsPersonalDataCatalogTests
             nameof(DataRightsCorrectionExecutionGateRequest.ExecutingActorId),
             PersonalDataSurface.ApplicationQuery);
         AssertBinding(
+            typeof(GetDataRightsCorrectionExecutionQuery),
+            nameof(GetDataRightsCorrectionExecutionQuery.ActorId),
+            PersonalDataSurface.ApplicationQuery);
+        AssertBinding(
             typeof(DataRightsCorrectionExecutionDetailsDto),
-            nameof(DataRightsCorrectionExecutionDetailsDto.ExecutedBy),
+            nameof(DataRightsCorrectionExecutionDetailsDto.ClaimedBy),
             PersonalDataSurface.ApiResponse);
         AssertBinding(
             typeof(TenantTerminationReplayIntent),
@@ -405,7 +409,8 @@ public sealed class DataRightsPersonalDataCatalogTests
             nameof(StartDataRightsCorrectionExecutionCommand.ActorId));
         AssertPublicPropertiesClassified(
             typeof(GetDataRightsCorrectionExecutionQuery),
-            PersonalDataSurface.ApplicationQuery);
+            PersonalDataSurface.ApplicationQuery,
+            nameof(GetDataRightsCorrectionExecutionQuery.ActorId));
         AssertPublicPropertiesClassified(
             typeof(DataRightsCorrectionExecutionGateRequest),
             PersonalDataSurface.ApplicationQuery,
@@ -421,7 +426,7 @@ public sealed class DataRightsPersonalDataCatalogTests
             typeof(DataRightsCorrectionExecutionDetailsDto),
             PersonalDataSurface.ApiResponse,
             nameof(DataRightsCorrectionExecutionDetailsDto.Subject),
-            nameof(DataRightsCorrectionExecutionDetailsDto.ExecutedBy));
+            nameof(DataRightsCorrectionExecutionDetailsDto.ClaimedBy));
         AssertPublicPropertiesClassified(
             typeof(DataRightsCorrectionAppliedIntegrationEvent),
             PersonalDataSurface.IntegrationEvent,

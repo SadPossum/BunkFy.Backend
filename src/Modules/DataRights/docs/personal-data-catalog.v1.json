@@ -474,6 +474,13 @@
           "retentionPolicy": "transient-request"
         },
         {
+          "assembly": "BunkFy.Modules.DataRights.Application",
+          "type": "BunkFy.Modules.DataRights.Application.Queries.GetDataRightsCorrectionExecutionQuery",
+          "member": "ActorId",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        },
+        {
           "assembly": "BunkFy.Modules.DataRights.Contracts",
           "type": "BunkFy.Modules.DataRights.Contracts.DataRightsCorrectionExecutionGateRequest",
           "member": "ExecutingActorId",
@@ -483,7 +490,7 @@
         {
           "assembly": "BunkFy.Modules.DataRights.Contracts",
           "type": "BunkFy.Modules.DataRights.Contracts.DataRightsCorrectionExecutionDetailsDto",
-          "member": "ExecutedBy",
+          "member": "ClaimedBy",
           "surface": "api-response",
           "retentionPolicy": "transient-response"
         },
@@ -1845,6 +1852,7 @@
         { "assembly": "BunkFy.Modules.DataRights.Contracts", "type": "BunkFy.Modules.DataRights.Contracts.DataRightsCorrectionExecutionDetailsDto", "member": "ExecutionRevision", "surface": "api-response", "retentionPolicy": "transient-response" },
         { "assembly": "BunkFy.Modules.DataRights.Contracts", "type": "BunkFy.Modules.DataRights.Contracts.DataRightsCorrectionExecutionDetailsDto", "member": "ApprovalRevision", "surface": "api-response", "retentionPolicy": "transient-response" },
         { "assembly": "BunkFy.Modules.DataRights.Contracts", "type": "BunkFy.Modules.DataRights.Contracts.DataRightsCorrectionExecutionDetailsDto", "member": "FieldPolicyKey", "surface": "api-response", "retentionPolicy": "transient-response" },
+        { "assembly": "BunkFy.Modules.DataRights.Contracts", "type": "BunkFy.Modules.DataRights.Contracts.DataRightsCorrectionExecutionDetailsDto", "member": "IsCurrentActor", "surface": "api-response", "retentionPolicy": "transient-response" },
         { "assembly": "BunkFy.Modules.DataRights.Contracts", "type": "BunkFy.Modules.DataRights.Contracts.DataRightsCorrectionExecutionDetailsDto", "member": "StartedAtUtc", "surface": "api-response", "retentionPolicy": "transient-response" },
         { "assembly": "BunkFy.Modules.DataRights.Contracts", "type": "BunkFy.Modules.DataRights.Contracts.DataRightsCorrectionExecutionDetailsDto", "member": "ExpiresAtUtc", "surface": "api-response", "retentionPolicy": "transient-response" },
         { "assembly": "BunkFy.Modules.DataRights.Contracts", "type": "BunkFy.Modules.DataRights.Contracts.DataRightsCorrectionExecutionDetailsDto", "member": "Status", "surface": "api-response", "retentionPolicy": "transient-response" },

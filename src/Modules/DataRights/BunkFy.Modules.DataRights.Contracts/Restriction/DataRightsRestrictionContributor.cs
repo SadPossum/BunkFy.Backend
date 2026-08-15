@@ -74,6 +74,7 @@ public enum DataRightsRestrictionContributionStatus
 public static class DataRightsRestrictionContract
 {
     public const int CurrentVersion = 2;
+    public const int OwnerKeyMaxLength = 100;
     public const int CodeMaxLength = 200;
     public const int Sha256Length = 64;
 }

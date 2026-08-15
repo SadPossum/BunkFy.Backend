@@ -7,6 +7,7 @@ using Gma.Framework.AccessControl.AspNetCore;
 using Gma.Framework.Api.Results;
 using Gma.Framework.Api.Tenancy;
 using Gma.Framework.Cqrs;
+using Gma.Framework.Results;
 using Gma.Framework.Security;
 using Gma.Framework.Security.AspNetCore;
 using Gma.Framework.Tenancy.AccessControl.AspNetCore;
@@ -35,17 +36,21 @@ internal static class DataRightsRestrictionEndpoints
                 string? actor = DataRightsEndpointSupport.ResolveActor(
                     context,
                     subjectResolver);
-                return actor is null
-                    ? Results.Unauthorized()
-                    : (await dispatcher.SendAsync(
+                if (actor is null)
+                {
+                    return Results.Unauthorized();
+                }
+
+                Result<DataRightsRestrictionExecutionDto> result =
+                    await dispatcher.SendAsync(
                         new ExecuteDataRightsRestrictionCommand(
                             DataRightsCaseScope.ForProperty(propertyId),
                             caseId,
                             request.IdempotencyKey,
                             request.ExpectedVersion,
                             actor),
-                        cancellationToken).ConfigureAwait(false))
-                        .ToHttpResult(DataRightsEndpointSupport.ErrorStatusCodes);
+                        cancellationToken).ConfigureAwait(false);
+                return DataRightsEndpointSupport.ToHttpResult(context, result);
             })
             .Produces<DataRightsRestrictionExecutionDto>()
             .RequireTenant()
@@ -76,17 +81,21 @@ internal static class DataRightsRestrictionEndpoints
                 string? actor = DataRightsEndpointSupport.ResolveActor(
                     context,
                     subjectResolver);
-                return actor is null
-                    ? Results.Unauthorized()
-                    : (await dispatcher.SendAsync(
+                if (actor is null)
+                {
+                    return Results.Unauthorized();
+                }
+
+                Result<DataRightsRestrictionExecutionDto> result =
+                    await dispatcher.SendAsync(
                         new ExecuteDataRightsRestrictionCommand(
                             DataRightsCaseScope.Staff,
                             caseId,
                             request.IdempotencyKey,
                             request.ExpectedVersion,
                             actor),
-                        cancellationToken).ConfigureAwait(false))
-                        .ToHttpResult(DataRightsEndpointSupport.ErrorStatusCodes);
+                        cancellationToken).ConfigureAwait(false);
+                return DataRightsEndpointSupport.ToHttpResult(context, result);
             })
             .Produces<DataRightsRestrictionExecutionDto>()
             .RequireTenant()

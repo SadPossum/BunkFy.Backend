@@ -12,10 +12,11 @@ using BunkFy.Modules.DataRights.Domain.Models;
 using BunkFy.Modules.DataRights.Domain.ValueObjects;
 using Gma.Framework.Pagination;
 using Gma.Framework.Runtime.Time;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 [Trait("Category", "Unit")]
-public sealed class ExecuteDataRightsRestrictionCommandHandlerTests
+public sealed partial class ExecuteDataRightsRestrictionCommandHandlerTests
 {
     private static readonly DateTimeOffset Now =
         new(2026, 7, 27, 14, 0, 0, TimeSpan.Zero);
@@ -33,7 +34,8 @@ public sealed class ExecuteDataRightsRestrictionCommandHandlerTests
                 new StubCaseRepository(dataRightsCase)),
             gate,
             [contributor],
-            new TestClock());
+            new TestClock(),
+            NullLogger<ExecuteDataRightsRestrictionCommandHandler>.Instance);
         ExecuteDataRightsRestrictionCommand command = new(
             DataRightsCaseScope.ForProperty(dataRightsCase.PropertyId!.Value),
             dataRightsCase.Id,
@@ -68,7 +70,8 @@ public sealed class ExecuteDataRightsRestrictionCommandHandlerTests
                 new StubCaseRepository(dataRightsCase)),
             new RecordingApprovalGate(DataRightsOperationApprovalResult.Approved),
             [contributor],
-            new TestClock());
+            new TestClock(),
+            NullLogger<ExecuteDataRightsRestrictionCommandHandler>.Instance);
         ExecuteDataRightsRestrictionCommand command = new(
             DataRightsCaseScope.ForProperty(dataRightsCase.PropertyId!.Value),
             dataRightsCase.Id,
@@ -97,7 +100,8 @@ public sealed class ExecuteDataRightsRestrictionCommandHandlerTests
                 new StubCaseRepository(dataRightsCase)),
             new RecordingApprovalGate(DataRightsOperationApprovalResult.Approved),
             [contributor],
-            new TestClock());
+            new TestClock(),
+            NullLogger<ExecuteDataRightsRestrictionCommandHandler>.Instance);
         ExecuteDataRightsRestrictionCommand command = new(
             DataRightsCaseScope.ForProperty(dataRightsCase.PropertyId!.Value),
             dataRightsCase.Id,
@@ -131,7 +135,8 @@ public sealed class ExecuteDataRightsRestrictionCommandHandlerTests
             new RecordingApprovalGate(DataRightsOperationApprovalResult.Denied(
                 DataRightsOperationApprovalDenial.SubjectNotApproved)),
             [contributor],
-            new TestClock());
+            new TestClock(),
+            NullLogger<ExecuteDataRightsRestrictionCommandHandler>.Instance);
 
         var denied = await handler.HandleAsync(
             new(
@@ -164,7 +169,8 @@ public sealed class ExecuteDataRightsRestrictionCommandHandlerTests
                 new StubCaseRepository(dataRightsCase)),
             gate,
             [contributor],
-            new TestClock());
+            new TestClock(),
+            NullLogger<ExecuteDataRightsRestrictionCommandHandler>.Instance);
 
         var result = await handler.HandleAsync(
             new ExecuteDataRightsRestrictionCommand(
@@ -180,6 +186,38 @@ public sealed class ExecuteDataRightsRestrictionCommandHandlerTests
         Assert.Null(gate.Request?.PropertyId);
         Assert.Equal(DataRightsCaseType.StaffRights, contributor.Request?.CaseType);
         Assert.Null(contributor.Request?.PropertyId);
+    }
+
+    [Fact]
+    public async Task Unexpected_owner_exception_preserves_case_and_requests_retry()
+    {
+        DataRightsCase dataRightsCase = CreateApprovedCase(
+            DataRightsRestrictionAction.Apply);
+        RecordingContributor contributor = new(
+            CompletedOwnerResult(effectiveRestricted: true),
+            exception: new TimeoutException());
+        ExecuteDataRightsRestrictionCommandHandler handler = new(
+            DataRightsMutationTestSupport.Case(
+                new StubCaseRepository(dataRightsCase)),
+            new RecordingApprovalGate(DataRightsOperationApprovalResult.Approved),
+            [contributor],
+            new TestClock(),
+            NullLogger<ExecuteDataRightsRestrictionCommandHandler>.Instance);
+
+        var result = await handler.HandleAsync(
+            new(
+                DataRightsCaseScope.ForProperty(dataRightsCase.PropertyId!.Value),
+                dataRightsCase.Id,
+                Guid.NewGuid(),
+                dataRightsCase.Version,
+                "user:executor"),
+            CancellationToken.None);
+
+        Assert.Equal(
+            DataRightsApplicationErrors.RestrictionOwnerRetryRequired,
+            result.Error);
+        Assert.Equal(DataRightsCaseState.Approved, dataRightsCase.Status);
+        Assert.Null(dataRightsCase.RestrictionExecutionProof);
     }
 
     private static DataRightsRestrictionContributionResult CompletedOwnerResult(
@@ -328,7 +366,8 @@ public sealed class ExecuteDataRightsRestrictionCommandHandlerTests
 
     private sealed class RecordingContributor(
         DataRightsRestrictionContributionResult result,
-        string ownerKey = "guests")
+        string ownerKey = "guests",
+        Exception? exception = null)
         : IDataRightsRestrictionContributor
     {
         public string OwnerKey => ownerKey;
@@ -342,6 +381,10 @@ public sealed class ExecuteDataRightsRestrictionCommandHandlerTests
         {
             this.CallCount++;
             this.Request = request;
+            if (exception is not null)
+            {
+                throw exception;
+            }
             return Task.FromResult(result);
         }
     }

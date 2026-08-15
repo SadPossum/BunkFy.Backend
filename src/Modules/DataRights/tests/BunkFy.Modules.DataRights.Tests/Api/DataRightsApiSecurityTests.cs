@@ -407,6 +407,62 @@ public sealed class DataRightsApiSecurityTests
     }
 
     [Fact]
+    public void Mutation_owner_failures_have_distinct_http_semantics()
+    {
+        (Error Error, int StatusCode)[] expectations =
+        [
+            (
+                DataRightsApplicationErrors.RestrictionOwnerUnavailable,
+                StatusCodes.Status503ServiceUnavailable),
+            (
+                DataRightsApplicationErrors.RestrictionOwnerCatalogInvalid,
+                StatusCodes.Status500InternalServerError),
+            (
+                DataRightsApplicationErrors.RestrictionOwnerRetryRequired,
+                StatusCodes.Status503ServiceUnavailable),
+            (
+                DataRightsApplicationErrors.RestrictionExecutionBlocked,
+                StatusCodes.Status409Conflict),
+            (
+                DataRightsApplicationErrors.RestrictionOwnerProofInvalid,
+                StatusCodes.Status500InternalServerError),
+            (
+                DataRightsApplicationErrors.CorrectionOwnerUnavailable,
+                StatusCodes.Status503ServiceUnavailable),
+            (
+                DataRightsApplicationErrors.CorrectionOwnerCatalogInvalid,
+                StatusCodes.Status500InternalServerError)
+        ];
+
+        foreach ((Error error, int statusCode) in expectations)
+        {
+            Assert.Equal(
+                statusCode,
+                DataRightsEndpointSupport.ErrorStatusCodes.GetStatusCode(error));
+        }
+    }
+
+    [Fact]
+    public void Restriction_owner_retry_publishes_a_bounded_retry_after()
+    {
+        DefaultHttpContext context = new();
+
+        IResult result = DataRightsEndpointSupport.ToHttpResult(
+            context,
+            Result.Failure<DataRightsRestrictionExecutionDto>(
+                DataRightsApplicationErrors.RestrictionOwnerRetryRequired));
+
+        Assert.Equal(
+            StatusCodes.Status503ServiceUnavailable,
+            Assert.IsType<IStatusCodeHttpResult>(result, exactMatch: false)
+                .StatusCode);
+        Assert.Equal(
+            DataRightsEndpointSupport.ExplicitDependencyRetryAfterSeconds
+                .ToString(System.Globalization.CultureInfo.InvariantCulture),
+            context.Response.Headers.RetryAfter);
+    }
+
+    [Fact]
     public void Case_creation_operation_failures_have_distinct_http_semantics()
     {
         Assert.Equal(
