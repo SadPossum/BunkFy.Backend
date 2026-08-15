@@ -30,6 +30,7 @@ internal sealed class ExecuteRetentionScheduleTaskHandler(
         IRetentionExecutionContributor contributor = this.ResolveContributor(payload);
         DateTimeOffset startedAtUtc = clock.UtcNow;
         DateTimeOffset deadlineUtc = startedAtUtc + contributor.Schedule.ExecutionTimeout;
+        int executionGeneration = context.LeaseGeneration;
 
         Result<RetentionExecutionStart> started =
             await commandDispatcher.DispatchAsync<
@@ -44,7 +45,7 @@ internal sealed class ExecuteRetentionScheduleTaskHandler(
                     payload.TargetScopeKind,
                     payload.PropertyId,
                     payload.ExecutionPolicyVersion,
-                    context.Attempt,
+                    executionGeneration,
                     startedAtUtc,
                     deadlineUtc,
                     startedAtUtc + contributor.Schedule.Interval),
@@ -104,7 +105,7 @@ internal sealed class ExecuteRetentionScheduleTaskHandler(
                 CompleteRetentionExecutionCommand,
                 Unit>(
                 context,
-                new(context.RunId, context.Attempt, result),
+                new(context.RunId, executionGeneration, result),
                 cancellationToken).ConfigureAwait(false);
         if (completed.IsFailure)
         {

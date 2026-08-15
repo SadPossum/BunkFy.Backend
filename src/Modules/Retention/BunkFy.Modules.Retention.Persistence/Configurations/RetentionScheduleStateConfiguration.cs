@@ -73,5 +73,10 @@ internal sealed class RetentionScheduleStateConfiguration
             state.ScopeId,
             state.HoldReviewDueAtUtc
         });
+        builder.HasIndex(state => new
+        {
+            state.ScopeId,
+            state.LastExecutionId
+        }).IsUnique();
     }
 }

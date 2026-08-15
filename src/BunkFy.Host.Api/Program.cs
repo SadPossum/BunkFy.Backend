@@ -26,6 +26,7 @@ using BunkFy.Modules.Properties.Persistence;
 using BunkFy.Modules.Reservations.Api;
 using BunkFy.Modules.Reservations.Persistence;
 using BunkFy.Modules.Retention.Api;
+using BunkFy.Modules.Retention.Persistence;
 using BunkFy.Modules.Staff.Api;
 using BunkFy.Modules.Staff.Persistence;
 using BunkFy.Modules.Workspaces.Api;
@@ -160,6 +161,8 @@ builder.Services.Configure<StaffApiSecurityOptions>(
     });
 builder.Services.Configure<ReservationsApiSecurityOptions>(options =>
     options.CorrectionExecutionAssurance = privilegedOperationAssurance);
+builder.Services.Configure<RetentionApiSecurityOptions>(options =>
+    options.RetryAssurance = privilegedOperationAssurance);
 builder.Services.Configure<GuestsApiSecurityOptions>(
     options =>
     {
@@ -227,6 +230,7 @@ builder.Services.AddGmaEntityFrameworkReadinessCheck<StaffDbContext>("staff-data
 builder.Services.AddGmaEntityFrameworkReadinessCheck<WorkspacesDbContext>("workspaces-database");
 builder.Services.AddGmaEntityFrameworkReadinessCheck<IngestionDbContext>("ingestion-database");
 builder.Services.AddGmaEntityFrameworkReadinessCheck<DataRightsDbContext>("data-rights-database");
+builder.Services.AddGmaEntityFrameworkReadinessCheck<RetentionDbContext>("retention-database");
 builder.AddGmaOpenApi();
 builder.ValidateModuleComposition();
 

@@ -49,6 +49,7 @@ using Gma.Modules.Organizations.Persistence;
 using Gma.Modules.TaskRuntime.Persistence;
 using Integration.Tests.Support;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -60,6 +61,27 @@ using IOrganizationAccessCandidateFilter =
 
 public sealed class WorkerHostIntegrationTests
 {
+    [Fact]
+    [Trait("Category", "Integration")]
+    public void Retention_consumer_requires_local_task_runtime_recovery()
+    {
+        ConfigurationManager configuration = new();
+        configuration["NatsConsumers:Enabled"] = "true";
+        configuration["Worker:Modules:Retention"] = "true";
+        configuration["Worker:Modules:TaskRuntime"] = "false";
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(
+            () => WorkerHostOptions.FromConfiguration(configuration));
+
+        Assert.Contains("must compose TaskRuntime", error.Message);
+
+        configuration["NatsConsumers:Enabled"] = "false";
+        WorkerHostOptions apiOnly = WorkerHostOptions.FromConfiguration(
+            configuration);
+        Assert.True(apiOnly.Modules.Retention);
+        Assert.False(apiOnly.Modules.TaskRuntime);
+    }
+
     [Fact]
     [Trait("Category", "Integration")]
     public async Task Worker_host_composes_the_exact_tenant_termination_catalogue()

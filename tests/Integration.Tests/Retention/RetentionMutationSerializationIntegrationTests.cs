@@ -200,6 +200,7 @@ public sealed class RetentionMutationSerializationIntegrationTests
         RetentionExecutionMutationCoordinator mutations = new(
             new RetentionMutationLock(dbContext),
             executions,
+            schedules,
             scopes,
             new TestScopeContext());
         return new(mutations, executions, schedules);

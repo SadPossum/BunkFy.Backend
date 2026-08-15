@@ -108,6 +108,84 @@ namespace BunkFy.Modules.Retention.Persistence.PostgreSqlMigrations.Migrations
                         });
                 });
 
+            modelBuilder.Entity("BunkFy.Modules.Retention.Domain.Aggregates.RetentionRunRetryRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Attempt")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DataClassKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<long>("EvidenceVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("ExecutionPolicyVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("FailureCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("OwnerKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid?>("PropertyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("RequestedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("RunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("ScheduledAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ScopeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("State")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TargetKind")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScopeId", "RunId", "EvidenceVersion")
+                        .IsUnique();
+
+                    b.HasIndex("ScopeId", "State", "RequestedAtUtc");
+
+                    b.ToTable("run_retry_requests", "retention", t =>
+                        {
+                            t.HasCheckConstraint("CK_retention_run_retry_request_state", "\"State\" IN (1, 2, 3) AND ((\"State\" = 1 AND \"CompletedAtUtc\" IS NULL AND \"FailureCode\" IS NULL) OR (\"State\" = 2 AND \"CompletedAtUtc\" IS NOT NULL AND \"FailureCode\" IS NULL) OR (\"State\" = 3 AND \"CompletedAtUtc\" IS NOT NULL AND \"FailureCode\" IS NOT NULL))");
+
+                            t.HasCheckConstraint("CK_retention_run_retry_request_target", "(\"TargetKind\" = 1 AND \"PropertyId\" IS NULL) OR (\"TargetKind\" = 2 AND \"PropertyId\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_retention_run_retry_request_timestamps", "(\"ScheduledAtUtc\" IS NULL OR \"ScheduledAtUtc\" >= \"RequestedAtUtc\") AND (\"CompletedAtUtc\" IS NULL OR \"CompletedAtUtc\" >= \"RequestedAtUtc\")");
+
+                            t.HasCheckConstraint("CK_retention_run_retry_request_versions", "\"ExecutionPolicyVersion\" >= 1 AND \"EvidenceVersion\" >= 1 AND \"Attempt\" >= 1 AND \"Version\" >= 1");
+                        });
+                });
+
             modelBuilder.Entity("BunkFy.Modules.Retention.Persistence.RetentionPropertyProjection", b =>
                 {
                     b.Property<string>("ScopeId")
@@ -214,6 +292,9 @@ namespace BunkFy.Modules.Retention.Persistence.PostgreSqlMigrations.Migrations
                     b.HasKey("ScopeId", "OwnerKey", "DataClassKey", "TargetKey", "ExecutionPolicyVersion");
 
                     b.HasIndex("ScopeId", "HoldReviewDueAtUtc");
+
+                    b.HasIndex("ScopeId", "LastExecutionId")
+                        .IsUnique();
 
                     b.HasIndex("ScopeId", "State", "NextDueAtUtc");
 
@@ -359,7 +440,7 @@ namespace BunkFy.Modules.Retention.Persistence.PostgreSqlMigrations.Migrations
                         {
                             t.HasCheckConstraint("CK_retention_tenant_destroy_operation_batch", "\"BatchSize\" BETWEEN 1 AND 500");
 
-                            t.HasCheckConstraint("CK_retention_tenant_destroy_operation_progress", "\"Stage\" BETWEEN 1 AND 6 AND \"RemovedRecordCount\" >= 0 AND \"CompletedBatchCount\" >= 0 AND \"ProofVersion\" = 1 AND \"ConcurrencyVersion\" >= 1");
+                            t.HasCheckConstraint("CK_retention_tenant_destroy_operation_progress", "\"Stage\" BETWEEN 1 AND 8 AND \"RemovedRecordCount\" >= 0 AND \"CompletedBatchCount\" >= 0 AND \"ProofVersion\" = 1 AND \"ConcurrencyVersion\" >= 1");
 
                             t.HasCheckConstraint("CK_retention_tenant_destroy_operation_revisions", "\"SelectedRevision\" >= 0 AND \"ResultingRevision\" = \"SelectedRevision\" + 1");
 
@@ -491,6 +572,66 @@ namespace BunkFy.Modules.Retention.Persistence.PostgreSqlMigrations.Migrations
                     b.HasIndex("Status", "ProcessedAtUtc");
 
                     b.ToTable("inbox_messages", "retention");
+                });
+
+            modelBuilder.Entity("Gma.Framework.Messaging.Infrastructure.OutboxMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Error")
+                        .HasColumnType("text");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<string>("LockedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTimeOffset?>("LockedUntilUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("NextAttemptAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("OccurredAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("ProcessedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ScopeId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("ScopeId");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProcessedAtUtc", "NextAttemptAtUtc", "LockedUntilUtc", "CreatedAtUtc");
+
+                    b.ToTable("outbox_messages", "retention");
                 });
 #pragma warning restore 612, 618
         }

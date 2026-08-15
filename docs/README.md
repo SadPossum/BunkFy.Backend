@@ -161,6 +161,7 @@ Useful entry points:
 - [Operations Notifications Data Rights Deadline Alerts Task](planning/operations-notifications-data-rights-deadline-alerts-task.md)
 - [Automatic Retention Control Plane Task](planning/automatic-retention-control-plane-task.md)
 - [Retention Operational Surface Hardening Task](planning/retention-operational-surface-hardening-task.md)
+- [Retention Operator Recovery Task](planning/retention-operator-recovery-task.md)
 - [Retention Mutation Serialization Task](planning/retention-mutation-serialization-task.md)
 - [Retention Task Timeout Alignment Task](planning/retention-task-timeout-alignment-task.md)
 - [Tenant Termination Control Plane Task](planning/tenant-termination-control-plane-task.md)

@@ -22,9 +22,39 @@ public sealed class RetentionModelTests
 
         AssertScopeFiltered<RetentionExecution>(context);
         AssertScopeFiltered<RetentionScheduleState>(context);
+        AssertScopeFiltered<RetentionRunRetryRequest>(context);
         AssertScopeFiltered<RetentionTenantRevision>(context);
         AssertScopeFiltered<RetentionTenantDestroyOperation>(context);
         AssertScopeFiltered<RetentionTenantDestroyReceipt>(context);
+    }
+
+    [Fact]
+    public void Recovery_requests_and_schedule_runs_are_uniquely_indexed()
+    {
+        using RetentionDbContext context = CreateContext();
+        IModel model = context.GetService<IDesignTimeModel>().Model;
+        IEntityType request = model.FindEntityType(
+            typeof(RetentionRunRetryRequest))!;
+        IEntityType schedule = model.FindEntityType(
+            typeof(RetentionScheduleState))!;
+
+        Assert.Contains(
+            request.GetIndexes(),
+            index => index.IsUnique && index.Properties.Select(
+                property => property.Name).SequenceEqual(
+                [
+                    nameof(RetentionRunRetryRequest.ScopeId),
+                    nameof(RetentionRunRetryRequest.RunId),
+                    nameof(RetentionRunRetryRequest.EvidenceVersion)
+                ]));
+        Assert.Contains(
+            schedule.GetIndexes(),
+            index => index.IsUnique && index.Properties.Select(
+                property => property.Name).SequenceEqual(
+                [
+                    nameof(RetentionScheduleState.ScopeId),
+                    nameof(RetentionScheduleState.LastExecutionId)
+                ]));
     }
 
     [Fact]
@@ -100,16 +130,69 @@ public sealed class RetentionModelTests
             attempt: 1,
             startedAtUtc,
             startedAtUtc.AddMinutes(5)).Value;
-        context.ScheduleStates.Add(new(
+        RetentionScheduleState schedule = new(
             execution,
-            startedAtUtc.AddHours(1)));
+            startedAtUtc.AddHours(1));
+        context.ScheduleStates.Add(schedule);
+        RetentionRunRetryRequest currentRetry =
+            RetentionRunRetryRequest.Create(
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                "tenant-a",
+                runId,
+                "retention",
+                "execution-history",
+                RetentionExecutionTargetKind.Tenant,
+                propertyId: null,
+                executionPolicyVersion: 1,
+                evidenceVersion: schedule.Version,
+                startedAtUtc.AddMinutes(1),
+                scheduledAtUtc: null).Value;
+        RetentionRunRetryRequest staleRetry = RetentionRunRetryRequest.Create(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "tenant-a",
+            runId,
+            "retention",
+            "execution-history",
+            RetentionExecutionTargetKind.Tenant,
+            propertyId: null,
+            executionPolicyVersion: 1,
+            evidenceVersion: schedule.Version + 1,
+            startedAtUtc.AddMinutes(2),
+            scheduledAtUtc: null).Value;
+        context.RunRetryRequests.AddRange(currentRetry, staleRetry);
         await context.SaveChangesAsync();
 
+        RetentionScheduleStateRepository repository = new(context);
         RetentionScheduleStateSnapshot snapshot = Assert.Single(
-            await new RetentionScheduleStateRepository(context)
-                .ListAsync(CancellationToken.None));
+            await repository.ListAsync(CancellationToken.None));
 
         Assert.Equal(runId, snapshot.LastExecutionId);
+        Assert.Equal(currentRetry.Id, snapshot.Retry?.RequestId);
+        Assert.Equal(
+            runId,
+            (await repository.GetAsync(
+                "tenant-a",
+                "retention",
+                "execution-history",
+                propertyId: null,
+                executionPolicyVersion: 1,
+                CancellationToken.None))?.LastExecutionId);
+        Assert.Null(await repository.GetAsync(
+            "tenant-b",
+            "retention",
+            "execution-history",
+            propertyId: null,
+            executionPolicyVersion: 1,
+            CancellationToken.None));
+        Assert.Null(await repository.GetAsync(
+            "tenant-a",
+            "retention",
+            "execution-history",
+            propertyId: null,
+            executionPolicyVersion: 2,
+            CancellationToken.None));
     }
 
     private static void AssertScopeFiltered<TEntity>(

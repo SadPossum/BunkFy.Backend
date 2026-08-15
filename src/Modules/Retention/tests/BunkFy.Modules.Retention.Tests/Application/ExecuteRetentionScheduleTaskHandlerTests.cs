@@ -114,6 +114,39 @@ public sealed class ExecuteRetentionScheduleTaskHandlerTests
         Assert.Equal(context.RunId, signal.CorrelationId);
     }
 
+    [Fact]
+    public async Task Manual_retry_uses_the_monotonic_lease_generation()
+    {
+        FakeTaskDispatcher dispatcher = new();
+        TestContributor contributor = new(request => Task.FromResult(
+            new RetentionContributionResult(
+                RetentionExecutionContract.CurrentVersion,
+                RetentionContributionStatus.Completed,
+                ScannedCount: 0,
+                AffectedCount: 0,
+                RemainingCount: 0,
+                "ingestion.raw-payload.completed",
+                Now)));
+        ExecuteRetentionScheduleTaskHandler handler = new(
+            dispatcher,
+            [contributor],
+            new TestClock(),
+            new RecordingSecuritySignalRecorder(),
+            NullLogger<ExecuteRetentionScheduleTaskHandler>.Instance);
+        TaskExecutionContext context = Context(
+            attempt: 1,
+            leaseGeneration: 4);
+
+        await handler.HandleAsync(
+            Payload(),
+            context,
+            CancellationToken.None);
+
+        Assert.Equal(1, context.Attempt);
+        Assert.Equal(4, dispatcher.Started?.Attempt);
+        Assert.Equal(4, dispatcher.Completed?.Attempt);
+    }
+
     private static ExecuteRetentionSchedulePayload Payload() => new(
         "ingestion",
         "raw-source-evidence",
@@ -121,19 +154,23 @@ public sealed class ExecuteRetentionScheduleTaskHandlerTests
         RetentionTargetScopeKind.Tenant);
 
     private static TaskExecutionContext Context(
-        bool includeCorrelation = true) => new(
+        bool includeCorrelation = true,
+        int attempt = 1,
+        int leaseGeneration = 1) => new(
         Guid.NewGuid(),
         RetentionModuleMetadata.Name,
         ExecuteRetentionSchedulePayload.TaskName,
         RetentionModuleMetadata.WorkerGroup,
         "worker-1",
         "node-1",
-        attempt: 1,
+        attempt,
         scopeId: "tenant-a",
-        correlationId: includeCorrelation ? Guid.NewGuid() : null);
+        correlationId: includeCorrelation ? Guid.NewGuid() : null,
+        leaseGeneration: leaseGeneration);
 
     private sealed class FakeTaskDispatcher : ITaskCommandDispatcher
     {
+        public BeginRetentionExecutionCommand? Started { get; private set; }
         public CompleteRetentionExecutionCommand? Completed { get; private set; }
 
         public Task<Result<TResponse>> DispatchAsync<TCommand, TResponse>(
@@ -144,27 +181,33 @@ public sealed class ExecuteRetentionScheduleTaskHandlerTests
         {
             object result = command switch
             {
-                BeginRetentionExecutionCommand started => Result.Success(
-                    new RetentionExecutionStart(
-                        DispatchRequired: true,
-                        RetentionExecutionState.Running,
-                        new RetentionContributionRequest(
-                            RetentionExecutionContract.CurrentVersion,
-                            started.ExecutionId,
-                            started.TenantId,
-                            started.PropertyId,
-                            started.OwnerKey,
-                            started.DataClassKey,
-                            started.ExecutionPolicyVersion,
-                            started.Attempt,
-                            started.StartedAtUtc,
-                            started.DeadlineUtc))),
+                BeginRetentionExecutionCommand started => this.Start(started),
                 CompleteRetentionExecutionCommand completed =>
                     this.Complete(completed),
                 _ => throw new InvalidOperationException(
                     $"Unexpected command {command.GetType().Name}.")
             };
             return Task.FromResult((Result<TResponse>)result);
+        }
+
+        private Result<RetentionExecutionStart> Start(
+            BeginRetentionExecutionCommand command)
+        {
+            this.Started = command;
+            return Result.Success(new RetentionExecutionStart(
+                DispatchRequired: true,
+                RetentionExecutionState.Running,
+                new RetentionContributionRequest(
+                    RetentionExecutionContract.CurrentVersion,
+                    command.ExecutionId,
+                    command.TenantId,
+                    command.PropertyId,
+                    command.OwnerKey,
+                    command.DataClassKey,
+                    command.ExecutionPolicyVersion,
+                    command.Attempt,
+                    command.StartedAtUtc,
+                    command.DeadlineUtc)));
         }
 
         private Result<Unit> Complete(

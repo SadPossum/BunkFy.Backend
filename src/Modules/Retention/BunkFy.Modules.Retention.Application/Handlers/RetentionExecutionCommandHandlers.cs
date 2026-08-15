@@ -36,6 +36,12 @@ internal sealed class BeginRetentionExecutionCommandHandler(
                 RetentionApplicationErrors.TargetUnavailable);
         }
 
+        if (!lease.ScheduleAvailable)
+        {
+            return Result.Failure<RetentionExecutionStart>(
+                RetentionApplicationErrors.ExecutionConflict);
+        }
+
         RetentionExecution? current = lease.Execution;
         if (current is null)
         {
