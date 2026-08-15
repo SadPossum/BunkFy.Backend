@@ -102,7 +102,25 @@ The Reservations retention contributor registers one tenant-scoped schedule for
 ordinal, mutates only a bounded batch, and persists its cursor and proof in the
 Reservations schema. `Reservations:Retention` may tune the interval, scan
 size, and mutation batch size; validated conservative defaults apply when the
-section is omitted.
+section is omitted. Scan size is independently restricted to 1 through 1,000
+at configuration and repository boundaries. The repository uses one-item
+lookahead for end detection while materializing no more than the requested
+candidate count. Governance hydration loads at most 64 acknowledgements per
+property. A stored or concurrently introduced 65th acknowledgement makes that
+property's policy unavailable, so the candidate fails closed without mutation.
+
+Every retention mutation and completion carries the active attempt. The owner
+accepts it only while the matching execution is `Running` on that exact
+attempt, so an older worker cannot mutate or complete a newer retry. A `Failed`
+result is exact-replay evidence while its attempt remains current; recovery
+requires a strictly higher attempt. New failures do not advance the sweep
+checkpoint, and a retry rescans from the unchanged cursor while existing
+receipts make already-applied mutations idempotent. Compatibility rewind exists
+only for a legacy failed execution whose checkpoint names that same execution
+and has the exact failure completion timestamp; any newer or ambiguous
+checkpoint fails closed. Owner mutation and completion times are normalized to
+UTC microsecond precision before persistence so the first PostgreSQL result and
+its exact replay remain identical.
 
 ## Tenant Termination
 

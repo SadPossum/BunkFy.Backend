@@ -61,17 +61,26 @@ public sealed partial class ReservationsSagaIntegrationTests
 
         string connectionString = postgreSql.GetConnectionString();
         string natsConnectionString = AuthTestContainers.GetNatsConnectionString(nats);
-        await using AuthTestApplication api = new(
-            "PostgreSql",
-            connectionString,
-            natsConnectionString,
-            disableOutboxPublisher: false);
-        await api.MigrateGuestRecordsAuthorizationDatabaseAsync().ConfigureAwait(false);
+        await using (AuthTestApplication migrationApi = new(
+                         "PostgreSql",
+                         connectionString,
+                         natsConnectionString,
+                         disableOutboxPublisher: true))
+        {
+            await migrationApi.MigrateGuestRecordsAuthorizationDatabaseAsync()
+                .ConfigureAwait(false);
+        }
+
         await using AdminCliTestApplication admin = new(
             "PostgreSql",
             connectionString,
             includeReservations: true);
         await admin.MigrateAsync().ConfigureAwait(false);
+        await using AuthTestApplication api = new(
+            "PostgreSql",
+            connectionString,
+            natsConnectionString,
+            disableOutboxPublisher: false);
         await using AdminApiTestApplication adminApi = new(
             "PostgreSql",
             connectionString,
@@ -103,7 +112,7 @@ public sealed partial class ReservationsSagaIntegrationTests
             Guid readerId = GetSubjectId(readerTokens.AccessToken);
             await api.SeedOrganizationMembershipAsync(TenantId, readerId).ConfigureAwait(false);
             await GrantReservationsReadAccessAsync(admin, readerId).ConfigureAwait(false);
-            await GrantReservationsAdminAccessAsync(admin, operatorId).ConfigureAwait(false);
+            await GrantReservationsAdminAccessAsync(admin, operatorId, adminActorId).ConfigureAwait(false);
 
             await using AdminApiTestApplication reservationsAdminApi = new(
                 "PostgreSql",
@@ -1236,6 +1245,11 @@ public sealed partial class ReservationsSagaIntegrationTests
         using (IServiceScope scope = api.Services.CreateScope())
         {
             scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantId);
+            InventoryDbContext inventory = scope.ServiceProvider
+                .GetRequiredService<InventoryDbContext>();
+            await using var transaction = await inventory.Database
+                .BeginTransactionAsync()
+                .ConfigureAwait(false);
             IIntegrationEventHandler<PropertyCreatedIntegrationEvent> propertyHandler =
                 ResolveInventoryHandler<PropertyCreatedIntegrationEvent>(scope.ServiceProvider);
             IIntegrationEventHandler<RoomCreatedIntegrationEvent> roomHandler =
@@ -1249,9 +1263,10 @@ public sealed partial class ReservationsSagaIntegrationTests
             await roomHandler.HandleAsync(
                 new(Guid.NewGuid(), TenantId, now, PropertyId, ReplacementRoomId, "102", null, null, RoomStatus.Active, 1),
                 CancellationToken.None).ConfigureAwait(false);
-            await scope.ServiceProvider.GetRequiredService<InventoryDbContext>()
+            await inventory
                 .SaveChangesAsync()
                 .ConfigureAwait(false);
+            await transaction.CommitAsync().ConfigureAwait(false);
         }
 
         using IServiceScope configurationScope = api.Services.CreateScope();
@@ -1325,19 +1340,25 @@ public sealed partial class ReservationsSagaIntegrationTests
             await guestsTransaction.CommitAsync().ConfigureAwait(false);
         }
 
-        await ResolveHandler<PropertyCreatedIntegrationEvent>(
+        ReservationsDbContext reservations = scope.ServiceProvider
+            .GetRequiredService<ReservationsDbContext>();
+        await using (var reservationsTransaction = await reservations.Database
+                         .BeginTransactionAsync()
+                         .ConfigureAwait(false))
+        {
+            await ResolveHandler<PropertyCreatedIntegrationEvent>(
+                    scope.ServiceProvider,
+                    ReservationsModuleMetadata.Name)
+                .HandleAsync(propertyCreated, CancellationToken.None).ConfigureAwait(false);
+            await CountryPolicyIntegrationTestData.ApplyActivationAsync(
                 scope.ServiceProvider,
-                ReservationsModuleMetadata.Name)
-            .HandleAsync(propertyCreated, CancellationToken.None).ConfigureAwait(false);
-        await CountryPolicyIntegrationTestData.ApplyActivationAsync(
-            scope.ServiceProvider,
-            ReservationsModuleMetadata.Name,
-            TenantId,
-            PropertyId,
-            2).ConfigureAwait(false);
-        await scope.ServiceProvider.GetRequiredService<ReservationsDbContext>()
-            .SaveChangesAsync()
-            .ConfigureAwait(false);
+                ReservationsModuleMetadata.Name,
+                TenantId,
+                PropertyId,
+                2).ConfigureAwait(false);
+            await reservations.SaveChangesAsync().ConfigureAwait(false);
+            await reservationsTransaction.CommitAsync().ConfigureAwait(false);
+        }
     }
 
     private static IIntegrationEventHandler<TEvent> ResolveHandler<TEvent>(
@@ -1679,7 +1700,7 @@ public sealed partial class ReservationsSagaIntegrationTests
 
     private static async Task GrantReservationsAdminAccessAsync(
         AdminCliTestApplication admin,
-        Guid adminActorId)
+        params Guid[] adminActorIds)
     {
         await AssertAdminSuccessAsync(admin.ExecuteAsync(
             "admin", "roles", "create",
@@ -1698,13 +1719,16 @@ public sealed partial class ReservationsSagaIntegrationTests
                 "--permission", permission));
         }
 
-        await AssertAdminSuccessAsync(admin.ExecuteAsync(
-            "admin", "roles", "assign",
-            "--actor", "owner",
-            "--target-kind", "admin-actor",
-            "--target-id", adminActorId.ToString("D"),
-            "--role", "reservations-stay-admin",
-            "--scope", $"tenant:{TenantId}/property:{PropertyId:D}"));
+        foreach (Guid adminActorId in adminActorIds)
+        {
+            await AssertAdminSuccessAsync(admin.ExecuteAsync(
+                "admin", "roles", "assign",
+                "--actor", "owner",
+                "--target-kind", "admin-actor",
+                "--target-id", adminActorId.ToString("D"),
+                "--role", "reservations-stay-admin",
+                "--scope", $"tenant:{TenantId}/property:{PropertyId:D}"));
+        }
     }
 
     private static async Task<ReservationMutationReceiptDto> CreateReservationAsync(

@@ -27,6 +27,11 @@ public sealed class RetentionExecutionTests
 
         Assert.True(execution.BeginRetry(
             attempt: 2,
+            StartedAt.AddMinutes(5),
+            StartedAt.AddMinutes(10)).IsFailure);
+
+        Assert.True(execution.BeginRetry(
+            attempt: 2,
             StartedAt.AddMinutes(10),
             StartedAt.AddMinutes(15)).IsSuccess);
 
@@ -34,6 +39,20 @@ public sealed class RetentionExecutionTests
         Assert.Equal(RetentionExecutionState.Running, execution.State);
         Assert.Null(execution.CompletedAtUtc);
         Assert.Null(execution.OutcomeCode);
+    }
+
+    [Fact]
+    public void Running_retry_rejects_a_regressed_start_window()
+    {
+        RetentionExecution execution = Start();
+
+        Assert.True(execution.BeginRetry(
+            attempt: 2,
+            StartedAt.AddMinutes(-1),
+            StartedAt.AddMinutes(4)).IsFailure);
+
+        Assert.Equal(1, execution.Attempt);
+        Assert.Equal(StartedAt, execution.StartedAtUtc);
     }
 
     [Fact]

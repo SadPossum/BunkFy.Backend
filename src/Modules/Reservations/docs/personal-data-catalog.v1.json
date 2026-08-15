@@ -13104,6 +13104,20 @@
         },
         {
           "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ApplyReservationRetentionCommand",
+          "member": "Attempt",
+          "surface": "application-command",
+          "retentionPolicy": "reservation-retention-execution-evidence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.CompleteReservationRetentionExecutionCommand",
+          "member": "Attempt",
+          "surface": "application-command",
+          "retentionPolicy": "reservation-retention-execution-evidence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
           "type": "BunkFy.Modules.Reservations.Application.Commands.CompleteReservationRetentionExecutionCommand",
           "member": "State",
           "surface": "application-command"

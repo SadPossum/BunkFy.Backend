@@ -1086,46 +1086,53 @@ public sealed class ReservationDataRightsIntegrationTests
         scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantId);
         ReservationsDbContext reservations =
             scope.ServiceProvider.GetRequiredService<ReservationsDbContext>();
-        PropertyCreatedIntegrationEvent propertyCreated = new(
-            Guid.NewGuid(),
-            TenantId,
-            Now.AddDays(-2),
-            propertyId,
-            "Correction House",
-            "correction-house",
-            "UTC",
-            PropertyStatus.Active,
-            1);
-        await ResolveHandler<PropertyCreatedIntegrationEvent>(
+        Reservation reservation;
+        await using (var transaction = await reservations.Database
+                         .BeginTransactionAsync()
+                         .ConfigureAwait(false))
+        {
+            PropertyCreatedIntegrationEvent propertyCreated = new(
+                Guid.NewGuid(),
+                TenantId,
+                Now.AddDays(-2),
+                propertyId,
+                "Correction House",
+                "correction-house",
+                "UTC",
+                PropertyStatus.Active,
+                1);
+            await ResolveHandler<PropertyCreatedIntegrationEvent>(
+                    scope.ServiceProvider,
+                    ReservationsModuleMetadata.Name)
+                .HandleAsync(propertyCreated, CancellationToken.None)
+                .ConfigureAwait(false);
+            await CountryPolicyIntegrationTestData.ApplyActivationAsync(
                 scope.ServiceProvider,
-                ReservationsModuleMetadata.Name)
-            .HandleAsync(propertyCreated, CancellationToken.None)
-            .ConfigureAwait(false);
-        await CountryPolicyIntegrationTestData.ApplyActivationAsync(
-            scope.ServiceProvider,
-            ReservationsModuleMetadata.Name,
-            TenantId,
-            propertyId,
-            2).ConfigureAwait(false);
-        await ResolveHandler<PropertyRetiredIntegrationEvent>(
-                scope.ServiceProvider,
-                ReservationsModuleMetadata.Name)
-            .HandleAsync(
-                new(
-                    Guid.NewGuid(),
-                    TenantId,
-                    Now.AddDays(-1),
-                    propertyId,
-                    3,
-                    "user:property-admin"),
-                CancellationToken.None)
-            .ConfigureAwait(false);
+                ReservationsModuleMetadata.Name,
+                TenantId,
+                propertyId,
+                2).ConfigureAwait(false);
+            await ResolveHandler<PropertyRetiredIntegrationEvent>(
+                    scope.ServiceProvider,
+                    ReservationsModuleMetadata.Name)
+                .HandleAsync(
+                    new(
+                        Guid.NewGuid(),
+                        TenantId,
+                        Now.AddDays(-1),
+                        propertyId,
+                        3,
+                        "user:property-admin"),
+                    CancellationToken.None)
+                .ConfigureAwait(false);
 
-        Reservation reservation = CreateReservation(propertyId, TenantId);
-        await scope.ServiceProvider.GetRequiredService<IReservationRepository>()
-            .AddAsync(reservation, CancellationToken.None)
-            .ConfigureAwait(false);
-        await reservations.SaveChangesAsync().ConfigureAwait(false);
+            reservation = CreateReservation(propertyId, TenantId);
+            await scope.ServiceProvider.GetRequiredService<IReservationRepository>()
+                .AddAsync(reservation, CancellationToken.None)
+                .ConfigureAwait(false);
+            await reservations.SaveChangesAsync().ConfigureAwait(false);
+            await transaction.CommitAsync().ConfigureAwait(false);
+        }
 
         DataRightsCaseRequest caseRequest = DataRightsCaseRequest.Create(
             propertyId,
@@ -1183,61 +1190,68 @@ public sealed class ReservationDataRightsIntegrationTests
             .SetTenant(TenantId);
         ReservationsDbContext reservations =
             scope.ServiceProvider.GetRequiredService<ReservationsDbContext>();
-        await ResolveHandler<PropertyCreatedIntegrationEvent>(
+        Reservation reservation;
+        await using (var transaction = await reservations.Database
+                         .BeginTransactionAsync()
+                         .ConfigureAwait(false))
+        {
+            await ResolveHandler<PropertyCreatedIntegrationEvent>(
+                    scope.ServiceProvider,
+                    ReservationsModuleMetadata.Name)
+                .HandleAsync(
+                    new(
+                        Guid.NewGuid(),
+                        TenantId,
+                        Now.AddDays(-2),
+                        propertyId,
+                        "Restriction House",
+                        "restriction-house",
+                        "UTC",
+                        PropertyStatus.Active,
+                        1),
+                    CancellationToken.None)
+                .ConfigureAwait(false);
+            await CountryPolicyIntegrationTestData.ApplyActivationAsync(
                 scope.ServiceProvider,
-                ReservationsModuleMetadata.Name)
-            .HandleAsync(
-                new(
-                    Guid.NewGuid(),
-                    TenantId,
-                    Now.AddDays(-2),
-                    propertyId,
-                    "Restriction House",
-                    "restriction-house",
-                    "UTC",
-                    PropertyStatus.Active,
-                    1),
-                CancellationToken.None)
-            .ConfigureAwait(false);
-        await CountryPolicyIntegrationTestData.ApplyActivationAsync(
-            scope.ServiceProvider,
-            ReservationsModuleMetadata.Name,
-            TenantId,
-            propertyId,
-            2).ConfigureAwait(false);
-        await ResolveHandler<PropertyRetiredIntegrationEvent>(
-                scope.ServiceProvider,
-                ReservationsModuleMetadata.Name)
-            .HandleAsync(
-                new(
-                    Guid.NewGuid(),
-                    TenantId,
-                    Now.AddDays(-1),
-                    propertyId,
-                    3,
-                    "user:property-admin"),
-                CancellationToken.None)
-            .ConfigureAwait(false);
+                ReservationsModuleMetadata.Name,
+                TenantId,
+                propertyId,
+                2).ConfigureAwait(false);
+            await ResolveHandler<PropertyRetiredIntegrationEvent>(
+                    scope.ServiceProvider,
+                    ReservationsModuleMetadata.Name)
+                .HandleAsync(
+                    new(
+                        Guid.NewGuid(),
+                        TenantId,
+                        Now.AddDays(-1),
+                        propertyId,
+                        3,
+                        "user:property-admin"),
+                    CancellationToken.None)
+                .ConfigureAwait(false);
 
-        Reservation reservation = CreateReservation(propertyId, TenantId);
-        await scope.ServiceProvider.GetRequiredService<IReservationRepository>()
-            .AddAsync(reservation, CancellationToken.None)
-            .ConfigureAwait(false);
-        await reservations.SaveChangesAsync().ConfigureAwait(false);
-        await reservations.Database.ExecuteSqlInterpolatedAsync(
-            $"""
-             INSERT INTO reservations.arrival_reminders
-                 ("Id", "ScopeId", "ReservationId", "PropertyId",
-                  "DetailsRevision", "TimeZoneId", "Arrival",
-                  "ExpectedArrivalTime", "ExpectedArrivalAtUtc", "DueAtUtc",
-                  "LeadTimeMinutes", "State", "DispatchedAtUtc", "Version")
-             VALUES
-                 ({Guid.NewGuid()}, {TenantId}, {reservation.Id}, {propertyId},
-                  {reservation.DetailsRevision}, {"UTC"}, {reservation.Arrival},
-                  {new TimeOnly(15, 0)}, {Now.AddDays(1)}, {Now.AddHours(22)},
-                  {120}, {(int)ReservationArrivalReminderState.Pending},
-                  {(DateTimeOffset?)null}, {1L});
-             """).ConfigureAwait(false);
+            reservation = CreateReservation(propertyId, TenantId);
+            await scope.ServiceProvider.GetRequiredService<IReservationRepository>()
+                .AddAsync(reservation, CancellationToken.None)
+                .ConfigureAwait(false);
+            await reservations.SaveChangesAsync().ConfigureAwait(false);
+            await reservations.Database.ExecuteSqlInterpolatedAsync(
+                $"""
+                 INSERT INTO reservations.arrival_reminders
+                     ("Id", "ScopeId", "ReservationId", "PropertyId",
+                      "DetailsRevision", "TimeZoneId", "Arrival",
+                      "ExpectedArrivalTime", "ExpectedArrivalAtUtc", "DueAtUtc",
+                      "LeadTimeMinutes", "State", "DispatchedAtUtc", "Version")
+                 VALUES
+                     ({Guid.NewGuid()}, {TenantId}, {reservation.Id}, {propertyId},
+                      {reservation.DetailsRevision}, {"UTC"}, {reservation.Arrival},
+                      {new TimeOnly(15, 0)}, {Now.AddDays(1)}, {Now.AddHours(22)},
+                      {120}, {(int)ReservationArrivalReminderState.Pending},
+                      {(DateTimeOffset?)null}, {1L});
+                 """).ConfigureAwait(false);
+            await transaction.CommitAsync().ConfigureAwait(false);
+        }
 
         DataRightsCase apply = CreateApprovedRestrictionCase(
             reservation,
@@ -1307,6 +1321,11 @@ public sealed class ReservationDataRightsIntegrationTests
         using IServiceScope scope = api.Services.CreateScope();
         scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>()
             .SetTenant(TenantId);
+        ReservationsDbContext reservations =
+            scope.ServiceProvider.GetRequiredService<ReservationsDbContext>();
+        await using var transaction = await reservations.Database
+            .BeginTransactionAsync()
+            .ConfigureAwait(false);
         await ResolveHandler<PropertyCreatedIntegrationEvent>(
                 scope.ServiceProvider,
                 ReservationsModuleMetadata.Name)
@@ -1360,9 +1379,8 @@ public sealed class ReservationDataRightsIntegrationTests
         await scope.ServiceProvider.GetRequiredService<IReservationRepository>()
             .AddAsync(reservation, CancellationToken.None)
             .ConfigureAwait(false);
-        await scope.ServiceProvider.GetRequiredService<ReservationsDbContext>()
-            .SaveChangesAsync()
-            .ConfigureAwait(false);
+        await reservations.SaveChangesAsync().ConfigureAwait(false);
+        await transaction.CommitAsync().ConfigureAwait(false);
         return reservation;
     }
 

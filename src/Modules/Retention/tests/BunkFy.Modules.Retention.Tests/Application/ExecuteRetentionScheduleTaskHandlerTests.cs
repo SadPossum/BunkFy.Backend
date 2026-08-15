@@ -54,6 +54,151 @@ public sealed class ExecuteRetentionScheduleTaskHandlerTests
     }
 
     [Fact]
+    public async Task Execution_fence_uses_monotonic_lease_generation()
+    {
+        FakeTaskDispatcher dispatcher = new();
+        RetentionContributionRequest? ownerRequest = null;
+        TestContributor contributor = new(request =>
+        {
+            ownerRequest = request;
+            return Task.FromResult(new RetentionContributionResult(
+                RetentionExecutionContract.CurrentVersion,
+                RetentionContributionStatus.Completed,
+                ScannedCount: 0,
+                AffectedCount: 0,
+                RemainingCount: 0,
+                "ingestion.raw-payload.completed",
+                Now));
+        });
+        ExecuteRetentionScheduleTaskHandler handler = new(
+            dispatcher,
+            [contributor],
+            new TestClock(),
+            new RecordingSecuritySignalRecorder(),
+            NullLogger<ExecuteRetentionScheduleTaskHandler>.Instance);
+        TaskExecutionContext context = Context(
+            attempt: 1,
+            leaseGeneration: 4);
+
+        await handler.HandleAsync(
+            Payload(),
+            context,
+            CancellationToken.None);
+
+        Assert.Equal(1, context.Attempt);
+        Assert.Equal(4, context.LeaseGeneration);
+        Assert.NotNull(dispatcher.Started);
+        Assert.Equal(4, dispatcher.Started.Attempt);
+        Assert.NotNull(ownerRequest);
+        Assert.Equal(4, ownerRequest.Attempt);
+        Assert.NotNull(dispatcher.Completed);
+        Assert.Equal(4, dispatcher.Completed.Attempt);
+    }
+
+    [Fact]
+    public async Task Prior_attempt_owner_result_converges_in_recovery_window()
+    {
+        DateTimeOffset recoveryStartedAtUtc = Now.AddMinutes(2);
+        FakeTaskDispatcher dispatcher = new(attemptAdvanced: true);
+        TestContributor contributor = new(_ => Task.FromResult(
+            new RetentionContributionResult(
+                RetentionExecutionContract.CurrentVersion,
+                RetentionContributionStatus.Completed,
+                ScannedCount: 1,
+                AffectedCount: 1,
+                RemainingCount: 0,
+                "reservations.reservation-operational.completed",
+                Now.AddMinutes(1))));
+        ExecuteRetentionScheduleTaskHandler handler = new(
+            dispatcher,
+            [contributor],
+            new TestClock(recoveryStartedAtUtc),
+            new RecordingSecuritySignalRecorder(),
+            NullLogger<ExecuteRetentionScheduleTaskHandler>.Instance);
+
+        await handler.HandleAsync(
+            Payload(),
+            Context(attempt: 1, leaseGeneration: 2),
+            CancellationToken.None);
+
+        Assert.NotNull(dispatcher.Started);
+        Assert.Equal(
+            recoveryStartedAtUtc,
+            dispatcher.Started.StartedAtUtc);
+        Assert.NotNull(dispatcher.Completed);
+        Assert.Equal(2, dispatcher.Completed.Attempt);
+        Assert.Equal(
+            recoveryStartedAtUtc,
+            dispatcher.Completed.Result.CompletedAtUtc);
+    }
+
+    [Fact]
+    public async Task Fresh_owner_result_before_start_is_rejected()
+    {
+        FakeTaskDispatcher dispatcher = new();
+        ExecuteRetentionScheduleTaskHandler handler = new(
+            dispatcher,
+            [new TestContributor(_ => Task.FromResult(
+                new RetentionContributionResult(
+                    RetentionExecutionContract.CurrentVersion,
+                    RetentionContributionStatus.Completed,
+                    ScannedCount: 0,
+                    AffectedCount: 0,
+                    RemainingCount: 0,
+                    "reservations.reservation-operational.completed",
+                    Now.AddTicks(-1))))],
+            new TestClock(),
+            new RecordingSecuritySignalRecorder(),
+            NullLogger<ExecuteRetentionScheduleTaskHandler>.Instance);
+
+        InvalidOperationException failure =
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                handler.HandleAsync(
+                    Payload(),
+                    Context(),
+                    CancellationToken.None));
+
+        Assert.Equal("Retention.OwnerResultInvalid", failure.Message);
+        Assert.NotNull(dispatcher.Completed);
+        Assert.Equal(
+            RetentionContributionStatus.Failed,
+            dispatcher.Completed.Result.Status);
+    }
+
+    [Fact]
+    public async Task Recovery_does_not_normalize_default_completion()
+    {
+        FakeTaskDispatcher dispatcher = new(attemptAdvanced: true);
+        ExecuteRetentionScheduleTaskHandler handler = new(
+            dispatcher,
+            [new TestContributor(_ => Task.FromResult(
+                new RetentionContributionResult(
+                    RetentionExecutionContract.CurrentVersion,
+                    RetentionContributionStatus.Completed,
+                    ScannedCount: 0,
+                    AffectedCount: 0,
+                    RemainingCount: 0,
+                    "reservations.reservation-operational.completed",
+                    default)))],
+            new TestClock(),
+            new RecordingSecuritySignalRecorder(),
+            NullLogger<ExecuteRetentionScheduleTaskHandler>.Instance);
+
+        InvalidOperationException failure =
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                handler.HandleAsync(
+                    Payload(),
+                    Context(leaseGeneration: 2),
+                    CancellationToken.None));
+
+        Assert.Equal("Retention.OwnerResultInvalid", failure.Message);
+        Assert.NotNull(dispatcher.Completed);
+        Assert.Equal(
+            RetentionContributionStatus.Failed,
+            dispatcher.Completed.Result.Status);
+    }
+
+    [Fact]
     public async Task Owner_exception_is_recorded_before_the_task_is_rethrown()
     {
         FakeTaskDispatcher dispatcher = new();
@@ -168,7 +313,8 @@ public sealed class ExecuteRetentionScheduleTaskHandlerTests
         correlationId: includeCorrelation ? Guid.NewGuid() : null,
         leaseGeneration: leaseGeneration);
 
-    private sealed class FakeTaskDispatcher : ITaskCommandDispatcher
+    private sealed class FakeTaskDispatcher(
+        bool attemptAdvanced = false) : ITaskCommandDispatcher
     {
         public BeginRetentionExecutionCommand? Started { get; private set; }
         public CompleteRetentionExecutionCommand? Completed { get; private set; }
@@ -181,7 +327,8 @@ public sealed class ExecuteRetentionScheduleTaskHandlerTests
         {
             object result = command switch
             {
-                BeginRetentionExecutionCommand started => this.Start(started),
+                BeginRetentionExecutionCommand started =>
+                    this.Begin(started),
                 CompleteRetentionExecutionCommand completed =>
                     this.Complete(completed),
                 _ => throw new InvalidOperationException(
@@ -190,24 +337,26 @@ public sealed class ExecuteRetentionScheduleTaskHandlerTests
             return Task.FromResult((Result<TResponse>)result);
         }
 
-        private Result<RetentionExecutionStart> Start(
+        private Result<RetentionExecutionStart> Begin(
             BeginRetentionExecutionCommand command)
         {
             this.Started = command;
-            return Result.Success(new RetentionExecutionStart(
-                DispatchRequired: true,
-                RetentionExecutionState.Running,
-                new RetentionContributionRequest(
-                    RetentionExecutionContract.CurrentVersion,
-                    command.ExecutionId,
-                    command.TenantId,
-                    command.PropertyId,
-                    command.OwnerKey,
-                    command.DataClassKey,
-                    command.ExecutionPolicyVersion,
-                    command.Attempt,
-                    command.StartedAtUtc,
-                    command.DeadlineUtc)));
+            return Result.Success(
+                new RetentionExecutionStart(
+                    DispatchRequired: true,
+                    attemptAdvanced,
+                    RetentionExecutionState.Running,
+                    new RetentionContributionRequest(
+                        RetentionExecutionContract.CurrentVersion,
+                        command.ExecutionId,
+                        command.TenantId,
+                        command.PropertyId,
+                        command.OwnerKey,
+                        command.DataClassKey,
+                        command.ExecutionPolicyVersion,
+                        command.Attempt,
+                        command.StartedAtUtc,
+                        command.DeadlineUtc)));
         }
 
         private Result<Unit> Complete(
@@ -237,9 +386,10 @@ public sealed class ExecuteRetentionScheduleTaskHandlerTests
             execute(request);
     }
 
-    private sealed class TestClock : ISystemClock
+    private sealed class TestClock(
+        DateTimeOffset? utcNow = null) : ISystemClock
     {
-        public DateTimeOffset UtcNow => Now;
+        public DateTimeOffset UtcNow { get; } = utcNow ?? Now;
     }
 
     private sealed class RecordingSecuritySignalRecorder

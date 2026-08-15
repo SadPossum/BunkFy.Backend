@@ -54,17 +54,25 @@ public sealed partial class ReservationsSagaIntegrationTests
         string connectionString = postgreSql.GetConnectionString();
         string natsConnectionString =
             AuthTestContainers.GetNatsConnectionString(nats);
+        await using (AuthTestApplication migrationApi = new(
+                         "PostgreSql",
+                         connectionString,
+                         natsConnectionString,
+                         disableOutboxPublisher: true))
+        {
+            await migrationApi.MigrateGuestRecordsAuthorizationDatabaseAsync()
+                .ConfigureAwait(false);
+        }
+
+        await using AdminCliTestApplication admin = new(
+            "PostgreSql",
+            connectionString);
+        await admin.MigrateAsync().ConfigureAwait(false);
         await using AuthTestApplication api = new(
             "PostgreSql",
             connectionString,
             natsConnectionString,
             disableOutboxPublisher: false);
-        await api.MigrateGuestRecordsAuthorizationDatabaseAsync()
-            .ConfigureAwait(false);
-        await using AdminCliTestApplication admin = new(
-            "PostgreSql",
-            connectionString);
-        await admin.MigrateAsync().ConfigureAwait(false);
         using HttpClient client = api.CreateClient();
 
         using IHost initialWorker = CreateWorker(

@@ -4,11 +4,14 @@ using System.CommandLine;
 using System.CommandLine.Parsing;
 using System.Text.RegularExpressions;
 using BunkFy.Host.AdminCli.Security;
-using BunkFy.Parsers.ReservationMail;
+using BunkFy.Modules.Ingestion.AdminCli;
+using BunkFy.Modules.Ingestion.Persistence;
 using BunkFy.Modules.Properties.AdminCli;
 using BunkFy.Modules.Properties.Persistence;
 using BunkFy.Modules.Reservations.AdminCli;
 using BunkFy.Modules.Reservations.Persistence;
+using BunkFy.Modules.Workspaces.Persistence;
+using BunkFy.Parsers.ReservationMail;
 using Gma.Framework.Administration.Cli;
 using Gma.Framework.Caching.Cqrs;
 using Gma.Framework.Cqrs;
@@ -29,11 +32,6 @@ using Gma.Modules.Auth.Application.Commands;
 using Gma.Modules.Auth.Contracts;
 using Gma.Modules.Auth.Domain.Errors;
 using Gma.Modules.Auth.Persistence;
-using BunkFy.Modules.Ingestion.AdminCli;
-using BunkFy.Modules.Ingestion.Persistence;
-using BunkFy.Modules.Reservations.AdminCli;
-using BunkFy.Modules.Reservations.Persistence;
-using BunkFy.Modules.Workspaces.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -107,12 +105,6 @@ internal sealed class AdminCliTestApplication : IAsyncDisposable
             builder.AddAdminModule<PropertiesAdminCliModule>();
         }
 
-        if (includeReservations)
-        {
-            builder.AddAdminModule<ReservationsAdminCliModule>();
-            builder.Services.AddBunkFyAdminCliResourceScopes();
-        }
-
         if (systemClock is not null)
         {
             builder.Services.RemoveAll<ISystemClock>();
@@ -143,15 +135,9 @@ internal sealed class AdminCliTestApplication : IAsyncDisposable
         }
 
         IngestionDbContext? ingestion = scope.ServiceProvider.GetService<IngestionDbContext>();
-        ReservationsDbContext? reservations = scope.ServiceProvider.GetService<ReservationsDbContext>();
         if (ingestion is not null)
         {
             await ingestion.Database.MigrateAsync().ConfigureAwait(false);
-        }
-
-        if (reservations is not null)
-        {
-            await reservations.Database.MigrateAsync().ConfigureAwait(false);
         }
 
         PropertiesDbContext? properties = scope.ServiceProvider.GetService<PropertiesDbContext>();

@@ -43,6 +43,7 @@ internal sealed class BeginRetentionExecutionCommandHandler(
         }
 
         RetentionExecution? current = lease.Execution;
+        bool attemptAdvanced = false;
         if (current is null)
         {
             Result<RetentionExecution> started = RetentionExecution.Start(
@@ -77,7 +78,11 @@ internal sealed class BeginRetentionExecutionCommandHandler(
                     RetentionApplicationErrors.ExecutionConflict);
             }
 
-            if (command.Attempt > current.Attempt)
+            bool retryableState = current.State is
+                RetentionExecutionState.Running or
+                RetentionExecutionState.Failed;
+            if (retryableState &&
+                command.Attempt > current.Attempt)
             {
                 Result retried = current.BeginRetry(
                     command.Attempt,
@@ -87,8 +92,11 @@ internal sealed class BeginRetentionExecutionCommandHandler(
                 {
                     return Result.Failure<RetentionExecutionStart>(retried.Error);
                 }
+
+                attemptAdvanced = true;
             }
-            else if (command.Attempt != current.Attempt)
+            else if (retryableState &&
+                     command.Attempt != current.Attempt)
             {
                 return Result.Failure<RetentionExecutionStart>(
                     RetentionApplicationErrors.ExecutionConflict);
@@ -105,6 +113,7 @@ internal sealed class BeginRetentionExecutionCommandHandler(
 
         return Result.Success(new RetentionExecutionStart(
             current.State == RetentionExecutionState.Running,
+            attemptAdvanced,
             current.State,
             ToRequest(current)));
     }

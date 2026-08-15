@@ -28,9 +28,9 @@ internal sealed class ExecuteRetentionScheduleTaskHandler(
         string tenantId = context.ScopeId ??
             throw new InvalidOperationException("Retention.ScopeRequired");
         IRetentionExecutionContributor contributor = this.ResolveContributor(payload);
+        int executionAttempt = context.LeaseGeneration;
         DateTimeOffset startedAtUtc = clock.UtcNow;
         DateTimeOffset deadlineUtc = startedAtUtc + contributor.Schedule.ExecutionTimeout;
-        int executionGeneration = context.LeaseGeneration;
 
         Result<RetentionExecutionStart> started =
             await commandDispatcher.DispatchAsync<
@@ -45,7 +45,7 @@ internal sealed class ExecuteRetentionScheduleTaskHandler(
                     payload.TargetScopeKind,
                     payload.PropertyId,
                     payload.ExecutionPolicyVersion,
-                    executionGeneration,
+                    executionAttempt,
                     startedAtUtc,
                     deadlineUtc,
                     startedAtUtc + contributor.Schedule.Interval),
@@ -73,6 +73,9 @@ internal sealed class ExecuteRetentionScheduleTaskHandler(
                 contributor,
                 started.Value.Request,
                 cancellationToken).ConfigureAwait(false);
+            result = NormalizeTerminalReplay(
+                started.Value,
+                result);
             if (!IsValidResult(started.Value.Request, result))
             {
                 throw new InvalidOperationException("Retention.OwnerResultInvalid");
@@ -105,7 +108,7 @@ internal sealed class ExecuteRetentionScheduleTaskHandler(
                 CompleteRetentionExecutionCommand,
                 Unit>(
                 context,
-                new(context.RunId, executionGeneration, result),
+                new(context.RunId, executionAttempt, result),
                 cancellationToken).ConfigureAwait(false);
         if (completed.IsFailure)
         {
@@ -211,6 +214,18 @@ internal sealed class ExecuteRetentionScheduleTaskHandler(
         return codeValid &&
             blocked == (result.HoldReviewDueAtUtc is not null);
     }
+
+    private static RetentionContributionResult NormalizeTerminalReplay(
+        RetentionExecutionStart start,
+        RetentionContributionResult result) =>
+        start.AttemptAdvanced &&
+        result.CompletedAtUtc != default &&
+        result.CompletedAtUtc < start.Request.StartedAtUtc
+            ? result with
+            {
+                CompletedAtUtc = start.Request.StartedAtUtc
+            }
+            : result;
 
     private static InvalidOperationException Failure(Error error) =>
         new($"{error.Code}: {error.Message}");
