@@ -7,10 +7,13 @@ using Gma.Framework.AccessControl.AspNetCore;
 using Gma.Framework.Api.Observability;
 using Gma.Framework.Api.Results;
 using Gma.Framework.Cqrs;
+using Gma.Framework.Results;
 using Microsoft.AspNetCore.Http;
 
 internal static class DataRightsEndpointSupport
 {
+    internal const int RequiredCompanionRetryAfterSeconds = 15;
+
     public static ApiErrorStatusCodeMap ErrorStatusCodes { get; } =
         ApiErrorStatusCodeMap.Create([
             new(DataRightsApplicationErrors.CaseNotFound.Code, StatusCodes.Status404NotFound),
@@ -25,6 +28,18 @@ internal static class DataRightsEndpointSupport
             new(DataRightsApplicationErrors.SubjectOwnerUnavailable.Code, StatusCodes.Status409Conflict),
             new(DataRightsApplicationErrors.SubjectNotFound.Code, StatusCodes.Status404NotFound),
             new(DataRightsApplicationErrors.SubjectStale.Code, StatusCodes.Status409Conflict),
+            new(
+                DataRightsApplicationErrors.RequiredCompanionUnavailable.Code,
+                StatusCodes.Status503ServiceUnavailable),
+            new(
+                DataRightsApplicationErrors.RequiredCompanionBlocked.Code,
+                StatusCodes.Status409Conflict),
+            new(
+                DataRightsApplicationErrors.RequiredCompanionRetryRequired.Code,
+                StatusCodes.Status503ServiceUnavailable),
+            new(
+                DataRightsApplicationErrors.RequiredCompanionResultInvalid.Code,
+                StatusCodes.Status500InternalServerError),
             new(
                 DataRightsApplicationErrors.AnonymisationApprovalPolicyDenied.Code,
                 StatusCodes.Status409Conflict),
@@ -84,11 +99,26 @@ internal static class DataRightsEndpointSupport
         where TCommand : ICommand<DataRightsCaseDto>
     {
         string? actor = ResolveActor(context, subjectResolver);
-        return actor is null
-            ? Results.Unauthorized()
-            : (await dispatcher.SendAsync(
-                commandFactory(actor),
-                cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes);
+        if (actor is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        Result<DataRightsCaseDto> result = await dispatcher.SendAsync(
+            commandFactory(actor),
+            cancellationToken).ConfigureAwait(false);
+        if (result.IsFailure && string.Equals(
+                result.Error.Code,
+                DataRightsApplicationErrors
+                    .RequiredCompanionRetryRequired.Code,
+                StringComparison.Ordinal))
+        {
+            context.Response.Headers.RetryAfter =
+                RequiredCompanionRetryAfterSeconds.ToString(
+                    System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        return result.ToHttpResult(ErrorStatusCodes);
     }
 
     public static string? ResolveActor(

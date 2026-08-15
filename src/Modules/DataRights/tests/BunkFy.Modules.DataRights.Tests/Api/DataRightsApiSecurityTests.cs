@@ -1,7 +1,9 @@
 namespace BunkFy.Modules.DataRights.Tests.Api;
 
 using BunkFy.Modules.DataRights.Api;
+using BunkFy.Modules.DataRights.Application;
 using BunkFy.Modules.DataRights.Contracts;
+using Gma.Framework.AccessControl;
 using Gma.Framework.AccessControl.AspNetCore;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
@@ -299,6 +301,80 @@ public sealed class DataRightsApiSecurityTests
     }
 
     [Fact]
+    public void Required_companion_failures_have_distinct_http_semantics()
+    {
+        (Error Error, int StatusCode)[] expectations =
+        [
+            (
+                DataRightsApplicationErrors.RequiredCompanionUnavailable,
+                StatusCodes.Status503ServiceUnavailable),
+            (
+                DataRightsApplicationErrors.RequiredCompanionBlocked,
+                StatusCodes.Status409Conflict),
+            (
+                DataRightsApplicationErrors.RequiredCompanionRetryRequired,
+                StatusCodes.Status503ServiceUnavailable),
+            (
+                DataRightsApplicationErrors.RequiredCompanionResultInvalid,
+                StatusCodes.Status500InternalServerError)
+        ];
+
+        foreach ((Error error, int statusCode) in expectations)
+        {
+            Assert.Equal(
+                statusCode,
+                DataRightsEndpointSupport.ErrorStatusCodes
+                    .GetStatusCode(error));
+        }
+    }
+
+    [Fact]
+    public async Task Explicit_companion_retry_publishes_a_bounded_retry_after()
+    {
+        DefaultHttpContext context = new();
+
+        IResult result = await DataRightsEndpointSupport.DispatchAsync(
+            context,
+            new FixedSubjectResolver(),
+            actor => new DispatchTestCommand(actor),
+            new FailureDispatcher(
+                DataRightsApplicationErrors
+                    .RequiredCompanionRetryRequired),
+            CancellationToken.None);
+
+        Assert.Equal(
+            StatusCodes.Status503ServiceUnavailable,
+            Assert.IsType<IStatusCodeHttpResult>(result, exactMatch: false)
+                .StatusCode);
+        Assert.Equal(
+            DataRightsEndpointSupport
+                .RequiredCompanionRetryAfterSeconds.ToString(
+                    System.Globalization.CultureInfo.InvariantCulture),
+            context.Response.Headers.RetryAfter);
+    }
+
+    [Fact]
+    public async Task Companion_unavailability_does_not_advertise_an_immediate_retry()
+    {
+        DefaultHttpContext context = new();
+
+        IResult result = await DataRightsEndpointSupport.DispatchAsync(
+            context,
+            new FixedSubjectResolver(),
+            actor => new DispatchTestCommand(actor),
+            new FailureDispatcher(
+                DataRightsApplicationErrors
+                    .RequiredCompanionUnavailable),
+            CancellationToken.None);
+
+        Assert.Equal(
+            StatusCodes.Status503ServiceUnavailable,
+            Assert.IsType<IStatusCodeHttpResult>(result, exactMatch: false)
+                .StatusCode);
+        Assert.False(context.Response.Headers.ContainsKey("Retry-After"));
+    }
+
+    [Fact]
     public async Task Public_case_route_groups_apply_the_no_store_policy()
     {
         WebApplicationBuilder builder = WebApplication.CreateBuilder();
@@ -514,5 +590,28 @@ public sealed class DataRightsApiSecurityTests
             CancellationToken cancellationToken = default) =>
             Task.FromResult((Result<TResponse>)(object)Result.Success(
                 new DataRightsCaseListResponse([], 1, 20, HasMore: false)));
+    }
+
+    private sealed record DispatchTestCommand(string ActorId) :
+        ICommand<DataRightsCaseDto>;
+
+    private sealed class FixedSubjectResolver :
+        IAccessHttpSubjectResolver
+    {
+        public AccessSubject ResolveSubject(HttpContext httpContext) =>
+            AccessSubject.User("data-rights-reviewer");
+    }
+
+    private sealed class FailureDispatcher(Error error) : IRequestDispatcher
+    {
+        public Task<Result<TResponse>> SendAsync<TResponse>(
+            ICommand<TResponse> command,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(Result.Failure<TResponse>(error));
+
+        public Task<Result<TResponse>> QueryAsync<TResponse>(
+            IQuery<TResponse> query,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
     }
 }

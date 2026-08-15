@@ -122,6 +122,14 @@ event.
 - Exact subject discovery remains bounded to 20 candidates and returns
   `LimitReached` when that bound is filled, prompting the operator to refine a
   strong identifier rather than broadening the search.
+- The operator client snapshots normalized exact-match criteria with the case
+  ID and version, aborts obsolete discovery requests, and renders only the
+  current generation. Criteria remain in component memory, while selection is
+  still revalidated against the authoritative owner projection.
+- Required-companion review failures distinguish an active business block
+  (`409`), owner unavailability or an explicit transient retry (`503`), and an
+  invalid internal contributor result (`500`). Only the explicit retry signal
+  carries a short `Retry-After`; review is never retried automatically.
 - Schema-v2 country packs define structural year/month/day response periods and
   allowlisted calculation time zones. Immutable v1 packs remain valid for
   ordinary processing but cannot authorize Guest Rights deadlines.
