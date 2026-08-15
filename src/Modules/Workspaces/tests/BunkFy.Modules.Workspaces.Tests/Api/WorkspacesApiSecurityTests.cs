@@ -9,6 +9,7 @@ using BunkFy.Modules.Workspaces.Contracts;
 using Gma.Framework.AccessControl;
 using Gma.Framework.AccessControl.AspNetCore;
 using Gma.Framework.Administration.Api;
+using Gma.Framework.Api.Results;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Scoping;
 using Gma.Framework.Security;
@@ -23,6 +24,24 @@ using Xunit;
 [Trait("Category", "Unit")]
 public sealed class WorkspacesApiSecurityTests
 {
+    [Fact]
+    public void Profile_mutation_authority_failure_maps_to_conflict()
+    {
+        Type apiSupport = typeof(WorkspacesModule).Assembly.GetType(
+            "BunkFy.Modules.Workspaces.Api.WorkspacesApiEndpointSupport",
+            throwOnError: true)!;
+        ApiErrorStatusCodeMap mappings =
+            (ApiErrorStatusCodeMap)apiSupport.GetField(
+                "ErrorStatusCodes",
+                BindingFlags.Public | BindingFlags.Static)!.GetValue(null)!;
+
+        Assert.Equal(
+            StatusCodes.Status409Conflict,
+            mappings.GetStatusCode(
+                WorkspaceStaffOnboardingApplicationErrors
+                    .ProfileMutationAuthorityUnavailable));
+    }
+
     [Fact]
     public void Sensitive_response_policies_disable_storage()
     {

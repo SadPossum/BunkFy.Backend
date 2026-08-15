@@ -155,6 +155,7 @@ public sealed class WorkspacesPersonalDataCatalogTests
     private static Type[] PersistenceTypes() =>
     [
         typeof(WorkspaceStaffOnboarding),
+        typeof(WorkspaceStaffDeferredClaimWithdrawal),
         typeof(WorkspaceStaffOnboardingCorrectionReceipt),
         typeof(WorkspaceStaffOnboardingProcessingRestriction),
         typeof(WorkspaceStaffOnboardingProcessingRestrictionProjection),
@@ -280,6 +281,8 @@ public sealed class WorkspacesPersonalDataCatalogTests
         foreach (Type type in new[]
                  {
                      typeof(WorkspaceStaffOnboardingDataRightsExport),
+                     typeof(
+                         WorkspaceStaffDeferredClaimWithdrawalDataRightsExport),
                      typeof(WorkspaceStaffAccessProcessDataRightsExport),
                      typeof(WorkspaceStaffAccessProfileDataRightsExport),
                      typeof(WorkspaceStaffAccessPlanDataRightsExport),

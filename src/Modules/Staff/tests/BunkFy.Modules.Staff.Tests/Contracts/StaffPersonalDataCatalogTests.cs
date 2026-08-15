@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.Staff.Tests;
 
 using System.Reflection;
+using System.Security.Cryptography;
 using BunkFy.DataGovernance;
 using BunkFy.Modules.Staff.AdminApi;
 using BunkFy.Modules.Staff.Api;
@@ -90,6 +91,32 @@ public sealed class StaffPersonalDataCatalogTests
         Assert.Equal(
             StaffTenantTerminationMetadata.PersonalDataCatalogVersion,
             Catalogue.CatalogVersion);
+    }
+
+    [Fact]
+    public void V19_catalogue_and_owner_manifest_have_immutable_digests()
+    {
+        string dataGovernanceDirectory = Path.Combine(
+            AppContext.BaseDirectory,
+            "DataGovernance");
+
+        Assert.Equal(4, StaffTenantTerminationMetadata.CatalogVersion);
+        Assert.Equal(19, StaffTenantTerminationMetadata.PersonalDataCatalogVersion);
+        Assert.Equal(3, StaffTenantTerminationMetadata.ExportSchemaVersion);
+        Assert.Equal(19, Catalogue.CatalogVersion);
+        Assert.Equal(
+            "2ea2548e0142b9b9dcb36fdbab663337f511dd57d49f7d86d4ce098fa400b325",
+            ComputeSha256(Path.Combine(
+                dataGovernanceDirectory,
+                "personal-data-catalog.v1.json")));
+        Assert.Equal(
+            "046696ce337d86aebdf4a6b2d2ab2158333559c9138a3227e700cf3ad7da549b",
+            StaffTenantTerminationMetadata.CatalogSha256);
+        Assert.Equal(
+            "30e3e20610d9cdc7bca48c30d2c9c38eeede0511986e88a7fae43fa16cedf95c",
+            ComputeSha256(Path.Combine(
+                dataGovernanceDirectory,
+                "personal-data-inventory.v1.md")));
     }
 
     [Fact]
@@ -425,6 +452,9 @@ public sealed class StaffPersonalDataCatalogTests
             AppContext.BaseDirectory,
             "DataGovernance",
             "personal-data-catalog.v1.json")));
+
+    private static string ComputeSha256(string path) =>
+        Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(path)));
 
     private static StaffDbContext CreateDbContext()
     {

@@ -12,6 +12,7 @@ using Microsoft.Extensions.Options;
 internal sealed class ReconcileWorkspaceStaffOnboardingRetentionCandidateCommandHandler(
     IWorkspaceStaffOnboardingRepository applications,
     IWorkspaceStaffAccessPlanRepository plans,
+    IWorkspaceStaffDeferredClaimWithdrawalRepository deferredWithdrawals,
     WorkspaceStaffOnboardingMutationCoordinator mutations,
     IOrganizationEnrollmentClaimInspector claims,
     WorkspaceStaffOnboardingProcessor processor,
@@ -35,9 +36,7 @@ internal sealed class ReconcileWorkspaceStaffOnboardingRetentionCandidateCommand
         if (application is null ||
             application.Version != command.ExpectedVersion ||
             application.SourceKind != WorkspaceStaffOnboardingSource.EnrollmentLink ||
-            application.Status != WorkspaceStaffOnboardingState.Submitted ||
-            application.ClaimId.HasValue ||
-            application.ClaimVersion.HasValue)
+            !IsEligibleState(application))
         {
             return Unchanged();
         }
@@ -78,6 +77,14 @@ internal sealed class ReconcileWorkspaceStaffOnboardingRetentionCandidateCommand
             cancellationToken).ConfigureAwait(false);
         if (claim is null)
         {
+            if (await deferredWithdrawals.AnyBySourceAsync(
+                    application.SourceId,
+                    cancellationToken).ConfigureAwait(false))
+            {
+                return Result.Failure<WorkspaceStaffOnboardingRetentionReconciliation>(
+                    WorkspaceStaffOnboardingApplicationErrors.RetentionClaimInconsistent);
+            }
+
             if (sourceExpiredAtUtc.Value <= nowUtc - settings.AuthorityWindow)
             {
                 return Success(
@@ -110,6 +117,17 @@ internal sealed class ReconcileWorkspaceStaffOnboardingRetentionCandidateCommand
                 WorkspaceStaffOnboardingApplicationErrors.RetentionPlanInconsistent);
         }
 
+        WorkspaceStaffDeferredClaimWithdrawal? deferred =
+            await deferredWithdrawals.GetAsync(
+                claim.ClaimId,
+                cancellationToken).ConfigureAwait(false);
+        if (deferred is not null &&
+            claim.Status != OrganizationEnrollmentClaimStatus.Withdrawn)
+        {
+            return Result.Failure<WorkspaceStaffOnboardingRetentionReconciliation>(
+                WorkspaceStaffOnboardingApplicationErrors.RetentionClaimInconsistent);
+        }
+
         return claim.Status switch
         {
             OrganizationEnrollmentClaimStatus.Pending =>
@@ -122,7 +140,11 @@ internal sealed class ReconcileWorkspaceStaffOnboardingRetentionCandidateCommand
                     application, claim, nowUtc, cancellationToken).ConfigureAwait(false),
             OrganizationEnrollmentClaimStatus.Withdrawn =>
                 await this.ObserveWithdrawnAsync(
-                    application, claim, nowUtc, cancellationToken).ConfigureAwait(false),
+                    application,
+                    claim,
+                    deferred,
+                    nowUtc,
+                    cancellationToken).ConfigureAwait(false),
             OrganizationEnrollmentClaimStatus.Accepted =>
                 await this.ObserveAcceptedAsync(
                     application, claim, nowUtc, cancellationToken).ConfigureAwait(false),
@@ -136,6 +158,7 @@ internal sealed class ReconcileWorkspaceStaffOnboardingRetentionCandidateCommand
         OrganizationEnrollmentClaimDto claim,
         DateTimeOffset nowUtc)
     {
+        long versionBefore = application.Version;
         Result observed = application.ObserveClaimRequested(
             claim.ClaimId,
             claim.Version,
@@ -144,7 +167,7 @@ internal sealed class ReconcileWorkspaceStaffOnboardingRetentionCandidateCommand
             ? Failure(observed)
             : Success(
                 WorkspaceStaffOnboardingRetentionOutcome.ClaimPending,
-                affected: true);
+                affected: application.Version != versionBefore);
     }
 
     private async Task<Result<WorkspaceStaffOnboardingRetentionReconciliation>> ObserveRejectedAsync(
@@ -221,9 +244,26 @@ internal sealed class ReconcileWorkspaceStaffOnboardingRetentionCandidateCommand
     private async Task<Result<WorkspaceStaffOnboardingRetentionReconciliation>> ObserveWithdrawnAsync(
         WorkspaceStaffOnboarding application,
         OrganizationEnrollmentClaimDto claim,
+        WorkspaceStaffDeferredClaimWithdrawal? deferred,
         DateTimeOffset nowUtc,
         CancellationToken cancellationToken)
     {
+        if (deferred is not null)
+        {
+            if (deferred.Id != claim.ClaimId ||
+                deferred.ClaimVersion != claim.Version ||
+                deferred.OrganizationId != claim.OrganizationId ||
+                deferred.EnrollmentLinkId != claim.EnrollmentLinkId ||
+                !string.Equals(
+                    deferred.ScopeId,
+                    application.ScopeId,
+                    StringComparison.Ordinal))
+            {
+                return Result.Failure<WorkspaceStaffOnboardingRetentionReconciliation>(
+                    WorkspaceStaffOnboardingApplicationErrors.RetentionClaimInconsistent);
+            }
+        }
+
         Result observed = application.ObserveClaimWithdrawn(
             claim.ClaimId,
             claim.Version,
@@ -231,6 +271,11 @@ internal sealed class ReconcileWorkspaceStaffOnboardingRetentionCandidateCommand
         if (observed.IsFailure)
         {
             return Failure(observed);
+        }
+
+        if (deferred is not null)
+        {
+            deferredWithdrawals.Remove(deferred);
         }
 
         await this.FinalizePlanAsync(application.SourceId, nowUtc, cancellationToken)
@@ -248,6 +293,7 @@ internal sealed class ReconcileWorkspaceStaffOnboardingRetentionCandidateCommand
             .ExpirePlanWhenUnusedUnderSourceLockAsync(
                 applications,
                 plans,
+                deferredWithdrawals,
                 enrollmentLinkId,
                 nowUtc,
                 cancellationToken);
@@ -260,10 +306,23 @@ internal sealed class ReconcileWorkspaceStaffOnboardingRetentionCandidateCommand
         claim.Version > 0 &&
         claim.OrganizationId == organizationId &&
         claim.EnrollmentLinkId == application.SourceId &&
+        (!application.ClaimId.HasValue ||
+            (application.ClaimId.Value == claim.ClaimId &&
+             application.ClaimVersion.HasValue &&
+             claim.Version >= application.ClaimVersion.Value)) &&
         string.Equals(
             claim.SubjectId,
             application.SubjectId,
             StringComparison.Ordinal);
+
+    private static bool IsEligibleState(
+        WorkspaceStaffOnboarding application) =>
+        (application.Status == WorkspaceStaffOnboardingState.Submitted &&
+         !application.ClaimId.HasValue &&
+         !application.ClaimVersion.HasValue) ||
+        (application.Status == WorkspaceStaffOnboardingState.PendingApproval &&
+         application.ClaimId.HasValue &&
+         application.ClaimVersion.HasValue);
 
     private static Result<WorkspaceStaffOnboardingRetentionReconciliation> Unchanged() =>
         Success(WorkspaceStaffOnboardingRetentionOutcome.Unchanged, affected: false);

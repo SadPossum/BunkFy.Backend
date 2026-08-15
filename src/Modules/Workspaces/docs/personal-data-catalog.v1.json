@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "workspaces.personal-data",
-  "catalogVersion": 11,
+  "catalogVersion": 12,
   "module": "workspaces",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -188,6 +188,13 @@
       "startsAt": "owner-fragment-created",
       "endsAt": "protected-export-assembly-completed-or-failed",
       "legalHoldBehavior": "not-applicable"
+    },
+    {
+      "id": "workspace-deferred-claim-withdrawal",
+      "approvalState": "engineering-default",
+      "startsAt": "withdrawal-observed-before-claim-correlation",
+      "endsAt": "withdrawal-consumed-or-source-terminalized-or-tenant-termination",
+      "legalHoldBehavior": "retain-only-until-terminal-correlation"
     },
     {
       "id": "workspace-access-history",
@@ -1731,6 +1738,20 @@
           "member": "ClaimId",
           "surface": "data-rights-export",
           "retentionPolicy": "workspaces-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffDeferredClaimWithdrawal",
+          "member": "Id",
+          "surface": "persistence",
+          "retentionPolicy": "workspace-deferred-claim-withdrawal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffDeferredClaimWithdrawalDataRightsExport",
+          "member": "ClaimId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
         }
       ]
     },
@@ -1847,6 +1868,20 @@
           "member": "ClaimVersion",
           "surface": "data-rights-export",
           "retentionPolicy": "workspaces-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffDeferredClaimWithdrawal",
+          "member": "ClaimVersion",
+          "surface": "persistence",
+          "retentionPolicy": "workspace-deferred-claim-withdrawal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffDeferredClaimWithdrawalDataRightsExport",
+          "member": "ClaimVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
         }
       ]
     },
@@ -1869,10 +1904,13 @@
       "retentionPolicy": "integration-message-journal",
       "rightsPolicy": "audit-attribution",
       "allowedSurfaces": [
-        "integration-event"
+        "data-rights-export",
+        "integration-event",
+        "persistence"
       ],
       "allowedBoundaries": [
-        "cross-module"
+        "cross-module",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -1938,6 +1976,20 @@
           "member": "EventId",
           "surface": "integration-event",
           "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffDeferredClaimWithdrawal",
+          "member": "EventId",
+          "surface": "persistence",
+          "retentionPolicy": "workspace-deferred-claim-withdrawal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffDeferredClaimWithdrawalDataRightsExport",
+          "member": "EventId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
         }
       ]
     },
@@ -1960,10 +2012,13 @@
       "retentionPolicy": "integration-message-journal",
       "rightsPolicy": "audit-attribution",
       "allowedSurfaces": [
-        "integration-event"
+        "data-rights-export",
+        "integration-event",
+        "persistence"
       ],
       "allowedBoundaries": [
-        "cross-module"
+        "cross-module",
+        "intra-module"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -2029,6 +2084,20 @@
           "member": "OccurredAtUtc",
           "surface": "integration-event",
           "retentionPolicy": "integration-message-journal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffDeferredClaimWithdrawal",
+          "member": "OccurredAtUtc",
+          "surface": "persistence",
+          "retentionPolicy": "workspace-deferred-claim-withdrawal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffDeferredClaimWithdrawalDataRightsExport",
+          "member": "OccurredAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
         }
       ]
     },
@@ -2590,6 +2659,20 @@
           "assembly": "BunkFy.Modules.Workspaces.Persistence",
           "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffAccessPlanPropertyDataRightsExport",
           "member": "PlanId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffDeferredClaimWithdrawal",
+          "member": "EnrollmentLinkId",
+          "surface": "persistence",
+          "retentionPolicy": "workspace-deferred-claim-withdrawal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffDeferredClaimWithdrawalDataRightsExport",
+          "member": "EnrollmentLinkId",
           "surface": "data-rights-export",
           "retentionPolicy": "workspaces-data-rights-export-fragment"
         }
@@ -4918,6 +5001,27 @@
         {
           "assembly": "BunkFy.Modules.Workspaces.Persistence",
           "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffRetentionCorrelationDataRightsExport",
+          "member": "ScopeId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffDeferredClaimWithdrawal",
+          "member": "ScopeId",
+          "surface": "persistence",
+          "retentionPolicy": "workspace-deferred-claim-withdrawal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffDeferredClaimWithdrawal",
+          "member": "OrganizationId",
+          "surface": "persistence",
+          "retentionPolicy": "workspace-deferred-claim-withdrawal"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffDeferredClaimWithdrawalDataRightsExport",
           "member": "ScopeId",
           "surface": "data-rights-export",
           "retentionPolicy": "workspaces-data-rights-export-fragment"

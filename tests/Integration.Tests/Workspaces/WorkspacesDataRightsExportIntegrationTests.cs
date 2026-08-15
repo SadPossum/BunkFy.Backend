@@ -96,6 +96,15 @@ public sealed partial class WorkspacesDataRightsExportIntegrationTests
                     jobTitle: null,
                     department: null,
                     Now).Value);
+            dbContext.StaffDeferredClaimWithdrawals.Add(
+                WorkspaceStaffDeferredClaimWithdrawal.Create(
+                    TenantB,
+                    Guid.Parse(TenantB),
+                    Guid.Parse("40000000-0000-0000-0000-000000000097"),
+                    Guid.Parse("50000000-0000-0000-0000-000000000097"),
+                    claimVersion: 2,
+                    Guid.Parse("60000000-0000-0000-0000-000000000097"),
+                    Now).Value);
             await dbContext.SaveChangesAsync();
         }
 
@@ -396,12 +405,13 @@ public sealed partial class WorkspacesDataRightsExportIntegrationTests
             TenantTerminationContributionStatus.Completed,
             result.Status);
         Assert.Equal("workspace.termination.exported", result.ResultCode);
-        Assert.Equal(8, result.AffectedCount);
+        Assert.Equal(9, result.AffectedCount);
         Assert.Equal(fence.Version, result.SelectedProofRevision);
         Assert.Equal(fence.Version, result.ResultingProofRevision);
         Assert.Equal(
             [
                 WorkspacesDataRightsCoordinates.StaffOnboardingRecordType,
+                "staff-deferred-claim-withdrawal",
                 WorkspacesDataRightsCoordinates.StaffAccessProcessRecordType,
                 "staff-access-profile-snapshot",
                 "staff-access-profile-snapshot",
@@ -412,6 +422,29 @@ public sealed partial class WorkspacesDataRightsExportIntegrationTests
                     .StaffRetentionCorrelationReceiptRecordType
             ],
             first.Records.Select(record => record.RecordType).ToArray());
+        DataRightsExportRecord deferred = first.Records[1];
+        Assert.Equal(
+            Guid.Parse("50000000-0000-0000-0000-000000000096"),
+            deferred.RecordId);
+        Assert.Equal(2, deferred.RecordVersion);
+        Assert.Equal(
+            [
+                "workspaces.enrollment-claim-id",
+                "workspaces.enrollment-claim-version",
+                "workspaces.integration-event-id",
+                "workspaces.integration-event-occurred-at",
+                "workspaces.join-source-id",
+                "workspaces.workspace-scope-id"
+            ],
+            deferred.Fields.Select(field => field.FieldId)
+                .Order(StringComparer.Ordinal)
+                .ToArray());
+        Assert.Equal(
+            TenantA,
+            Field(deferred, "workspaces.workspace-scope-id").GetString());
+        Assert.Equal(
+            Guid.Parse("40000000-0000-0000-0000-000000000096"),
+            Field(deferred, "workspaces.join-source-id").GetGuid());
 
         CollectingSink replay = new();
         TenantTerminationContributionResult replayResult =
@@ -428,6 +461,10 @@ public sealed partial class WorkspacesDataRightsExportIntegrationTests
             replay.Records,
             record => record.RecordId ==
                 Guid.Parse("50000000-0000-0000-0000-000000000099"));
+        Assert.DoesNotContain(
+            replay.Records,
+            record => record.RecordId ==
+                Guid.Parse("50000000-0000-0000-0000-000000000097"));
 
         await AssertExportSerializesOperationalMutationAsync(
             contributor,
@@ -654,8 +691,18 @@ public sealed partial class WorkspacesDataRightsExportIntegrationTests
                 accessProcessRecordsScrubbed: 1,
                 accessPlanRecordsScrubbed: 1,
                 Now.AddDays(1)).Value;
+        WorkspaceStaffDeferredClaimWithdrawal deferred =
+            WorkspaceStaffDeferredClaimWithdrawal.Create(
+                tenantId,
+                Guid.Parse(tenantId),
+                Guid.Parse("40000000-0000-0000-0000-000000000096"),
+                Guid.Parse("50000000-0000-0000-0000-000000000096"),
+                claimVersion: 2,
+                Guid.Parse("60000000-0000-0000-0000-000000000096"),
+                Now.AddHours(1)).Value;
 
         dbContext.StaffOnboardingApplications.Add(onboarding);
+        dbContext.StaffDeferredClaimWithdrawals.Add(deferred);
         dbContext.StaffAccessProcesses.Add(process);
         dbContext.StaffAccessPlans.Add(plan);
         dbContext.StaffRetentionCorrelationReceipts.Add(receipt);

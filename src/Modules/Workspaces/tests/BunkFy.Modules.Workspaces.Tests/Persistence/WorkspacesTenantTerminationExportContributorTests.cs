@@ -70,6 +70,8 @@ public sealed partial class WorkspacesTenantTerminationExportContributorTests
             [
                 WorkspacesDataRightsCoordinates.StaffOnboardingRecordType,
                 WorkspacesDataRightsExportContributor
+                    .StaffDeferredClaimWithdrawalRecordType,
+                WorkspacesDataRightsExportContributor
                     .StaffOnboardingCorrectionReceiptRecordType,
                 WorkspacesDataRightsExportContributor
                     .StaffOnboardingProcessingRestrictionRecordType,
@@ -85,7 +87,25 @@ public sealed partial class WorkspacesTenantTerminationExportContributorTests
                     .StaffRetentionCorrelationReceiptRecordType
             ],
             first.Records.Select(record => record.RecordType).ToArray());
-        Assert.Equal(9, result.AffectedCount);
+        Assert.Equal(10, result.AffectedCount);
+        DataRightsExportRecord deferredRecord = first.Records[1];
+        Assert.Equal(
+            Guid.Parse("61000000-0000-0000-0000-000000000001"),
+            deferredRecord.RecordId);
+        Assert.Equal(2, deferredRecord.RecordVersion);
+        Assert.Equal(
+            [
+                "workspaces.enrollment-claim-id",
+                "workspaces.enrollment-claim-version",
+                "workspaces.integration-event-id",
+                "workspaces.integration-event-occurred-at",
+                "workspaces.join-source-id",
+                "workspaces.workspace-scope-id"
+            ],
+            deferredRecord.Fields
+                .Select(field => field.FieldId)
+                .Order(StringComparer.Ordinal)
+                .ToArray());
         Assert.Equal(
             WorkspacesTenantTerminationMetadata.ExportSchemaId,
             contributor.ExportDescriptor.ExportSchemaId);
@@ -293,9 +313,19 @@ public sealed partial class WorkspacesTenantTerminationExportContributorTests
                 accessProcessRecordsScrubbed: 0,
                 accessPlanRecordsScrubbed: 0,
                 FrozenAtUtc.AddHours(-6)).Value;
+        WorkspaceStaffDeferredClaimWithdrawal deferred =
+            WorkspaceStaffDeferredClaimWithdrawal.Create(
+                TenantId,
+                Guid.Parse(TenantId),
+                Guid.Parse("51000000-0000-0000-0000-000000000001"),
+                Guid.Parse("61000000-0000-0000-0000-000000000001"),
+                claimVersion: 2,
+                Guid.Parse("71000000-0000-0000-0000-000000000001"),
+                FrozenAtUtc.AddHours(-5)).Value;
 
         context.AddRange(
             onboarding,
+            deferred,
             correction,
             restriction,
             restrictionReceipt,
