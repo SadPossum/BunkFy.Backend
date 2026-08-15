@@ -129,6 +129,11 @@ event.
   ID and version, aborts obsolete discovery requests, and renders only the
   current generation. Criteria remain in component memory, while selection is
   still revalidated against the authoritative owner projection.
+- Confirmation panels snapshot the PII-free case identity, version, status,
+  selected-record count, operation and action under review. Live case or
+  permission drift hides stale confirmation immediately, and confirmed writes
+  submit the reviewed version so the server rejects a later race instead of
+  silently adopting newer state.
 - Required-companion review failures distinguish an active business block
   (`409`), owner unavailability or an explicit transient retry (`503`), and an
   invalid internal contributor result (`500`). Only the explicit retry signal
