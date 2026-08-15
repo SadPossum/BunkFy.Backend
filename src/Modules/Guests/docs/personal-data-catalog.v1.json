@@ -1472,10 +1472,11 @@
       "countryPolicyKey": "guest.processing-restriction-state",
       "retentionPolicy": "guest-processing-restriction-lifecycle",
       "rightsPolicy": "guest-processing-restriction-control",
-      "allowedSurfaces": ["domain-event", "integration-command", "integration-event", "persistence", "projection-export"],
+      "allowedSurfaces": ["application-command", "domain-event", "integration-command", "integration-event", "persistence", "projection-export"],
       "allowedBoundaries": ["cross-module", "intra-module"],
       "approvalState": "engineering-default",
       "bindings": [
+        { "assembly": "BunkFy.Modules.Guests.Application", "type": "BunkFy.Modules.Guests.Application.Commands.ReleaseGuestProcessingRestrictionCommand", "member": "LegacyUnboundTarget", "surface": "application-command", "retentionPolicy": "transient-request" },
         { "assembly": "BunkFy.Modules.Guests.Domain", "type": "BunkFy.Modules.Guests.Domain.DataRights.GuestProcessingRestrictionProjection", "member": "ContractVersion", "surface": "persistence" },
         { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProcessingRestrictionGateRequest", "member": "ContractVersion", "surface": "integration-command", "retentionPolicy": "transient-request" },
         { "assembly": "BunkFy.Modules.Guests.Contracts", "type": "BunkFy.Modules.Guests.Contracts.GuestProcessingRestrictionGateResult", "member": "ObservedContractVersion", "surface": "projection-export", "retentionPolicy": "transient-response" },

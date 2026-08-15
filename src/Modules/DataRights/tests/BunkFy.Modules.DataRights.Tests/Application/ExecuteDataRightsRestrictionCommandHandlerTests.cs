@@ -48,6 +48,9 @@ public sealed partial class ExecuteDataRightsRestrictionCommandHandlerTests
         Assert.True(result.IsSuccess);
         Assert.Equal(DataRightsCaseStatus.Completed, result.Value.Case.Status);
         Assert.True(result.Value.Proof.EffectiveRestricted);
+        Assert.Equal(
+            result.Value.Proof,
+            result.Value.Case.RestrictionExecutionProof);
         Assert.Equal(1, contributor.CallCount);
         Assert.Equal(DataRightsOperation.Restriction, gate.Request?.Operation);
         Assert.Equal(
@@ -64,7 +67,8 @@ public sealed partial class ExecuteDataRightsRestrictionCommandHandlerTests
         DataRightsCase dataRightsCase = CreateApprovedCase(
             DataRightsRestrictionAction.Release);
         RecordingContributor contributor = new(CompletedOwnerResult(
-            effectiveRestricted: false));
+            effectiveRestricted: true,
+            dataRightsCase.RestrictionReleaseTarget));
         ExecuteDataRightsRestrictionCommandHandler handler = new(
             DataRightsMutationTestSupport.Case(
                 new StubCaseRepository(dataRightsCase)),
@@ -85,7 +89,14 @@ public sealed partial class ExecuteDataRightsRestrictionCommandHandlerTests
         Assert.True(first.IsSuccess);
         Assert.True(replay.IsSuccess);
         Assert.Equal(first.Value.Proof, replay.Value.Proof);
+        Assert.True(first.Value.Proof.EffectiveRestricted);
         Assert.Equal(1, contributor.CallCount);
+        Assert.Equal(
+            dataRightsCase.RestrictionReleaseTarget!.OwnerOperationId,
+            contributor.Request?.TargetOwnerOperationId);
+        Assert.Equal(
+            dataRightsCase.RestrictionReleaseTarget.OwnerOperationVersion,
+            contributor.Request?.TargetOwnerOperationVersion);
     }
 
     [Fact]
@@ -221,13 +232,18 @@ public sealed partial class ExecuteDataRightsRestrictionCommandHandlerTests
     }
 
     private static DataRightsRestrictionContributionResult CompletedOwnerResult(
-        bool effectiveRestricted) =>
+        bool effectiveRestricted,
+        BunkFy.Modules.DataRights.Domain.ValueObjects
+            .DataRightsRestrictionReleaseTarget? releaseTarget = null) =>
         DataRightsRestrictionContributionResult.Completed(
             new(
                 ReceiptContractVersion: 1,
                 Guid.NewGuid(),
-                Guid.NewGuid(),
-                ResultingOwnerRevision: 2,
+                releaseTarget?.OwnerOperationId ?? Guid.NewGuid(),
+                ResultingOwnerRevision:
+                    releaseTarget is null
+                        ? 2
+                        : releaseTarget.OwnerOperationVersion + 1,
                 ResultingProjectionRevision: 4,
                 effectiveRestricted,
                 new string('a', 64),
@@ -261,6 +277,16 @@ public sealed partial class ExecuteDataRightsRestrictionCommandHandlerTests
             dataRightsCase.Version,
             "user:privacy",
             Now.AddMinutes(-4)).IsSuccess);
+        if (action == DataRightsRestrictionAction.Release)
+        {
+            Assert.True(dataRightsCase.SelectRestrictionReleaseTarget(
+                "guests",
+                Guid.NewGuid(),
+                ownerOperationVersion: 7,
+                dataRightsCase.Version,
+                "user:privacy",
+                Now.AddMinutes(-3).AddSeconds(-30)).IsSuccess);
+        }
         Assert.True(dataRightsCase.RequireReview(
             dataRightsCase.Version,
             "user:privacy",
@@ -374,6 +400,12 @@ public sealed partial class ExecuteDataRightsRestrictionCommandHandlerTests
         public int ContractVersion => DataRightsRestrictionContract.CurrentVersion;
         public int CallCount { get; private set; }
         public DataRightsRestrictionContributionRequest? Request { get; private set; }
+
+        public Task<DataRightsRestrictionTargetResolutionResult>
+            ResolveReleaseTargetsAsync(
+                DataRightsRestrictionTargetResolutionRequest request,
+                CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
 
         public Task<DataRightsRestrictionContributionResult> ExecuteAsync(
             DataRightsRestrictionContributionRequest request,

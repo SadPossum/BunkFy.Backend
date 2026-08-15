@@ -354,6 +354,27 @@ public sealed class DataRightsPersonalDataCatalogTests
                 PersonalDataSurface.IntegrationCommand);
         }
 
+        AssertPublicPropertiesClassified(
+            typeof(DataRightsRestrictionTargetResolutionRequest),
+            PersonalDataSurface.IntegrationCommand,
+            nameof(DataRightsRestrictionTargetResolutionRequest.Coordinate));
+        AssertPublicPropertiesClassified(
+            typeof(BunkFy.Modules.DataRights.Contracts
+                .DataRightsRestrictionReleaseTarget),
+            PersonalDataSurface.ProjectionExport);
+        AssertPublicPropertiesClassified(
+            typeof(DataRightsRestrictionTargetResolutionResult),
+            PersonalDataSurface.ProjectionExport);
+        AssertPublicPropertiesClassified(
+            typeof(DataRightsRestrictionReleaseTargetDto),
+            PersonalDataSurface.ApiResponse);
+        AssertPublicPropertiesClassified(
+            typeof(DataRightsRestrictionReleaseTargetCandidateDto),
+            PersonalDataSurface.ApiResponse);
+        AssertPublicPropertiesClassified(
+            typeof(DataRightsRestrictionReleaseTargetListResponse),
+            PersonalDataSurface.ApiResponse);
+
         foreach (PropertyInfo property in typeof(DataRightsRestrictionOwnerProof)
                      .GetProperties(BindingFlags.Instance | BindingFlags.Public))
         {
@@ -391,6 +412,13 @@ public sealed class DataRightsPersonalDataCatalogTests
                 property.Name,
                 PersonalDataSurface.Persistence);
         }
+
+        AssertPublicPropertiesClassified(
+            typeof(BunkFy.Modules.DataRights.Domain.ValueObjects
+                .DataRightsRestrictionReleaseTarget),
+            PersonalDataSurface.Persistence,
+            nameof(BunkFy.Modules.DataRights.Domain.ValueObjects
+                .DataRightsRestrictionReleaseTarget.SelectedBy));
     }
 
     [Fact]

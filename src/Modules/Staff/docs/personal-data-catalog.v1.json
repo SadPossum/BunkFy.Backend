@@ -9817,6 +9817,7 @@
       "retentionPolicy": "staff-processing-restriction-lifecycle",
       "rightsPolicy": "staff-processing-restriction-control",
       "allowedSurfaces": [
+        "application-command",
         "domain-event",
         "integration-command",
         "integration-event",
@@ -9829,6 +9830,13 @@
       ],
       "approvalState": "engineering-default",
       "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Application",
+          "type": "BunkFy.Modules.Staff.Application.Commands.ReleaseStaffProcessingRestrictionCommand",
+          "member": "LegacyUnboundTarget",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
         {
           "assembly": "BunkFy.Modules.Staff.Contracts",
           "type": "BunkFy.Modules.Staff.Contracts.StaffProcessingRestrictionChangedIntegrationEvent",

@@ -86,6 +86,19 @@ public static class DataRightsApplicationErrors
     public static readonly Error RestrictionOwnerProofInvalid = new(
         "DataRights.RestrictionOwnerProofInvalid",
         "The selected owner returned an invalid processing-restriction result or proof.");
+    public static readonly Error RestrictionReleaseTargetNotFound = new(
+        "DataRights.RestrictionReleaseTargetNotFound",
+        "The selected processing-restriction release target is not available.");
+    public static readonly Error RestrictionReleaseTargetStale = new(
+        "DataRights.RestrictionReleaseTargetStale",
+        "The processing-restriction release target changed and must be selected again.");
+    public static readonly Error RestrictionReleaseTargetResultInvalid = new(
+        "DataRights.RestrictionReleaseTargetResultInvalid",
+        "The selected owner returned an invalid processing-restriction target result.");
+    public static Error RestrictionReleaseTargetRequired =>
+        DataRightsDomainErrors.RestrictionReleaseTargetRequired;
+    public static Error RestrictionReleaseTargetInvalid =>
+        DataRightsDomainErrors.RestrictionReleaseTargetInvalid;
     public static Error RestrictionExecutionConflict =>
         DataRightsDomainErrors.RestrictionExecutionConflict;
     public static readonly Error CorrectionExecutionDenied = new(

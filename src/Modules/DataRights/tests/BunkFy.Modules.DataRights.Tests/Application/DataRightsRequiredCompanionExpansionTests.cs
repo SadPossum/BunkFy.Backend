@@ -394,7 +394,9 @@ public sealed class DataRightsRequiredCompanionExpansionTests
                 owners,
                 NullLogger<
                     DataRightsRequiredCompanionExpander>.Instance),
-            new TestClock());
+            [],
+            new TestClock(),
+            NullLogger<RequireDataRightsReviewCommandHandler>.Instance);
 
     private static DataRightsCase CreateDiscoveryCase(
         DataRightsCaseOperation operation,

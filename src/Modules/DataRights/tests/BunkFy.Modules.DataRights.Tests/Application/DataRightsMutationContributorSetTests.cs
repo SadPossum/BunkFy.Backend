@@ -73,6 +73,12 @@ public sealed class DataRightsMutationContributorSetTests
         public string OwnerKey => ownerKey;
         public int ContractVersion => DataRightsRestrictionContract.CurrentVersion;
 
+        public Task<DataRightsRestrictionTargetResolutionResult>
+            ResolveReleaseTargetsAsync(
+                DataRightsRestrictionTargetResolutionRequest request,
+                CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
         public Task<DataRightsRestrictionContributionResult> ExecuteAsync(
             DataRightsRestrictionContributionRequest request,
             CancellationToken cancellationToken) =>

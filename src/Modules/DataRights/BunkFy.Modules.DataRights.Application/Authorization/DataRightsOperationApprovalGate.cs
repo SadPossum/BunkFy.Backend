@@ -74,6 +74,13 @@ internal sealed class DataRightsOperationApprovalGate(
                 DataRightsOperationApprovalDenial.RestrictionDirectiveMismatch);
         }
 
+        if (request.Operation == DataRightsOperation.Restriction &&
+            !MatchesRestrictionTarget(dataRightsCase, request))
+        {
+            return this.Denied(
+                DataRightsOperationApprovalDenial.RestrictionTargetMismatch);
+        }
+
         if (request.Operation == DataRightsOperation.Anonymisation)
         {
             DataRightsApprovalEvidence? approvalEvidence = dataRightsCase.ToApprovalEvidence();
@@ -141,6 +148,16 @@ internal sealed class DataRightsOperationApprovalGate(
             ? request.RestrictionDirective is DataRightsRestrictionDirective.Apply
                 or DataRightsRestrictionDirective.Release
             : request.RestrictionDirective == DataRightsRestrictionDirective.Unknown;
+        bool restrictionTargetValid = request.Operation == DataRightsOperation.Restriction &&
+            request.RestrictionDirective == DataRightsRestrictionDirective.Release
+                ? (request.RestrictionTargetOwnerOperationId is null &&
+                   request.RestrictionTargetOwnerOperationVersion is null) ||
+                  (request.RestrictionTargetOwnerOperationId is Guid targetId &&
+                   targetId != Guid.Empty &&
+                   request.RestrictionTargetOwnerOperationVersion is long targetVersion &&
+                   targetVersion is > 0 and < long.MaxValue)
+                : request.RestrictionTargetOwnerOperationId is null &&
+                  request.RestrictionTargetOwnerOperationVersion is null;
         return tenantValid &&
             scopeValid &&
             request.CaseId != Guid.Empty &&
@@ -148,11 +165,40 @@ internal sealed class DataRightsOperationApprovalGate(
             operation is > 0 and <= (int)DataRightsOperation.Anonymisation &&
             (operation & (operation - 1)) == 0 &&
             restrictionDirectiveValid &&
+            restrictionTargetValid &&
             ownerKey is not null &&
             ownerKey.Length is > 0 and <= SelectedSubject.OwnerKeyMaxLength &&
             recordType is not null &&
             recordType.Length is > 0 and <= SelectedSubject.RecordTypeMaxLength &&
             request.RecordId != Guid.Empty &&
             request.RecordVersion > 0;
+    }
+
+    private static bool MatchesRestrictionTarget(
+        DataRightsCase dataRightsCase,
+        DataRightsOperationApprovalRequest request)
+    {
+        if (request.RestrictionDirective == DataRightsRestrictionDirective.Apply)
+        {
+            return dataRightsCase.RestrictionTargetingContractVersion is null &&
+                dataRightsCase.RestrictionReleaseTarget is null &&
+                request.RestrictionTargetOwnerOperationId is null &&
+                request.RestrictionTargetOwnerOperationVersion is null;
+        }
+
+        if (dataRightsCase.RestrictionTargetingContractVersion is null)
+        {
+            return dataRightsCase.RestrictionReleaseTarget is null &&
+                request.RestrictionTargetOwnerOperationId is null &&
+                request.RestrictionTargetOwnerOperationVersion is null;
+        }
+
+        return dataRightsCase.RestrictionTargetingContractVersion ==
+                Domain.ValueObjects.DataRightsRestrictionReleaseTarget
+                    .CurrentBindingVersion &&
+            dataRightsCase.RestrictionReleaseTarget is { } target &&
+            request.RestrictionTargetOwnerOperationId is Guid targetId &&
+            request.RestrictionTargetOwnerOperationVersion is long targetVersion &&
+            target.Matches(request.OwnerKey, targetId, targetVersion);
     }
 }

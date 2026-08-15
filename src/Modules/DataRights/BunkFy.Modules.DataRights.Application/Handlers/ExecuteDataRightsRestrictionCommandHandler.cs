@@ -14,6 +14,7 @@ using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
 using Gma.Framework.Runtime.Time;
 using Microsoft.Extensions.Logging;
+using RestrictionReleaseTarget = BunkFy.Modules.DataRights.Domain.ValueObjects.DataRightsRestrictionReleaseTarget;
 using SelectedSubject = BunkFy.Modules.DataRights.Domain.Entities.DataRightsSubjectCoordinate;
 
 internal sealed class ExecuteDataRightsRestrictionCommandHandler(
@@ -75,7 +76,8 @@ internal sealed class ExecuteDataRightsRestrictionCommandHandler(
                 approvalRevision,
                 dataRightsCase.RestrictionAction,
                 subject,
-                actor)
+                actor,
+                dataRightsCase.RestrictionReleaseTarget)
                 ? Result.Success(new DataRightsRestrictionExecutionDto(
                     dataRightsCase.ToDto(),
                     existing.ToDto()))
@@ -98,7 +100,11 @@ internal sealed class ExecuteDataRightsRestrictionCommandHandler(
                     subject.RecordId,
                     subject.RecordVersion,
                     directive,
-                    CaseType: command.Scope.CaseType),
+                    CaseType: command.Scope.CaseType,
+                    RestrictionTargetOwnerOperationId:
+                        dataRightsCase.RestrictionReleaseTarget?.OwnerOperationId,
+                    RestrictionTargetOwnerOperationVersion:
+                        dataRightsCase.RestrictionReleaseTarget?.OwnerOperationVersion),
                 cancellationToken).ConfigureAwait(false);
         if (!approval.IsApproved)
         {
@@ -120,6 +126,9 @@ internal sealed class ExecuteDataRightsRestrictionCommandHandler(
         DateTimeOffset nowUtc = clock.UtcNow;
         DateTimeOffset deadlineUtc = nowUtc.Add(OwnerDeadline);
         DataRightsRestrictionContributionResult ownerResult;
+        using CancellationTokenSource deadline =
+            CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(OwnerDeadline);
         try
         {
             ownerResult = await contributor.ExecuteAsync(
@@ -138,8 +147,19 @@ internal sealed class ExecuteDataRightsRestrictionCommandHandler(
                     directive,
                     actor,
                     deadlineUtc,
-                    command.Scope.CaseType),
-                cancellationToken).ConfigureAwait(false);
+                    command.Scope.CaseType,
+                    dataRightsCase.RestrictionReleaseTarget?.OwnerOperationId,
+                    dataRightsCase.RestrictionReleaseTarget?.OwnerOperationVersion),
+                deadline.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+            when (!cancellationToken.IsCancellationRequested)
+        {
+            logger.LogWarning(
+                "Data Rights restriction owner {OwnerKey} exceeded its deadline.",
+                subject.OwnerKey);
+            return Result.Failure<DataRightsRestrictionExecutionDto>(
+                DataRightsApplicationErrors.RestrictionOwnerRetryRequired);
         }
         catch (Exception exception) when (
             exception is not OperationCanceledException)
@@ -155,7 +175,8 @@ internal sealed class ExecuteDataRightsRestrictionCommandHandler(
         Result<DataRightsRestrictionOwnerProof> validated = Validate(
             ownerResult,
             directive,
-            deadlineUtc);
+            deadlineUtc,
+            dataRightsCase.RestrictionReleaseTarget);
         if (validated.IsFailure)
         {
             return Result.Failure<DataRightsRestrictionExecutionDto>(
@@ -177,7 +198,8 @@ internal sealed class ExecuteDataRightsRestrictionCommandHandler(
                 ownerProof.EffectiveRestricted,
                 ownerProof.ReceiptSha256,
                 actor,
-                ownerProof.CompletedAtUtc);
+                ownerProof.CompletedAtUtc,
+                dataRightsCase.RestrictionReleaseTarget);
         if (proof.IsFailure)
         {
             return Result.Failure<DataRightsRestrictionExecutionDto>(proof.Error);
@@ -197,7 +219,8 @@ internal sealed class ExecuteDataRightsRestrictionCommandHandler(
     private static Result<DataRightsRestrictionOwnerProof> Validate(
         DataRightsRestrictionContributionResult? result,
         DataRightsRestrictionDirective directive,
-        DateTimeOffset deadlineUtc)
+        DateTimeOffset deadlineUtc,
+        RestrictionReleaseTarget? releaseTarget)
     {
         if (result is null ||
             result.ContractVersion != DataRightsRestrictionContract.CurrentVersion)
@@ -222,7 +245,19 @@ internal sealed class ExecuteDataRightsRestrictionCommandHandler(
         }
 
         DataRightsRestrictionOwnerProof? proof = result.OwnerProof;
-        bool expectedState = directive == DataRightsRestrictionDirective.Apply;
+        bool effectiveStateValid = directive switch
+        {
+            DataRightsRestrictionDirective.Apply =>
+                releaseTarget is null && proof?.EffectiveRestricted == true,
+            DataRightsRestrictionDirective.Release when releaseTarget is null =>
+                proof?.EffectiveRestricted == false,
+            DataRightsRestrictionDirective.Release =>
+                proof is not null &&
+                proof.OwnerOperationId == releaseTarget.OwnerOperationId &&
+                proof.ResultingOwnerRevision ==
+                    releaseTarget.OwnerOperationVersion + 1,
+            _ => false
+        };
         return result.Status == DataRightsRestrictionContributionStatus.Completed &&
             result.OutcomeCode is null &&
             proof is not null &&
@@ -231,7 +266,7 @@ internal sealed class ExecuteDataRightsRestrictionCommandHandler(
             proof.OwnerOperationId != Guid.Empty &&
             proof.ResultingOwnerRevision > 0 &&
             proof.ResultingProjectionRevision > 0 &&
-            proof.EffectiveRestricted == expectedState &&
+            effectiveStateValid &&
             proof.ReceiptSha256 is not null &&
             proof.ReceiptSha256.Length == DataRightsRestrictionContract.Sha256Length &&
             proof.ReceiptSha256.All(Uri.IsHexDigit) &&

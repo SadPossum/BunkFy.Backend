@@ -3,6 +3,7 @@ namespace BunkFy.Modules.DataRights.Tests.Api;
 using System.Text.Json;
 using BunkFy.Modules.DataRights.Api;
 using BunkFy.Modules.DataRights.Application;
+using BunkFy.Modules.DataRights.Application.Queries;
 using BunkFy.Modules.DataRights.Contracts;
 using Gma.Framework.AccessControl;
 using Gma.Framework.AccessControl.AspNetCore;
@@ -72,6 +73,24 @@ public sealed class DataRightsApiSecurityTests
             HttpMethods.Post,
             $"{cases}/{{caseId:guid}}/subjects/unselect",
             DataRightsAdminPermissionCodes.Discover);
+        AssertPermission(
+            endpoints,
+            HttpMethods.Get,
+            $"{cases}/{{caseId:guid}}/restriction/release-targets",
+            DataRightsAdminPermissionCodes.Discover);
+        AssertPermission(
+            endpoints,
+            HttpMethods.Post,
+            $"{cases}/{{caseId:guid}}/restriction/release-target",
+            DataRightsAdminPermissionCodes.Discover);
+        AssertNoAssurance(
+            endpoints,
+            HttpMethods.Get,
+            $"{cases}/{{caseId:guid}}/restriction/release-targets");
+        AssertNoAssurance(
+            endpoints,
+            HttpMethods.Post,
+            $"{cases}/{{caseId:guid}}/restriction/release-target");
         AssertPermission(
             endpoints,
             HttpMethods.Post,
@@ -246,6 +265,14 @@ public sealed class DataRightsApiSecurityTests
                 DataRightsAdminPermissionCodes.Discover),
             (
                 HttpMethods.Get,
+                $"{cases}/{{caseId:guid}}/restriction/release-targets",
+                DataRightsAdminPermissionCodes.Discover),
+            (
+                HttpMethods.Post,
+                $"{cases}/{{caseId:guid}}/restriction/release-target",
+                DataRightsAdminPermissionCodes.Discover),
+            (
+                HttpMethods.Get,
                 $"{cases}/{{caseId:guid}}/correction",
                 DataRightsAdminPermissionCodes.Execute),
             (
@@ -305,6 +332,14 @@ public sealed class DataRightsApiSecurityTests
             endpoints,
             HttpMethods.Get,
             $"{cases}/{{caseId:guid}}/export/{{artifactId:guid}}/download");
+        AssertNoAssurance(
+            endpoints,
+            HttpMethods.Get,
+            $"{cases}/{{caseId:guid}}/restriction/release-targets");
+        AssertNoAssurance(
+            endpoints,
+            HttpMethods.Post,
+            $"{cases}/{{caseId:guid}}/restriction/release-target");
     }
 
     [Fact]
@@ -646,13 +681,26 @@ public sealed class DataRightsApiSecurityTests
         RouteEndpoint[] endpoints = [.. ((IEndpointRouteBuilder)app).DataSources
             .SelectMany(dataSource => dataSource.Endpoints)
             .OfType<RouteEndpoint>()];
-        (string Route, Guid? PropertyId)[] routes =
+        (string Route, Guid? PropertyId, Guid? CaseId)[] routes =
         [
-            ("/api/data-rights/properties/{propertyId:guid}/cases", Guid.NewGuid()),
-            ("/api/data-rights/tenant/cases", null)
+            (
+                "/api/data-rights/properties/{propertyId:guid}/cases",
+                Guid.NewGuid(),
+                null),
+            ("/api/data-rights/tenant/cases", null, null),
+            (
+                "/api/data-rights/properties/{propertyId:guid}/cases/" +
+                "{caseId:guid}/restriction/release-targets",
+                Guid.NewGuid(),
+                Guid.NewGuid()),
+            (
+                "/api/data-rights/tenant/cases/{caseId:guid}/restriction/" +
+                "release-targets",
+                null,
+                Guid.NewGuid())
         ];
 
-        foreach ((string route, Guid? propertyId) in routes)
+        foreach ((string route, Guid? propertyId, Guid? caseId) in routes)
         {
             RouteEndpoint endpoint = FindEndpoint(endpoints, HttpMethods.Get, route);
             DefaultHttpContext context = new()
@@ -664,6 +712,10 @@ public sealed class DataRightsApiSecurityTests
             if (propertyId.HasValue)
             {
                 context.Request.RouteValues["propertyId"] = propertyId.Value.ToString("D");
+            }
+            if (caseId.HasValue)
+            {
+                context.Request.RouteValues["caseId"] = caseId.Value.ToString("D");
             }
 
             await endpoint.RequestDelegate!(context);
@@ -719,6 +771,16 @@ public sealed class DataRightsApiSecurityTests
         AssertProduces(
             endpoints,
             HttpMethods.Get,
+            $"{cases}/{{caseId:guid}}/restriction/release-targets",
+            typeof(DataRightsRestrictionReleaseTargetListResponse));
+        AssertProduces(
+            endpoints,
+            HttpMethods.Post,
+            $"{cases}/{{caseId:guid}}/restriction/release-target",
+            typeof(DataRightsCaseDto));
+        AssertProduces(
+            endpoints,
+            HttpMethods.Get,
             $"{cases}/{{caseId:guid}}/execution",
             typeof(DataRightsExecutionDto));
         AssertProduces(
@@ -758,6 +820,16 @@ public sealed class DataRightsApiSecurityTests
             HttpMethods.Post,
             $"{tenantCases}/{{caseId:guid}}/execution",
             typeof(DataRightsExecutionDto));
+        AssertProduces(
+            endpoints,
+            HttpMethods.Get,
+            $"{tenantCases}/{{caseId:guid}}/restriction/release-targets",
+            typeof(DataRightsRestrictionReleaseTargetListResponse));
+        AssertProduces(
+            endpoints,
+            HttpMethods.Post,
+            $"{tenantCases}/{{caseId:guid}}/restriction/release-target",
+            typeof(DataRightsCaseDto));
         AssertProduces(
             endpoints,
             HttpMethods.Post,
@@ -823,6 +895,20 @@ public sealed class DataRightsApiSecurityTests
                 StringComparison.Ordinal));
     }
 
+    private static void AssertNoAssurance(
+        IEnumerable<RouteEndpoint> endpoints,
+        string method,
+        string route)
+    {
+        RouteEndpoint endpoint = FindEndpoint(endpoints, method, route);
+        Assert.DoesNotContain(
+            endpoint.Metadata,
+            metadata => string.Equals(
+                metadata.GetType().Name,
+                "AuthenticationAssuranceMetadata",
+                StringComparison.Ordinal));
+    }
+
     private static void AssertProduces(
         IEnumerable<RouteEndpoint> endpoints,
         string method,
@@ -858,9 +944,20 @@ public sealed class DataRightsApiSecurityTests
 
         public Task<Result<TResponse>> QueryAsync<TResponse>(
             IQuery<TResponse> query,
-            CancellationToken cancellationToken = default) =>
-            Task.FromResult((Result<TResponse>)(object)Result.Success(
+            CancellationToken cancellationToken = default)
+        {
+            if (query is GetDataRightsRestrictionReleaseTargetsQuery)
+            {
+                return Task.FromResult((Result<TResponse>)(object)Result.Success(
+                    new DataRightsRestrictionReleaseTargetListResponse(
+                        CaseVersion: 1,
+                        Targets: [],
+                        LimitReached: false)));
+            }
+
+            return Task.FromResult((Result<TResponse>)(object)Result.Success(
                 new DataRightsCaseListResponse([], 1, 20, HasMore: false)));
+        }
     }
 
     private sealed record DispatchTestCommand(string ActorId) :

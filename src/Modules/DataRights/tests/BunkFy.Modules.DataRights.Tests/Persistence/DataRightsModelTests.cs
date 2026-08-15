@@ -90,6 +90,10 @@ public sealed class DataRightsModelTests
             designEntity.GetCheckConstraints(),
             constraint =>
                 constraint.Name == "CK_data_rights_cases_restriction_execution_proof");
+        Assert.Contains(
+            designEntity.GetCheckConstraints(),
+            constraint =>
+                constraint.Name == "CK_data_rights_cases_restriction_target");
         Assert.Equal(
             "\"Kind\" IN (1, 2, 3)",
             designEntity.GetCheckConstraints().Single(
@@ -835,6 +839,77 @@ public sealed class DataRightsModelTests
             "tenant-a");
         DataRightsCase restored = await reader.Cases.SingleAsync();
         Assert.Equal(DataRightsRestrictionAction.Release, restored.RestrictionAction);
+    }
+
+    [Fact]
+    public async Task Restriction_release_target_round_trips_with_the_case()
+    {
+        string databaseName =
+            $"data-rights-restriction-target-{Guid.NewGuid():N}";
+        InMemoryDatabaseRoot root = new();
+        Guid propertyId = Guid.NewGuid();
+        Guid ownerOperationId = Guid.NewGuid();
+        DateTimeOffset now =
+            new(2026, 8, 15, 12, 30, 0, TimeSpan.Zero);
+        DataRightsCaseRequest request = DataRightsCaseRequest.Create(
+            propertyId,
+            DataRightsCaseKind.GuestRights,
+            DataRightsCaseOperation.Restriction,
+            DataRightsRequesterRelation.ControllerInitiated,
+            DataRightsRestrictionAction.Release).Value;
+        DataRightsCase dataRightsCase = DataRightsCase.Create(
+            Guid.NewGuid(),
+            "tenant-a",
+            request,
+            "user:privacy",
+            now.AddMinutes(-3)).Value;
+        Assert.True(dataRightsCase.BeginDiscovery(
+            dataRightsCase.Version,
+            "user:privacy",
+            now.AddMinutes(-2)).IsSuccess);
+        Assert.True(dataRightsCase.SelectSubject(
+            "guests",
+            "guest-profile",
+            Guid.NewGuid(),
+            recordVersion: 5,
+            dataRightsCase.Version,
+            "user:privacy",
+            now.AddMinutes(-1)).IsSuccess);
+        Assert.True(dataRightsCase.SelectRestrictionReleaseTarget(
+            "guests",
+            ownerOperationId,
+            ownerOperationVersion: 3,
+            dataRightsCase.Version,
+            "user:reviewer",
+            now).IsSuccess);
+
+        await using (DataRightsDbContext writer = CreateDbContext(
+            databaseName,
+            root,
+            "tenant-a"))
+        {
+            writer.Cases.Add(dataRightsCase);
+            await writer.SaveChangesAsync();
+        }
+
+        await using DataRightsDbContext reader = CreateDbContext(
+            databaseName,
+            root,
+            "tenant-a");
+        DataRightsCase restored = await reader.Cases.SingleAsync();
+        Assert.Equal(
+            DataRightsRestrictionReleaseTarget.CurrentBindingVersion,
+            restored.RestrictionTargetingContractVersion);
+        Assert.NotNull(restored.RestrictionReleaseTarget);
+        Assert.Equal(
+            ownerOperationId,
+            restored.RestrictionReleaseTarget.OwnerOperationId);
+        Assert.Equal(
+            3,
+            restored.RestrictionReleaseTarget.OwnerOperationVersion);
+        Assert.Equal("guests", restored.RestrictionReleaseTarget.OwnerKey);
+        Assert.Equal("user:reviewer", restored.RestrictionReleaseTarget.SelectedBy);
+        Assert.Equal(now, restored.RestrictionReleaseTarget.SelectedAtUtc);
     }
 
     [Fact]

@@ -6203,6 +6203,7 @@
       "retentionPolicy": "workspace-onboarding-processing-restriction-lifecycle",
       "rightsPolicy": "workspace-onboarding-processing-restriction-control",
       "allowedSurfaces": [
+        "application-command",
         "domain-event",
         "integration-event",
         "persistence"
@@ -6213,6 +6214,13 @@
       ],
       "approvalState": "engineering-default",
       "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.ReleaseWorkspaceStaffOnboardingProcessingRestrictionCommand",
+          "member": "LegacyUnboundTarget",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
         {
           "assembly": "BunkFy.Modules.Workspaces.Contracts",
           "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffOnboardingProcessingRestrictionChangedIntegrationEvent",
