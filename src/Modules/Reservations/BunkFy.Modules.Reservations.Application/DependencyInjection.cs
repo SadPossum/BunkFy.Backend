@@ -60,6 +60,10 @@ public static class DependencyInjection
                 ReservationDataRightsAnonymisationContributor>());
         services.TryAddEnumerable(
             ServiceDescriptor.Scoped<
+                IDataRightsRestrictionContributor,
+                ReservationDataRightsRestrictionContributor>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Scoped<
                 IDataRightsAnonymisationRestoreContributor,
                 ReservationDataRightsAnonymisationRestoreContributor>());
         services.TryAddEnumerable(

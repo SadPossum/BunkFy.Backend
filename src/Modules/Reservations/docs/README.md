@@ -53,6 +53,10 @@ retention, and rights policies receive production approval.
 - owner-local Data Rights correction execution protected by the public host's
   configured recent-authentication assurance in addition to scoped execution
   permission and approved-claim validation;
+- registered Data Rights processing-restriction ownership with bounded release
+  target discovery, exact target/version selection, and actor-bound immutable
+  replay proof; legacy unbound releases fail closed unless exactly one active
+  Reservations restriction remains;
 - catalogue-driven, transient DataRights export of Reservations-owned booking,
   pending amendment, durable stay-amendment operation, Guest-link,
   details-history, adapter-receipt, and reminder records without staff actor

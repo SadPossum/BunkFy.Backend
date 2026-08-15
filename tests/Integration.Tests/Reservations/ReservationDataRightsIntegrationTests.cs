@@ -6,6 +6,7 @@ using System.Text;
 using BunkFy.DataGovernance;
 using BunkFy.Modules.DataRights.Application.Commands;
 using BunkFy.Modules.DataRights.Application.Models;
+using BunkFy.Modules.DataRights.Application.Queries;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.DataRights.Contracts.Authorization;
 using BunkFy.Modules.DataRights.Domain.Aggregates;
@@ -36,6 +37,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Testcontainers.PostgreSql;
 using Xunit;
+using RestrictionReleaseTarget =
+    BunkFy.Modules.DataRights.Domain.ValueObjects.DataRightsRestrictionReleaseTarget;
 
 public sealed class ReservationDataRightsIntegrationTests
 {
@@ -539,14 +542,13 @@ public sealed class ReservationDataRightsIntegrationTests
             DataRightsCase releaseCase) =
             await SeedApprovedRestrictionCasesAsync(api, propertyId)
                 .ConfigureAwait(false);
-        ApplyReservationProcessingRestrictionCommand applyCommand = new(
-            Guid.NewGuid(),
-            propertyId,
+        DataRightsCaseScope dataRightsScope =
+            DataRightsCaseScope.ForProperty(propertyId);
+        ExecuteDataRightsRestrictionCommand applyCommand = new(
+            dataRightsScope,
             applyCase.Id,
-            applyCase.DecisionRevision!.Value,
-            reservation.Id,
-            reservation.Version,
-            ExpectedProjectionRevision: 0,
+            Guid.NewGuid(),
+            applyCase.Version,
             "user:privacy-operator");
 
         using IServiceScope commandScope = api.Services.CreateScope();
@@ -555,20 +557,28 @@ public sealed class ReservationDataRightsIntegrationTests
         IRequestDispatcher dispatcher =
             commandScope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
 
-        Result<ReservationProcessingRestrictionReceiptDto> applied =
+        Result<DataRightsRestrictionExecutionDto> applied =
             await dispatcher.SendAsync(applyCommand, CancellationToken.None)
                 .ConfigureAwait(false);
         Assert.True(applied.IsSuccess, applied.Error.Code);
-        Assert.Equal(ReservationProcessingRestrictionActionDto.Apply, applied.Value.Action);
-        Assert.True(applied.Value.EffectiveRestricted);
-        Assert.Equal(1, applied.Value.RestrictionVersion);
-        Assert.Equal(1, applied.Value.ProjectionRevision);
+        Assert.Equal(DataRightsCaseStatus.Completed, applied.Value.Case.Status);
+        Assert.Equal(
+            DataRightsRestrictionDirective.Apply,
+            applied.Value.Proof.Directive);
+        Assert.True(applied.Value.Proof.EffectiveRestricted);
+        Assert.Equal(1, applied.Value.Proof.ResultingOwnerRevision);
+        Assert.Equal(1, applied.Value.Proof.ResultingProjectionRevision);
 
-        Result<ReservationProcessingRestrictionReceiptDto> applyReplay =
+        Result<DataRightsRestrictionExecutionDto> applyReplay =
             await dispatcher.SendAsync(applyCommand, CancellationToken.None)
                 .ConfigureAwait(false);
         Assert.True(applyReplay.IsSuccess, applyReplay.Error.Code);
-        Assert.Equal(applied.Value.ReceiptId, applyReplay.Value.ReceiptId);
+        Assert.Equal(applied.Value.Proof, applyReplay.Value.Proof);
+
+        releaseCase = await ApproveRestrictionReleaseCaseAsync(
+            api,
+            releaseCase.Id,
+            applyCase.Id).ConfigureAwait(false);
 
         CancelReservationCommand ordinaryMutation = new(
             Guid.NewGuid(),
@@ -605,31 +615,29 @@ public sealed class ReservationDataRightsIntegrationTests
                 CancellationToken.None).ConfigureAwait(false));
         }
 
-        ReleaseReservationProcessingRestrictionCommand releaseCommand = new(
-            Guid.NewGuid(),
-            propertyId,
-            applied.Value.RestrictionId,
+        ExecuteDataRightsRestrictionCommand releaseCommand = new(
+            dataRightsScope,
             releaseCase.Id,
-            releaseCase.DecisionRevision!.Value,
-            reservation.Id,
-            reservation.Version,
-            applied.Value.RestrictionVersion,
-            applied.Value.ProjectionRevision,
+            Guid.NewGuid(),
+            releaseCase.Version,
             "user:privacy-operator");
-        Result<ReservationProcessingRestrictionReceiptDto> released =
+        Result<DataRightsRestrictionExecutionDto> released =
             await dispatcher.SendAsync(releaseCommand, CancellationToken.None)
                 .ConfigureAwait(false);
         Assert.True(released.IsSuccess, released.Error.Code);
-        Assert.Equal(ReservationProcessingRestrictionActionDto.Release, released.Value.Action);
-        Assert.False(released.Value.EffectiveRestricted);
-        Assert.Equal(2, released.Value.RestrictionVersion);
-        Assert.Equal(2, released.Value.ProjectionRevision);
+        Assert.Equal(DataRightsCaseStatus.Completed, released.Value.Case.Status);
+        Assert.Equal(
+            DataRightsRestrictionDirective.Release,
+            released.Value.Proof.Directive);
+        Assert.False(released.Value.Proof.EffectiveRestricted);
+        Assert.Equal(2, released.Value.Proof.ResultingOwnerRevision);
+        Assert.Equal(2, released.Value.Proof.ResultingProjectionRevision);
 
-        Result<ReservationProcessingRestrictionReceiptDto> releaseReplay =
+        Result<DataRightsRestrictionExecutionDto> releaseReplay =
             await dispatcher.SendAsync(releaseCommand, CancellationToken.None)
                 .ConfigureAwait(false);
         Assert.True(releaseReplay.IsSuccess, releaseReplay.Error.Code);
-        Assert.Equal(released.Value.ReceiptId, releaseReplay.Value.ReceiptId);
+        Assert.Equal(released.Value.Proof, releaseReplay.Value.Proof);
 
         Result<ReservationMutationReceiptDto> cancelled =
             await dispatcher.SendAsync(
@@ -680,6 +688,16 @@ public sealed class ReservationDataRightsIntegrationTests
                 .OrderBy(message => message.OccurredAtUtc)
                 .ToArrayAsync()
                 .ConfigureAwait(false);
+        DataRightsDbContext dataRights =
+            verificationScope.ServiceProvider.GetRequiredService<DataRightsDbContext>();
+        DataRightsCase[] restrictionCases = await dataRights.Cases
+            .AsNoTracking()
+            .Where(candidate =>
+                candidate.Id == applyCase.Id ||
+                candidate.Id == releaseCase.Id)
+            .OrderBy(candidate => candidate.Id)
+            .ToArrayAsync()
+            .ConfigureAwait(false);
         long operationLockRevision = await reservations.Database
             .SqlQueryRaw<long>("""
                 SELECT "Revision" AS "Value"
@@ -695,6 +713,22 @@ public sealed class ReservationDataRightsIntegrationTests
         Assert.Equal(ReservationProcessingRestrictionStatus.Released, restriction.Status);
         Assert.Equal(releaseCase.Id, restriction.ReleaseCaseId);
         Assert.Equal(releaseCase.DecisionRevision, restriction.ReleaseApprovalRevision);
+        Assert.Equal(2, restrictionCases.Length);
+        Assert.All(
+            restrictionCases,
+            dataRightsCase =>
+            {
+                Assert.Equal(DataRightsCaseState.Completed, dataRightsCase.Status);
+                Assert.NotNull(dataRightsCase.RestrictionExecutionProof);
+            });
+        DataRightsCase persistedReleaseCase = restrictionCases.Single(
+            dataRightsCase => dataRightsCase.Id == releaseCase.Id);
+        Assert.Equal(
+            restriction.Id,
+            persistedReleaseCase.RestrictionReleaseTarget?.OwnerOperationId);
+        Assert.Equal(
+            1L,
+            persistedReleaseCase.RestrictionReleaseTarget?.OwnerOperationVersion);
         Assert.False(projection.IsRestricted);
         Assert.Equal(0, projection.ActiveRestrictionCount);
         Assert.Equal(2, projection.Revision);
@@ -1257,7 +1291,7 @@ public sealed class ReservationDataRightsIntegrationTests
             reservation,
             DataRightsRestrictionAction.Apply,
             Now.AddMinutes(1));
-        DataRightsCase release = CreateApprovedRestrictionCase(
+        DataRightsCase release = CreateRestrictionCaseInDiscovery(
             reservation,
             DataRightsRestrictionAction.Release,
             Now.AddMinutes(10));
@@ -1268,7 +1302,124 @@ public sealed class ReservationDataRightsIntegrationTests
         return (reservation, apply, release);
     }
 
+    private static async Task<DataRightsCase> ApproveRestrictionReleaseCaseAsync(
+        AuthTestApplication api,
+        Guid caseId,
+        Guid expectedSourceCaseId)
+    {
+        using IServiceScope scope = api.Services.CreateScope();
+        scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>()
+            .SetTenant(TenantId);
+        IRequestDispatcher dispatcher =
+            scope.ServiceProvider.GetRequiredService<IRequestDispatcher>();
+        DataRightsDbContext dataRights =
+            scope.ServiceProvider.GetRequiredService<DataRightsDbContext>();
+        var releaseCoordinate = await dataRights.Cases
+            .AsNoTracking()
+            .Where(candidate => candidate.Id == caseId)
+            .Select(candidate => new { candidate.PropertyId, candidate.Version })
+            .SingleAsync()
+            .ConfigureAwait(false);
+        DataRightsCaseScope caseScope = DataRightsCaseScope.ForProperty(
+            releaseCoordinate.PropertyId!.Value);
+        Result<DataRightsRestrictionReleaseTargetListResponse> targets =
+            await dispatcher.QueryAsync(
+                new GetDataRightsRestrictionReleaseTargetsQuery(
+                    caseScope,
+                    caseId),
+                CancellationToken.None).ConfigureAwait(false);
+        Assert.True(targets.IsSuccess, targets.Error.Code);
+        Assert.False(targets.Value.LimitReached);
+        DataRightsRestrictionReleaseTargetCandidateDto target =
+            Assert.Single(targets.Value.Targets);
+        Assert.Equal(expectedSourceCaseId, target.SourceCaseId);
+        Result<DataRightsCaseDto> targeted = await dispatcher.SendAsync(
+            new SelectDataRightsRestrictionReleaseTargetCommand(
+                caseScope,
+                caseId,
+                target.OwnerOperationId,
+                target.OwnerOperationVersion,
+                ExpectedVersion: releaseCoordinate.Version,
+                "user:privacy-reviewer"),
+            CancellationToken.None).ConfigureAwait(false);
+        Assert.True(targeted.IsSuccess, targeted.Error.Code);
+        Result<DataRightsCaseDto> reviewed = await dispatcher.SendAsync(
+            new RequireDataRightsReviewCommand(
+                caseScope,
+                caseId,
+                targeted.Value.Version,
+                "user:privacy-reviewer"),
+            CancellationToken.None).ConfigureAwait(false);
+        Assert.True(reviewed.IsSuccess, reviewed.Error.Code);
+        Result<DataRightsCaseDto> deciding = await dispatcher.SendAsync(
+            new BeginDataRightsDecisionCommand(
+                caseScope,
+                caseId,
+                reviewed.Value.Version,
+                "user:decision-maker"),
+            CancellationToken.None).ConfigureAwait(false);
+        Assert.True(deciding.IsSuccess, deciding.Error.Code);
+        Result<DataRightsCaseDto> approved = await dispatcher.SendAsync(
+            new RecordDataRightsDecisionCommand(
+                caseScope,
+                caseId,
+                DataRightsDecisionOutcome.Approved,
+                DataRightsDecisionReason.RequestValidated,
+                deciding.Value.Version,
+                "user:decision-maker"),
+            CancellationToken.None).ConfigureAwait(false);
+        Assert.True(approved.IsSuccess, approved.Error.Code);
+
+        DataRightsCase dataRightsCase = await dataRights.Cases
+            .AsNoTracking()
+            .SingleAsync(candidate => candidate.Id == caseId)
+            .ConfigureAwait(false);
+        Assert.Equal(
+            RestrictionReleaseTarget.CurrentBindingVersion,
+            dataRightsCase.RestrictionTargetingContractVersion);
+        Assert.Equal(
+            ReservationsDataRightsCoordinates.Owner,
+            dataRightsCase.RestrictionReleaseTarget?.OwnerKey);
+        Assert.Equal(
+            target.OwnerOperationId,
+            dataRightsCase.RestrictionReleaseTarget?.OwnerOperationId);
+        Assert.Equal(
+            target.OwnerOperationVersion,
+            dataRightsCase.RestrictionReleaseTarget?.OwnerOperationVersion);
+        Assert.Equal(approved.Value.Version, dataRightsCase.Version);
+        Assert.Equal(
+            DataRightsCaseState.Approved,
+            dataRightsCase.Status);
+        return dataRightsCase;
+    }
+
     private static DataRightsCase CreateApprovedRestrictionCase(
+        Reservation reservation,
+        DataRightsRestrictionAction action,
+        DateTimeOffset startedAtUtc)
+    {
+        DataRightsCase dataRightsCase = CreateRestrictionCaseInDiscovery(
+            reservation,
+            action,
+            startedAtUtc);
+        Assert.True(dataRightsCase.RequireReview(
+            dataRightsCase.Version,
+            "user:privacy-reviewer",
+            startedAtUtc.AddMinutes(3)).IsSuccess);
+        Assert.True(dataRightsCase.BeginDecision(
+            dataRightsCase.Version,
+            "user:decision-maker",
+            startedAtUtc.AddMinutes(4)).IsSuccess);
+        Assert.True(dataRightsCase.RecordDecision(
+            DataRightsCaseDecision.Approved,
+            DataRightsCaseDecisionReason.RequestValidated,
+            dataRightsCase.Version,
+            "user:decision-maker",
+            startedAtUtc.AddMinutes(5)).IsSuccess);
+        return dataRightsCase;
+    }
+
+    private static DataRightsCase CreateRestrictionCaseInDiscovery(
         Reservation reservation,
         DataRightsRestrictionAction action,
         DateTimeOffset startedAtUtc)
@@ -1297,20 +1448,6 @@ public sealed class ReservationDataRightsIntegrationTests
             dataRightsCase.Version,
             "user:privacy-reviewer",
             startedAtUtc.AddMinutes(2)).IsSuccess);
-        Assert.True(dataRightsCase.RequireReview(
-            dataRightsCase.Version,
-            "user:privacy-reviewer",
-            startedAtUtc.AddMinutes(3)).IsSuccess);
-        Assert.True(dataRightsCase.BeginDecision(
-            dataRightsCase.Version,
-            "user:decision-maker",
-            startedAtUtc.AddMinutes(4)).IsSuccess);
-        Assert.True(dataRightsCase.RecordDecision(
-            DataRightsCaseDecision.Approved,
-            DataRightsCaseDecisionReason.RequestValidated,
-            dataRightsCase.Version,
-            "user:decision-maker",
-            startedAtUtc.AddMinutes(5)).IsSuccess);
         return dataRightsCase;
     }
 

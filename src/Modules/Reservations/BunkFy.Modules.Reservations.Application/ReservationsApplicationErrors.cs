@@ -128,6 +128,12 @@ public static class ReservationsApplicationErrors
     public static readonly Error ProcessingRestrictionProjectionUnavailable = new(
         "Reservations.ProcessingRestrictionProjectionUnavailable",
         "The reservation processing-restriction state is unavailable or unsupported.");
+    public static readonly Error ProcessingRestrictionActiveStateInvalid = new(
+        "Reservations.ProcessingRestrictionActiveStateInvalid",
+        "The active reservation processing-restriction state is inconsistent.");
+    public static readonly Error ProcessingRestrictionOwnerProofInvalid = new(
+        "Reservations.ProcessingRestrictionOwnerProofInvalid",
+        "The committed reservation processing-restriction proof is unavailable or inconsistent.");
     public static readonly Error DataHoldRequestInvalid = new(
         "Reservations.DataHoldRequestInvalid",
         "The reservation data-hold request is invalid.");

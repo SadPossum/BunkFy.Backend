@@ -67,7 +67,11 @@ public sealed partial class ReservationsSagaIntegrationTests
                          natsConnectionString,
                          disableOutboxPublisher: true))
         {
-            await migrationApi.MigrateGuestRecordsAuthorizationDatabaseAsync()
+            await migrationApi.MigrateGuestDataRightsAuthorizationDatabaseAsync()
+                .ConfigureAwait(false);
+            await migrationApi.MigrateStaffAuthorizationDatabaseAsync()
+                .ConfigureAwait(false);
+            await migrationApi.MigrateIngestionDatabaseAsync()
                 .ConfigureAwait(false);
         }
 

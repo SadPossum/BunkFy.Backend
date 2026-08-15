@@ -10058,6 +10058,7 @@
       "retentionPolicy": "reservation-processing-restriction-lifecycle",
       "rightsPolicy": "reservation-processing-restriction-accountability",
       "allowedSurfaces": [
+        "application-command",
         "api-response",
         "data-rights-export",
         "domain-event",
@@ -10071,6 +10072,13 @@
       ],
       "approvalState": "engineering-default",
       "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.ReleaseReservationProcessingRestrictionCommand",
+          "member": "LegacyUnboundTarget",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
         {
           "assembly": "BunkFy.Modules.Reservations.Contracts",
           "type": "BunkFy.Modules.Reservations.Contracts.ReservationProcessingRestrictionReceiptDto",
