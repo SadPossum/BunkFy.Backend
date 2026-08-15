@@ -1,6 +1,6 @@
 # Data Rights Export Failure And Retry Semantics Task
 
-Status: in progress
+Status: complete
 Date: 2026-08-15
 
 ## Goal
@@ -96,6 +96,22 @@ does not know about Data Rights, owners, artifacts, exports, or operator retry.
    covered by the coherent end-of-slice gate.
 5. Publish dependencies in order: GMA Framework, Skeleton pointer, BunkFy
    backend, web, then root candidate.
+
+## Verification
+
+- the synchronized product workspace builds with zero warnings and zero
+  errors;
+- migration drift is clean for every configured provider project, including
+  Data Rights;
+- all 524 Data Rights module tests pass;
+- all 112 architecture guards and all 60 non-Docker product integration tests
+  pass;
+- the PostgreSQL upgrade test applies the latest Data Rights migration over an
+  existing schema and passes;
+- generated web contracts match the combined backend, and frontend typecheck,
+  lint, all 291 tests, and the production build pass; and
+- GMA Framework, Organizations, and the Skeleton pointer guard are published
+  and aligned on their `dev` branches.
 
 ## Completion Criteria
 
