@@ -14,6 +14,7 @@ using Gma.Framework.Messaging;
 using Gma.Framework.Persistence.EntityFrameworkCore;
 using Gma.Framework.RateLimiting;
 using Gma.Framework.Results;
+using Gma.Framework.Runtime.Time;
 using Gma.Modules.AccessControl.Persistence;
 using Gma.Modules.Auth.Application.Ports;
 using Gma.Modules.Auth.Contracts;
@@ -26,6 +27,8 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -45,7 +48,8 @@ internal sealed class AuthTestApplication(
     bool minioCreateBucketIfMissing = false,
     DbCommandInterceptor? inventoryCommandInterceptor = null,
     bool enableWorkspaceSelfService = false,
-    string? adapterIngressRedisConnectionString = null)
+    string? adapterIngressRedisConnectionString = null,
+    ISystemClock? systemClock = null)
     : WebApplicationFactory<ApiAssemblyReference>
 {
     private const string JwtIssuer = "BunkFy";
@@ -157,6 +161,12 @@ internal sealed class AuthTestApplication(
         {
             CountryPolicyIntegrationTestData.InstallRegistry(services);
 
+            if (systemClock is not null)
+            {
+                services.RemoveAll<ISystemClock>();
+                services.AddSingleton(systemClock);
+            }
+
             if (disableOutboxPublisher)
             {
                 ServiceDescriptor[] hostedServicesToRemove = services
@@ -207,7 +217,8 @@ internal sealed class AuthTestApplication(
         await dbContext.Database.MigrateAsync().ConfigureAwait(false);
     }
 
-    public async Task MigratePropertiesAuthorizationDatabaseAsync()
+    public async Task MigratePropertiesAuthorizationDatabaseAsync(
+        string? propertiesTargetMigration = null)
     {
         using IServiceScope scope = this.Services.CreateScope();
         await scope.ServiceProvider.GetRequiredService<AccessControlDbContext>()
@@ -216,8 +227,18 @@ internal sealed class AuthTestApplication(
             .Database.MigrateAsync().ConfigureAwait(false);
         await scope.ServiceProvider.GetRequiredService<OrganizationsDbContext>()
             .Database.MigrateAsync().ConfigureAwait(false);
-        await scope.ServiceProvider.GetRequiredService<PropertiesDbContext>()
-            .Database.MigrateAsync().ConfigureAwait(false);
+        PropertiesDbContext properties =
+            scope.ServiceProvider.GetRequiredService<PropertiesDbContext>();
+        if (propertiesTargetMigration is null)
+        {
+            await properties.Database.MigrateAsync().ConfigureAwait(false);
+        }
+        else
+        {
+            await properties.Database.GetService<IMigrator>()
+                .MigrateAsync(propertiesTargetMigration)
+                .ConfigureAwait(false);
+        }
         await this.MigrateWorkspaceAdmissionDatabaseAsync().ConfigureAwait(false);
     }
 

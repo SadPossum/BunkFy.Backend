@@ -129,7 +129,7 @@ public sealed class WorkspaceAccessProfileSeedTests
     [Fact]
     public void Staff_onboarding_management_is_sensitive_delegable_and_manager_only()
     {
-        Assert.Equal(4, WorkspaceAccessProfileSeeds.Version);
+        Assert.Equal(5, WorkspaceAccessProfileSeeds.Version);
         WorkspaceAccessPermissionDto permission = Assert.Single(
             WorkspaceAccessPermissionCatalogue.All,
             item => item.Code ==
@@ -157,6 +157,28 @@ public sealed class WorkspaceAccessProfileSeedTests
             profile => Assert.DoesNotContain(
                 permission.Code,
                 profile.Permissions));
+    }
+
+    [Fact]
+    public void Property_time_zone_management_is_sensitive_delegable_and_manager_only()
+    {
+        Assert.Equal(5, WorkspaceAccessProfileSeeds.Version);
+        WorkspaceAccessPermissionDto permission = Assert.Single(
+            WorkspaceAccessPermissionCatalogue.All,
+            item => item.Code == PropertiesAdminPermissionCodes.TimeZonesManage);
+
+        Assert.True(permission.IsSensitive);
+        Assert.Equal(
+            [PropertiesAdminPermissionCodes.Read],
+            permission.RequiredPermissions);
+        Assert.Contains(permission.Code, WorkspaceAccessRoles.DelegablePermissions);
+        Assert.Contains(permission.Code, WorkspaceAccessProfileSeeds.Manager.Permissions);
+        Assert.DoesNotContain(permission.Code, WorkspaceAccessRoles.LegacyMemberPermissions);
+        Assert.DoesNotContain(permission.Code, WorkspaceAccessRoles.CompanySupportPermissionCeiling);
+        Assert.All(
+            WorkspaceAccessProfileSeeds.All.Where(
+                profile => profile.Key != WorkspaceAccessProfileSeeds.ManagerKey),
+            profile => Assert.DoesNotContain(permission.Code, profile.Permissions));
     }
 
     [Fact]

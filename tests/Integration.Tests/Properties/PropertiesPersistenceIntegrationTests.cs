@@ -88,6 +88,10 @@ public sealed partial class PropertiesPersistenceIntegrationTests
             await tenantBProperties.AddAsync(
                 otherTenantProperty,
                 CancellationToken.None);
+            await AppendCreatedTimeZoneOperationAsync(
+                tenantBScope.ServiceProvider,
+                otherTenantProperty,
+                "user:other-owner");
             await tenantBContext.SaveChangesAsync();
         }
 
@@ -124,12 +128,14 @@ public sealed partial class PropertiesPersistenceIntegrationTests
             TenantTerminationContributionStatus.Completed,
             result.Status);
         Assert.Equal("properties.termination.exported", result.ResultCode);
-        Assert.Equal(6, result.AffectedCount);
-        Assert.Equal(1, result.SelectedProofRevision);
-        Assert.Equal(1, result.ResultingProofRevision);
+        Assert.Equal(7, result.AffectedCount);
+        Assert.Equal(2, result.SelectedProofRevision);
+        Assert.Equal(2, result.ResultingProofRevision);
         Assert.Equal(
             [
                 PropertiesTenantTerminationMetadata.PropertyRecordType,
+                PropertiesTenantTerminationMetadata
+                    .PropertyTimeZoneOperationRecordType,
                 PropertiesTenantTerminationMetadata
                     .GovernanceAcknowledgementRecordType,
                 PropertiesTenantTerminationMetadata.RoomRecordType,
@@ -298,6 +304,13 @@ public sealed partial class PropertiesPersistenceIntegrationTests
         IRoomRepository rooms = services
             .GetRequiredService<IRoomRepository>();
         Property property = CreateProperty("hostel-one", "Hostel One");
+        await properties.AddAsync(property, CancellationToken.None);
+        await AppendCreatedTimeZoneOperationAsync(
+            services,
+            property,
+            "user:owner");
+        await dbContext.SaveChangesAsync();
+
         PropertyGovernanceBinding binding =
             PropertyGovernanceBinding.Create(
                 "GB",
@@ -355,7 +368,6 @@ public sealed partial class PropertiesPersistenceIntegrationTests
             binding.RetentionPolicyVersion,
             binding.ContentSha256,
             Digest);
-        await properties.AddAsync(property, CancellationToken.None);
         await rooms.AddAsync(room, CancellationToken.None);
         await revisionWriter.AppendAsync(
             new PropertyGovernanceRevisionWriteModel(
@@ -593,9 +605,31 @@ public sealed partial class PropertiesPersistenceIntegrationTests
             tenantId,
             name,
             code,
-            "UTC",
+            "Etc/UTC",
             Guid.NewGuid(),
             DateTimeOffset.UtcNow).Value;
+
+    private static Task AppendCreatedTimeZoneOperationAsync(
+        IServiceProvider services,
+        Property property,
+        string actorId) =>
+        services.GetRequiredService<IPropertyTimeZoneRevisionWriter>()
+            .AppendAsync(
+                new PropertyTimeZoneRevisionWriteModel(
+                    Guid.NewGuid(),
+                    property.ScopeId,
+                    property.Id,
+                    property.Id,
+                    PropertyTimeZoneChangeKind.Created,
+                    property.TimeZoneId.Value,
+                    null,
+                    property.TimeZoneId.Value,
+                    BunkFy.TimeZones.TimeZoneCatalog.Default.CatalogVersion,
+                    0,
+                    property.Version,
+                    actorId,
+                    property.CreatedAtUtc),
+                CancellationToken.None);
 
     private sealed class TestScopeContext(string scopeId = TenantA)
         : IScopeContext

@@ -4,8 +4,11 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using BunkFy.Host.AdminApi;
+using BunkFy.Modules.Properties.Persistence;
+using BunkFy.Modules.Workspaces.Persistence;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Persistence.EntityFrameworkCore;
+using Gma.Framework.Runtime.Time;
 using Gma.Framework.Security;
 using Gma.Modules.AccessControl.Application.Commands;
 using Gma.Modules.AccessControl.Persistence;
@@ -30,7 +33,8 @@ internal sealed class AdminApiTestApplication(
     string providerConnectionString,
     string natsConnectionString,
     bool disableOutboxPublisher = true,
-    bool allowGeneratedPasswordResponses = false)
+    bool allowGeneratedPasswordResponses = false,
+    ISystemClock? systemClock = null)
     : WebApplicationFactory<AdminApiAssemblyReference>
 {
     private const string JwtIssuer = "BunkFy";
@@ -114,6 +118,12 @@ internal sealed class AdminApiTestApplication(
 
         builder.ConfigureServices(services =>
         {
+            if (systemClock is not null)
+            {
+                services.RemoveAll<ISystemClock>();
+                services.AddSingleton(systemClock);
+            }
+
             if (disableOutboxPublisher)
             {
                 ServiceDescriptor[] hostedServicesToRemove = services
@@ -169,6 +179,15 @@ internal sealed class AdminApiTestApplication(
             AuthMigrations.HistoryTable);
         await using AuthDbContext authDbContext = new(authOptions.Options, DisabledTenantContext.Instance);
         await authDbContext.Database.MigrateAsync().ConfigureAwait(false);
+    }
+
+    public async Task MigratePropertiesAsync()
+    {
+        using IServiceScope scope = this.Services.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<WorkspacesDbContext>()
+            .Database.MigrateAsync().ConfigureAwait(false);
+        await scope.ServiceProvider.GetRequiredService<PropertiesDbContext>()
+            .Database.MigrateAsync().ConfigureAwait(false);
     }
 
     public async Task SeedOwnerAsync(Guid actorId)

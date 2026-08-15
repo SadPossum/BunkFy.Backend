@@ -8,6 +8,7 @@ using BunkFy.Modules.Properties.Application.Ports;
 using BunkFy.Modules.Properties.Application.Queries;
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Properties.Domain.Aggregates;
+using BunkFy.Modules.Properties.Domain.ValueObjects;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
 using Gma.Framework.Runtime.Identity;
@@ -102,13 +103,119 @@ public sealed class PropertyProcessingCommandHandlerTests
             revisions,
             CreateRegistry(CreateArtifact()),
             new TestClock(),
-            new TestIdGenerator());
+            new TestIdGenerator(),
+            runtimeTimeZones: Application
+                .PropertyTimeZoneHealthClassifierTests.CompatibleProbe());
 
         Result<PropertyMutationReceiptDto> corrected =
             await correctedHandler.HandleAsync(command, CancellationToken.None);
 
         Assert.True(corrected.IsSuccess);
         Assert.Single(operations.Added);
+    }
+
+    [Fact]
+    public async Task Activation_rejects_a_legacy_alias_before_domain_effects()
+    {
+        Property property = LegacyPropertyTestFactory.Create(
+            Guid.NewGuid(),
+            "tenant-a",
+            "Hostel One",
+            "hostel-one",
+            "UTC",
+            Now.AddDays(-10));
+        RecordingPropertyMutationOperationRepository operations = new();
+        RecordingRevisionWriter revisions = new();
+        ActivatePropertyProcessingCommandHandler handler = new(
+            PropertiesMutationTestSupport.Create(
+                properties: new FakePropertyRepository(property)),
+            CreateJournal(operations),
+            revisions,
+            CreateRegistry(CreateArtifact()),
+            new TestClock(),
+            new TestIdGenerator(),
+            runtimeTimeZones: Application
+                .PropertyTimeZoneHealthClassifierTests.CompatibleProbe());
+
+        Result<PropertyMutationReceiptDto> result = await handler.HandleAsync(
+            CreateActivationCommand(property, Guid.NewGuid()),
+            CancellationToken.None);
+
+        Assert.Equal(
+            PropertiesApplicationErrors.CountryPolicyDenied(
+                CountryPolicyDecisionReason.InvalidRequest),
+            result.Error);
+        Assert.Equal(PropertyProcessingState.Unconfigured, property.ProcessingState);
+        Assert.Null(property.GovernanceBinding);
+        Assert.Equal(1, property.Version);
+        Assert.Empty(property.DomainEvents);
+        Assert.Empty(revisions.Items);
+        Assert.Empty(operations.Added);
+    }
+
+    [Fact]
+    public async Task Activation_rejects_a_runtime_rule_mismatch_before_domain_effects()
+    {
+        Property property = CreateProperty();
+        property.ClearDomainEvents();
+        RecordingPropertyMutationOperationRepository operations = new();
+        RecordingRevisionWriter revisions = new();
+        ActivatePropertyProcessingCommandHandler handler = new(
+            PropertiesMutationTestSupport.Create(
+                properties: new FakePropertyRepository(property)),
+            CreateJournal(operations),
+            revisions,
+            CreateRegistry(CreateArtifact()),
+            new TestClock(),
+            new TestIdGenerator(),
+            runtimeTimeZones: Application
+                .PropertyTimeZoneHealthClassifierTests.IncompatibleProbe());
+
+        Result<PropertyMutationReceiptDto> result = await handler.HandleAsync(
+            CreateActivationCommand(property, Guid.NewGuid()),
+            CancellationToken.None);
+
+        Assert.Equal(
+            PropertiesApplicationErrors.TimeZoneRuntimeUnavailable,
+            result.Error);
+        Assert.Equal(PropertyProcessingState.Unconfigured, property.ProcessingState);
+        Assert.Null(property.GovernanceBinding);
+        Assert.Equal(1, property.Version);
+        Assert.Empty(property.DomainEvents);
+        Assert.Empty(revisions.Items);
+        Assert.Empty(operations.Added);
+    }
+
+    [Fact]
+    public async Task Activation_fails_closed_on_an_invalid_server_clock()
+    {
+        Property property = CreateProperty();
+        property.ClearDomainEvents();
+        RecordingPropertyMutationOperationRepository operations = new();
+        RecordingRevisionWriter revisions = new();
+        ActivatePropertyProcessingCommandHandler handler = new(
+            PropertiesMutationTestSupport.Create(
+                properties: new FakePropertyRepository(property)),
+            CreateJournal(operations),
+            revisions,
+            CreateRegistry(CreateArtifact()),
+            new TestClock(default(DateTimeOffset)),
+            new TestIdGenerator(),
+            runtimeTimeZones: Application
+                .PropertyTimeZoneHealthClassifierTests.CompatibleProbe());
+
+        Result<PropertyMutationReceiptDto> result = await handler.HandleAsync(
+            CreateActivationCommand(property, Guid.NewGuid()),
+            CancellationToken.None);
+
+        Assert.Equal(
+            PropertiesApplicationErrors.TimeSourceUnavailable,
+            result.Error);
+        Assert.Equal(PropertyProcessingState.Unconfigured, property.ProcessingState);
+        Assert.Equal(1, property.Version);
+        Assert.Empty(property.DomainEvents);
+        Assert.Empty(revisions.Items);
+        Assert.Empty(operations.Added);
     }
 
     [Fact]
@@ -559,7 +666,8 @@ public sealed class PropertyProcessingCommandHandlerTests
         CountryPolicyRegistry.Create(
             [artifact],
             [new("GB", "gb-hostel", 1, artifact.ContentSha256, CountryLaunchStatus.Approved)],
-            CountryPolicyRuntimeMode.Production);
+            CountryPolicyRuntimeMode.Production,
+            EmbeddedTzdbCountryPolicyTimeZoneRules.Instance);
 
     private static PropertyMutationOperationJournal CreateJournal(
         RecordingPropertyMutationOperationRepository? operations = null) =>

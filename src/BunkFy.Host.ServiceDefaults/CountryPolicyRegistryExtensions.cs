@@ -33,7 +33,8 @@ public static class CountryPolicyRegistryExtensions
             allowlist,
             builder.Environment.IsProduction()
                 ? CountryPolicyRuntimeMode.Production
-                : CountryPolicyRuntimeMode.Engineering);
+                : CountryPolicyRuntimeMode.Engineering,
+            EmbeddedTzdbCountryPolicyTimeZoneRules.Instance);
         builder.Services.AddSingleton(registry);
         return builder;
     }

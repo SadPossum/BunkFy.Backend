@@ -150,6 +150,7 @@
     <File Path="docs/planning/production-authentication-admission-task.md" />
     <File Path="docs/planning/production-file-surface-lockdown-task.md" />
     <File Path="docs/planning/properties-bed-mutation-idempotency-task.md" />
+    <File Path="docs/planning/properties-canonical-time-zones-task.md" />
     <File Path="docs/planning/properties-deployed-topology-lifecycle-proof-task.md" />
     <File Path="docs/planning/properties-details-update-idempotency-task.md" />
     <File Path="docs/planning/properties-follow-up-notes.md" />
@@ -936,6 +937,8 @@
     <Project Path="src/Shared/BunkFy.DataGovernance/BunkFy.DataGovernance.csproj" />
     <Project Path="src/Shared/BunkFy.DataGovernance/tests/BunkFy.DataGovernance.Tests/BunkFy.DataGovernance.Tests.csproj" />
     <Project Path="src/Shared/BunkFy.Ingestion.Parsing.Abstractions/BunkFy.Ingestion.Parsing.Abstractions.csproj" />
+    <Project Path="src/Shared/BunkFy.TimeZones/BunkFy.TimeZones.csproj" />
+    <Project Path="src/Shared/BunkFy.TimeZones/tests/BunkFy.TimeZones.Tests/BunkFy.TimeZones.Tests.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Architecture.Tests/Architecture.Tests.csproj" />
