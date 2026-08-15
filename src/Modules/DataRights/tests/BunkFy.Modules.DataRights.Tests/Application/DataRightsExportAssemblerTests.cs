@@ -4,6 +4,8 @@ using System.Text.Json;
 using BunkFy.Modules.DataRights.Application.Handlers;
 using BunkFy.Modules.DataRights.Application.Models;
 using BunkFy.Modules.DataRights.Contracts;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 [Trait("Category", "Unit")]
@@ -17,7 +19,7 @@ public sealed class DataRightsExportAssemblerTests
     {
         IDataRightsSubjectExportContributor contributor =
             new SuccessfulContributor();
-        DataRightsExportAssembler assembler = new([contributor]);
+        DataRightsExportAssembler assembler = Assembler(contributor);
         DataRightsExportGenerationRequest request = Request([
             new("staff", "profile", Guid.Parse(
                 "22222222-2222-2222-2222-222222222222"), 3),
@@ -55,11 +57,69 @@ public sealed class DataRightsExportAssemblerTests
     }
 
     [Fact]
-    public async Task Assembly_rejects_partial_stale_owner_output()
+    public async Task Assembly_rejects_partial_non_success_owner_output()
     {
-        DataRightsExportAssembler assembler = new([
-            new StaleContributor()
-        ]);
+        DataRightsExportAssembler assembler = Assembler(new StaleContributor());
+        await using MemoryStream destination = new();
+
+        DataRightsExportGenerationException exception =
+            await Assert.ThrowsAsync<DataRightsExportGenerationException>(
+                () => assembler.AssembleAsync(
+                    Request([
+                        new("staff", "profile", Guid.NewGuid(), 2)
+                    ]),
+                    destination,
+                    CancellationToken.None));
+
+        Assert.Equal("owner-result-invalid", exception.Code);
+        Assert.False(exception.IsRetryable);
+    }
+
+    [Fact]
+    public async Task Assembly_rejects_duplicate_owner_contributors()
+    {
+        DataRightsExportAssembler assembler = Assembler(
+            new SuccessfulContributor(),
+            new SuccessfulContributor());
+        await using MemoryStream destination = new();
+
+        DataRightsExportGenerationException exception =
+            await Assert.ThrowsAsync<DataRightsExportGenerationException>(
+                () => assembler.AssembleAsync(
+                    Request([
+                        new("staff", "profile", Guid.NewGuid(), 2)
+                    ]),
+                    destination,
+                    CancellationToken.None));
+
+        Assert.Equal("owner-catalog-invalid", exception.Code);
+    }
+
+    [Fact]
+    public async Task Assembly_rejects_malformed_unrelated_catalog_entry()
+    {
+        DataRightsExportAssembler assembler = Assembler(
+            new SuccessfulContributor(),
+            new MalformedGuestContributor());
+        await using MemoryStream destination = new();
+
+        DataRightsExportGenerationException exception =
+            await Assert.ThrowsAsync<DataRightsExportGenerationException>(
+                () => assembler.AssembleAsync(
+                    Request([
+                        new("staff", "profile", Guid.NewGuid(), 2)
+                    ]),
+                    destination,
+                    CancellationToken.None));
+
+        Assert.Equal("owner-catalog-invalid", exception.Code);
+    }
+
+    [Fact]
+    public async Task Assembly_preserves_terminal_stale_owner_result()
+    {
+        DataRightsExportAssembler assembler = Assembler(
+            new PureStaleContributor());
         await using MemoryStream destination = new();
 
         DataRightsExportGenerationException exception =
@@ -72,15 +132,14 @@ public sealed class DataRightsExportAssemblerTests
                     CancellationToken.None));
 
         Assert.Equal("subject-stale", exception.Code);
+        Assert.False(exception.IsRetryable);
     }
 
     [Fact]
-    public async Task Assembly_rejects_duplicate_owner_contributors()
+    public async Task Assembly_preserves_retry_required_owner_result()
     {
-        DataRightsExportAssembler assembler = new([
-            new SuccessfulContributor(),
-            new SuccessfulContributor()
-        ]);
+        DataRightsExportAssembler assembler = Assembler(
+            new RetryRequiredContributor());
         await using MemoryStream destination = new();
 
         DataRightsExportGenerationException exception =
@@ -92,8 +151,41 @@ public sealed class DataRightsExportAssemblerTests
                     destination,
                     CancellationToken.None));
 
-        Assert.Equal("owner-unavailable", exception.Code);
+        Assert.Equal("owner-retry-required", exception.Code);
+        Assert.True(exception.IsRetryable);
     }
+
+    [Fact]
+    public async Task Unexpected_owner_exception_is_retryable_and_logs_no_payload()
+    {
+        RecordingLogger logger = new();
+        DataRightsExportAssembler assembler = new(
+            [new ThrowingContributor()],
+            logger);
+        Guid recordId = Guid.NewGuid();
+        await using MemoryStream destination = new();
+
+        DataRightsExportGenerationException exception =
+            await Assert.ThrowsAsync<DataRightsExportGenerationException>(
+                () => assembler.AssembleAsync(
+                    Request([
+                        new("staff", "profile", recordId, 2)
+                    ]),
+                    destination,
+                    CancellationToken.None));
+
+        Assert.Equal("owner-export-failed", exception.Code);
+        Assert.True(exception.IsRetryable);
+        string message = Assert.Single(logger.Messages);
+        Assert.Contains("staff", message, StringComparison.Ordinal);
+        Assert.Contains("InvalidOperationException", message, StringComparison.Ordinal);
+        Assert.DoesNotContain(recordId.ToString(), message, StringComparison.Ordinal);
+        Assert.DoesNotContain("private@example.test", message, StringComparison.Ordinal);
+    }
+
+    private static DataRightsExportAssembler Assembler(
+        params IDataRightsSubjectExportContributor[] contributors) =>
+        new(contributors, NullLogger<DataRightsExportAssembler>.Instance);
 
     private static DataRightsExportGenerationRequest Request(
         IReadOnlyCollection<DataRightsSubjectCoordinate> subjects) => new(
@@ -153,5 +245,72 @@ public sealed class DataRightsExportAssemblerTests
             _ = await base.ExportAsync(request, sink, cancellationToken);
             return DataRightsSubjectExportResult.Stale();
         }
+    }
+
+    private sealed class PureStaleContributor : SuccessfulContributor
+    {
+        public override Task<DataRightsSubjectExportResult> ExportAsync(
+            DataRightsSubjectExportRequest request,
+            IDataRightsExportSink sink,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(DataRightsSubjectExportResult.Stale());
+    }
+
+    private sealed class RetryRequiredContributor : SuccessfulContributor
+    {
+        public override Task<DataRightsSubjectExportResult> ExportAsync(
+            DataRightsSubjectExportRequest request,
+            IDataRightsExportSink sink,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(DataRightsSubjectExportResult.RetryRequired());
+    }
+
+    private sealed class ThrowingContributor : SuccessfulContributor
+    {
+        public override Task<DataRightsSubjectExportResult> ExportAsync(
+            DataRightsSubjectExportRequest request,
+            IDataRightsExportSink sink,
+            CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("private@example.test");
+    }
+
+    private sealed class MalformedGuestContributor
+        : IDataRightsSubjectExportContributor
+    {
+        public string OwnerKey => "guests";
+        public IReadOnlyCollection<DataRightsCaseType> SupportedCaseTypes =>
+            [DataRightsCaseType.GuestRights];
+        public DataRightsExportDescriptor Descriptor => new(
+            "guests",
+            new string('x', DataRightsExportLimits.SchemaIdentifierMaxLength + 1),
+            1,
+            1,
+            "guests.export",
+            1,
+            ["name"]);
+
+        public Task<DataRightsSubjectExportResult> ExportAsync(
+            DataRightsSubjectExportRequest request,
+            IDataRightsExportSink sink,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+    }
+
+    private sealed class RecordingLogger : ILogger<DataRightsExportAssembler>
+    {
+        public List<string> Messages { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter) =>
+            this.Messages.Add(formatter(state, exception));
     }
 }

@@ -146,6 +146,15 @@ public sealed class DataRightsApiSecurityTests
             $"{cases}/{{caseId:guid}}/export");
         AssertPermission(
             endpoints,
+            HttpMethods.Post,
+            $"{cases}/{{caseId:guid}}/export/{{artifactId:guid}}/retry",
+            DataRightsAdminPermissionCodes.Export);
+        AssertAssurance(
+            endpoints,
+            HttpMethods.Post,
+            $"{cases}/{{caseId:guid}}/export/{{artifactId:guid}}/retry");
+        AssertPermission(
+            endpoints,
             HttpMethods.Get,
             $"{cases}/{{caseId:guid}}/export/{{artifactId:guid}}/download",
             DataRightsAdminPermissionCodes.DownloadExport);
@@ -252,6 +261,10 @@ public sealed class DataRightsApiSecurityTests
                 $"{cases}/{{caseId:guid}}/export",
                 DataRightsAdminPermissionCodes.Export),
             (
+                HttpMethods.Post,
+                $"{cases}/{{caseId:guid}}/export/{{artifactId:guid}}/retry",
+                DataRightsAdminPermissionCodes.Export),
+            (
                 HttpMethods.Get,
                 $"{cases}/{{caseId:guid}}/export/{{artifactId:guid}}/download",
                 DataRightsAdminPermissionCodes.DownloadExport),
@@ -284,6 +297,10 @@ public sealed class DataRightsApiSecurityTests
             endpoints,
             HttpMethods.Post,
             $"{cases}/{{caseId:guid}}/export");
+        AssertAssurance(
+            endpoints,
+            HttpMethods.Post,
+            $"{cases}/{{caseId:guid}}/export/{{artifactId:guid}}/retry");
         AssertAssurance(
             endpoints,
             HttpMethods.Get,
@@ -353,6 +370,31 @@ public sealed class DataRightsApiSecurityTests
             (
                 DataRightsApplicationErrors.SubjectCoordinateInvalid,
                 StatusCodes.Status400BadRequest)
+        ];
+
+        foreach ((Error error, int statusCode) in expectations)
+        {
+            Assert.Equal(
+                statusCode,
+                DataRightsEndpointSupport.ErrorStatusCodes
+                    .GetStatusCode(error));
+        }
+    }
+
+    [Fact]
+    public void Export_owner_and_retry_failures_have_distinct_http_semantics()
+    {
+        (Error Error, int StatusCode)[] expectations =
+        [
+            (
+                DataRightsApplicationErrors.ExportOwnerUnavailable,
+                StatusCodes.Status503ServiceUnavailable),
+            (
+                DataRightsApplicationErrors.ExportOwnerCatalogInvalid,
+                StatusCodes.Status500InternalServerError),
+            (
+                DataRightsApplicationErrors.ExportArtifactVersionConflict,
+                StatusCodes.Status409Conflict)
         ];
 
         foreach ((Error error, int statusCode) in expectations)
@@ -643,6 +685,11 @@ public sealed class DataRightsApiSecurityTests
             HttpMethods.Post,
             $"{cases}/{{caseId:guid}}/export",
             typeof(DataRightsExportArtifactDto));
+        AssertProduces(
+            endpoints,
+            HttpMethods.Post,
+            $"{cases}/{{caseId:guid}}/export/{{artifactId:guid}}/retry",
+            typeof(DataRightsExportArtifactDto));
 
         const string tenantCases = "/api/data-rights/tenant/cases";
         AssertProduces(
@@ -655,6 +702,11 @@ public sealed class DataRightsApiSecurityTests
             HttpMethods.Post,
             $"{tenantCases}/{{caseId:guid}}/execution",
             typeof(DataRightsExecutionDto));
+        AssertProduces(
+            endpoints,
+            HttpMethods.Post,
+            $"{tenantCases}/{{caseId:guid}}/export/{{artifactId:guid}}/retry",
+            typeof(DataRightsExportArtifactDto));
     }
 
     private static void AssertPermission(

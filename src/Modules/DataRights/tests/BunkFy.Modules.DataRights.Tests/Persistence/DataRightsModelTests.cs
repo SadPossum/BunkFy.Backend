@@ -406,6 +406,10 @@ public sealed class DataRightsModelTests
         Assert.False(
             artifact.FindProperty(nameof(DataRightsExportArtifact.ExpiresAtUtc))!
                 .IsNullable);
+        Assert.True(
+            artifact.FindProperty(
+                nameof(DataRightsExportArtifact.LastRetryBaseVersion))!
+                .IsNullable);
         Assert.Equal(
             DataRightsExportArtifact.Sha256Length,
             artifact.FindProperty(nameof(DataRightsExportArtifact.SelectionSha256))!
@@ -451,6 +455,11 @@ public sealed class DataRightsModelTests
             constraint =>
                 constraint.Name ==
                 "CK_data_rights_export_artifacts_failure_shape");
+        Assert.Contains(
+            designArtifact.GetCheckConstraints(),
+            constraint =>
+                constraint.Name ==
+                "CK_data_rights_export_artifacts_retry_version");
         Assert.Contains(
             designArtifact.GetForeignKeys(),
             foreignKey =>

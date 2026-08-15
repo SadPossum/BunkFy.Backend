@@ -88,7 +88,8 @@ internal sealed class ProtectedDataRightsExportObjectWriter(
             if (stored.ContentLength != protectedResult.EncryptedLength)
             {
                 throw new DataRightsExportGenerationException(
-                    "stored-length-mismatch");
+                    "stored-length-mismatch",
+                    DataRightsExportFailureDisposition.Retryable);
             }
 
             await this.VerifyStoredAsync(
@@ -138,7 +139,8 @@ internal sealed class ProtectedDataRightsExportObjectWriter(
             stored.Properties.ContentLength != expected.EncryptedLength)
         {
             throw new DataRightsExportGenerationException(
-                "stored-artifact-unavailable");
+                "stored-artifact-unavailable",
+                DataRightsExportFailureDisposition.Retryable);
         }
 
         long maximumEncryptedBytes = checked(
@@ -160,13 +162,15 @@ internal sealed class ProtectedDataRightsExportObjectWriter(
         {
             throw new DataRightsExportGenerationException(
                 "stored-artifact-limit-exceeded",
-                exception);
+                exception,
+                DataRightsExportFailureDisposition.Retryable);
         }
 
         if (encrypted.Length != expected.EncryptedLength)
         {
             throw new DataRightsExportGenerationException(
-                "stored-length-mismatch");
+                "stored-length-mismatch",
+                DataRightsExportFailureDisposition.Retryable);
         }
 
         encrypted.Position = 0;
@@ -190,7 +194,8 @@ internal sealed class ProtectedDataRightsExportObjectWriter(
                     expectedPlaintextHash))
             {
                 throw new DataRightsExportGenerationException(
-                    "stored-artifact-verification-failed");
+                    "stored-artifact-verification-failed",
+                    DataRightsExportFailureDisposition.Retryable);
             }
         }
         finally
@@ -219,7 +224,8 @@ internal sealed class ProtectedDataRightsExportObjectWriter(
         {
             throw new DataRightsExportGenerationException(
                 "unverified-artifact-cleanup-failed",
-                new AggregateException(generationFailure, cleanupFailure));
+                new AggregateException(generationFailure, cleanupFailure),
+                DataRightsExportFailureDisposition.Retryable);
         }
     }
 

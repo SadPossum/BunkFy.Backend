@@ -32,6 +32,7 @@ public sealed partial class DataRightsExportArtifact : ScopedAggregateRoot<Guid>
     public int? GenerationAttempt { get; private set; }
     public DateTimeOffset? GenerationStartedAtUtc { get; private set; }
     public string? FailureCode { get; private set; }
+    public long? LastRetryBaseVersion { get; private set; }
     public string? StorageKey { get; private set; }
     public long? EncryptedByteLength { get; private set; }
     public string? PlaintextSha256 { get; private set; }
@@ -127,6 +128,52 @@ public sealed partial class DataRightsExportArtifact : ScopedAggregateRoot<Guid>
             selectionSha256,
             StringComparison.OrdinalIgnoreCase);
 
+    public bool IsRetryReplay(long baseVersion) =>
+        baseVersion > 0 && this.LastRetryBaseVersion == baseVersion;
+
+    public Result RequestRetry(
+        long expectedVersion,
+        DateTimeOffset requestedAtUtc)
+    {
+        if (this.IsRetryReplay(expectedVersion))
+        {
+            return Result.Success();
+        }
+
+        if (expectedVersion <= 0 || requestedAtUtc == default)
+        {
+            return Result.Failure(
+                DataRightsDomainErrors.ExportArtifactGenerationInvalid);
+        }
+
+        if (this.Version != expectedVersion)
+        {
+            return Result.Failure(DataRightsDomainErrors.VersionConflict);
+        }
+
+        if (this.State != DataRightsExportArtifactState.Failed)
+        {
+            return Result.Failure(
+                DataRightsDomainErrors.ExportArtifactTransitionInvalid);
+        }
+
+        if (requestedAtUtc < this.RequestedAtUtc ||
+            requestedAtUtc >= this.ExpiresAtUtc)
+        {
+            return Result.Failure(DataRightsDomainErrors.TimestampInvalid);
+        }
+
+        this.State = DataRightsExportArtifactState.Requested;
+        this.GenerationActor = null;
+        this.GenerationRunId = null;
+        this.GenerationAttempt = null;
+        this.GenerationStartedAtUtc = null;
+        this.FailureCode = null;
+        this.LastRetryBaseVersion = expectedVersion;
+        this.Version++;
+        return Result.Success();
+    }
+
     public Result BeginGeneration(
         Guid runId,
         int attempt,
@@ -154,11 +201,10 @@ public sealed partial class DataRightsExportArtifact : ScopedAggregateRoot<Guid>
             return Result.Success();
         }
 
-        bool retry = this.State == DataRightsExportArtifactState.Failed ||
-            (this.State == DataRightsExportArtifactState.Generating &&
-             this.GenerationRunId == runId &&
-             this.GenerationAttempt is int currentAttempt &&
-             attempt >= currentAttempt);
+        bool retry = this.State == DataRightsExportArtifactState.Generating &&
+            this.GenerationRunId == runId &&
+            this.GenerationAttempt is int currentAttempt &&
+            attempt >= currentAttempt;
         if (this.State != DataRightsExportArtifactState.Requested && !retry)
         {
             return Result.Failure(
@@ -282,6 +328,57 @@ public sealed partial class DataRightsExportArtifact : ScopedAggregateRoot<Guid>
         }
 
         this.State = DataRightsExportArtifactState.Failed;
+        this.FailureCode = normalizedCode;
+        this.Version++;
+        return Result.Success();
+    }
+
+    public Result RejectGeneration(
+        Guid runId,
+        int attempt,
+        string actorId,
+        string failureCode,
+        DateTimeOffset failedAtUtc)
+    {
+        Result<string> actor = NormalizeActor(actorId);
+        string normalizedCode = failureCode?.Trim() ?? string.Empty;
+        if (this.State == DataRightsExportArtifactState.Failed &&
+            this.GenerationRunId == runId &&
+            this.GenerationAttempt == attempt)
+        {
+            return string.Equals(
+                this.FailureCode,
+                normalizedCode,
+                StringComparison.Ordinal)
+                ? Result.Success()
+                : Result.Failure(
+                    DataRightsDomainErrors.ExportArtifactFailureInvalid);
+        }
+
+        if (this.State != DataRightsExportArtifactState.Requested ||
+            runId == Guid.Empty ||
+            attempt <= 0 ||
+            actor.IsFailure ||
+            normalizedCode.Length is 0 or > FailureCodeMaxLength)
+        {
+            return Result.Failure(
+                actor.IsFailure
+                    ? actor.Error
+                    : DataRightsDomainErrors.ExportArtifactFailureInvalid);
+        }
+
+        if (failedAtUtc == default ||
+            failedAtUtc < this.RequestedAtUtc ||
+            failedAtUtc >= this.ExpiresAtUtc)
+        {
+            return Result.Failure(DataRightsDomainErrors.TimestampInvalid);
+        }
+
+        this.State = DataRightsExportArtifactState.Failed;
+        this.GenerationActor = actor.Value;
+        this.GenerationRunId = runId;
+        this.GenerationAttempt = attempt;
+        this.GenerationStartedAtUtc = failedAtUtc;
         this.FailureCode = normalizedCode;
         this.Version++;
         return Result.Success();

@@ -71,6 +71,9 @@ deterministically generated
 - a Data Rights-owned, short-lived protected-export aggregate that assembles
   bounded owner fragments, stores only encrypted artifacts in `IFileStorage`,
   and streams authenticated plaintext only through assurance-gated endpoints;
+- exact terminal/transient owner failure semantics: automatic task retries keep
+  the artifact active, while a failed artifact requires an assurance-gated,
+  version-pinned and replay-safe operator retry;
 - scoped permissions that are not granted to ordinary seeded roles;
 - public controller API plus tenant-termination Admin API and Admin CLI
   operator controls;

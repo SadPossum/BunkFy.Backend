@@ -146,9 +146,15 @@ public static class DataRightsApplicationErrors
     public static readonly Error ExportArtifactAlreadyRequested = new(
         "DataRights.ExportArtifactAlreadyRequested",
         "The protected export was already requested with different coordinates.");
+    public static readonly Error ExportArtifactVersionConflict = new(
+        "DataRights.ExportArtifactVersionConflict",
+        "The protected export artifact changed before the retry was requested.");
     public static readonly Error ExportOwnerUnavailable = new(
         "DataRights.ExportOwnerUnavailable",
-        "A selected data owner has no unique export contributor.");
+        "A selected data owner is unavailable for protected export.");
+    public static readonly Error ExportOwnerCatalogInvalid = new(
+        "DataRights.ExportOwnerCatalogInvalid",
+        "The protected-export owner catalogue is invalid.");
     public static readonly Error ExportGenerationConflict = new(
         "DataRights.ExportGenerationConflict",
         "The protected export generation no longer matches the approved case.");

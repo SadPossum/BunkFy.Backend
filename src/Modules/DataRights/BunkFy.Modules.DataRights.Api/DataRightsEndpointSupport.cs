@@ -74,7 +74,15 @@ internal static class DataRightsEndpointSupport
             new(
                 DataRightsApplicationErrors.ExportArtifactAlreadyRequested.Code,
                 StatusCodes.Status409Conflict),
-            new(DataRightsApplicationErrors.ExportOwnerUnavailable.Code, StatusCodes.Status409Conflict),
+            new(
+                DataRightsApplicationErrors.ExportArtifactVersionConflict.Code,
+                StatusCodes.Status409Conflict),
+            new(
+                DataRightsApplicationErrors.ExportOwnerUnavailable.Code,
+                StatusCodes.Status503ServiceUnavailable),
+            new(
+                DataRightsApplicationErrors.ExportOwnerCatalogInvalid.Code,
+                StatusCodes.Status500InternalServerError),
             new(DataRightsApplicationErrors.ExportGenerationConflict.Code, StatusCodes.Status409Conflict),
             new(
                 DataRightsApplicationErrors.ExportArtifactNotAvailable.Code,
