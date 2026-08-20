@@ -919,12 +919,16 @@ public sealed class HostCompositionGuardTests
             "DataRights",
             "BunkFy.Modules.DataRights.AdminCli",
             "TenantTerminationAdminCliCommandMap.cs");
+        string compactEndpoints = RemoveWhitespace(endpoints);
+        string compactCommands = RemoveWhitespace(commands);
         (string Operation, string Permission)[] operationPermissionPairs =
         [
             ("TenantTerminationStatus", "TenantTerminationRead"),
             ("TenantTerminationRequest", "TenantTerminationRequest"),
             ("TenantTerminationDecide", "TenantTerminationApprove"),
             ("TenantTerminationStart", "TenantTerminationExecute"),
+            ("TenantTerminationExportDownload", "TenantTerminationExportDownload"),
+            ("TenantTerminationExportConfirm", "TenantTerminationExportConfirm"),
             ("TenantTerminationRetry", "TenantTerminationRetry"),
             ("TenantTerminationCancel", "TenantTerminationCancel"),
             ("TenantTerminationRecover", "TenantTerminationRecover")
@@ -933,14 +937,14 @@ public sealed class HostCompositionGuardTests
         foreach ((string operation, string permission) in
                  operationPermissionPairs)
         {
-            Assert.Contains($"DataRightsAdminOperationNames.{operation}", endpoints, StringComparison.Ordinal);
-            Assert.Contains($"DataRightsAdminPermissions.{permission}", endpoints, StringComparison.Ordinal);
-            Assert.Contains($"DataRightsAdminOperationNames.{operation}", commands, StringComparison.Ordinal);
-            Assert.Contains($"DataRightsAdminPermissions.{permission}", commands, StringComparison.Ordinal);
+            Assert.Contains($"DataRightsAdminOperationNames.{operation}", compactEndpoints, StringComparison.Ordinal);
+            Assert.Contains($"DataRightsAdminPermissions.{permission}", compactEndpoints, StringComparison.Ordinal);
+            Assert.Contains($"DataRightsAdminOperationNames.{operation}", compactCommands, StringComparison.Ordinal);
+            Assert.Contains($"DataRightsAdminPermissions.{permission}", compactCommands, StringComparison.Ordinal);
         }
 
         Assert.Equal(
-            6,
+            7,
             CountOccurrences(
                 endpoints,
                 "AdminErrors.ConfirmationRequired"));
@@ -1328,4 +1332,7 @@ public sealed class HostCompositionGuardTests
 
     private static int CountOccurrences(string source, string value) =>
         source.Split(value, StringSplitOptions.None).Length - 1;
+
+    private static string RemoveWhitespace(string value) =>
+        string.Concat(value.Where(character => !char.IsWhiteSpace(character)));
 }

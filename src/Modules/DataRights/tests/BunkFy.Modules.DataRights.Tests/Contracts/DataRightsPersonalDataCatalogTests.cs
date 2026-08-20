@@ -14,17 +14,17 @@ using BunkFy.Modules.DataRights.Domain.ValueObjects;
 using BunkFy.Modules.DataRights.Persistence;
 using Xunit;
 using DomainSubjectCoordinate = DataRights.Domain.Entities.DataRightsSubjectCoordinate;
-using RestoreCheckpoint = DataRights.Domain.Entities.DataRightsRestoreCheckpoint;
-using ProcessingLedgerEntry =
-    DataRights.Domain.Entities.DataRightsProcessingLedgerEntry;
-using ProcessingLedgerSnapshot =
-    DataRights.Domain.Models.DataRightsProcessingLedgerSnapshot;
 using ExportAuditEntry =
     DataRights.Domain.Entities.DataRightsExportAuditEntry;
 using FrozenTenantOwner =
     DataRights.Domain.Entities.TenantTerminationFrozenOwner;
 using FrozenTenantOwnerDescriptor =
     DataRights.Domain.Models.TenantTerminationFrozenOwnerDescriptor;
+using ProcessingLedgerEntry =
+    DataRights.Domain.Entities.DataRightsProcessingLedgerEntry;
+using ProcessingLedgerSnapshot =
+    DataRights.Domain.Models.DataRightsProcessingLedgerSnapshot;
+using RestoreCheckpoint = DataRights.Domain.Entities.DataRightsRestoreCheckpoint;
 
 [Trait("Category", "Unit")]
 public sealed class DataRightsPersonalDataCatalogTests
@@ -62,6 +62,8 @@ public sealed class DataRightsPersonalDataCatalogTests
             typeof(RequestTenantTerminationCommand),
             typeof(DecideTenantTerminationCommand),
             typeof(StartTenantTerminationCommand),
+            typeof(ConfirmTenantTerminationExportCommand),
+            typeof(PrepareTenantTerminationExportDownloadCommand),
             typeof(RetryTenantTerminationCommand),
             typeof(RequestTenantTerminationCancellationCommand),
             typeof(RecoverTenantTerminationCommand),
@@ -169,6 +171,14 @@ public sealed class DataRightsPersonalDataCatalogTests
             PersonalDataSurface.ApplicationCommand,
             nameof(StartTenantTerminationCommand.ActorId));
         AssertPublicPropertiesClassified(
+            typeof(ConfirmTenantTerminationExportCommand),
+            PersonalDataSurface.ApplicationCommand,
+            nameof(ConfirmTenantTerminationExportCommand.ActorId));
+        AssertPublicPropertiesClassified(
+            typeof(PrepareTenantTerminationExportDownloadCommand),
+            PersonalDataSurface.ApplicationCommand,
+            nameof(PrepareTenantTerminationExportDownloadCommand.ActorId));
+        AssertPublicPropertiesClassified(
             typeof(RetryTenantTerminationCommand),
             PersonalDataSurface.ApplicationCommand,
             nameof(RetryTenantTerminationCommand.ActorId));
@@ -204,6 +214,10 @@ public sealed class DataRightsPersonalDataCatalogTests
         AssertPublicPropertiesClassified(
             typeof(TenantTerminationOperatorStatusDto),
             PersonalDataSurface.ApplicationQuery);
+        AssertPublicPropertiesClassified(
+            typeof(TenantTerminationExportHandoffDto),
+            PersonalDataSurface.ApplicationQuery,
+            nameof(TenantTerminationExportHandoffDto.ConfirmedBy));
         AssertPublicPropertiesClassified(
             typeof(TenantTerminationOwnerWorkItemDto),
             PersonalDataSurface.ApplicationQuery);
@@ -359,7 +373,7 @@ public sealed class DataRightsPersonalDataCatalogTests
             PersonalDataSurface.IntegrationCommand,
             nameof(DataRightsRestrictionTargetResolutionRequest.Coordinate));
         AssertPublicPropertiesClassified(
-            typeof(BunkFy.Modules.DataRights.Contracts
+            typeof(DataRights.Contracts
                 .DataRightsRestrictionReleaseTarget),
             PersonalDataSurface.ProjectionExport);
         AssertPublicPropertiesClassified(
@@ -414,10 +428,10 @@ public sealed class DataRightsPersonalDataCatalogTests
         }
 
         AssertPublicPropertiesClassified(
-            typeof(BunkFy.Modules.DataRights.Domain.ValueObjects
+            typeof(DataRights.Domain.ValueObjects
                 .DataRightsRestrictionReleaseTarget),
             PersonalDataSurface.Persistence,
-            nameof(BunkFy.Modules.DataRights.Domain.ValueObjects
+            nameof(DataRights.Domain.ValueObjects
                 .DataRightsRestrictionReleaseTarget.SelectedBy));
     }
 
@@ -868,6 +882,19 @@ public sealed class DataRightsPersonalDataCatalogTests
                 "OwnerKey",
                 "Phase",
                 "ProcessId",
+                "TenantId",
+                "WorkItemId"
+            ],
+            typeof(ExecuteGlobalTenantTerminationOwnerWorkPayload)
+                .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+                .Select(property => property.Name)
+                .Order(StringComparer.Ordinal));
+        Assert.Equal(
+            [
+                "OperationRevision",
+                "OwnerKey",
+                "Phase",
+                "ProcessId",
                 "WorkItemId"
             ],
             typeof(ExecuteTenantTerminationOwnerWorkPayload)
@@ -888,6 +915,30 @@ public sealed class DataRightsPersonalDataCatalogTests
         Assert.Equal(
             ["OperationRevision", "ProcessId"],
             typeof(GenerateTenantTerminationExportArtifactPayload)
+                .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+                .Select(property => property.Name)
+                .Order(StringComparer.Ordinal));
+        Assert.Equal(
+            [
+                "ArtifactId",
+                "ExpiresAtUtc",
+                "ExportOperationRevision",
+                "ProcessId",
+                "TenantId"
+            ],
+            typeof(DeleteExpiredTenantTerminationExportArtifactPayload)
+                .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+                .Select(property => property.Name)
+                .Order(StringComparer.Ordinal));
+        Assert.Equal(
+            [
+                "ExpiresAtUtc",
+                "ExportOperationRevision",
+                "FragmentId",
+                "ProcessId",
+                "TenantId"
+            ],
+            typeof(DeleteExpiredTenantTerminationExportFragmentPayload)
                 .GetProperties(BindingFlags.Instance | BindingFlags.Public)
                 .Select(property => property.Name)
                 .Order(StringComparer.Ordinal));

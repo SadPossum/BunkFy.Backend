@@ -1607,7 +1607,7 @@ namespace BunkFy.Modules.DataRights.Persistence.PostgreSqlMigrations.Migrations
                         {
                             t.HasCheckConstraint("CK_data_rights_export_audit_action", "\"Action\" BETWEEN 1 AND 8");
 
-                            t.HasCheckConstraint("CK_data_rights_export_audit_scope", "(\"CaseKind\" = 1 AND \"PropertyId\" IS NOT NULL) OR (\"CaseKind\" = 3 AND \"PropertyId\" IS NULL)");
+                            t.HasCheckConstraint("CK_data_rights_export_audit_scope", "(\"CaseKind\" = 1 AND \"PropertyId\" IS NOT NULL) OR (\"CaseKind\" IN (2, 3) AND \"PropertyId\" IS NULL)");
                         });
                 });
 

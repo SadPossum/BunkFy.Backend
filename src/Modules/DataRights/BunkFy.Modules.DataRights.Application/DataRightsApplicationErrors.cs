@@ -228,6 +228,21 @@ public static class DataRightsApplicationErrors
     public static readonly Error TenantTerminationExportProofInvalid = new(
         "DataRights.TenantTerminationExportProofInvalid",
         "The tenant-termination export does not contain the exact durable owner proof set.");
+    public static readonly Error TenantTerminationExportArtifactNotFound = new(
+        "DataRights.TenantTerminationExportArtifactNotFound",
+        "The tenant-termination export artifact was not found.");
+    public static readonly Error TenantTerminationExportArtifactNotAvailable = new(
+        "DataRights.TenantTerminationExportArtifactNotAvailable",
+        "The tenant-termination export artifact is not available.");
+    public static readonly Error TenantTerminationExportArtifactExpired = new(
+        "DataRights.TenantTerminationExportArtifactExpired",
+        "The tenant-termination export artifact has expired.");
+    public static readonly Error TenantTerminationExportVerificationFailed = new(
+        "DataRights.TenantTerminationExportVerificationFailed",
+        "The tenant-termination export artifact could not be verified.");
+    public static readonly Error TenantTerminationExportConfirmationInvalid = new(
+        "DataRights.TenantTerminationExportConfirmationInvalid",
+        "The tenant-termination export confirmation is stale or invalid.");
     public static readonly Error TenantTerminationVerificationProofInvalid = new(
         "DataRights.TenantTerminationVerificationProofInvalid",
         "Tenant termination cannot complete until every destruction owner and protected replay proof is verified.");

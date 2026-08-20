@@ -170,6 +170,7 @@ Useful entry points:
 - [Tenant Termination Phase Ordering Task](planning/tenant-termination-phase-ordering-task.md)
 - [Tenant Termination Terminal Coordinator Task](planning/tenant-termination-terminal-coordinator-task.md)
 - [Tenant Termination Operator Controls Task](planning/tenant-termination-operator-controls-task.md)
+- [Tenant Termination Export Handoff Task](planning/tenant-termination-export-handoff-task.md)
 - [Access Control Tenant Termination Owner Task](planning/access-control-tenant-termination-owner-task.md)
 - [Files Tenant Termination Boundary Task](planning/files-tenant-termination-boundary-task.md)
 - [Guests Tenant Termination Owner Task](planning/guests-tenant-termination-owner-task.md)

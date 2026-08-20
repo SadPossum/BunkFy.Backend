@@ -227,6 +227,7 @@
     <File Path="docs/planning/task-runtime-tenant-termination-owner-task.md" />
     <File Path="docs/planning/tenant-scoped-data-rights-cases-task.md" />
     <File Path="docs/planning/tenant-termination-control-plane-task.md" />
+    <File Path="docs/planning/tenant-termination-export-handoff-task.md" />
     <File Path="docs/planning/tenant-termination-operator-controls-task.md" />
     <File Path="docs/planning/tenant-termination-phase-ordering-task.md" />
     <File Path="docs/planning/tenant-termination-terminal-coordinator-task.md" />

@@ -1,10 +1,10 @@
 namespace BunkFy.Modules.DataRights.Tests.Persistence;
 
+using BunkFy.Modules.DataRights.Application.Models;
 using BunkFy.Modules.DataRights.Domain.Aggregates;
 using BunkFy.Modules.DataRights.Domain.Entities;
 using BunkFy.Modules.DataRights.Domain.Models;
 using BunkFy.Modules.DataRights.Domain.ValueObjects;
-using BunkFy.Modules.DataRights.Application.Models;
 using BunkFy.Modules.DataRights.Persistence;
 using BunkFy.Modules.DataRights.Persistence.Repositories;
 using Gma.Framework.Pagination;
@@ -15,9 +15,9 @@ using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage;
 using Xunit;
 using DataRightsCaseListResponse =
-    BunkFy.Modules.DataRights.Contracts.DataRightsCaseListResponse;
+    DataRights.Contracts.DataRightsCaseListResponse;
 using DataRightsRequesterRelationship =
-    BunkFy.Modules.DataRights.Contracts.DataRightsRequesterRelationship;
+    DataRights.Contracts.DataRightsRequesterRelationship;
 
 [Trait("Category", "Unit")]
 public sealed class DataRightsModelTests
@@ -172,7 +172,7 @@ public sealed class DataRightsModelTests
         IEntityType propertyProjection = dbContext.Model.FindEntityType(
             typeof(DataRightsPropertyProjection))!;
         Assert.Equal(
-            BunkFy.Modules.Properties.Contracts.PropertiesContractLimits
+            Properties.Contracts.PropertiesContractLimits
                 .TimeZoneIdMaxLength,
             propertyProjection.FindProperty(
                 nameof(DataRightsPropertyProjection.TimeZoneId))!
@@ -487,7 +487,7 @@ public sealed class DataRightsModelTests
                 Guid.NewGuid(),
                 Guid.NewGuid(),
                 propertyId: null,
-                DataRightsCaseKind.StaffRights,
+                DataRightsCaseKind.TenantTermination,
                 DataRightsExportAuditAction.Download,
                 "user:privacy",
                 "succeeded",
@@ -518,10 +518,15 @@ public sealed class DataRightsModelTests
                 DataRightsExportAuditEntry.OutcomeCodeMaxLength,
                 entity.FindProperty(nameof(DataRightsExportAuditEntry.OutcomeCode))!
                     .GetMaxLength());
-            Assert.Contains(
+            string scopeConstraint = Assert.Single(
                 designEntity.GetCheckConstraints(),
                 constraint =>
-                    constraint.Name == "CK_data_rights_export_audit_scope");
+                    constraint.Name == "CK_data_rights_export_audit_scope")
+                .Sql;
+            Assert.Contains(
+                $"\"CaseKind\" IN ({(int)DataRightsCaseKind.TenantTermination}, {(int)DataRightsCaseKind.StaffRights})",
+                scopeConstraint,
+                StringComparison.Ordinal);
             Assert.Contains(
                 designEntity.GetCheckConstraints(),
                 constraint =>

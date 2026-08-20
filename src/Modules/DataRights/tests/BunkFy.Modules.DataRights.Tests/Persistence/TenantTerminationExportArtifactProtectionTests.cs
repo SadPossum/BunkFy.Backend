@@ -45,14 +45,16 @@ public sealed class TenantTerminationExportArtifactProtectionTests
                 "workspaces",
                 Guid.Parse("11111111-1111-1111-1111-111111111111"),
                 Guid.Parse("aaaaaaaa-1111-1111-1111-111111111111"),
-                """{"owner":"workspaces","records":[{"name":"Hostel"}]}""",
+                                     /*lang=json,strict*/
+                                     """{"owner":"workspaces","records":[{"name":"Hostel"}]}""",
                 proofRevision: 11);
         TenantTerminationExportFragment inventory =
             await fixture.CreateFragmentAsync(
                 "inventory",
                 Guid.Parse("22222222-2222-2222-2222-222222222222"),
                 Guid.Parse("aaaaaaaa-2222-2222-2222-222222222222"),
-                """{"owner":"inventory","records":[{"room":"4A"}]}""",
+                                     /*lang=json,strict*/
+                                     """{"owner":"inventory","records":[{"room":"4A"}]}""",
                 proofRevision: 22);
         TenantTerminationExportArtifact artifact =
             TestFixture.CreateGeneratingArtifact([workspaces, inventory]);
@@ -100,10 +102,12 @@ public sealed class TenantTerminationExportArtifactProtectionTests
             ],
             archive.Entries.Select(entry => entry.FullName));
         Assert.Equal(
-            """{"owner":"inventory","records":[{"room":"4A"}]}""",
+                                 /*lang=json,strict*/
+                                 """{"owner":"inventory","records":[{"room":"4A"}]}""",
             await ReadEntryAsync(archive, "owners/inventory.json"));
         Assert.Equal(
-            """{"owner":"workspaces","records":[{"name":"Hostel"}]}""",
+                                 /*lang=json,strict*/
+                                 """{"owner":"workspaces","records":[{"name":"Hostel"}]}""",
             await ReadEntryAsync(archive, "owners/workspaces.json"));
 
         string manifest = await ReadEntryAsync(archive, "manifest.json");
@@ -137,6 +141,20 @@ public sealed class TenantTerminationExportArtifactProtectionTests
             protectedArtifact.FormatVersion,
             protectedArtifact.AvailableAtUtc,
             protectedArtifact.ExpiresAtUtc).IsSuccess);
+
+        ProtectedTenantTerminationExportArtifactReader applicationReader =
+            new(fixture.Reader);
+        DataRightsExportDownload download = await applicationReader
+            .OpenVerifiedAsync(artifact, CancellationToken.None);
+        await using Stream verifiedContent = download.Content;
+        Assert.Equal(verifiedContent.Length, download.ContentLength);
+        Assert.Equal(
+            $"bunkfy-tenant-termination-export-{artifact.Id:N}.zip",
+            download.FileName);
+        using ZipArchive verifiedArchive = new(
+            verifiedContent,
+            ZipArchiveMode.Read);
+        Assert.Equal(3, verifiedArchive.Entries.Count);
     }
 
     [Fact]
@@ -148,7 +166,8 @@ public sealed class TenantTerminationExportArtifactProtectionTests
                 "workspaces",
                 Guid.Parse("11111111-1111-1111-1111-111111111111"),
                 Guid.Parse("aaaaaaaa-1111-1111-1111-111111111111"),
-                """{"owner":"workspaces","records":[]}""",
+                                     /*lang=json,strict*/
+                                     """{"owner":"workspaces","records":[]}""",
                 proofRevision: 11);
         TenantTerminationExportArtifact artifact =
             TestFixture.CreateGeneratingArtifact([fragment]);
@@ -178,7 +197,8 @@ public sealed class TenantTerminationExportArtifactProtectionTests
                 "inventory",
                 Guid.Parse("11111111-1111-1111-1111-111111111111"),
                 Guid.Parse("aaaaaaaa-1111-1111-1111-111111111111"),
-                """{"owner":"inventory","records":[]}""",
+                                     /*lang=json,strict*/
+                                     """{"owner":"inventory","records":[]}""",
                 proofRevision: 11,
                 protectionOwnerKey: "workspaces");
         TenantTerminationExportArtifact artifact =

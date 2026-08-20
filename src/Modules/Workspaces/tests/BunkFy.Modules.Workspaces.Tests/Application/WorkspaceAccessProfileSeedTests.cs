@@ -79,6 +79,23 @@ public sealed class WorkspaceAccessProfileSeedTests
             Assert.DoesNotContain(profile.Permissions, dataRightsPermissions.Contains));
     }
 
+    [Theory]
+    [InlineData(DataRightsAdminPermissionCodes.TenantTerminationExportDownload)]
+    [InlineData(DataRightsAdminPermissionCodes.TenantTerminationExportConfirm)]
+    public void Tenant_termination_export_handoff_permissions_are_sensitive_delegable_and_never_seeded(
+        string permissionCode)
+    {
+        WorkspaceAccessPermissionDto permission = Assert.Single(
+            WorkspaceAccessPermissionCatalogue.All,
+            item => item.Code == permissionCode);
+
+        Assert.True(permission.IsSensitive);
+        Assert.Contains(permission.Code, WorkspaceAccessRoles.DelegablePermissions);
+        Assert.DoesNotContain(permission.Code, WorkspaceAccessRoles.CompanySupportPermissionCeiling);
+        Assert.All(WorkspaceAccessProfileSeeds.All, profile =>
+            Assert.DoesNotContain(permission.Code, profile.Permissions));
+    }
+
     [Fact]
     public void Guest_data_hold_permission_is_delegable_but_not_seeded()
     {
