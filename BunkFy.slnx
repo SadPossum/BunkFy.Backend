@@ -119,6 +119,7 @@
     <File Path="docs/planning/ingestion-proposal-authority-and-deployed-proof-task.md" />
     <File Path="docs/planning/ingestion-sensitive-control-assurance-task.md" />
     <File Path="docs/planning/ingestion-sensitive-history-retention-task.md" />
+    <File Path="docs/planning/ingestion-source-graph-authoritative-state-integrity-task.md" />
     <File Path="docs/planning/ingestion-source-graph-mutation-serialization-task.md" />
     <File Path="docs/planning/ingestion-source-reprocessing-task.md" />
     <File Path="docs/planning/ingestion-tenant-termination-owner-task.md" />

@@ -455,11 +455,10 @@ public sealed class ReservationDispatchFlowTests
     }
 
     [Theory]
-    [InlineData(null)]
     [InlineData("not-json")]
     [InlineData("{\"schemaVersion\":2,\"arrival\":\"2026-08-01\",\"departure\":\"2026-08-03\",\"inventoryUnitIds\":[\"20000000-0000-0000-0000-000000000001\"]}")]
     [InlineData("{\"schemaVersion\":1,\"arrival\":\"2026-08-01\",\"departure\":\"2026-08-03\",\"inventoryUnitIds\":[\"20000000-0000-0000-0000-000000000001\"],\"guestName\":\"must fail strict parsing\"}")]
-    public void Missing_malformed_or_unsupported_baseline_classifies_conservatively(string? baseline)
+    public void Malformed_or_unsupported_baseline_classifies_conservatively(string baseline)
     {
         TestContext context = CreateContext();
         ReservationSourceLink link = CreateLinkedSourceLink(context, baseline);
@@ -621,13 +620,13 @@ public sealed class ReservationDispatchFlowTests
         ObservationReceipt receipt = ObservationReceipt.Create(
             receiptId, "tenant-a", context.Connection.PropertyId, context.Connection.Id, runId: null,
             Guid.NewGuid(), "reservation.v1", "booking-42", "2", "reservation.v1|booking-42|2",
-            hash, TestObservationCountryPolicyEvidence.Create(Now.AddMinutes(1)), receiptId,
-            Now.AddDays(30), Now.AddMinutes(1), Now.AddMinutes(1), Now.AddMinutes(1)).Value;
-        _ = link.Observe(receipt.Id, "2", 2, Now.AddMinutes(1), hash, Now.AddMinutes(1));
-        _ = receipt.MarkProcessed(Now.AddMinutes(1));
+            hash, TestObservationCountryPolicyEvidence.Create(Now), receiptId,
+            Now.AddDays(30), Now, Now, Now).Value;
+        _ = link.Observe(receipt.Id, "2", 2, Now, hash, Now);
+        _ = receipt.MarkProcessed(Now);
         ChangeProposal proposal = ChangeProposal.Create(
             Guid.NewGuid(), "tenant-a", context.Connection.PropertyId, context.Connection.Id, receipt.Id,
-            reservationId, receipt.RawPayloadFileId, 1, "test", "{\"change\":true}", Now.AddMinutes(1)).Value;
+            reservationId, receipt.RawPayloadFileId, 1, "test", "{\"change\":true}", Now).Value;
         context.SourceLinks.Items.Add(link);
         context.Receipts.Items.Add(receipt);
         context.Proposals.Items.Add(proposal);
@@ -635,7 +634,7 @@ public sealed class ReservationDispatchFlowTests
         return new(proposal, link, reservationId);
     }
 
-    private static ReservationSourceLink CreateLinkedSourceLink(TestContext context, string? baseline)
+    private static ReservationSourceLink CreateLinkedSourceLink(TestContext context, string baseline)
     {
         Guid receiptId = Guid.NewGuid();
         ReservationSourceLink link = ReservationSourceLink.Create(
@@ -648,10 +647,9 @@ public sealed class ReservationDispatchFlowTests
         _ = link.Observe(receiptId, "1", 1, Now, new string('a', 64), Now);
         Guid operationId = Guid.NewGuid();
         _ = link.BeginDispatch(operationId, Now);
-        bool cancellation = baseline is null;
         Assert.True(link.CompleteDispatch(
             operationId, receiptId, "1", 1, baseline, Guid.NewGuid(), 1,
-            keepActive: false, applied: true, cancellationPending: cancellation, cancelled: false, Now).IsSuccess);
+            keepActive: false, applied: true, cancellationPending: false, cancelled: false, Now).IsSuccess);
         return link;
     }
 
