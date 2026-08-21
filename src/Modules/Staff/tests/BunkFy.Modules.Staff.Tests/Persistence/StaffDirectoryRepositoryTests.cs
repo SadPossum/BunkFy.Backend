@@ -9,11 +9,15 @@ using BunkFy.Modules.Staff.Persistence.Repositories;
 using Gma.Framework.Pagination;
 using Gma.Framework.Scoping;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Xunit;
 
 [Trait("Category", "Unit")]
 public sealed class StaffDirectoryRepositoryTests
 {
+    private const string TenantA = "tenant-a";
+    private const string TenantB = "tenant-b";
+
     [Fact]
     public async Task Directory_projection_is_active_property_scoped_and_searches_display_name_only()
     {
@@ -91,6 +95,69 @@ public sealed class StaffDirectoryRepositoryTests
             typeof(StaffDirectoryListItemDto).GetProperties(),
             property => property.Name is "LegalName" or "WorkEmail" or "WorkPhone" or
                 "EmployeeNumber" or "AuthSubjectId" or "Assignments");
+    }
+
+    [Fact]
+    public async Task Foreign_property_authority_does_not_expose_local_assignments()
+    {
+        InMemoryDatabaseRoot root = new();
+        string databaseName = $"staff-directory-scope-{Guid.NewGuid():N}";
+        Guid propertyId = Guid.NewGuid();
+
+        await using StaffDbContext tenantA = CreateDbContext(
+            root,
+            databaseName,
+            TenantA);
+        StaffMember member = CreateMember();
+        Assign(member, propertyId, isPrimary: true);
+        tenantA.StaffMembers.Add(member);
+        tenantA.ProcessingRestrictionProjections.Add(
+            CreateRestrictionProjection(member));
+        tenantA.PropertyProjections.Add(new StaffPropertyProjection(
+            TenantA,
+            propertyId,
+            string.Empty,
+            PropertyStatus.Retired,
+            1));
+        await tenantA.SaveChangesAsync();
+
+        await using (StaffDbContext tenantB = CreateDbContext(
+            root,
+            databaseName,
+            TenantB))
+        {
+            tenantB.PropertyProjections.Add(new StaffPropertyProjection(
+                TenantB,
+                propertyId,
+                "Foreign active property",
+                PropertyStatus.Active,
+                1));
+            await tenantB.SaveChangesAsync();
+        }
+
+        tenantA.ChangeTracker.Clear();
+        StaffMemberRepository repository = new(tenantA);
+        StaffDirectoryMemberDto directory = (await repository.GetDirectoryAsync(
+            member.Id,
+            CancellationToken.None))!;
+        StaffDirectoryMemberDto? propertyDirectory =
+            await repository.GetDirectoryAtPropertyAsync(
+                propertyId,
+                member.Id,
+                CancellationToken.None);
+        StaffPropertyDirectoryListResponse propertyList =
+            await repository.ListDirectoryAtPropertyAsync(
+                propertyId,
+                search: null,
+                status: null,
+                new PageRequest(
+                    PageRequest.DefaultPage,
+                    PageRequest.DefaultPageSize),
+                CancellationToken.None);
+
+        Assert.Empty(directory.Assignments);
+        Assert.Null(propertyDirectory);
+        Assert.Empty(propertyList.Items);
     }
 
     [Fact]
@@ -224,9 +291,19 @@ public sealed class StaffDirectoryRepositoryTests
             .Options,
         new TestScopeContext());
 
-    private sealed class TestScopeContext : IScopeContext
+    private static StaffDbContext CreateDbContext(
+        InMemoryDatabaseRoot root,
+        string databaseName,
+        string scopeId) => new(
+        new DbContextOptionsBuilder<StaffDbContext>()
+            .UseInMemoryDatabase(databaseName, root)
+            .Options,
+        new TestScopeContext(scopeId));
+
+    private sealed class TestScopeContext(string scopeId = TenantA)
+        : IScopeContext
     {
         public bool IsEnabled => true;
-        public string ScopeId => "tenant-a";
+        public string ScopeId { get; } = scopeId;
     }
 }
