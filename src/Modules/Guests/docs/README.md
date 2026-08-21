@@ -51,6 +51,9 @@ Guests owns BunkFy's tenant-wide canonical guest profiles and staff-facing stay 
   PII-free correction receipts without a second mutation path;
 - approved DataRights correction execution with exact Guest-version binding,
   idempotent immutable receipts and no second profile mutation path;
+- provider-enforced correction-receipt integrity: stable case and resulting
+  Guest-version uniqueness, non-empty event coordinates, non-default completion
+  time, and a named tenant-qualified foreign key to the authoritative profile;
 - the processing-restriction owner foundation: reference-safe restriction
   records, immutable transition receipts, a versioned effective projection,
   initialization for every operationally visible Guest/property coordinate and

@@ -213,6 +213,55 @@ public sealed class GuestsModelTests
     }
 
     [Fact]
+    public void Correction_receipts_declare_authoritative_database_invariants()
+    {
+        using GuestsDbContext dbContext = CreateDbContext();
+        IEntityType receipt = dbContext.Model.FindEntityType(
+            typeof(GuestDataRightsCorrectionReceipt))!;
+        IEntityType designReceipt = dbContext.GetService<IDesignTimeModel>()
+            .Model.FindEntityType(typeof(GuestDataRightsCorrectionReceipt))!;
+
+        Assert.Single(receipt.GetKeys());
+        Assert.Contains(receipt.GetIndexes(), index => index.IsUnique &&
+            index.GetDatabaseName() ==
+                "UX_guest_correction_receipts_case_approval" &&
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(GuestDataRightsCorrectionReceipt.ScopeId),
+                nameof(GuestDataRightsCorrectionReceipt.PropertyId),
+                nameof(GuestDataRightsCorrectionReceipt.CaseId),
+                nameof(GuestDataRightsCorrectionReceipt.ApprovalRevision)
+            ]));
+        Assert.Contains(receipt.GetIndexes(), index => index.IsUnique &&
+            index.GetDatabaseName() ==
+                "UX_guest_correction_receipts_guest_version" &&
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(GuestDataRightsCorrectionReceipt.ScopeId),
+                nameof(GuestDataRightsCorrectionReceipt.GuestId),
+                nameof(GuestDataRightsCorrectionReceipt.CurrentRecordVersion)
+            ]));
+        IForeignKey profileReference = Assert.Single(receipt.GetForeignKeys());
+        Assert.Equal(
+            [
+                nameof(GuestDataRightsCorrectionReceipt.ScopeId),
+                nameof(GuestDataRightsCorrectionReceipt.GuestId)
+            ],
+            profileReference.Properties.Select(property => property.Name));
+        Assert.Equal(
+            [nameof(GuestProfile.ScopeId), nameof(GuestProfile.Id)],
+            profileReference.PrincipalKey.Properties.Select(
+                property => property.Name));
+        Assert.Equal(DeleteBehavior.Restrict, profileReference.DeleteBehavior);
+        AssertConstraints(
+            designReceipt,
+            "CK_guest_data_rights_correction_receipts_coordinates",
+            "CK_guest_data_rights_correction_receipts_timestamp",
+            "CK_guest_data_rights_correction_receipts_contract",
+            "CK_guest_data_rights_correction_receipts_approval_revision",
+            "CK_guest_data_rights_correction_receipts_versions",
+            "CK_guest_data_rights_correction_receipts_changed_fields");
+    }
+
+    [Fact]
     public void Management_operations_are_guest_scoped_constrained_and_cascade_owned()
     {
         using GuestsDbContext dbContext = CreateDbContext();
