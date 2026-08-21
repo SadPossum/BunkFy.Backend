@@ -28,17 +28,26 @@ $listener.Stop()
 
 $url = "http://127.0.0.1:$port"
 $swaggerUrl = "$url/swagger/v1/swagger.json"
-$oldEnvironment = $env:ASPNETCORE_ENVIRONMENT
-$oldUrls = $env:ASPNETCORE_URLS
-$exportEnvironment = @{
-    'Notifications__Delivery__Enabled' = $env:Notifications__Delivery__Enabled
-    'Notifications__Retention__Enabled' = $env:Notifications__Retention__Enabled
-    'Notifications__DurableStreams__MonitorEnabled' = $env:Notifications__DurableStreams__MonitorEnabled
-    'Auth__Retention__Enabled' = $env:Auth__Retention__Enabled
-    'Organizations__Retention__Enabled' = $env:Organizations__Retention__Enabled
-    'MessageJournalCleanup__Enabled' = $env:MessageJournalCleanup__Enabled
-    'NatsJetStream__Enabled' = $env:NatsJetStream__Enabled
-    'NatsConsumers__Enabled' = $env:NatsConsumers__Enabled
+$exportEnvironmentNames = @(
+    'ASPNETCORE_ENVIRONMENT',
+    'ASPNETCORE_URLS',
+    'Notifications__Delivery__Enabled',
+    'Notifications__Retention__Enabled',
+    'Notifications__DurableStreams__MonitorEnabled',
+    'Auth__Retention__Enabled',
+    'Organizations__Retention__Enabled',
+    'MessageJournalCleanup__Enabled',
+    'NatsJetStream__Enabled',
+    'NatsConsumers__Enabled'
+)
+$processEnvironment = [System.Environment]::GetEnvironmentVariables('Process')
+$exportEnvironment = @{}
+foreach ($name in $exportEnvironmentNames) {
+    $wasDefined = $processEnvironment.Contains($name)
+    $exportEnvironment[$name] = [pscustomobject]@{
+        WasDefined = $wasDefined
+        Value = if ($wasDefined) { $processEnvironment[$name] } else { $null }
+    }
 }
 $process = $null
 
@@ -102,10 +111,16 @@ finally {
         $process.WaitForExit()
     }
 
-    $env:ASPNETCORE_ENVIRONMENT = $oldEnvironment
-    $env:ASPNETCORE_URLS = $oldUrls
     foreach ($entry in $exportEnvironment.GetEnumerator()) {
-        [System.Environment]::SetEnvironmentVariable($entry.Key, $entry.Value, 'Process')
+        if (-not $entry.Value.WasDefined) {
+            Remove-Item -LiteralPath "Env:\$($entry.Key)" -ErrorAction SilentlyContinue
+            continue
+        }
+
+        [System.Environment]::SetEnvironmentVariable(
+            $entry.Key,
+            $entry.Value.Value,
+            'Process')
     }
 }
 
