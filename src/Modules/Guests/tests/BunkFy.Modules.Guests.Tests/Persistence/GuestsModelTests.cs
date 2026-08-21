@@ -262,6 +262,120 @@ public sealed class GuestsModelTests
     }
 
     [Fact]
+    public void Anonymisation_proof_graph_declares_authoritative_database_invariants()
+    {
+        using GuestsDbContext dbContext = CreateDbContext();
+        IModel designModel = dbContext.GetService<IDesignTimeModel>().Model;
+
+        IEntityType receipt = dbContext.Model.FindEntityType(
+            typeof(GuestAnonymisationReceipt))!;
+        Assert.Equal(2, receipt.GetKeys().Count());
+        Assert.Contains(receipt.GetIndexes(), index => index.IsUnique &&
+            index.GetDatabaseName() ==
+                "UX_guest_anonymisation_receipts_event" &&
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(GuestAnonymisationReceipt.ScopeId),
+                nameof(GuestAnonymisationReceipt.EventId)
+            ]));
+        IForeignKey profileReference = Assert.Single(receipt.GetForeignKeys());
+        Assert.Equal(
+            "FK_guest_anonymisation_receipts_guest_profile",
+            profileReference.GetConstraintName());
+        Assert.Equal(
+            [
+                nameof(GuestAnonymisationReceipt.ScopeId),
+                nameof(GuestAnonymisationReceipt.GuestId)
+            ],
+            profileReference.Properties.Select(property => property.Name));
+        Assert.Equal(
+            [nameof(GuestProfile.ScopeId), nameof(GuestProfile.Id)],
+            profileReference.PrincipalKey.Properties.Select(
+                property => property.Name));
+        Assert.Equal(DeleteBehavior.Restrict, profileReference.DeleteBehavior);
+        AssertConstraints(
+            designModel.FindEntityType(typeof(GuestAnonymisationReceipt))!,
+            "CK_guest_anonymisation_receipts_coordinates",
+            "CK_guest_anonymisation_receipts_contract",
+            "CK_guest_anonymisation_receipts_revisions",
+            "CK_guest_anonymisation_receipts_versions",
+            "CK_guest_anonymisation_receipts_outcome",
+            "CK_guest_anonymisation_receipts_property_count",
+            "CK_guest_anonymisation_receipts_digests",
+            "CK_guest_anonymisation_receipts_actor",
+            "CK_guest_anonymisation_receipts_timestamp");
+
+        IEntityType tombstone = dbContext.Model.FindEntityType(
+            typeof(GuestAnonymisationTombstone))!;
+        Assert.Equal(2, tombstone.GetKeys().Count());
+        Assert.True(tombstone.FindProperty(
+            nameof(GuestAnonymisationTombstone.Revision))!.IsConcurrencyToken);
+        Assert.Contains(tombstone.GetIndexes(), index => index.IsUnique &&
+            index.GetDatabaseName() ==
+                "UX_guest_anonymisation_tombstones_ledger_entry" &&
+            index.GetFilter() == "\"LedgerEntryId\" IS NOT NULL" &&
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(GuestAnonymisationTombstone.ScopeId),
+                nameof(GuestAnonymisationTombstone.LedgerEntryId)
+            ]));
+        IForeignKey tombstoneProfile = Assert.Single(
+            tombstone.GetForeignKeys());
+        Assert.Equal(
+            "FK_guest_anonymisation_tombstones_guest_profile",
+            tombstoneProfile.GetConstraintName());
+        Assert.Equal(DeleteBehavior.Restrict, tombstoneProfile.DeleteBehavior);
+        AssertConstraints(
+            designModel.FindEntityType(typeof(GuestAnonymisationTombstone))!,
+            "CK_guest_anonymisation_tombstones_coordinates",
+            "CK_guest_anonymisation_tombstones_contract",
+            "CK_guest_anonymisation_tombstones_revision",
+            "CK_guest_anonymisation_tombstones_state",
+            "CK_guest_anonymisation_tombstones_authority",
+            "CK_guest_anonymisation_tombstones_receipt_digest",
+            "CK_guest_anonymisation_tombstones_restore_pair",
+            "CK_guest_anonymisation_tombstones_timestamps",
+            "CK_guest_anonymisation_tombstones_lifecycle");
+
+        IEntityType restoreReceipt = dbContext.Model.FindEntityType(
+            typeof(GuestAnonymisationRestoreReceipt))!;
+        Assert.Single(restoreReceipt.GetKeys());
+        Assert.Contains(restoreReceipt.GetIndexes(), index => index.IsUnique &&
+            index.GetDatabaseName() ==
+                "UX_guest_anonymisation_restore_receipts_tombstone" &&
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(GuestAnonymisationRestoreReceipt.ScopeId),
+                nameof(GuestAnonymisationRestoreReceipt.GuestId)
+            ]));
+        IForeignKey tombstoneReference = Assert.Single(
+            restoreReceipt.GetForeignKeys());
+        Assert.Equal(
+            "FK_guest_anonymisation_restore_receipts_tombstone",
+            tombstoneReference.GetConstraintName());
+        Assert.Equal(
+            [
+                nameof(GuestAnonymisationRestoreReceipt.ScopeId),
+                nameof(GuestAnonymisationRestoreReceipt.GuestId)
+            ],
+            tombstoneReference.Properties.Select(property => property.Name));
+        Assert.Equal(
+            [
+                nameof(GuestAnonymisationTombstone.ScopeId),
+                nameof(GuestAnonymisationTombstone.Id)
+            ],
+            tombstoneReference.PrincipalKey.Properties.Select(
+                property => property.Name));
+        Assert.Equal(DeleteBehavior.Restrict, tombstoneReference.DeleteBehavior);
+        AssertConstraints(
+            designModel.FindEntityType(
+                typeof(GuestAnonymisationRestoreReceipt))!,
+            "CK_guest_anonymisation_restore_receipts_coordinates",
+            "CK_guest_anonymisation_restore_receipts_contract",
+            "CK_guest_anonymisation_restore_receipts_identity",
+            "CK_guest_anonymisation_restore_receipts_versions",
+            "CK_guest_anonymisation_restore_receipts_digests",
+            "CK_guest_anonymisation_restore_receipts_timestamp");
+    }
+
+    [Fact]
     public void Management_operations_are_guest_scoped_constrained_and_cascade_owned()
     {
         using GuestsDbContext dbContext = CreateDbContext();

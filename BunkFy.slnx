@@ -92,6 +92,7 @@
     <File Path="docs/planning/guest-data-rights-restriction-task.md" />
     <File Path="docs/planning/guest-record-retention-task.md" />
     <File Path="docs/planning/guest-records-module-task.md" />
+    <File Path="docs/planning/guests-anonymisation-proof-audit-integrity-task.md" />
     <File Path="docs/planning/guests-authoritative-profile-state-integrity-task.md" />
     <File Path="docs/planning/guests-correction-receipt-audit-integrity-task.md" />
     <File Path="docs/planning/guests-data-hold-audit-integrity-task.md" />

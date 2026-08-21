@@ -94,6 +94,11 @@ Guests owns BunkFy's tenant-wide canonical guest profiles and staff-facing stay 
 - a versioned restore contributor that accepts only verified DataRights ledger
   proof, re-scrubs restored profiles or recreates a PII-free terminal profile,
   and persists an immutable restore receipt plus attached tombstone proof;
+- provider-enforced anonymisation proof integrity: receipts and tombstones bind
+  to their same-tenant Guest profile, restore receipts bind to exactly one
+  tombstone, proof coordinates and lowercase SHA-256 values fail closed, and
+  only the four reachable DataRights or Retention tombstone lifecycle shapes
+  can be persisted;
 - database-level exclusion of anonymised Guests from ordinary detail, list,
   discovery and export surfaces, plus operation locks that serialize new
   holds and owner projection changes against destructive eligibility;

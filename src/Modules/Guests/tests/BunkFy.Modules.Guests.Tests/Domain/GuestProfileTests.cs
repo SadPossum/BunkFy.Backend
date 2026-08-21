@@ -485,6 +485,27 @@ public sealed class GuestProfileTests
                 completedAtUtc).Error.Code);
     }
 
+    [Fact]
+    public void Restore_receipt_rejects_an_unreachable_tombstone_revision()
+    {
+        Result<GuestAnonymisationRestoreReceipt> result =
+            GuestAnonymisationRestoreReceipt.Create(
+                "tenant-a",
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                ownerReceiptContractVersion: 1,
+                Guid.NewGuid(),
+                new string('a', GuestAnonymisationReceipt.Sha256Length),
+                resultingGuestVersion: 2,
+                tombstoneRevision:
+                    GuestAnonymisationTombstone.MaximumRevision + 1,
+                Now.AddMinutes(1));
+
+        Assert.Equal(
+            "Guests.AnonymisationRestoreReceiptInvalid",
+            result.Error.Code);
+    }
+
     private static GuestProfile Create(string displayName, string? email, string? phone) => GuestProfile.Create(
         Guid.NewGuid(),
         "tenant-a",
