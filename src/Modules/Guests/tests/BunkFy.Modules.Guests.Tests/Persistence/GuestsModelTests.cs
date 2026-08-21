@@ -23,6 +23,30 @@ using GuestsModuleMetadata = BunkFy.Modules.Guests.Contracts.GuestsModuleMetadat
 public sealed class GuestsModelTests
 {
     [Fact]
+    public void Canonical_profiles_declare_authoritative_database_invariants()
+    {
+        using GuestsDbContext dbContext = CreateDbContext();
+        IEntityType profile = dbContext.GetService<IDesignTimeModel>()
+            .Model
+            .FindEntityType(typeof(GuestProfile))!;
+
+        AssertConstraints(
+            profile,
+            "CK_guest_profiles_coordinates",
+            "CK_guest_profiles_version",
+            "CK_guest_profiles_projection_ordinal",
+            "CK_guest_profiles_display_name",
+            "CK_guest_profiles_created_by",
+            "CK_guest_profiles_last_changed_by",
+            "CK_guest_profiles_search_shape",
+            "CK_guest_profiles_optional_text",
+            "CK_guest_profiles_state_versions",
+            "CK_guest_profiles_lifecycle",
+            "CK_guest_profiles_timestamps",
+            "CK_guest_profiles_anonymised_profile");
+    }
+
+    [Fact]
     public void Management_operations_are_guest_scoped_constrained_and_cascade_owned()
     {
         using GuestsDbContext dbContext = CreateDbContext();
@@ -570,6 +594,16 @@ public sealed class GuestsModelTests
             .UseInMemoryDatabase($"guests-model-{Guid.NewGuid():N}")
             .Options;
         return new(options, new TestScopeContext());
+    }
+
+    private static void AssertConstraints(
+        IEntityType entity,
+        params string[] expectedNames)
+    {
+        string[] actualNames = entity.GetCheckConstraints()
+            .Select(constraint => constraint.Name!)
+            .ToArray();
+        Assert.All(expectedNames, expected => Assert.Contains(expected, actualNames));
     }
 
     private sealed class TestScopeContext(string scopeId = "tenant-a") : IScopeContext

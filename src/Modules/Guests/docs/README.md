@@ -11,6 +11,11 @@ Guests owns BunkFy's tenant-wide canonical guest profiles and staff-facing stay 
 ## Current Slice
 
 - bounded profile/contact fields with actor provenance, archive lifecycle, optimistic concurrency, and duplicate-contact allowance;
+- named canonical-profile database constraints for non-empty coordinates,
+  positive projection ordinals, paired retained/search values, lifecycle
+  versions and chronology, and complete anonymisation scrubbing. The additive
+  `AddGuestProfileAuthoritativeStateIntegrity` migration rejects malformed
+  legacy rows instead of rewriting Guest facts;
 - property-scoped create, search, read, update, archive, and stay-history surfaces across public management API, Admin API, and Admin CLI;
 - PII-minimal create, update, and archive receipts shared by every management
   front door; sensitive profile data remains behind the explicit detail read;
