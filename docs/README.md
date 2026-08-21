@@ -163,6 +163,7 @@ Useful entry points:
 - [Data Rights Export Failure And Retry Semantics Task](planning/data-rights-export-failure-and-retry-semantics-task.md)
 - [Data Rights Task Timeout Alignment Task](planning/data-rights-task-timeout-alignment-task.md)
 - [Data Rights Guest Response Deadline Policy Task](planning/data-rights-guest-response-deadline-policy-task.md)
+- [Data Rights Property Projection Tenant Integrity Task](planning/data-rights-property-projection-tenant-integrity-task.md)
 - [Operations Notifications Data Rights Deadline Alerts Task](planning/operations-notifications-data-rights-deadline-alerts-task.md)
 - [Automatic Retention Control Plane Task](planning/automatic-retention-control-plane-task.md)
 - [Retention Operational Surface Hardening Task](planning/retention-operational-surface-hardening-task.md)

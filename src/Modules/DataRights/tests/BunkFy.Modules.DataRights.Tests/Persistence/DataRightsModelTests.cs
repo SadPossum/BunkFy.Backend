@@ -8,6 +8,7 @@ using BunkFy.Modules.DataRights.Domain.ValueObjects;
 using BunkFy.Modules.DataRights.Persistence;
 using BunkFy.Modules.DataRights.Persistence.Repositories;
 using Gma.Framework.Pagination;
+using Gma.Framework.Persistence.EntityFrameworkCore;
 using Gma.Framework.Scoping;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -171,12 +172,41 @@ public sealed class DataRightsModelTests
                 foreignKey.DeleteBehavior == DeleteBehavior.Restrict);
         IEntityType propertyProjection = dbContext.Model.FindEntityType(
             typeof(DataRightsPropertyProjection))!;
+        IEntityType designPropertyProjection = dbContext.GetService<IDesignTimeModel>()
+            .Model
+            .FindEntityType(typeof(DataRightsPropertyProjection))!;
+        Assert.NotNull(propertyProjection.FindDeclaredQueryFilter(
+            ScopeFilterNames.ScopeFilter));
         Assert.Equal(
             Properties.Contracts.PropertiesContractLimits
                 .TimeZoneIdMaxLength,
             propertyProjection.FindProperty(
                 nameof(DataRightsPropertyProjection.TimeZoneId))!
                 .GetMaxLength());
+        string[] propertyProjectionConstraints =
+        [
+            "CK_data_rights_property_projection_coordinates",
+            "CK_data_rights_property_projection_versions",
+            "CK_data_rights_property_projection_topology",
+            "CK_data_rights_property_projection_topology_text",
+            "CK_data_rights_property_projection_known",
+            "CK_data_rights_property_projection_processing_status",
+            "CK_data_rights_property_projection_policy_source",
+            "CK_data_rights_property_projection_governance_policy"
+        ];
+        Assert.All(
+            propertyProjectionConstraints,
+            constraintName => Assert.Contains(
+                designPropertyProjection.GetCheckConstraints(),
+                constraint => constraint.Name == constraintName));
+        IEntityType designPropertyPolicyAcknowledgement = dbContext
+            .GetService<IDesignTimeModel>()
+            .Model
+            .FindEntityType(typeof(DataRightsPropertyPolicyAcknowledgement))!;
+        Assert.Contains(
+            designPropertyPolicyAcknowledgement.GetCheckConstraints(),
+            constraint => constraint.Name ==
+                "CK_data_rights_property_policy_acknowledgements_contract");
         IEntityType selectedSubject =
             dbContext.Model.FindEntityType(typeof(DataRightsSubjectCoordinate))!;
         IEntityType designSelectedSubject = dbContext.GetService<IDesignTimeModel>()

@@ -77,9 +77,16 @@ deterministically generated
 - scoped permissions that are not granted to ordinary seeded roles;
 - public controller API plus tenant-termination Admin API and Admin CLI
   operator controls;
-- a DataRights-owned Properties topology and policy projection, including the
-  property time zone, populated only through versioned Properties events or
-  the bounded projection-rebuild contract;
+- a DataRights-owned, rebuildable Properties topology and policy projection,
+  including the property time zone, populated only through versioned
+  Properties events or the bounded projection-rebuild contract;
+- the projection is explicitly tenant-filtered through the GMA scoped-entity
+  conventions; ordinary reads and writes require the active tenant, while two
+  tenants may safely carry the same property id;
+- topology and policy streams advance independently, ignore older facts,
+  accept exact equal-version replays, and fail closed on conflicting replays;
+  PostgreSQL binds tenant coordinates, partial-stream state, policy formats,
+  known-state derivation, and acknowledgement shape with named constraints;
 - PostgreSQL persistence, inbox/outbox infrastructure and focused architecture,
   privacy, domain, persistence, migration and authorization tests;
 - an audited tenant-termination coordinator with one active process per tenant,

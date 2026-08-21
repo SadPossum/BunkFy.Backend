@@ -74,6 +74,7 @@
     <File Path="docs/planning/data-rights-mutation-continuity-task.md" />
     <File Path="docs/planning/data-rights-operational-surface-hardening-task.md" />
     <File Path="docs/planning/data-rights-operator-continuity-and-recovery-task.md" />
+    <File Path="docs/planning/data-rights-property-projection-tenant-integrity-task.md" />
     <File Path="docs/planning/data-rights-protected-export-artifacts-task.md" />
     <File Path="docs/planning/data-rights-restriction-execution-task.md" />
     <File Path="docs/planning/data-rights-restriction-target-binding-task.md" />
