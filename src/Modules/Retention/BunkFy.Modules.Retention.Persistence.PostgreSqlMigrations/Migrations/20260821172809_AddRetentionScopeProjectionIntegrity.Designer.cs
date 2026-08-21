@@ -3,6 +3,7 @@ using System;
 using BunkFy.Modules.Retention.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BunkFy.Modules.Retention.Persistence.PostgreSqlMigrations.Migrations
 {
     [DbContext(typeof(RetentionDbContext))]
-    partial class RetentionDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260821172809_AddRetentionScopeProjectionIntegrity")]
+    partial class AddRetentionScopeProjectionIntegrity
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

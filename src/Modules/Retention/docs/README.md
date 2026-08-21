@@ -22,6 +22,13 @@ Organization and property records in Retention are rebuildable projections.
 The inbox is transport state. Neither is part of Retention's tenant portability
 fragment.
 
+The projection models normalize tenant coordinates, require non-empty owner
+identities and positive incoming source versions, preserve monotonic stale-event
+handling, and reject conflicting equal-version facts. PostgreSQL independently
+enforces the tenant coordinate and the property's topology-first,
+policy-first, known-state, and policy-version shapes. See the
+[Retention Scope Projection Integrity Task](../../../docs/planning/retention-scope-projection-integrity-task.md).
+
 ## Operational Surfaces
 
 Schedule health is a derived, tenant-scoped snapshot over the registered owner
@@ -81,20 +88,22 @@ its deadline so timeout evidence remains recordable. See the
 ## Tenant Termination
 
 Retention is a mandatory `Export` and `Destroy` contributor after Ingestion.
-Its versioned tenant export contains exactly two deterministic streams:
+Its versioned tenant export contains exactly three deterministic streams:
 
 1. retention executions; and
-2. retention schedule states.
+2. retention schedule states; and
+3. durable run-retry requests.
 
 The export deliberately excludes tenant and property projections, inbox
 messages, and the local tenant revision row. Tenant and property identifiers
 remain elevated coordinates owned authoritatively by Organizations and
 Properties.
 
-Destruction closes local admission and removes inbox messages, schedule state,
-execution history, property projections, and tenant projections in
-foreign-key-safe stages. One invocation removes at most one non-empty batch of
-500 records. Completion retains only the closed lifecycle row and one
+Destruction closes local admission and removes outbox and inbox messages,
+run-retry requests, schedule state, execution history, property projections,
+and tenant projections in foreign-key-safe stages. One invocation removes at
+most one non-empty batch of 500 records. Completion retains only the closed
+lifecycle row and one
 immutable, PII-free destruction receipt with a versioned SHA-256 proof chain.
 Personal-data catalogue version 3 classifies every retained proof member under
 the dedicated tenant-destruction policy.
@@ -129,13 +138,15 @@ Migration `AddRetentionTenantDestructionLifecycle` adds lifecycle state,
 resumable destruction operation state, and the receipt ledger. PostgreSQL also
 enforces receipt immutability with an append-only trigger.
 
-All 78 Retention tests pass and migration-drift checks cover the current model. The
-exact PostgreSQL 16 mutation scenario proves same-schedule and same-property
-writers wait, reload the committed winner, preserve independent projection
-streams, and leave unrelated coordinates available. A separate PostgreSQL 16
-upgrade scenario preserves valid execution, schedule, and retry states and
-rejects malformed control-plane writes by stable constraint name. The earlier
-destruction scenario passed on 2026-08-04 with migration,
+All 83 Retention tests pass and migration-drift checks cover the current model.
+The exact PostgreSQL 16 mutation scenario proves same-schedule and
+same-property writers wait, reload the committed winner, preserve independent
+projection streams, and leave unrelated coordinates available. A separate
+PostgreSQL 16 upgrade scenario preserves valid execution, schedule, and retry
+states and rejects malformed control-plane writes by stable constraint name.
+The scope-projection upgrade scenario preserves topology-first, policy-first,
+and fully known rows and rejects malformed projection writes by stable
+constraint name. The destruction scenario passed on 2026-08-04 with migration,
 shared/exclusive lock drain, bounded 500-row removal, schedule suppression,
 deterministic replay and conflict, raw-SQL append-only enforcement, closed-scope
 rejection, and tenant isolation. The earlier export scenario remains unchanged.

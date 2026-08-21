@@ -23,6 +23,8 @@ public sealed class RetentionModelTests
         AssertScopeFiltered<RetentionExecution>(context);
         AssertScopeFiltered<RetentionScheduleState>(context);
         AssertScopeFiltered<RetentionRunRetryRequest>(context);
+        AssertScopeFiltered<RetentionTenantProjection>(context);
+        AssertScopeFiltered<RetentionPropertyProjection>(context);
         AssertScopeFiltered<RetentionTenantRevision>(context);
         AssertScopeFiltered<RetentionTenantDestroyOperation>(context);
         AssertScopeFiltered<RetentionTenantDestroyReceipt>(context);
@@ -84,6 +86,25 @@ public sealed class RetentionModelTests
             "CK_retention_run_retry_request_target",
             "CK_retention_run_retry_request_state",
             "CK_retention_run_retry_request_timestamps");
+    }
+
+    [Fact]
+    public void Scope_projections_have_complete_model_owned_constraints()
+    {
+        using RetentionDbContext context = CreateContext();
+        IModel model = context.GetService<IDesignTimeModel>().Model;
+
+        AssertConstraints(
+            model.FindEntityType(typeof(RetentionTenantProjection))!,
+            "CK_retention_tenant_projection_coordinates",
+            "CK_retention_tenant_projection_version");
+        AssertConstraints(
+            model.FindEntityType(typeof(RetentionPropertyProjection))!,
+            "CK_retention_property_projection_coordinates",
+            "CK_retention_property_projection_versions",
+            "CK_retention_property_projection_topology",
+            "CK_retention_property_projection_policy",
+            "CK_retention_property_projection_known");
     }
 
     [Fact]
