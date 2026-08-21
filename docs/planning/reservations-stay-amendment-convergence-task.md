@@ -1,7 +1,8 @@
 # Reservations Stay Amendment Convergence Task
 
-Status: active
+Status: complete; local and exact-candidate verification complete
 Date: 2026-08-12
+Completed: 2026-08-21
 
 ## Goal
 
@@ -170,6 +171,38 @@ Provider-neutral domain and application code remains free of PostgreSQL SQL.
 - Public/Admin authorization, API error mapping, Admin CLI confirmation,
   exports/catalogs, migration drift, architecture boundaries, and the complete
   repository gate pass.
+
+## Completion Evidence
+
+- Commit `020ab0b1` integrated the Reservations-owned desired-stay protocol,
+  dedicated contracts, public/Admin/CLI surfaces, durable operation and
+  recovery query, PostgreSQL protocol, Data Rights and tenant-termination
+  bindings, and the Inventory outcome handshake. Inventory remains the sole
+  allocation and no-overbooking authority; no GMA change was required.
+- The focused Reservations stay-amendment suite passed 51 tests covering
+  date-only, unit-only, expected-time-only, combined, no-op, invalid-range,
+  stale-revision, lifecycle, exact-replay, changed-reuse, confirmation,
+  rejection, contradictory outcome, visibility, keyset recovery, concurrency,
+  API/Admin/CLI, and relational-query behavior.
+- The end-of-slice Docker gate passed 13 PostgreSQL migration/protocol and
+  transactional dispatcher tests. It covers legacy backfill, unknown historical
+  outcomes, immutable coordinates, monotonic transitions, cross-scope and
+  identifier collisions, downgrade refusal, lock failure, and one atomic
+  correlated request graph.
+- Two real PostgreSQL/JetStream saga tests passed separately against the same
+  build. They cover applied and rejected amendments, old truth while pending,
+  exact retry, worker restart, lost-outcome reconciliation, and exactly one
+  Inventory decision.
+- Exact backend candidate `7331e7db61b9cac38390caa4a5c5069b46970596`
+  passed Windows and Ubuntu validation in run `32486077763` and Security
+  Baseline run `32486077768`. Product candidate
+  `d6679787cddf2605ab2dd5f31073045d53195343` passed root validation, image
+  evidence, exact-archive runtime rehearsal, and isolated Production migration
+  rehearsal with all 230 migrations converging to zero pending.
+- The audit found no security, ownership, projection, concurrency, recovery,
+  or future-compatibility gap that requires a code change. Finer-grained
+  recovery delegation remains an optional future access-profile slice rather
+  than a reason to move hostel policy into GMA.
 
 ## Completion Boundary
 
