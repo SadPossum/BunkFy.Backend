@@ -17,6 +17,7 @@ public sealed class GuestRetentionAnonymisationReceipt
     public const int Sha256Length = 64;
     public const int TimeZoneCatalogVersionMaxLength = 64;
     public const int MaximumAffectedProperties = 256;
+    public const string SystemActorId = "system:retention";
 
     private GuestRetentionAnonymisationReceipt() { }
 
@@ -68,7 +69,7 @@ public sealed class GuestRetentionAnonymisationReceipt
                 MaximumAffectedProperties ||
             retentionDeadlineUtc == default ||
             completedAtUtc < retentionDeadlineUtc ||
-            actor.Length is 0 or > GuestProfile.ActorIdMaxLength ||
+            !string.Equals(actor, SystemActorId, StringComparison.Ordinal) ||
             !IsSha256(policyDigest) ||
             !IsCatalogVersion(catalogVersion) ||
             !TenantIds.TryNormalize(tenantId, out string? scopeId))

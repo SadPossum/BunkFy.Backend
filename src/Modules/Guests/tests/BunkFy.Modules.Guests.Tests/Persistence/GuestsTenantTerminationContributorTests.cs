@@ -562,6 +562,7 @@ public sealed class GuestsTenantTerminationContributorTests
         await using GuestsDbContext context = CreateContext(fences);
         SeedGraph(context);
         await context.SaveChangesAsync();
+        context.ChangeTracker.Clear();
         GuestAnonymisationTombstone tombstone =
             await context.AnonymisationTombstones.SingleAsync(candidate =>
                 candidate.Authority ==

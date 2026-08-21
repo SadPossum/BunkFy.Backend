@@ -1,5 +1,7 @@
 namespace BunkFy.Modules.Guests.Application.Contributors;
 
+using BunkFy.Modules.Guests.Domain.Retention;
+
 internal static class GuestRetentionCoordinates
 {
     public const string OwnerKey = "guests";
@@ -7,7 +9,8 @@ internal static class GuestRetentionCoordinates
     public const string Trigger = "stay-ended";
     public const string Purpose = "guest-profile-retention";
     public const string SourceProvenance = "retention-worker";
-    public const string SystemActor = "system:retention";
+    public const string SystemActor =
+        GuestRetentionAnonymisationReceipt.SystemActorId;
     public const int ExecutionPolicyVersion = 2;
 
     public const string CompletedOutcome =

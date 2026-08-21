@@ -120,6 +120,16 @@ public sealed class GuestRetentionDomainTests
     }
 
     [Fact]
+    public void Receipt_rejects_non_system_attribution()
+    {
+        Assert.Equal(
+            "Guests.RetentionReceiptInvalid",
+            CreateReceipt(
+                TimeZoneCatalog.Default.CatalogVersion,
+                "user:operator").Error.Code);
+    }
+
+    [Fact]
     public void Receipt_v2_requires_bounded_control_free_catalog_evidence()
     {
         foreach (string invalidCatalogVersion in new[]
@@ -218,7 +228,8 @@ public sealed class GuestRetentionDomainTests
 
     private static Gma.Framework.Results.Result<
         GuestRetentionAnonymisationReceipt> CreateReceipt(
-        string catalogVersion) =>
+        string catalogVersion,
+        string actorId = GuestRetentionAnonymisationReceipt.SystemActorId) =>
         GuestRetentionAnonymisationReceipt.Create(
             Guid.Parse("11111111-1111-1111-1111-111111111111"),
             "tenant-a",
@@ -231,7 +242,7 @@ public sealed class GuestRetentionDomainTests
             new string('a', 64),
             catalogVersion,
             Guid.Parse("44444444-4444-4444-4444-444444444444"),
-            "system:retention",
+            actorId,
             Now);
 
     private static string ComputeVersionOneCanonicalSha256(

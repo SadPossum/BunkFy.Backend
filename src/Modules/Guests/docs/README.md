@@ -127,6 +127,10 @@ Guests owns BunkFy's tenant-wide canonical guest profiles and staff-facing stay 
 - retention receipt contract version 2 with the exact PII-free TZDB catalog
   version, continued read/export support for version-1 receipts, and bounded
   refusal above 256 affected property associations;
+- provider-enforced retention control and proof integrity: executions,
+  fair-scan checkpoints, receipts, Guests, tombstones and PII-free events use
+  stable named constraints and same-tenant relationships; only reachable
+  control states, system attribution and lowercase SHA-256 proof can persist;
 - Guests tenant-termination owner catalog version 5, binding personal-data
   catalog 16 and tenant export schema 4 without reusing the prior version-4
   catalog coordinate. Frozen version-4 owner work fails the existing exact
