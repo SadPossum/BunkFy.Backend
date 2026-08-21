@@ -2,6 +2,7 @@ namespace BunkFy.Modules.Workspaces.Persistence.Repositories;
 
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Workspaces.Application.Ports;
+using Gma.Framework.Naming;
 using Gma.Framework.Persistence.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,15 +16,23 @@ internal sealed class WorkspacePropertyProjectionRepository(WorkspacesDbContext 
         IReadOnlyCollection<Guid> propertyIds,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(propertyIds);
+        string scopeId = this.RequireCurrentScope();
         Guid[] distinctIds = propertyIds.Distinct().ToArray();
         if (distinctIds.Length == 0)
         {
             return true;
         }
 
+        if (distinctIds.Any(propertyId => propertyId == Guid.Empty))
+        {
+            return false;
+        }
+
         int activeCount = await dbContext.PropertyProjections.AsNoTracking()
             .CountAsync(
-                property => distinctIds.Contains(property.Id) &&
+                property => property.ScopeId == scopeId &&
+                    distinctIds.Contains(property.Id) &&
                     property.Status == PropertyStatus.Active,
                 cancellationToken)
             .ConfigureAwait(false);
@@ -34,17 +43,24 @@ internal sealed class WorkspacePropertyProjectionRepository(WorkspacesDbContext 
         WorkspacePropertyProjectionWriteModel property,
         CancellationToken cancellationToken)
     {
-        await this.AcquirePropertyProjectionLockAsync(
+        ArgumentNullException.ThrowIfNull(property);
+        string scopeId = this.RequireCurrentScope(
             property.ScopeId,
+            property.PropertyId);
+        await this.AcquirePropertyProjectionLockAsync(
+            scopeId,
             property.PropertyId,
             cancellationToken).ConfigureAwait(false);
-        WorkspacePropertyProjection? current = await dbContext.PropertyProjections
-            .FirstOrDefaultAsync(item => item.Id == property.PropertyId, cancellationToken)
-            .ConfigureAwait(false);
+        WorkspacePropertyProjection? current = dbContext.PropertyProjections.Local
+            .FirstOrDefault(item =>
+                item.ScopeId == scopeId && item.Id == property.PropertyId) ??
+            await dbContext.PropertyProjections.FirstOrDefaultAsync(
+                item => item.ScopeId == scopeId && item.Id == property.PropertyId,
+                cancellationToken).ConfigureAwait(false);
         if (current is null)
         {
             dbContext.PropertyProjections.Add(new WorkspacePropertyProjection(
-                property.ScopeId,
+                scopeId,
                 property.PropertyId,
                 property.Name,
                 property.Status,
@@ -55,14 +71,47 @@ internal sealed class WorkspacePropertyProjectionRepository(WorkspacesDbContext 
         current.Apply(property.Name, property.Status, property.Version);
     }
 
+    private string RequireCurrentScope()
+    {
+        if (!dbContext.ScopeFilterEnabled ||
+            !TenantIds.TryNormalize(
+                dbContext.CurrentScopeId,
+                out string? canonicalScopeId) ||
+            !string.Equals(
+                canonicalScopeId,
+                dbContext.CurrentScopeId,
+                StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "A Workspaces property projection requires an active canonical scope.");
+        }
+
+        return canonicalScopeId;
+    }
+
+    private string RequireCurrentScope(string tenantId, Guid propertyId)
+    {
+        string currentScopeId = this.RequireCurrentScope();
+        if (!TenantIds.TryNormalize(tenantId, out string? canonicalScopeId) ||
+            propertyId == Guid.Empty ||
+            !string.Equals(
+                canonicalScopeId,
+                currentScopeId,
+                StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "A Workspaces property projection requires valid scoped coordinates.");
+        }
+
+        return canonicalScopeId;
+    }
+
     private async Task AcquirePropertyProjectionLockAsync(
         string tenantId,
         Guid propertyId,
         CancellationToken cancellationToken)
     {
-        string scopeId = tenantId?.Trim() ?? string.Empty;
-        if (scopeId.Length == 0 ||
-            !string.Equals(scopeId, dbContext.CurrentScopeId, StringComparison.Ordinal) ||
+        if (!string.Equals(tenantId, dbContext.CurrentScopeId, StringComparison.Ordinal) ||
             propertyId == Guid.Empty)
         {
             throw new InvalidOperationException(
@@ -82,7 +131,7 @@ internal sealed class WorkspacePropertyProjectionRepository(WorkspacesDbContext 
 
         await EfTransactionKeyLock.AcquireAsync(
             dbContext,
-            PropertyProjectionLockPrefix + scopeId + ':' + propertyId.ToString("N"),
+            PropertyProjectionLockPrefix + tenantId + ':' + propertyId.ToString("N"),
             cancellationToken).ConfigureAwait(false);
     }
 }

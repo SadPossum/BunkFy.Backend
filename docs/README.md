@@ -116,6 +116,7 @@ Useful entry points:
 - [Workspace Operational Admission Integration Task](planning/workspace-operational-admission-integration-task.md)
 - [Workspaces Personal-Data Catalogue Task](planning/workspaces-personal-data-catalogue-task.md)
 - [Workspaces Operational Surface Hardening Task](planning/workspaces-operational-surface-hardening-task.md)
+- [Workspaces Property Authority Tenant Integrity Task](planning/workspaces-property-authority-tenant-integrity-task.md)
 - [Workspaces Data Rights Owner Capability Task](planning/workspaces-data-rights-owner-capability-task.md)
 - [Workspaces Data Rights Correction Task](planning/workspaces-data-rights-correction-task.md)
 - [Workspaces Data Rights Restriction Task](planning/workspaces-data-rights-restriction-task.md)

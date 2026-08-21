@@ -260,6 +260,7 @@
     <File Path="docs/planning/workspaces-natural-expiry-consumer-task.md" />
     <File Path="docs/planning/workspaces-operational-surface-hardening-task.md" />
     <File Path="docs/planning/workspaces-personal-data-catalogue-task.md" />
+    <File Path="docs/planning/workspaces-property-authority-tenant-integrity-task.md" />
     <File Path="docs/planning/workspaces-tenant-termination-owner-task.md" />
   </Folder>
   <Folder Name="/eng/">
