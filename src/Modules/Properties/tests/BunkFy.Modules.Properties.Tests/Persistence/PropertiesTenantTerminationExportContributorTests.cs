@@ -13,6 +13,7 @@ using BunkFy.Modules.Workspaces.Contracts;
 using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Xunit;
 using DomainPropertyGovernanceAcknowledgement =
     BunkFy.Modules.Properties.Domain.ValueObjects.PropertyGovernanceAcknowledgement;
@@ -643,13 +644,24 @@ public sealed partial class PropertiesTenantTerminationExportContributorTests
         $"{record.RecordType}|{record.RecordId:N}|{record.RecordVersion}";
 
     private static PropertiesDbContext CreateContext(
-        IWorkspaceTerminationFenceReader fences)
+        IWorkspaceTerminationFenceReader fences) =>
+        CreateContext(
+            fences,
+            TenantId,
+            Guid.NewGuid().ToString("N"),
+            new InMemoryDatabaseRoot());
+
+    private static PropertiesDbContext CreateContext(
+        IWorkspaceTerminationFenceReader fences,
+        string tenantId,
+        string databaseName,
+        InMemoryDatabaseRoot databaseRoot)
     {
         DbContextOptions<PropertiesDbContext> options =
             new DbContextOptionsBuilder<PropertiesDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+                .UseInMemoryDatabase(databaseName, databaseRoot)
                 .Options;
-        return new(options, new TestScopeContext(), fences);
+        return new(options, new TestScopeContext(tenantId), fences);
     }
 
     private sealed class CollectingSink : IDataRightsExportSink
@@ -687,10 +699,11 @@ public sealed partial class PropertiesTenantTerminationExportContributorTests
             throw new InvalidOperationException("Fence store unavailable.");
     }
 
-    private sealed class TestScopeContext : IScopeContext
+    private sealed class TestScopeContext(string scopeId = TenantId)
+        : IScopeContext
     {
         public bool IsEnabled => true;
-        public string ScopeId => TenantId;
+        public string ScopeId => scopeId;
     }
 
     private sealed class TestClock : ISystemClock

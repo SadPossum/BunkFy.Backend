@@ -7,6 +7,7 @@ using BunkFy.Modules.Properties.Domain.Entities;
 using BunkFy.Modules.Properties.Persistence;
 using BunkFy.Modules.Properties.Persistence.TenantTermination;
 using BunkFy.TimeZones;
+using Gma.Framework.Domain;
 using Gma.Framework.Scoping;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -16,6 +17,54 @@ using Xunit;
 [Trait("Category", "Unit")]
 public sealed class PropertiesModelTests
 {
+    [Fact]
+    public void Every_properties_scope_shaped_entity_is_explicitly_scoped()
+    {
+        using PropertiesDbContext context = CreateDbContext();
+
+        string[] unclassified = context.Model.GetEntityTypes()
+            .Where(entity =>
+                !entity.IsOwned() &&
+                entity.ClrType.Namespace?.StartsWith(
+                    "BunkFy.Modules.Properties.",
+                    StringComparison.Ordinal) == true &&
+                entity.FindProperty(nameof(IScopedEntity.ScopeId)) is not null &&
+                !typeof(IScopedEntity).IsAssignableFrom(entity.ClrType))
+            .Select(entity => entity.ClrType.FullName ?? entity.Name)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Empty(unclassified);
+    }
+
+    [Fact]
+    public void Governance_revisions_are_tenant_filtered_and_constrained()
+    {
+        using PropertiesDbContext context = CreateDbContext();
+        IModel designModel = context.GetService<IDesignTimeModel>().Model;
+        IEntityType revision = designModel.FindEntityType(
+            typeof(PropertyGovernanceRevision))!;
+
+        Assert.NotEmpty(revision.GetDeclaredQueryFilters());
+        Assert.Equal(
+            [nameof(PropertyGovernanceRevision.Id)],
+            revision.FindPrimaryKey()!.Properties.Select(property =>
+                property.Name));
+        Assert.Equal(
+            [
+                "CK_property_governance_revision_action",
+                "CK_property_governance_revision_coordinates",
+                "CK_property_governance_revision_evidence",
+                "CK_property_governance_revision_occurred_at",
+                "CK_property_governance_revision_policy",
+                "CK_property_governance_revision_text",
+                "CK_property_governance_revision_version"
+            ],
+            revision.GetCheckConstraints()
+                .Select(constraint => constraint.Name)
+                .Order(StringComparer.Ordinal));
+    }
+
     [Fact]
     public void Room_model_has_scope_aware_property_foreign_key()
     {
