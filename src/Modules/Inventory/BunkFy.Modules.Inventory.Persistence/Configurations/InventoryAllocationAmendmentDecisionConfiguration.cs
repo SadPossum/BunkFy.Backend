@@ -19,7 +19,9 @@ internal sealed class InventoryAllocationAmendmentDecisionConfiguration
                 $"\"AllocationId\" <> '{EmptyGuid}' AND " +
                 $"\"ReservationId\" <> '{EmptyGuid}' AND " +
                 $"\"PropertyId\" <> '{EmptyGuid}' AND " +
-                "length(trim(\"ScopeId\")) > 0");
+                "char_length(\"ScopeId\") > 0 AND " +
+                "\"ScopeId\" = btrim(\"ScopeId\") AND " +
+                "\"ScopeId\" !~ '[[:space:][:cntrl:]]'");
             table.HasCheckConstraint(
                 "CK_allocation_amendment_decisions_fingerprint",
                 "length(\"RequestFingerprint\") = 64 AND " +
@@ -31,8 +33,11 @@ internal sealed class InventoryAllocationAmendmentDecisionConfiguration
                 "(\"Confirmed\" = FALSE AND \"RejectionReason\" IS NOT NULL AND " +
                 "\"RejectionReason\" BETWEEN 1 AND 11 AND " +
                 "\"AllocationVersion\" IS NULL)");
+            table.HasCheckConstraint(
+                "CK_allocation_amendment_decisions_decided_at",
+                "\"DecidedAtUtc\" > TIMESTAMPTZ '0001-01-01 00:00:00+00'");
         });
-        builder.HasKey(decision => decision.Id);
+        builder.HasKey(decision => new { decision.ScopeId, decision.Id });
         builder.Property(decision => decision.ScopeId).HasMaxLength(128).IsRequired();
         builder.Property(decision => decision.RequestFingerprint).HasMaxLength(64).IsFixedLength().IsRequired();
         builder.Property(decision => decision.RejectionReason).HasConversion<int?>();

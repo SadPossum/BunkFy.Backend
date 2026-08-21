@@ -19,6 +19,8 @@ public sealed class InventoryMigrationIntegrationTests
         "20260809015632_AddInventoryRetirementManagementOperations";
     private const string BeforeAuthoritativeStateIntegrityMigration =
         "20260811135229_AddInventoryRetirementCancellation";
+    private const string BeforeAmendmentDecisionTenantIntegrityMigration =
+        "20260821144203_AddInventoryAuthoritativeStateIntegrity";
 
     [DockerFact]
     [Trait("Category", "Docker")]
@@ -528,6 +530,144 @@ public sealed class InventoryMigrationIntegrationTests
             """);
     }
 
+    [DockerFact]
+    [Trait("Category", "Docker")]
+    [Trait("Category", "Integration")]
+    public async Task Amendment_decision_tenant_integrity_migration_isolates_same_ids_and_guards_downgrade()
+    {
+        await using PostgreSqlContainer postgreSql = new PostgreSqlBuilder(
+                "postgres:16-alpine")
+            .WithDatabase("bunkfy_inventory_amendment_tenant_tests")
+            .Build();
+        await postgreSql.StartAsync();
+
+        const string tenantA = "tenant-a";
+        const string tenantB = "tenant-b";
+        Guid amendmentId =
+            Guid.Parse("70000000-0000-0000-0000-000000000030");
+        Guid allocationId =
+            Guid.Parse("10000000-0000-0000-0000-000000000030");
+        Guid reservationId =
+            Guid.Parse("20000000-0000-0000-0000-000000000030");
+        Guid propertyId =
+            Guid.Parse("40000000-0000-0000-0000-000000000030");
+        DateTimeOffset decidedAtUtc =
+            new(2026, 8, 21, 19, 45, 0, TimeSpan.Zero);
+
+        await using (InventoryDbContext previous = CreateDbContext(
+            postgreSql.GetConnectionString(),
+            tenantA))
+        {
+            await previous.Database.GetService<IMigrator>()
+                .MigrateAsync(BeforeAmendmentDecisionTenantIntegrityMigration);
+            await previous.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO inventory.allocation_amendment_decisions (
+                    "Id", "ScopeId", "AllocationId", "ReservationId", "PropertyId",
+                    "RequestFingerprint", "Confirmed", "RejectionReason",
+                    "AllocationVersion", "DecidedAtUtc")
+                VALUES (
+                    {amendmentId}, {tenantA}, {allocationId}, {reservationId},
+                    {propertyId}, {new string('a', 64)}, FALSE,
+                    {(int)InventoryAllocationRejectionReason.AllocationConflict},
+                    NULL, {decidedAtUtc});
+                """);
+        }
+
+        await using (InventoryDbContext upgraded = CreateDbContext(
+            postgreSql.GetConnectionString(),
+            tenantA))
+        {
+            await upgraded.Database.MigrateAsync();
+            await upgraded.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO inventory.allocation_amendment_decisions (
+                    "Id", "ScopeId", "AllocationId", "ReservationId", "PropertyId",
+                    "RequestFingerprint", "Confirmed", "RejectionReason",
+                    "AllocationVersion", "DecidedAtUtc")
+                VALUES (
+                    {amendmentId}, {tenantB}, {allocationId}, {reservationId},
+                    {propertyId}, {new string('b', 64)}, FALSE,
+                    {(int)InventoryAllocationRejectionReason.AllocationConflict},
+                    NULL, {decidedAtUtc.AddMinutes(1)});
+                """);
+
+            InventoryAllocationAmendmentDecision local = await upgraded
+                .AllocationAmendmentDecisions
+                .AsNoTracking()
+                .SingleAsync(item => item.Id == amendmentId);
+            Assert.Equal(tenantA, local.ScopeId);
+            Assert.Equal(new string('a', 64), local.RequestFingerprint);
+            Assert.Equal(
+                2,
+                await upgraded.AllocationAmendmentDecisions
+                    .IgnoreQueryFilters()
+                    .CountAsync(item => item.Id == amendmentId));
+
+            await AssertCheckViolationAsync(
+                upgraded,
+                "CK_allocation_amendment_decisions_coordinates",
+                $"""
+                UPDATE inventory.allocation_amendment_decisions
+                SET "ScopeId" = {"tenant a"}
+                WHERE "ScopeId" = {tenantA} AND "Id" = {amendmentId};
+                """);
+            await AssertCheckViolationAsync(
+                upgraded,
+                "CK_allocation_amendment_decisions_decided_at",
+                $"""
+                UPDATE inventory.allocation_amendment_decisions
+                SET "DecidedAtUtc" = TIMESTAMPTZ '0001-01-01 00:00:00+00'
+                WHERE "ScopeId" = {tenantA} AND "Id" = {amendmentId};
+                """);
+        }
+
+        await using (InventoryDbContext tenantBContext = CreateDbContext(
+            postgreSql.GetConnectionString(),
+            tenantB))
+        {
+            InventoryAllocationAmendmentDecision local = await tenantBContext
+                .AllocationAmendmentDecisions
+                .AsNoTracking()
+                .SingleAsync(item => item.Id == amendmentId);
+            Assert.Equal(tenantB, local.ScopeId);
+            Assert.Equal(new string('b', 64), local.RequestFingerprint);
+
+            PostgresException unsafeDowngrade = await Assert.ThrowsAsync<
+                PostgresException>(() => tenantBContext.Database
+                    .GetService<IMigrator>()
+                    .MigrateAsync(
+                        BeforeAmendmentDecisionTenantIntegrityMigration));
+            Assert.Equal(PostgresErrorCodes.RaiseException, unsafeDowngrade.SqlState);
+            Assert.Contains(
+                "Cannot downgrade Inventory while amendment request ids are shared across tenants",
+                unsafeDowngrade.MessageText,
+                StringComparison.Ordinal);
+        }
+
+        await using (InventoryDbContext roundTrip = CreateDbContext(
+            postgreSql.GetConnectionString(),
+            tenantA))
+        {
+            await roundTrip.Database.ExecuteSqlInterpolatedAsync($"""
+                DELETE FROM inventory.allocation_amendment_decisions
+                WHERE "ScopeId" = {tenantB} AND "Id" = {amendmentId};
+                """);
+            await roundTrip.Database.GetService<IMigrator>()
+                .MigrateAsync(BeforeAmendmentDecisionTenantIntegrityMigration);
+            Assert.Equal(
+                1,
+                await roundTrip.AllocationAmendmentDecisions
+                    .IgnoreQueryFilters()
+                    .CountAsync(item => item.Id == amendmentId));
+
+            await roundTrip.Database.MigrateAsync();
+            Assert.Equal(
+                tenantA,
+                (await roundTrip.AllocationAmendmentDecisions
+                    .AsNoTracking()
+                    .SingleAsync(item => item.Id == amendmentId)).ScopeId);
+        }
+    }
+
     private static async Task AssertCheckViolationAsync(
         InventoryDbContext dbContext,
         string expectedConstraint,
@@ -539,7 +679,9 @@ public sealed class InventoryMigrationIntegrationTests
         Assert.Equal(expectedConstraint, failure.ConstraintName);
     }
 
-    private static InventoryDbContext CreateDbContext(string connectionString)
+    private static InventoryDbContext CreateDbContext(
+        string connectionString,
+        string scopeId = "tenant-a")
     {
         DbContextOptions<InventoryDbContext> options =
             new DbContextOptionsBuilder<InventoryDbContext>()
@@ -551,13 +693,13 @@ public sealed class InventoryMigrationIntegrationTests
                 .Options;
         return new(
             options,
-            new TestScopeContext(),
+            new TestScopeContext(scopeId),
             OpenWorkspaceTerminationFenceReader.Instance);
     }
 
-    private sealed class TestScopeContext : IScopeContext
+    private sealed class TestScopeContext(string scopeId) : IScopeContext
     {
         public bool IsEnabled => true;
-        public string ScopeId => "tenant-a";
+        public string ScopeId { get; } = scopeId;
     }
 }

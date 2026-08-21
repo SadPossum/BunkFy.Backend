@@ -12,6 +12,7 @@ using BunkFy.Modules.Workspaces.Contracts;
 using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Xunit;
 
 [Trait("Category", "Unit")]
@@ -592,11 +593,24 @@ public sealed partial class InventoryTenantTerminationExportContributorTests
     private static InventoryDbContext CreateContext(
         IWorkspaceTerminationFenceReader fences)
     {
+        return CreateContext(
+            fences,
+            new TestScopeContext(),
+            Guid.NewGuid().ToString("N"),
+            new InMemoryDatabaseRoot());
+    }
+
+    private static InventoryDbContext CreateContext(
+        IWorkspaceTerminationFenceReader fences,
+        IScopeContext scopeContext,
+        string databaseName,
+        InMemoryDatabaseRoot root)
+    {
         DbContextOptions<InventoryDbContext> options =
             new DbContextOptionsBuilder<InventoryDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+                .UseInMemoryDatabase(databaseName, root)
                 .Options;
-        return new(options, new TestScopeContext(), fences);
+        return new(options, scopeContext, fences);
     }
 
     private sealed class CollectingSink : IDataRightsExportSink
@@ -634,10 +648,11 @@ public sealed partial class InventoryTenantTerminationExportContributorTests
             throw new InvalidOperationException("Fence store unavailable.");
     }
 
-    private sealed class TestScopeContext : IScopeContext
+    private sealed class TestScopeContext(string scopeId = TenantId)
+        : IScopeContext
     {
         public bool IsEnabled => true;
-        public string ScopeId => TenantId;
+        public string ScopeId { get; } = scopeId;
     }
 
     private sealed class TestClock : ISystemClock

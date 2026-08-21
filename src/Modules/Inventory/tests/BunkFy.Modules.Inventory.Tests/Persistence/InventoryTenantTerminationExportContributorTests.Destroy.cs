@@ -1,12 +1,14 @@
 namespace BunkFy.Modules.Inventory.Tests;
 
 using BunkFy.Modules.DataRights.Contracts;
+using BunkFy.Modules.Inventory.Contracts;
 using BunkFy.Modules.Inventory.Domain.Aggregates;
 using BunkFy.Modules.Inventory.Persistence;
 using BunkFy.Modules.Inventory.Persistence.Repositories;
 using BunkFy.Modules.Inventory.Persistence.TenantTermination;
 using Gma.Framework.Messaging.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Xunit;
 
 public sealed partial class InventoryTenantTerminationExportContributorTests
@@ -79,6 +81,64 @@ public sealed partial class InventoryTenantTerminationExportContributorTests
         Assert.False(await context.TryAdmitMessageMutationAsync(
             TenantId,
             CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Destroy_preserves_foreign_same_id_amendment_decision()
+    {
+        const string foreignTenantId =
+            "10000000-0000-0000-0000-000000000002";
+        Guid sharedDecisionId =
+            Guid.Parse("8a000000-0000-0000-0000-000000000001");
+        InMemoryDatabaseRoot root = new();
+        string databaseName = Guid.NewGuid().ToString("N");
+        MutableFenceReader fences = new();
+        await using InventoryDbContext context = CreateContext(
+            fences,
+            new TestScopeContext(),
+            databaseName,
+            root);
+        SeedGraph(context);
+        await context.SaveChangesAsync();
+        context.ChangeTracker.Clear();
+
+        await using InventoryDbContext foreign = CreateContext(
+            fences,
+            new TestScopeContext(foreignTenantId),
+            databaseName,
+            root);
+        foreign.AllocationAmendmentDecisions.Add(new(new(
+            sharedDecisionId,
+            foreignTenantId,
+            AllocationId,
+            Guid.Parse("83000000-0000-0000-0000-000000000001"),
+            PropertyId,
+            new string('b', 64),
+            Confirmed: false,
+            InventoryAllocationRejectionReason.AllocationConflict,
+            AllocationVersion: null,
+            FrozenAtUtc.AddDays(-1))));
+        await foreign.SaveChangesAsync();
+        foreign.ChangeTracker.Clear();
+
+        fences.Current = FrozenFence();
+        InventoryTenantTerminationContributor contributor = new(
+            context,
+            new TestScopeContext(),
+            new TestClock(),
+            fences);
+
+        TenantTerminationContributionResult result =
+            await CompleteDestroyAsync(contributor, DestroyRequest());
+
+        Assert.Equal(TenantTerminationContributionStatus.Completed, result.Status);
+        Assert.Equal(12, result.AffectedCount);
+        Assert.Empty(await context.AllocationAmendmentDecisions.ToArrayAsync());
+        InventoryAllocationAmendmentDecision preserved = await foreign
+            .AllocationAmendmentDecisions
+            .SingleAsync();
+        Assert.Equal(foreignTenantId, preserved.ScopeId);
+        Assert.Equal(sharedDecisionId, preserved.Id);
     }
 
     [Fact]

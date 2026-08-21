@@ -125,6 +125,7 @@
     <File Path="docs/planning/ingestion-source-reprocessing-task.md" />
     <File Path="docs/planning/ingestion-tenant-termination-owner-task.md" />
     <File Path="docs/planning/international-market-gate-task.md" />
+    <File Path="docs/planning/inventory-allocation-amendment-decision-tenant-integrity-task.md" />
     <File Path="docs/planning/inventory-allocation-mutation-serialization-task.md" />
     <File Path="docs/planning/inventory-authoritative-state-integrity-task.md" />
     <File Path="docs/planning/inventory-data-rights-owner-capability-task.md" />

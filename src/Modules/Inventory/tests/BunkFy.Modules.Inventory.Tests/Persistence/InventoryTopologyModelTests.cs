@@ -34,6 +34,7 @@ public sealed class InventoryTopologyModelTests
         AssertConstraints(
             designModel.FindEntityType(typeof(InventoryAllocationAmendmentDecision))!,
             "CK_allocation_amendment_decisions_coordinates",
+            "CK_allocation_amendment_decisions_decided_at",
             "CK_allocation_amendment_decisions_fingerprint",
             "CK_allocation_amendment_decisions_outcome");
         AssertConstraints(
@@ -300,7 +301,10 @@ public sealed class InventoryTopologyModelTests
 
         IEntityType decision = dbContext.Model.FindEntityType(typeof(InventoryAllocationAmendmentDecision))!;
 
-        Assert.Equal([nameof(InventoryAllocationAmendmentDecision.Id)], decision.FindPrimaryKey()!
+        Assert.Equal([
+            nameof(InventoryAllocationAmendmentDecision.ScopeId),
+            nameof(InventoryAllocationAmendmentDecision.Id)
+        ], decision.FindPrimaryKey()!
             .Properties.Select(property => property.Name));
         Assert.True(decision.FindProperty(nameof(InventoryAllocationAmendmentDecision.RequestFingerprint))!.IsFixedLength());
         Assert.Contains(
