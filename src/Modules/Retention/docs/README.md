@@ -9,12 +9,14 @@ Retention owns BunkFy's schedule state and execution history for invoking
 retention work in the modules that own the affected data. It does not own the
 business records being retained, anonymised, or deleted.
 
-The module persists two authoritative tenant-owned record families:
+The module persists three authoritative tenant-owned record families:
 
 - `RetentionExecution`, the bounded attempt and outcome history for one owner,
   data class, policy version, and tenant or property target; and
 - `RetentionScheduleState`, the current scheduling and health state for that
-  same coordinate.
+  same coordinate; and
+- `RetentionRunRetryRequest`, the durable, evidence-pinned state of one
+  operator-requested Task Runtime retry.
 
 Organization and property records in Retention are rebuildable projections.
 The inbox is transport state. Neither is part of Retention's tenant portability
@@ -68,6 +70,14 @@ execution cannot start before its previous start, and a `Failed` execution
 cannot restart before its persisted completion. `Completed` and `Blocked`
 executions are terminal and do not open another owner window.
 
+The aggregate and PostgreSQL model share one authoritative state contract for
+executions, schedule health, and durable retry requests. Empty coordinates,
+malformed bounded codes, contradictory running/terminal evidence, mismatched
+property target keys, invalid failure counters, and successful work completed
+after its deadline fail closed at the owner model. Failed work may finish after
+its deadline so timeout evidence remains recordable. See the
+[Retention Control Plane Authoritative State Integrity Task](../../../docs/planning/retention-control-plane-authoritative-state-integrity-task.md).
+
 ## Tenant Termination
 
 Retention is a mandatory `Export` and `Destroy` contributor after Ingestion.
@@ -119,11 +129,13 @@ Migration `AddRetentionTenantDestructionLifecycle` adds lifecycle state,
 resumable destruction operation state, and the receipt ledger. PostgreSQL also
 enforces receipt immutability with an append-only trigger.
 
-All 44 Retention tests pass and EF reports no pending model changes. The exact
-PostgreSQL 16 mutation scenario proves same-schedule and same-property writers
-wait, reload the committed winner, preserve independent projection streams,
-and leave unrelated coordinates available. The earlier destruction scenario
-passed on 2026-08-04 with migration,
+All 78 Retention tests pass and migration-drift checks cover the current model. The
+exact PostgreSQL 16 mutation scenario proves same-schedule and same-property
+writers wait, reload the committed winner, preserve independent projection
+streams, and leave unrelated coordinates available. A separate PostgreSQL 16
+upgrade scenario preserves valid execution, schedule, and retry states and
+rejects malformed control-plane writes by stable constraint name. The earlier
+destruction scenario passed on 2026-08-04 with migration,
 shared/exclusive lock drain, bounded 500-row removal, schedule suppression,
 deterministic replay and conflict, raw-SQL append-only enforcement, closed-scope
 rejection, and tenant isolation. The earlier export scenario remains unchanged.

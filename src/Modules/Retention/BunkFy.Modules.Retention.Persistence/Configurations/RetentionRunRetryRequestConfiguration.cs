@@ -8,22 +8,36 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 internal sealed class RetentionRunRetryRequestConfiguration
     : IEntityTypeConfiguration<RetentionRunRetryRequest>
 {
+    private const string EmptyGuid =
+        "00000000-0000-0000-0000-000000000000";
+
     public void Configure(
         EntityTypeBuilder<RetentionRunRetryRequest> builder)
     {
         builder.ToTable("run_retry_requests", table =>
         {
             table.HasCheckConstraint(
+                "CK_retention_run_retry_request_coordinates",
+                $"\"Id\" <> '{EmptyGuid}' AND \"RunId\" <> '{EmptyGuid}' AND " +
+                "trim(\"ScopeId\") <> '' AND " +
+                "\"OwnerKey\" ~ '^[a-z0-9.-]+$' AND " +
+                "\"DataClassKey\" ~ '^[a-z0-9.-]+$' AND " +
+                "(\"FailureCode\" IS NULL OR " +
+                "\"FailureCode\" ~ '^[a-z0-9.-]+$')");
+            table.HasCheckConstraint(
                 "CK_retention_run_retry_request_versions",
                 "\"ExecutionPolicyVersion\" >= 1 AND " +
                 "\"EvidenceVersion\" >= 1 AND \"Attempt\" >= 1 AND " +
-                "\"Version\" >= 1");
+                "\"Version\" >= 1 AND " +
+                $"(\"State\" = {(int)RetentionRunRetryRequestState.Pending} OR " +
+                "\"Version\" >= 2)");
             table.HasCheckConstraint(
                 "CK_retention_run_retry_request_target",
                 $"(\"TargetKind\" = {(int)RetentionExecutionTargetKind.Tenant} " +
                 "AND \"PropertyId\" IS NULL) OR " +
                 $"(\"TargetKind\" = {(int)RetentionExecutionTargetKind.Property} " +
-                "AND \"PropertyId\" IS NOT NULL)");
+                $"AND \"PropertyId\" IS NOT NULL AND " +
+                $"\"PropertyId\" <> '{EmptyGuid}')");
             table.HasCheckConstraint(
                 "CK_retention_run_retry_request_state",
                 $"\"State\" IN ({(int)RetentionRunRetryRequestState.Pending}, " +

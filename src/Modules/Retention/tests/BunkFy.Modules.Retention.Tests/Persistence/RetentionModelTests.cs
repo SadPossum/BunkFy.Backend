@@ -58,6 +58,35 @@ public sealed class RetentionModelTests
     }
 
     [Fact]
+    public void Control_plane_state_has_complete_model_owned_constraints()
+    {
+        using RetentionDbContext context = CreateContext();
+        IModel model = context.GetService<IDesignTimeModel>().Model;
+
+        AssertConstraints(
+            model.FindEntityType(typeof(RetentionExecution))!,
+            "CK_retention_executions_coordinate",
+            "CK_retention_executions_keys",
+            "CK_retention_executions_versions",
+            "CK_retention_executions_time",
+            "CK_retention_executions_state");
+        AssertConstraints(
+            model.FindEntityType(typeof(RetentionScheduleState))!,
+            "CK_retention_schedule_state_coordinates",
+            "CK_retention_schedule_state_versions",
+            "CK_retention_schedule_state_time",
+            "CK_retention_schedule_state_target",
+            "CK_retention_schedule_state_result");
+        AssertConstraints(
+            model.FindEntityType(typeof(RetentionRunRetryRequest))!,
+            "CK_retention_run_retry_request_coordinates",
+            "CK_retention_run_retry_request_versions",
+            "CK_retention_run_retry_request_target",
+            "CK_retention_run_retry_request_state",
+            "CK_retention_run_retry_request_timestamps");
+    }
+
+    [Fact]
     public void Tenant_revision_is_scope_keyed_and_concurrency_guarded()
     {
         using RetentionDbContext context = CreateContext();
@@ -200,6 +229,19 @@ public sealed class RetentionModelTests
     {
         IEntityType entity = context.Model.FindEntityType(typeof(TEntity))!;
         Assert.NotEmpty(entity.GetDeclaredQueryFilters());
+    }
+
+    private static void AssertConstraints(
+        IEntityType entity,
+        params string[] expectedNames)
+    {
+        string[] actualNames = entity.GetCheckConstraints()
+            .Select(constraint => constraint.Name!)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        Assert.Equal(
+            expectedNames.Order(StringComparer.Ordinal),
+            actualNames);
     }
 
     private static RetentionDbContext CreateContext()

@@ -168,6 +168,7 @@ Useful entry points:
 - [Retention Operational Surface Hardening Task](planning/retention-operational-surface-hardening-task.md)
 - [Retention Operator Recovery Task](planning/retention-operator-recovery-task.md)
 - [Retention Mutation Serialization Task](planning/retention-mutation-serialization-task.md)
+- [Retention Control Plane Authoritative State Integrity Task](planning/retention-control-plane-authoritative-state-integrity-task.md)
 - [Retention Task Timeout Alignment Task](planning/retention-task-timeout-alignment-task.md)
 - [Tenant Termination Control Plane Task](planning/tenant-termination-control-plane-task.md)
 - [Tenant Termination Phase Ordering Task](planning/tenant-termination-phase-ordering-task.md)
