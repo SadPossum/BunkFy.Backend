@@ -201,6 +201,7 @@
     <File Path="docs/planning/staff-account-link-authorization-task.md" />
     <File Path="docs/planning/staff-auth-subject-idempotency-task.md" />
     <File Path="docs/planning/staff-auth-subject-transition-safety-task.md" />
+    <File Path="docs/planning/staff-authoritative-state-integrity-task.md" />
     <File Path="docs/planning/staff-data-rights-anonymisation-task.md" />
     <File Path="docs/planning/staff-data-rights-correction-task.md" />
     <File Path="docs/planning/staff-data-rights-owner-capability-task.md" />

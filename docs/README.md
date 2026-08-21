@@ -78,6 +78,7 @@ Useful entry points:
 - [Guests Deployed Stay History Proof Task](planning/guests-deployed-stay-history-proof-task.md)
 - [Staff Profiles Module Task](planning/staff-profiles-module-task.md)
 - [Staff Operational Surface Hardening Task](planning/staff-operational-surface-hardening-task.md)
+- [Staff Authoritative State Integrity Task](planning/staff-authoritative-state-integrity-task.md)
 - [Staff Onboarding Provisioning Idempotency Task](planning/staff-onboarding-provisioning-idempotency-task.md)
 - [Staff Onboarding Employment Lifecycle Boundary Task](planning/staff-onboarding-employment-lifecycle-boundary-task.md)
 - [Staff Owner Identity Bootstrap Hardening Task](planning/staff-owner-identity-bootstrap-hardening-task.md)
