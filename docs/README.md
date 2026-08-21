@@ -76,6 +76,7 @@ Useful entry points:
 - [Guest Records Module Task](planning/guest-records-module-task.md)
 - [Guests Authoritative Profile State Integrity Task](planning/guests-authoritative-profile-state-integrity-task.md)
 - [Guests Data-Hold Audit Integrity Task](planning/guests-data-hold-audit-integrity-task.md)
+- [Guests Processing-Restriction Audit Integrity Task](planning/guests-processing-restriction-audit-integrity-task.md)
 - [Guests Management Create Idempotency Task](planning/guests-management-create-idempotency-task.md)
 - [Guests Management Update And Archive Idempotency Task](planning/guests-management-update-archive-idempotency-task.md)
 - [Guests Read Surface Hardening Task](planning/guests-read-surface-hardening-task.md)

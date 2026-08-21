@@ -63,6 +63,11 @@ Guests owns BunkFy's tenant-wide canonical guest profiles and staff-facing stay 
 - a versioned fail-closed restriction gate, constant-size transition event and
   bounded keyset rebuild export for dependent modules, with no direct identity,
   contact or free-text values crossing the boundary;
+- provider-enforced processing-restriction integrity: aggregate, effective
+  projection, and receipt coordinates, actors, timestamps, lifecycle versions,
+  and reachable revision/count state fail closed at PostgreSQL. Named
+  tenant-qualified foreign keys bind each restriction to its effective
+  projection and every receipt to its authoritative restriction coordinates;
 - independently releasable tenant/property/Guest data holds with stable reason
   codes, exact optimistic versions, immutable idempotent receipts, bounded
   listing and a dedicated permission absent from ordinary workspace roles;

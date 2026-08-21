@@ -108,6 +108,111 @@ public sealed class GuestsModelTests
     }
 
     [Fact]
+    public void Processing_restriction_graph_declares_authoritative_database_invariants()
+    {
+        using GuestsDbContext dbContext = CreateDbContext();
+        IModel designModel = dbContext.GetService<IDesignTimeModel>().Model;
+
+        IEntityType projection = dbContext.Model.FindEntityType(
+            typeof(GuestProcessingRestrictionProjection))!;
+        IEntityType designProjection = designModel.FindEntityType(
+            typeof(GuestProcessingRestrictionProjection))!;
+        Assert.Equal(
+            ValueGenerated.OnAdd,
+            projection.FindProperty(
+                nameof(GuestProcessingRestrictionProjection.ProjectionOrdinal))!
+                .ValueGenerated);
+        Assert.True(projection.FindProperty(
+            nameof(GuestProcessingRestrictionProjection.Revision))!
+            .IsConcurrencyToken);
+        AssertConstraints(
+            designProjection,
+            "CK_guest_processing_restrictions_projection_coordinates",
+            "CK_guest_processing_restrictions_contract_version",
+            "CK_guest_processing_restrictions_revision",
+            "CK_guest_processing_restrictions_projection_ordinal",
+            "CK_guest_processing_restrictions_transition_timestamp",
+            "CK_guest_processing_restrictions_effective_state");
+
+        IEntityType restriction = dbContext.Model.FindEntityType(
+            typeof(GuestProcessingRestriction))!;
+        IEntityType designRestriction = designModel.FindEntityType(
+            typeof(GuestProcessingRestriction))!;
+        Assert.True(restriction.FindProperty(
+            nameof(GuestProcessingRestriction.Version))!.IsConcurrencyToken);
+        Assert.Contains(restriction.GetKeys(), key =>
+            key.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(GuestProcessingRestriction.ScopeId),
+                nameof(GuestProcessingRestriction.Id),
+                nameof(GuestProcessingRestriction.PropertyId),
+                nameof(GuestProcessingRestriction.GuestId)
+            ]));
+        IForeignKey projectionReference = Assert.Single(
+            restriction.GetForeignKeys());
+        Assert.Equal(
+            [
+                nameof(GuestProcessingRestriction.ScopeId),
+                nameof(GuestProcessingRestriction.PropertyId),
+                nameof(GuestProcessingRestriction.GuestId)
+            ],
+            projectionReference.Properties.Select(property => property.Name));
+        Assert.Equal(
+            [
+                nameof(GuestProcessingRestrictionProjection.ScopeId),
+                nameof(GuestProcessingRestrictionProjection.PropertyId),
+                nameof(GuestProcessingRestrictionProjection.GuestId)
+            ],
+            projectionReference.PrincipalKey.Properties.Select(
+                property => property.Name));
+        Assert.Equal(DeleteBehavior.Restrict, projectionReference.DeleteBehavior);
+        AssertConstraints(
+            designRestriction,
+            "CK_guest_processing_restrictions_coordinates",
+            "CK_guest_processing_restrictions_audit_text",
+            "CK_guest_processing_restrictions_timestamps",
+            "CK_guest_processing_restrictions_apply_approval",
+            "CK_guest_processing_restrictions_lifecycle");
+
+        IEntityType receipt = dbContext.Model.FindEntityType(
+            typeof(GuestProcessingRestrictionReceipt))!;
+        IEntityType designReceipt = designModel.FindEntityType(
+            typeof(GuestProcessingRestrictionReceipt))!;
+        Assert.Single(receipt.GetKeys());
+        Assert.Contains(receipt.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual([
+                nameof(GuestProcessingRestrictionReceipt.ScopeId),
+                nameof(GuestProcessingRestrictionReceipt.RestrictionId),
+                nameof(GuestProcessingRestrictionReceipt.PropertyId),
+                nameof(GuestProcessingRestrictionReceipt.GuestId)
+            ]));
+        IForeignKey restrictionReference = Assert.Single(receipt.GetForeignKeys());
+        Assert.Equal(
+            [
+                nameof(GuestProcessingRestrictionReceipt.ScopeId),
+                nameof(GuestProcessingRestrictionReceipt.RestrictionId),
+                nameof(GuestProcessingRestrictionReceipt.PropertyId),
+                nameof(GuestProcessingRestrictionReceipt.GuestId)
+            ],
+            restrictionReference.Properties.Select(property => property.Name));
+        Assert.Equal(
+            [
+                nameof(GuestProcessingRestriction.ScopeId),
+                nameof(GuestProcessingRestriction.Id),
+                nameof(GuestProcessingRestriction.PropertyId),
+                nameof(GuestProcessingRestriction.GuestId)
+            ],
+            restrictionReference.PrincipalKey.Properties.Select(
+                property => property.Name));
+        Assert.Equal(DeleteBehavior.Restrict, restrictionReference.DeleteBehavior);
+        AssertConstraints(
+            designReceipt,
+            "CK_guest_processing_restriction_receipts_coordinates",
+            "CK_guest_processing_restriction_receipts_audit_text",
+            "CK_guest_processing_restriction_receipts_timestamp",
+            "CK_guest_processing_restriction_receipts_versions");
+    }
+
+    [Fact]
     public void Management_operations_are_guest_scoped_constrained_and_cascade_owned()
     {
         using GuestsDbContext dbContext = CreateDbContext();
