@@ -21,6 +21,9 @@ values are engineering defaults until country, retention, and rights approval.
   draining-process cancellations with caller-owned operation ids, normalized
   intent fingerprints, expected process versions, compact journal pointers,
   and exact replay;
+- database-enforced coordinate, range, outcome, lifecycle, and version
+  invariants for authoritative allocations, amendment decisions, manual
+  blocks, room configurations, retirement processes, and allocation locks;
 - durable, idempotent multi-unit reservation allocations and releases with concurrent-claim serialization;
 - exact-reservation Data Rights discovery/export plus terminal allocation
   anonymisation and restore-safe owner proof;
@@ -67,6 +70,13 @@ active retirement per room or bed.
 
 Public and Admin Inventory endpoints emit `Cache-Control: no-store`, `Pragma: no-cache`, and an expired response date. This prevents block reasons, staff references, claim identifiers, and current availability state from being retained by shared caches. Admin endpoints also declare explicit success response metadata so generated clients match runtime responses.
 
+Authoritative operational rows are protected by named relational checks in
+addition to aggregate guards. Nullable transition evidence is required
+explicitly, so PostgreSQL three-valued logic cannot admit an incomplete
+amendment, completion, rejection, or cancellation shape. Rebuildable topology
+placeholders remain outside this contract because their valid out-of-order
+state machine is deliberately different from operational authority.
+
 ## Tenant Termination
 
 Inventory is a mandatory `Export` and `Destroy` owner. Export depends on
@@ -100,14 +110,16 @@ Migrations `AddInventoryTenantExportRevision`,
 `AddInventoryTenantDestructionLifecycle`,
 `AddInventoryManualBlockManagementOperations`,
 `AddInventoryRetirementManagementOperations`, and
-`AddInventoryRetirementCancellation` add the revision/lifecycle state,
+`AddInventoryRetirementCancellation`, and
+`AddInventoryAuthoritativeStateIntegrity` add the revision/lifecycle state,
 resumable operation, typed receipt ledger, cancellation audit state, partial
-active-retirement uniqueness, and provider-side proof guards. All 159 focused
+active-retirement uniqueness, and provider-side proof guards. All 160 focused
 non-Docker Inventory tests pass, EF reports no pending model changes, and the
-Inventory PostgreSQL scenarios passed through 2026-08-11 with lock drain,
+Inventory PostgreSQL scenarios passed through 2026-08-21 with lock drain,
 outbox suppression, bounded graph removal, replay/conflict, concurrent block
-mutation, retained cancellation history, active-attempt enforcement, trigger
-enforcement, closed admission, downgrade refusal, and tenant isolation.
+mutation, retained cancellation history, active-attempt enforcement, valid
+legacy-row upgrade, exact named check enforcement, closed admission, downgrade
+refusal, and tenant isolation.
 
 Production execution remains disabled until every mandatory owner, terminal
 orchestration, protected replay, operator controls, and final admission are

@@ -1,5 +1,6 @@
 namespace Integration.Tests;
 
+using BunkFy.Modules.Inventory.Contracts;
 using BunkFy.Modules.Inventory.Domain.Aggregates;
 using BunkFy.Modules.Inventory.Persistence;
 using Gma.Framework.Scoping;
@@ -16,6 +17,8 @@ public sealed class InventoryMigrationIntegrationTests
     private const string PreviousMigration = "20260715064134_AddRoomRetirements";
     private const string BeforeRetirementCancellationMigration =
         "20260809015632_AddInventoryRetirementManagementOperations";
+    private const string BeforeAuthoritativeStateIntegrityMigration =
+        "20260811135229_AddInventoryRetirementCancellation";
 
     [DockerFact]
     [Trait("Category", "Docker")]
@@ -271,6 +274,269 @@ public sealed class InventoryMigrationIntegrationTests
                 unsafeDowngrade.MessageText,
                 StringComparison.Ordinal);
         }
+    }
+
+    [DockerFact]
+    [Trait("Category", "Docker")]
+    [Trait("Category", "Integration")]
+    public async Task Authoritative_state_integrity_migration_preserves_valid_rows_and_rejects_malformed_state()
+    {
+        await using PostgreSqlContainer postgreSql = new PostgreSqlBuilder("postgres:16-alpine")
+            .WithDatabase("bunkfy_inventory_state_integrity_migration_tests")
+            .Build();
+        await postgreSql.StartAsync();
+
+        const string scopeId = "tenant-a";
+        Guid propertyId = Guid.Parse("40000000-0000-0000-0000-000000000020");
+        Guid roomId = Guid.Parse("50000000-0000-0000-0000-000000000020");
+        Guid retiringRoomId = Guid.Parse("50000000-0000-0000-0000-000000000021");
+        Guid inventoryUnitId = Guid.Parse("60000000-0000-0000-0000-000000000020");
+        Guid allocationId = Guid.Parse("10000000-0000-0000-0000-000000000020");
+        Guid reservationId = Guid.Parse("20000000-0000-0000-0000-000000000020");
+        Guid allocationRequestId = Guid.Parse("30000000-0000-0000-0000-000000000020");
+        Guid amendmentId = Guid.Parse("70000000-0000-0000-0000-000000000020");
+        Guid blockId = Guid.Parse("80000000-0000-0000-0000-000000000020");
+        Guid blockGroupId = Guid.Parse("81000000-0000-0000-0000-000000000020");
+        Guid bedRetirementId = Guid.Parse("90000000-0000-0000-0000-000000000020");
+        Guid roomRetirementId = Guid.Parse("91000000-0000-0000-0000-000000000020");
+        DateTimeOffset createdAtUtc = new(2026, 8, 21, 12, 0, 0, TimeSpan.Zero);
+        DateTimeOffset configuredAtUtc = createdAtUtc.AddMinutes(1);
+
+        await using (InventoryDbContext previous = CreateDbContext(postgreSql.GetConnectionString()))
+        {
+            await previous.Database.GetService<IMigrator>()
+                .MigrateAsync(BeforeAuthoritativeStateIntegrityMigration);
+            await previous.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO inventory.inventory_units (
+                    "Id", "PropertyId", "RoomId", "BedId", "Kind", "Label",
+                    "IsTopologyActive", "SourceVersion", "DetailsVersion", "IsKnown",
+                    "AvailabilityMutationVersion", "ScopeId")
+                VALUES (
+                    {inventoryUnitId}, {propertyId}, {roomId}, {inventoryUnitId},
+                    {(int)InventoryUnitKind.Bed}, {"Bed 1"}, TRUE, {1L}, {1L}, TRUE,
+                    {1L}, {scopeId});
+
+                INSERT INTO inventory.room_configurations (
+                    "Id", "PropertyId", "SalesMode", "Version", "CreatedAtUtc",
+                    "UpdatedAtUtc", "ScopeId", "AvailabilityMutationVersion")
+                VALUES (
+                    {roomId}, {propertyId}, {(int)RoomSalesMode.BedLevel}, {2L},
+                    {createdAtUtc}, {configuredAtUtc}, {scopeId}, {2L});
+
+                INSERT INTO inventory.allocations (
+                    "Id", "ReservationId", "AllocationRequestId", "PropertyId",
+                    "Arrival", "Departure", "Status", "Rejection", "Version",
+                    "ReleaseRequestId", "CreatedAtUtc", "ReleasedAtUtc", "ScopeId",
+                    "IsAnonymised", "AnonymisedAtUtc")
+                VALUES (
+                    {allocationId}, {reservationId}, {allocationRequestId}, {propertyId},
+                    {new DateOnly(2026, 9, 1)}, {new DateOnly(2026, 9, 3)},
+                    {(int)InventoryAllocationState.Active},
+                    {(int)InventoryAllocationRejection.None}, {1L}, NULL,
+                    {createdAtUtc}, NULL, {scopeId}, FALSE, NULL);
+
+                INSERT INTO inventory.allocation_units ("Id", "ScopeId", "AllocationId")
+                VALUES ({inventoryUnitId}, {scopeId}, {allocationId});
+
+                INSERT INTO inventory.allocation_amendment_decisions (
+                    "Id", "ScopeId", "AllocationId", "ReservationId", "PropertyId",
+                    "RequestFingerprint", "Confirmed", "RejectionReason",
+                    "AllocationVersion", "DecidedAtUtc")
+                VALUES (
+                    {amendmentId}, {scopeId}, {allocationId}, {reservationId}, {propertyId},
+                    {new string('a', 64)}, TRUE, NULL, {1L}, {configuredAtUtc});
+
+                INSERT INTO inventory.manual_blocks (
+                    "Id", "BlockGroupId", "PropertyId", "InventoryUnitId", "Arrival",
+                    "Departure", "Reason", "Status", "Version", "CreatedAtUtc",
+                    "ReleasedAtUtc", "ScopeId")
+                VALUES (
+                    {blockId}, {blockGroupId}, {propertyId}, {inventoryUnitId},
+                    {new DateOnly(2026, 10, 1)}, {new DateOnly(2026, 10, 2)},
+                    {"Deep clean"}, {(int)ManualInventoryBlockState.Active}, {1L},
+                    {createdAtUtc}, NULL, {scopeId});
+
+                INSERT INTO inventory.bed_retirements (
+                    "Id", "PropertyId", "RoomId", "BedId", "Reason", "RequestedBy",
+                    "State", "RejectionReasonCode", "Version", "CreatedAtUtc",
+                    "UpdatedAtUtc", "CompletedAtUtc", "CancellationReason", "CanceledBy",
+                    "CanceledAtUtc", "ScopeId")
+                VALUES (
+                    {bedRetirementId}, {propertyId}, {roomId}, {inventoryUnitId},
+                    {"Replace bed"}, {"user:manager"},
+                    {(int)InventoryRetirementProcessState.Draining}, NULL, {1L},
+                    {createdAtUtc}, NULL, NULL, NULL, NULL, NULL, {scopeId});
+
+                INSERT INTO inventory.room_retirements (
+                    "Id", "PropertyId", "RoomId", "Reason", "RequestedBy", "State",
+                    "RejectionReasonCode", "Version", "CreatedAtUtc", "UpdatedAtUtc",
+                    "CompletedAtUtc", "CancellationReason", "CanceledBy", "CanceledAtUtc",
+                    "ScopeId")
+                VALUES (
+                    {roomRetirementId}, {propertyId}, {retiringRoomId}, {"Repurpose room"},
+                    {"user:manager"}, {(int)InventoryRetirementProcessState.Draining}, NULL,
+                    {1L}, {createdAtUtc}, NULL, NULL, NULL, NULL, NULL, {scopeId});
+
+                INSERT INTO inventory.allocation_operation_locks (
+                    "Id", "AllocationId", "Revision", "ScopeId")
+                VALUES ({allocationId}, {allocationId}, {1L}, {scopeId});
+                """);
+        }
+
+        await using InventoryDbContext upgraded = CreateDbContext(postgreSql.GetConnectionString());
+        await upgraded.Database.MigrateAsync();
+
+        Assert.Equal(1, await upgraded.Allocations.CountAsync(item => item.Id == allocationId));
+        Assert.Equal(1, await upgraded.AllocationUnits.CountAsync(item => item.AllocationId == allocationId));
+        Assert.Equal(1, await upgraded.AllocationAmendmentDecisions.CountAsync(item => item.Id == amendmentId));
+        Assert.Equal(1, await upgraded.ManualBlocks.CountAsync(item => item.Id == blockId));
+        Assert.Equal(1, await upgraded.RoomConfigurations.CountAsync(item => item.Id == roomId));
+        Assert.Equal(1, await upgraded.BedRetirements.CountAsync(item => item.Id == bedRetirementId));
+        Assert.Equal(1, await upgraded.RoomRetirements.CountAsync(item => item.Id == roomRetirementId));
+
+        await AssertCheckViolationAsync(
+            upgraded,
+            "CK_allocations_coordinates",
+            $"""
+            UPDATE inventory.allocations SET "PropertyId" = {Guid.Empty}
+            WHERE "Id" = {allocationId};
+            """);
+        await AssertCheckViolationAsync(
+            upgraded,
+            "CK_allocations_stay_and_version",
+            $"""
+            UPDATE inventory.allocations SET "Departure" = "Arrival"
+            WHERE "Id" = {allocationId};
+            """);
+        await AssertCheckViolationAsync(
+            upgraded,
+            "CK_allocations_lifecycle",
+            $"""
+            UPDATE inventory.allocations
+            SET "Rejection" = {(int)InventoryAllocationRejection.UnitNotFound}
+            WHERE "Id" = {allocationId};
+            """);
+        await AssertCheckViolationAsync(
+            upgraded,
+            "CK_allocation_units_coordinates",
+            $"""
+            UPDATE inventory.allocation_units SET "Id" = {Guid.Empty}
+            WHERE "ScopeId" = {scopeId} AND "AllocationId" = {allocationId};
+            """);
+        await AssertCheckViolationAsync(
+            upgraded,
+            "CK_allocation_amendment_decisions_fingerprint",
+            $"""
+            UPDATE inventory.allocation_amendment_decisions
+            SET "RequestFingerprint" = {new string('A', 64)}
+            WHERE "Id" = {amendmentId};
+            """);
+        await AssertCheckViolationAsync(
+            upgraded,
+            "CK_allocation_amendment_decisions_outcome",
+            $"""
+            UPDATE inventory.allocation_amendment_decisions
+            SET "Confirmed" = FALSE, "AllocationVersion" = NULL
+            WHERE "Id" = {amendmentId};
+            """);
+        await AssertCheckViolationAsync(
+            upgraded,
+            "CK_manual_blocks_coordinates",
+            $"""
+            UPDATE inventory.manual_blocks SET "BlockGroupId" = {Guid.Empty}
+            WHERE "Id" = {blockId};
+            """);
+        await AssertCheckViolationAsync(
+            upgraded,
+            "CK_manual_blocks_content",
+            $"""
+            UPDATE inventory.manual_blocks SET "Reason" = {" "}
+            WHERE "Id" = {blockId};
+            """);
+        await AssertCheckViolationAsync(
+            upgraded,
+            "CK_manual_blocks_lifecycle",
+            $"""
+            UPDATE inventory.manual_blocks SET "Status" = {(int)ManualInventoryBlockState.Released}
+            WHERE "Id" = {blockId};
+            """);
+        await AssertCheckViolationAsync(
+            upgraded,
+            "CK_room_configurations_coordinates",
+            $"""
+            UPDATE inventory.room_configurations SET "PropertyId" = {Guid.Empty}
+            WHERE "Id" = {roomId};
+            """);
+        await AssertCheckViolationAsync(
+            upgraded,
+            "CK_room_configurations_state",
+            $"""
+            UPDATE inventory.room_configurations SET "AvailabilityMutationVersion" = {1L}
+            WHERE "Id" = {roomId};
+            """);
+        await AssertCheckViolationAsync(
+            upgraded,
+            "CK_bed_retirements_coordinates",
+            $"""
+            UPDATE inventory.bed_retirements SET "BedId" = {Guid.Empty}
+            WHERE "Id" = {bedRetirementId};
+            """);
+        await AssertCheckViolationAsync(
+            upgraded,
+            "CK_bed_retirements_request",
+            $"""
+            UPDATE inventory.bed_retirements SET "Reason" = {" "}
+            WHERE "Id" = {bedRetirementId};
+            """);
+        await AssertCheckViolationAsync(
+            upgraded,
+            "CK_bed_retirements_lifecycle",
+            $"""
+            UPDATE inventory.bed_retirements
+            SET "State" = {(int)InventoryRetirementProcessState.Completed}
+            WHERE "Id" = {bedRetirementId};
+            """);
+        await AssertCheckViolationAsync(
+            upgraded,
+            "CK_room_retirements_coordinates",
+            $"""
+            UPDATE inventory.room_retirements SET "RoomId" = {Guid.Empty}
+            WHERE "Id" = {roomRetirementId};
+            """);
+        await AssertCheckViolationAsync(
+            upgraded,
+            "CK_room_retirements_request",
+            $"""
+            UPDATE inventory.room_retirements SET "RequestedBy" = {" "}
+            WHERE "Id" = {roomRetirementId};
+            """);
+        await AssertCheckViolationAsync(
+            upgraded,
+            "CK_room_retirements_lifecycle",
+            $"""
+            UPDATE inventory.room_retirements
+            SET "State" = {(int)InventoryRetirementProcessState.Completed}
+            WHERE "Id" = {roomRetirementId};
+            """);
+        await AssertCheckViolationAsync(
+            upgraded,
+            "CK_allocation_operation_locks_coordinates",
+            $"""
+            UPDATE inventory.allocation_operation_locks
+            SET "AllocationId" = {Guid.NewGuid()}
+            WHERE "Id" = {allocationId};
+            """);
+    }
+
+    private static async Task AssertCheckViolationAsync(
+        InventoryDbContext dbContext,
+        string expectedConstraint,
+        FormattableString command)
+    {
+        PostgresException failure = await Assert.ThrowsAsync<PostgresException>(
+            () => dbContext.Database.ExecuteSqlInterpolatedAsync(command));
+        Assert.Equal(PostgresErrorCodes.CheckViolation, failure.SqlState);
+        Assert.Equal(expectedConstraint, failure.ConstraintName);
     }
 
     private static InventoryDbContext CreateDbContext(string connectionString)

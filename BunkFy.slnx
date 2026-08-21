@@ -123,6 +123,7 @@
     <File Path="docs/planning/ingestion-tenant-termination-owner-task.md" />
     <File Path="docs/planning/international-market-gate-task.md" />
     <File Path="docs/planning/inventory-allocation-mutation-serialization-task.md" />
+    <File Path="docs/planning/inventory-authoritative-state-integrity-task.md" />
     <File Path="docs/planning/inventory-data-rights-owner-capability-task.md" />
     <File Path="docs/planning/inventory-manual-block-idempotency-task.md" />
     <File Path="docs/planning/inventory-module-task.md" />

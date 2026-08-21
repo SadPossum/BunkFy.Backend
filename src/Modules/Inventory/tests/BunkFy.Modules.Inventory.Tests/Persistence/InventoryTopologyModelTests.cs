@@ -17,6 +17,51 @@ using Xunit;
 public sealed class InventoryTopologyModelTests
 {
     [Fact]
+    public void Authoritative_inventory_tables_declare_database_invariants()
+    {
+        using InventoryDbContext dbContext = CreateDbContext();
+        IModel designModel = dbContext.GetService<IDesignTimeModel>().Model;
+
+        AssertConstraints(
+            designModel.FindEntityType(typeof(InventoryAllocation))!,
+            "CK_allocations_coordinates",
+            "CK_allocations_stay_and_version",
+            "CK_allocations_lifecycle",
+            "CK_allocations_anonymisation_state");
+        AssertConstraints(
+            designModel.FindEntityType(typeof(Domain.Entities.InventoryAllocationUnit))!,
+            "CK_allocation_units_coordinates");
+        AssertConstraints(
+            designModel.FindEntityType(typeof(InventoryAllocationAmendmentDecision))!,
+            "CK_allocation_amendment_decisions_coordinates",
+            "CK_allocation_amendment_decisions_fingerprint",
+            "CK_allocation_amendment_decisions_outcome");
+        AssertConstraints(
+            designModel.FindEntityType(typeof(ManualInventoryBlock))!,
+            "CK_manual_blocks_coordinates",
+            "CK_manual_blocks_content",
+            "CK_manual_blocks_lifecycle");
+        AssertConstraints(
+            designModel.FindEntityType(typeof(RoomInventoryConfiguration))!,
+            "CK_room_configurations_coordinates",
+            "CK_room_configurations_state");
+        AssertConstraints(
+            designModel.FindEntityType(typeof(InventoryAllocationOperationLock))!,
+            "CK_allocation_operation_locks_coordinates",
+            "CK_allocation_operation_locks_revision");
+        AssertConstraints(
+            designModel.FindEntityType(typeof(BedRetirementProcess))!,
+            "CK_bed_retirements_coordinates",
+            "CK_bed_retirements_request",
+            "CK_bed_retirements_lifecycle");
+        AssertConstraints(
+            designModel.FindEntityType(typeof(RoomRetirementProcess))!,
+            "CK_room_retirements_coordinates",
+            "CK_room_retirements_request",
+            "CK_room_retirements_lifecycle");
+    }
+
+    [Fact]
     public void Management_operations_are_scoped_composite_receipts_with_constraints()
     {
         using InventoryDbContext dbContext = CreateDbContext();
@@ -442,6 +487,16 @@ public sealed class InventoryTopologyModelTests
             .Options;
 
         return new InventoryDbContext(options, new TestScopeContext());
+    }
+
+    private static void AssertConstraints(
+        IEntityType entity,
+        params string[] expectedNames)
+    {
+        string[] actualNames = entity.GetCheckConstraints()
+            .Select(constraint => constraint.Name!)
+            .ToArray();
+        Assert.All(expectedNames, expected => Assert.Contains(expected, actualNames));
     }
 
     private sealed class TestScopeContext : IScopeContext
