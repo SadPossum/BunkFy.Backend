@@ -66,6 +66,11 @@ Guests owns BunkFy's tenant-wide canonical guest profiles and staff-facing stay 
 - independently releasable tenant/property/Guest data holds with stable reason
   codes, exact optimistic versions, immutable idempotent receipts, bounded
   listing and a dedicated permission absent from ordinary workspace roles;
+- provider-enforced data-hold audit integrity: hold and receipt coordinates,
+  normalized audit text, and timestamps fail closed at PostgreSQL, while a
+  named composite tenant-qualified foreign key binds every receipt's property,
+  Guest, and reason evidence to its authoritative hold. Model-wide guards also
+  reject future unscoped Guests entities or cross-tenant relationships;
 - host-configurable authentication assurance on public correction execution,
   processing-restriction transitions, and data-hold release, while hold
   placement and read-only investigation surfaces remain immediately available;

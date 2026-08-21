@@ -75,6 +75,7 @@ Useful entry points:
 - [Staff Retention Prerequisite Transaction Boundary Task](planning/staff-retention-prerequisite-transaction-boundary-task.md)
 - [Guest Records Module Task](planning/guest-records-module-task.md)
 - [Guests Authoritative Profile State Integrity Task](planning/guests-authoritative-profile-state-integrity-task.md)
+- [Guests Data-Hold Audit Integrity Task](planning/guests-data-hold-audit-integrity-task.md)
 - [Guests Management Create Idempotency Task](planning/guests-management-create-idempotency-task.md)
 - [Guests Management Update And Archive Idempotency Task](planning/guests-management-update-archive-idempotency-task.md)
 - [Guests Read Surface Hardening Task](planning/guests-read-surface-hardening-task.md)

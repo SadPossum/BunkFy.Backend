@@ -93,6 +93,7 @@
     <File Path="docs/planning/guest-record-retention-task.md" />
     <File Path="docs/planning/guest-records-module-task.md" />
     <File Path="docs/planning/guests-authoritative-profile-state-integrity-task.md" />
+    <File Path="docs/planning/guests-data-hold-audit-integrity-task.md" />
     <File Path="docs/planning/guests-deployed-stay-history-proof-task.md" />
     <File Path="docs/planning/guests-management-create-idempotency-task.md" />
     <File Path="docs/planning/guests-management-update-archive-idempotency-task.md" />

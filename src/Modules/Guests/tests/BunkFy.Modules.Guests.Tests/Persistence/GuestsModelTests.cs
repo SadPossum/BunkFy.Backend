@@ -9,6 +9,7 @@ using BunkFy.Modules.Guests.Persistence.Models;
 using BunkFy.Modules.Guests.Persistence.Repositories;
 using BunkFy.Modules.Guests.Persistence.TenantTermination;
 using BunkFy.Modules.Properties.Contracts;
+using Gma.Framework.Domain;
 using Gma.Framework.Persistence.EntityFrameworkCore;
 using Gma.Framework.Scoping;
 using Microsoft.EntityFrameworkCore;
@@ -22,6 +23,66 @@ using GuestsModuleMetadata = BunkFy.Modules.Guests.Contracts.GuestsModuleMetadat
 [Trait("Category", "Unit")]
 public sealed class GuestsModelTests
 {
+    [Fact]
+    public void Every_guests_scope_shaped_entity_is_scoped_and_filtered()
+    {
+        using GuestsDbContext dbContext = CreateDbContext();
+
+        IEntityType[] scopeShapedEntities = dbContext.Model.GetEntityTypes()
+            .Where(entity =>
+                !entity.IsOwned() &&
+                entity.ClrType.Namespace?.StartsWith(
+                    "BunkFy.Modules.Guests.",
+                    StringComparison.Ordinal) == true &&
+                entity.FindProperty(nameof(IScopedEntity.ScopeId)) is not null)
+            .ToArray();
+        Assert.NotEmpty(scopeShapedEntities);
+
+        string[] invalidEntities = scopeShapedEntities
+            .Where(entity =>
+                !typeof(IScopedEntity).IsAssignableFrom(entity.ClrType) ||
+                entity.GetDeclaredQueryFilters().Count == 0)
+            .Select(entity => entity.ClrType.FullName ?? entity.Name)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Empty(invalidEntities);
+    }
+
+    [Fact]
+    public void Every_guests_tenant_relationship_is_scope_qualified()
+    {
+        using GuestsDbContext dbContext = CreateDbContext();
+
+        IEntityType[] scopedEntities = dbContext.Model.GetEntityTypes()
+            .Where(entity =>
+                !entity.IsOwned() &&
+                entity.ClrType.Namespace?.StartsWith(
+                    "BunkFy.Modules.Guests.",
+                    StringComparison.Ordinal) == true &&
+                typeof(IScopedEntity).IsAssignableFrom(entity.ClrType))
+            .ToArray();
+        Assert.NotEmpty(scopedEntities);
+
+        string[] unqualifiedRelationships = scopedEntities
+            .SelectMany(entity => entity.GetForeignKeys())
+            .Where(foreignKey =>
+                typeof(IScopedEntity).IsAssignableFrom(
+                    foreignKey.PrincipalEntityType.ClrType))
+            .Where(foreignKey =>
+                !foreignKey.Properties.Any(property =>
+                    property.Name == nameof(IScopedEntity.ScopeId)) ||
+                !foreignKey.PrincipalKey.Properties.Any(property =>
+                    property.Name == nameof(IScopedEntity.ScopeId)))
+            .Select(foreignKey =>
+                $"{foreignKey.DeclaringEntityType.ClrType.FullName} -> " +
+                foreignKey.PrincipalEntityType.ClrType.FullName)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Empty(unqualifiedRelationships);
+    }
+
     [Fact]
     public void Canonical_profiles_declare_authoritative_database_invariants()
     {
@@ -260,9 +321,13 @@ public sealed class GuestsModelTests
             ]));
         IEntityType designDataHold = dbContext.GetService<IDesignTimeModel>()
             .Model.FindEntityType(typeof(GuestDataHold))!;
-        Assert.Contains(
-            designDataHold.GetCheckConstraints(),
-            constraint => constraint.Name == "CK_guest_data_holds_lifecycle");
+        AssertConstraints(
+            designDataHold,
+            "CK_guest_data_holds_coordinates",
+            "CK_guest_data_holds_audit_text",
+            "CK_guest_data_holds_timestamps",
+            "CK_guest_data_holds_version",
+            "CK_guest_data_holds_lifecycle");
         IEntityType dataHoldReceipt =
             dbContext.Model.FindEntityType(typeof(GuestDataHoldReceipt))!;
         Assert.Contains(dataHoldReceipt.GetIndexes(), index => index.IsUnique &&
@@ -276,6 +341,35 @@ public sealed class GuestsModelTests
                 nameof(GuestDataHoldReceipt.HoldId),
                 nameof(GuestDataHoldReceipt.Action)
             ]));
+        IForeignKey holdEvidence = Assert.Single(dataHoldReceipt.GetForeignKeys());
+        Assert.Equal(
+            [
+                nameof(GuestDataHoldReceipt.ScopeId),
+                nameof(GuestDataHoldReceipt.HoldId),
+                nameof(GuestDataHoldReceipt.PropertyId),
+                nameof(GuestDataHoldReceipt.GuestId),
+                nameof(GuestDataHoldReceipt.ReasonCode)
+            ],
+            holdEvidence.Properties.Select(property => property.Name));
+        Assert.Equal(
+            [
+                nameof(GuestDataHold.ScopeId),
+                nameof(GuestDataHold.Id),
+                nameof(GuestDataHold.PropertyId),
+                nameof(GuestDataHold.GuestId),
+                nameof(GuestDataHold.ReasonCode)
+            ],
+            holdEvidence.PrincipalKey.Properties.Select(property => property.Name));
+        Assert.Equal(DeleteBehavior.Restrict, holdEvidence.DeleteBehavior);
+        IEntityType designDataHoldReceipt = dbContext
+            .GetService<IDesignTimeModel>()
+            .Model.FindEntityType(typeof(GuestDataHoldReceipt))!;
+        AssertConstraints(
+            designDataHoldReceipt,
+            "CK_guest_data_hold_receipts_coordinates",
+            "CK_guest_data_hold_receipts_audit_text",
+            "CK_guest_data_hold_receipts_timestamp",
+            "CK_guest_data_hold_receipts_versions");
         IEntityType correctionReceipt =
             dbContext.Model.FindEntityType(typeof(GuestDataRightsCorrectionReceipt))!;
         Assert.Contains(correctionReceipt.GetIndexes(), index => index.IsUnique &&
