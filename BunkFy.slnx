@@ -198,6 +198,7 @@
     <File Path="docs/planning/reservations-persistence-tenant-boundary-guard-task.md" />
     <File Path="docs/planning/reservations-pii-minimization-task.md" />
     <File Path="docs/planning/reservations-property-operations-snapshot-task.md" />
+    <File Path="docs/planning/reservations-retention-control-proof-audit-integrity-task.md" />
     <File Path="docs/planning/reservations-stay-amendment-convergence-task.md" />
     <File Path="docs/planning/reservations-stay-lifecycle-task.md" />
     <File Path="docs/planning/reservations-tenant-termination-owner-task.md" />

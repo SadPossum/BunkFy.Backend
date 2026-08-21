@@ -157,6 +157,7 @@ Useful entry points:
 - [Reservations Stay Amendment Convergence Task](planning/reservations-stay-amendment-convergence-task.md)
 - [Reservations Data Rights Workflow Task](planning/reservations-data-rights-workflow-task.md)
 - [Reservation Record Retention Task](planning/reservation-record-retention-task.md)
+- [Reservations Retention Control And Proof Audit Integrity Task](planning/reservations-retention-control-proof-audit-integrity-task.md)
 - [Executable Personal-Data Catalogue Task](planning/executable-personal-data-catalog-task.md)
 - [Data Rights Multi-Owner Execution Task](planning/data-rights-multi-owner-execution-task.md)
 - [Data Rights Protected Export Artifacts Task](planning/data-rights-protected-export-artifacts-task.md)

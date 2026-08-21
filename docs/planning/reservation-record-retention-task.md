@@ -1,7 +1,6 @@
 # Reservation Record Retention Task
 
-Status: published baseline; current retry and scale hardening is local and
-unpublished
+Status: complete; hosted execution proof remains a release gate
 
 ## Outcome
 

@@ -126,6 +126,12 @@ checkpoint fails closed. Owner mutation and completion times are normalized to
 UTC microsecond precision before persistence so the first PostgreSQL result and
 its exact replay remain identical.
 
+Retention control and proof rows are also provider-guarded against empty
+coordinates, noncanonical data-class keys, default timestamps, unreachable
+initial/advanced/legacy-retry checkpoint shapes, duplicate execution or event
+markers, non-system attribution, malformed lowercase SHA-256 evidence, and
+orphaned same-tenant execution, reservation, or tombstone references.
+
 ## Tenant Termination
 
 Reservations is the versioned `reservations` mandatory export owner and runs
