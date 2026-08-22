@@ -221,6 +221,14 @@ internal sealed class AuthTestApplication(
     public async Task MigratePropertiesAuthorizationDatabaseAsync(
         string? propertiesTargetMigration = null)
     {
+        if (!disableOutboxPublisher)
+        {
+            await this.RunMigrationWithOutboxPublisherDisabledAsync(
+                application => application.MigratePropertiesAuthorizationDatabaseAsync(
+                    propertiesTargetMigration)).ConfigureAwait(false);
+            return;
+        }
+
         using IServiceScope scope = this.Services.CreateScope();
         await scope.ServiceProvider.GetRequiredService<AccessControlDbContext>()
             .Database.MigrateAsync().ConfigureAwait(false);
@@ -245,6 +253,14 @@ internal sealed class AuthTestApplication(
 
     public async Task MigrateInventoryAuthorizationDatabaseAsync()
     {
+        if (!disableOutboxPublisher)
+        {
+            await this.RunMigrationWithOutboxPublisherDisabledAsync(
+                application => application.MigrateInventoryAuthorizationDatabaseAsync())
+                .ConfigureAwait(false);
+            return;
+        }
+
         await this.MigratePropertiesAuthorizationDatabaseAsync().ConfigureAwait(false);
         using IServiceScope scope = this.Services.CreateScope();
         await scope.ServiceProvider.GetRequiredService<InventoryDbContext>()
@@ -253,6 +269,14 @@ internal sealed class AuthTestApplication(
 
     public async Task MigrateReservationsAuthorizationDatabaseAsync()
     {
+        if (!disableOutboxPublisher)
+        {
+            await this.RunMigrationWithOutboxPublisherDisabledAsync(
+                application => application.MigrateReservationsAuthorizationDatabaseAsync())
+                .ConfigureAwait(false);
+            return;
+        }
+
         await this.MigrateInventoryAuthorizationDatabaseAsync().ConfigureAwait(false);
         using IServiceScope scope = this.Services.CreateScope();
         await scope.ServiceProvider.GetRequiredService<ReservationsDbContext>()
@@ -261,6 +285,14 @@ internal sealed class AuthTestApplication(
 
     public async Task MigrateGuestRecordsAuthorizationDatabaseAsync()
     {
+        if (!disableOutboxPublisher)
+        {
+            await this.RunMigrationWithOutboxPublisherDisabledAsync(
+                application => application.MigrateGuestRecordsAuthorizationDatabaseAsync())
+                .ConfigureAwait(false);
+            return;
+        }
+
         await this.MigrateReservationsAuthorizationDatabaseAsync().ConfigureAwait(false);
         using IServiceScope scope = this.Services.CreateScope();
         await scope.ServiceProvider.GetRequiredService<GuestsDbContext>()
@@ -269,6 +301,14 @@ internal sealed class AuthTestApplication(
 
     public async Task MigrateGuestDataRightsAuthorizationDatabaseAsync()
     {
+        if (!disableOutboxPublisher)
+        {
+            await this.RunMigrationWithOutboxPublisherDisabledAsync(
+                application => application.MigrateGuestDataRightsAuthorizationDatabaseAsync())
+                .ConfigureAwait(false);
+            return;
+        }
+
         using (IServiceScope notificationScope = this.Services.CreateScope())
         {
             await notificationScope.ServiceProvider.GetRequiredService<NotificationsDbContext>()
@@ -283,6 +323,14 @@ internal sealed class AuthTestApplication(
 
     public async Task MigrateStaffAuthorizationDatabaseAsync()
     {
+        if (!disableOutboxPublisher)
+        {
+            await this.RunMigrationWithOutboxPublisherDisabledAsync(
+                application => application.MigrateStaffAuthorizationDatabaseAsync())
+                .ConfigureAwait(false);
+            return;
+        }
+
         await this.MigratePropertiesAuthorizationDatabaseAsync().ConfigureAwait(false);
         using IServiceScope scope = this.Services.CreateScope();
         await scope.ServiceProvider.GetRequiredService<StaffDbContext>()
@@ -291,6 +339,14 @@ internal sealed class AuthTestApplication(
 
     public async Task MigrateWorkspaceOnboardingDatabaseAsync()
     {
+        if (!disableOutboxPublisher)
+        {
+            await this.RunMigrationWithOutboxPublisherDisabledAsync(
+                application => application.MigrateWorkspaceOnboardingDatabaseAsync())
+                .ConfigureAwait(false);
+            return;
+        }
+
         await this.MigrateStaffAuthorizationDatabaseAsync().ConfigureAwait(false);
         using IServiceScope scope = this.Services.CreateScope();
         await scope.ServiceProvider.GetRequiredService<NotificationsDbContext>()
@@ -299,6 +355,14 @@ internal sealed class AuthTestApplication(
 
     public async Task MigrateIngestionDatabaseAsync()
     {
+        if (!disableOutboxPublisher)
+        {
+            await this.RunMigrationWithOutboxPublisherDisabledAsync(
+                application => application.MigrateIngestionDatabaseAsync())
+                .ConfigureAwait(false);
+            return;
+        }
+
         await this.MigrateWorkspaceAdmissionDatabaseAsync().ConfigureAwait(false);
         using IServiceScope scope = this.Services.CreateScope();
         await scope.ServiceProvider.GetRequiredService<OrganizationsDbContext>()
@@ -309,10 +373,41 @@ internal sealed class AuthTestApplication(
 
     public async Task MigrateRetentionDatabaseAsync()
     {
+        if (!disableOutboxPublisher)
+        {
+            await this.RunMigrationWithOutboxPublisherDisabledAsync(
+                application => application.MigrateRetentionDatabaseAsync())
+                .ConfigureAwait(false);
+            return;
+        }
+
         await this.MigrateWorkspaceAdmissionDatabaseAsync().ConfigureAwait(false);
         using IServiceScope scope = this.Services.CreateScope();
         await scope.ServiceProvider.GetRequiredService<RetentionDbContext>()
             .Database.MigrateAsync().ConfigureAwait(false);
+    }
+
+    private async Task RunMigrationWithOutboxPublisherDisabledAsync(
+        Func<AuthTestApplication, Task> migration)
+    {
+        ArgumentNullException.ThrowIfNull(migration);
+
+        await using AuthTestApplication migrationApplication = new(
+            provider,
+            providerConnectionString,
+            natsConnectionString,
+            disableOutboxPublisher: true,
+            enablePrometheus: enablePrometheus,
+            minioEndpoint: minioEndpoint,
+            minioAccessKey: minioAccessKey,
+            minioSecretKey: minioSecretKey,
+            minioBucketName: minioBucketName,
+            minioCreateBucketIfMissing: minioCreateBucketIfMissing,
+            inventoryCommandInterceptor: inventoryCommandInterceptor,
+            enableWorkspaceSelfService: enableWorkspaceSelfService,
+            adapterIngressRedisConnectionString: adapterIngressRedisConnectionString,
+            systemClock: systemClock);
+        await migration(migrationApplication).ConfigureAwait(false);
     }
 
     private async Task MigrateWorkspaceAdmissionDatabaseAsync()

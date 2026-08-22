@@ -63,11 +63,8 @@ public sealed class StaffProcessingRestrictionIntegrationTests
             AuthTestContainers.GetNatsConnectionString(nats),
             disableOutboxPublisher: false);
         await api.MigrateStaffAuthorizationDatabaseAsync().ConfigureAwait(false);
-        using (IServiceScope scope = api.Services.CreateScope())
-        {
-            await scope.ServiceProvider.GetRequiredService<DataRightsDbContext>()
-                .Database.MigrateAsync().ConfigureAwait(false);
-        }
+        await api.MigrateGuestDataRightsAuthorizationDatabaseAsync()
+            .ConfigureAwait(false);
 
         await using AdminCliTestApplication admin =
             new("PostgreSql", connectionString);
