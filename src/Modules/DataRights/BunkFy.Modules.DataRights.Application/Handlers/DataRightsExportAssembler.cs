@@ -80,6 +80,7 @@ internal sealed class DataRightsExportAssembler(
                         subject),
                     sink,
                     cancellationToken).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
             }
             catch (OperationCanceledException)
             {

@@ -106,6 +106,7 @@ internal sealed class ExecuteDataRightsRestrictionCommandHandler(
                     RestrictionTargetOwnerOperationVersion:
                         dataRightsCase.RestrictionReleaseTarget?.OwnerOperationVersion),
                 cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
         if (!approval.IsApproved)
         {
             return Result.Failure<DataRightsRestrictionExecutionDto>(

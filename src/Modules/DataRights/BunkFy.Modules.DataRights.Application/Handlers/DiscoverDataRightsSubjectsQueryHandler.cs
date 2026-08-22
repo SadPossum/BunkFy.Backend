@@ -32,6 +32,7 @@ internal sealed class DiscoverDataRightsSubjectsQueryHandler(
             query.Scope,
             query.CaseId,
             cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
         if (dataRightsCase is null)
         {
             return Result.Failure<DataRightsSubjectDiscoveryResponse>(
@@ -62,6 +63,7 @@ internal sealed class DiscoverDataRightsSubjectsQueryHandler(
             candidates = [];
         foreach (IDataRightsSubjectDiscoveryContributor contributor in contributorSet.Value)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             int remaining = DataRightsSubjectDiscoveryLimits.MaxCandidates - candidates.Count;
             if (remaining == 0)
             {
@@ -79,6 +81,7 @@ internal sealed class DiscoverDataRightsSubjectsQueryHandler(
                         lookup.Value,
                         remaining),
                     cancellationToken).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
             }
             catch (Exception exception)
                 when (exception is not OperationCanceledException)

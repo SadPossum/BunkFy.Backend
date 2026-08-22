@@ -412,6 +412,42 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
     }
 
     [Fact]
+    public async Task Normal_discovery_return_after_cancellation_stops_later_owners()
+    {
+        Guid propertyId = Guid.NewGuid();
+        DataRightsCase dataRightsCase = CreateDiscoveryCase(propertyId);
+        using CancellationTokenSource source = new();
+        StubContributor guests = new(
+            "guests",
+            _ => DataRightsSubjectDiscoveryResult.Success([]),
+            afterDiscover: _ => source.Cancel());
+        StubContributor reservations = new(
+            "reservations",
+            _ => DataRightsSubjectDiscoveryResult.Success([]));
+        DiscoverDataRightsSubjectsQueryHandler handler = new(
+            new CaseRepository(dataRightsCase),
+            [reservations, guests],
+            new TestScopeContext(),
+            NullLogger<DiscoverDataRightsSubjectsQueryHandler>.Instance);
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            handler.HandleAsync(
+                new DiscoverDataRightsSubjectsQuery(
+                    DataRightsCaseScope.ForProperty(propertyId),
+                    dataRightsCase.Id,
+                    new DataRightsSubjectLookup(
+                        null,
+                        "guest@example.test",
+                        null,
+                        null,
+                        null)),
+                source.Token));
+
+        Assert.Equal(1, guests.DiscoveryInvocationCount);
+        Assert.Equal(0, reservations.DiscoveryInvocationCount);
+    }
+
+    [Fact]
     public async Task Discovery_owner_failure_log_excludes_lookup_and_exception_details()
     {
         const string email = "private.lookup@example.test";
@@ -476,6 +512,44 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
             CancellationToken.None);
 
         Assert.Equal(DataRightsApplicationErrors.SubjectOwnerResultInvalid, result.Error);
+        Assert.Empty(dataRightsCase.SelectedSubjects);
+    }
+
+    [Fact]
+    public async Task Normal_selection_return_after_cancellation_does_not_mutate_the_case()
+    {
+        Guid propertyId = Guid.NewGuid();
+        DataRightsCase dataRightsCase = CreateDiscoveryCase(propertyId);
+        DataRightsSubjectCoordinate requested = new(
+            "guests",
+            "guest-profile",
+            Guid.NewGuid(),
+            4);
+        using CancellationTokenSource source = new();
+        StubContributor contributor = new(
+            "guests",
+            _ => DataRightsSubjectDiscoveryResult.Success([]),
+            _ => DataRightsSubjectSelectionValidation.Valid(requested),
+            afterValidation: _ => source.Cancel());
+        SelectDataRightsSubjectCommandHandler handler = new(
+            DataRightsMutationTestSupport.Case(
+                new CaseRepository(dataRightsCase)),
+            [contributor],
+            new TestScopeContext(),
+            new TestClock(),
+            NullLogger<SelectDataRightsSubjectCommandHandler>.Instance);
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            handler.HandleAsync(
+                new SelectDataRightsSubjectCommand(
+                    DataRightsCaseScope.ForProperty(propertyId),
+                    dataRightsCase.Id,
+                    requested,
+                    dataRightsCase.Version,
+                    "user:operator"),
+                source.Token));
+
+        Assert.Equal(1, contributor.SelectionInvocationCount);
         Assert.Empty(dataRightsCase.SelectedSubjects);
     }
 
@@ -810,7 +884,9 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
         string ownerKey,
         Func<DataRightsSubjectDiscoveryRequest, DataRightsSubjectDiscoveryResult> discover,
         Func<DataRightsSubjectSelectionRequest, DataRightsSubjectSelectionValidation>? validate = null,
-        IReadOnlyCollection<DataRightsCaseType>? supportedCaseTypes = null)
+        IReadOnlyCollection<DataRightsCaseType>? supportedCaseTypes = null,
+        Action<CancellationToken>? afterDiscover = null,
+        Action<CancellationToken>? afterValidation = null)
         : IDataRightsSubjectDiscoveryContributor
     {
         public string OwnerKey => ownerKey;
@@ -830,7 +906,9 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
         {
             this.DiscoveryInvocationCount++;
             this.LastDiscoveryRequest = request;
-            return Task.FromResult(discover(request));
+            DataRightsSubjectDiscoveryResult result = discover(request);
+            afterDiscover?.Invoke(cancellationToken);
+            return Task.FromResult(result);
         }
 
         public Task<DataRightsSubjectSelectionValidation> ValidateSelectionAsync(
@@ -838,9 +916,11 @@ public sealed class DataRightsSubjectDiscoveryHandlerTests
             CancellationToken cancellationToken)
         {
             this.SelectionInvocationCount++;
-            return validate is null
-                ? Task.FromResult(DataRightsSubjectSelectionValidation.NotFound())
-                : Task.FromResult(validate(request));
+            DataRightsSubjectSelectionValidation result = validate is null
+                ? DataRightsSubjectSelectionValidation.NotFound()
+                : validate(request);
+            afterValidation?.Invoke(cancellationToken);
+            return Task.FromResult(result);
         }
     }
 

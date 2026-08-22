@@ -39,6 +39,28 @@ public sealed class DataRightsOperationApprovalGateTests
     }
 
     [Fact]
+    public async Task Normal_case_return_after_cancellation_is_not_authorized()
+    {
+        Guid propertyId = Guid.NewGuid();
+        Guid recordId = Guid.NewGuid();
+        DataRightsCase dataRightsCase = CreateApprovedCase(propertyId, recordId);
+        using CancellationTokenSource source = new();
+        RecordingSecuritySignalRecorder securitySignals = new();
+        DataRightsOperationApprovalGate gate = new(
+            new StubCaseRepository(
+                dataRightsCase,
+                _ => source.Cancel()),
+            securitySignals);
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            gate.EvaluateAsync(
+                CreateRequest(dataRightsCase, propertyId, recordId),
+                source.Token));
+
+        Assert.Empty(securitySignals.Definitions);
+    }
+
+    [Fact]
     public async Task Restriction_approval_authorizes_only_its_exact_directive()
     {
         Guid propertyId = Guid.NewGuid();
@@ -379,7 +401,9 @@ public sealed class DataRightsOperationApprovalGateTests
             recordId,
             3);
 
-    private sealed class StubCaseRepository(DataRightsCase dataRightsCase)
+    private sealed class StubCaseRepository(
+        DataRightsCase dataRightsCase,
+        Action<CancellationToken>? afterGet = null)
         : IDataRightsCaseRepository
     {
         public Task AddAsync(
@@ -389,12 +413,17 @@ public sealed class DataRightsOperationApprovalGateTests
         public Task<DataRightsCase?> GetAsync(
             DataRightsCaseScope scope,
             Guid caseId,
-            CancellationToken cancellationToken) => Task.FromResult(
-            dataRightsCase.PropertyId == scope.PropertyId &&
-            dataRightsCase.Kind == (DataRightsCaseKind)scope.CaseType &&
-            dataRightsCase.Id == caseId
-                ? dataRightsCase
-                : null);
+            CancellationToken cancellationToken)
+        {
+            DataRightsCase? result =
+                dataRightsCase.PropertyId == scope.PropertyId &&
+                dataRightsCase.Kind == (DataRightsCaseKind)scope.CaseType &&
+                dataRightsCase.Id == caseId
+                    ? dataRightsCase
+                    : null;
+            afterGet?.Invoke(cancellationToken);
+            return Task.FromResult(result);
+        }
 
         public Task<DataRightsCaseListResponse> ListAsync(
             DataRightsCaseScope scope,

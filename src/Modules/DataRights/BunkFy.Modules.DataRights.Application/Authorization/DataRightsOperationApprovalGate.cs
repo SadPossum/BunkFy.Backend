@@ -38,6 +38,7 @@ internal sealed class DataRightsOperationApprovalGate(
             scope!,
             request.CaseId,
             cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
         if (dataRightsCase is null ||
             !string.Equals(dataRightsCase.ScopeId, tenantId, StringComparison.Ordinal))
         {

@@ -213,6 +213,49 @@ public sealed class DataRightsRequiredCompanionExpansionTests
     }
 
     [Fact]
+    public async Task Normal_companion_return_after_cancellation_stops_the_closure()
+    {
+        DataRightsSubjectCoordinate staff =
+            Coordinate("staff", "staff-member", 5);
+        DataRightsCase dataRightsCase =
+            CreateDiscoveryCase(DataRightsCaseOperation.Anonymisation, staff);
+        long expectedVersion = dataRightsCase.Version;
+        using CancellationTokenSource source = new();
+        StubCompanionContributor canceling = new(
+            "a-canceling",
+            staff.OwnerKey,
+            staff.RecordType,
+            DataRightsOperation.Anonymisation,
+            _ =>
+            {
+                source.Cancel();
+                return DataRightsRequiredCompanionResult.Completed([]);
+            });
+        StubCompanionContributor later = Companion(
+            "b-later",
+            staff,
+            []);
+        RequireDataRightsReviewCommandHandler handler = Handler(
+            dataRightsCase,
+            [Owner(staff)],
+            [later, canceling]);
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            handler.HandleAsync(
+                new(
+                    DataRightsCaseScope.Staff,
+                    dataRightsCase.Id,
+                    expectedVersion,
+                    "user:reviewer"),
+                source.Token));
+
+        Assert.Equal(1, canceling.InvocationCount);
+        Assert.Equal(0, later.InvocationCount);
+        Assert.Equal(DataRightsCaseState.Discovery, dataRightsCase.Status);
+        Assert.Equal(expectedVersion, dataRightsCase.Version);
+    }
+
+    [Fact]
     public async Task Contradictory_subject_owner_retry_during_closure_is_invalid()
     {
         DataRightsSubjectCoordinate staff =

@@ -33,6 +33,7 @@ internal sealed class SelectDataRightsSubjectCommandHandler(
             command.Scope,
             command.CaseId,
             cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
         if (dataRightsCase is null)
         {
             return Result.Failure<DataRightsCaseDto>(DataRightsApplicationErrors.CaseNotFound);
@@ -71,6 +72,7 @@ internal sealed class SelectDataRightsSubjectCommandHandler(
                     dataRightsCase.PropertyId,
                     requestedCoordinate!),
                 cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
         }
         catch (Exception exception)
             when (exception is not OperationCanceledException)

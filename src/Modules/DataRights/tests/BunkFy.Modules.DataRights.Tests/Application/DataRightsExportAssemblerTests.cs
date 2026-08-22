@@ -183,6 +183,28 @@ public sealed class DataRightsExportAssemblerTests
         Assert.DoesNotContain("private@example.test", message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task Normal_owner_return_after_cancellation_stops_export_assembly()
+    {
+        using CancellationTokenSource source = new();
+        CancelingContributor contributor = new(source);
+        DataRightsExportAssembler assembler = Assembler(contributor);
+        await using MemoryStream destination = new();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            assembler.AssembleAsync(
+                Request([
+                    new("staff", "profile", Guid.Parse(
+                        "11111111-1111-1111-1111-111111111111"), 2),
+                    new("staff", "profile", Guid.Parse(
+                        "22222222-2222-2222-2222-222222222222"), 3)
+                ]),
+                destination,
+                source.Token));
+
+        Assert.Equal(1, contributor.InvocationCount);
+    }
+
     private static DataRightsExportAssembler Assembler(
         params IDataRightsSubjectExportContributor[] contributors) =>
         new(contributors, NullLogger<DataRightsExportAssembler>.Instance);
@@ -272,6 +294,26 @@ public sealed class DataRightsExportAssemblerTests
             IDataRightsExportSink sink,
             CancellationToken cancellationToken) =>
             throw new InvalidOperationException("private@example.test");
+    }
+
+    private sealed class CancelingContributor(CancellationTokenSource source)
+        : SuccessfulContributor
+    {
+        public int InvocationCount { get; private set; }
+
+        public override async Task<DataRightsSubjectExportResult> ExportAsync(
+            DataRightsSubjectExportRequest request,
+            IDataRightsExportSink sink,
+            CancellationToken cancellationToken)
+        {
+            this.InvocationCount++;
+            DataRightsSubjectExportResult result = await base.ExportAsync(
+                request,
+                sink,
+                cancellationToken);
+            source.Cancel();
+            return result;
+        }
     }
 
     private sealed class MalformedGuestContributor

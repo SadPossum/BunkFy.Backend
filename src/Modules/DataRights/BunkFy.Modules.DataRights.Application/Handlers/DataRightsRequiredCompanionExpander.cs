@@ -63,6 +63,7 @@ internal sealed class DataRightsRequiredCompanionExpander(
         HashSet<CoordinateKey> initialKeys = [.. closure.Keys];
         while (pending.TryDequeue(out DataRightsSubjectCoordinate? source))
         {
+            cancellationToken.ThrowIfCancellationRequested();
             Result<DataRightsSubjectCoordinate> validatedSource =
                 await this.ValidateCoordinateAsync(
                     dataRightsCase,
@@ -114,6 +115,7 @@ internal sealed class DataRightsRequiredCompanionExpander(
                             validatedSource.Value,
                             remaining),
                         cancellationToken).ConfigureAwait(false);
+                    cancellationToken.ThrowIfCancellationRequested();
                 }
                 catch (Exception exception)
                     when (exception is not OperationCanceledException)
@@ -239,6 +241,7 @@ internal sealed class DataRightsRequiredCompanionExpander(
                     dataRightsCase.PropertyId,
                     coordinate),
                 cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
         }
         catch (Exception exception)
             when (exception is not OperationCanceledException)

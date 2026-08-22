@@ -141,6 +141,7 @@ Useful entry points:
 - [Operations Notifications Tenant-Termination Result Fencing Task](planning/operations-notifications-tenant-termination-result-fencing-task.md)
 - [Data Rights Tenant-Termination Deadline Result Integrity Task](planning/data-rights-tenant-termination-deadline-result-integrity-task.md)
 - [Data Rights Bounded Owner-Call Fencing Task](planning/data-rights-bounded-owner-call-fencing-task.md)
+- [Data Rights Direct Continuation Fencing Task](planning/data-rights-direct-continuation-fencing-task.md)
 - [Backend Architecture Cleanup Task](planning/architecture-cleanup-task.md)
 - [Workspaces Module](../src/Modules/Workspaces/docs/README.md)
 - [Staff Module](../src/Modules/Staff/docs/README.md)

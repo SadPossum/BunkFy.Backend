@@ -54,6 +54,7 @@ internal sealed class ProtectedDataRightsExportObjectWriter(
                 encrypted,
                 protectionContext,
                 cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
         await encrypted.FlushAsync(cancellationToken).ConfigureAwait(false);
         if (encrypted.Length != protectedResult.EncryptedLength)
         {
@@ -85,6 +86,7 @@ internal sealed class ProtectedDataRightsExportObjectWriter(
                     }),
                 cancellationToken).ConfigureAwait(false);
             putCompleted = true;
+            cancellationToken.ThrowIfCancellationRequested();
             if (stored.ContentLength != protectedResult.EncryptedLength)
             {
                 throw new DataRightsExportGenerationException(
@@ -98,6 +100,7 @@ internal sealed class ProtectedDataRightsExportObjectWriter(
                 protectedResult,
                 plaintextHash,
                 cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
             DateTimeOffset availableAtUtc = clock.UtcNow;
             if (availableAtUtc < protectionStartedAtUtc ||
                 protectionContext.ExpiresAtUtc <= availableAtUtc)
@@ -135,6 +138,7 @@ internal sealed class ProtectedDataRightsExportObjectWriter(
         FileStorageReadResult? stored = await storage.OpenReadAsync(
             storageKey,
             cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
         if (stored is null ||
             stored.Properties.ContentLength != expected.EncryptedLength)
         {
@@ -155,6 +159,7 @@ internal sealed class ProtectedDataRightsExportObjectWriter(
             await stored.CopyToAsync(
                 boundedEncrypted,
                 cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
             await boundedEncrypted.FlushAsync(cancellationToken)
                 .ConfigureAwait(false);
         }
@@ -181,6 +186,7 @@ internal sealed class ProtectedDataRightsExportObjectWriter(
                 verifiedPlaintext,
                 protectionContext,
                 cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
         byte[] actualHash = verifiedPlaintext.CompleteHash();
         try
         {
