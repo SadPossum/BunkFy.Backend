@@ -229,6 +229,7 @@ Useful entry points:
 - [Ingestion Source Graph Mutation Serialization Task](planning/ingestion-source-graph-mutation-serialization-task.md)
 - [Ingestion Source Graph Authoritative State Integrity Task](planning/ingestion-source-graph-authoritative-state-integrity-task.md)
 - [Ingestion Sensitive History Retention Task](planning/ingestion-sensitive-history-retention-task.md)
+- [Ingestion Retention Attempt Fencing Task](planning/ingestion-retention-attempt-fencing-task.md)
 - [Ingestion Legal Holds Task](planning/ingestion-legal-holds-task.md)
 - [Standalone Adapter Host Task](planning/standalone-adapter-host-task.md)
 - [Adapter Host Production Admission Task](planning/adapter-host-production-admission-task.md)

@@ -123,6 +123,14 @@ HTTP downloads are forced to opaque attachments with cache prevention and conten
 
 Raw payloads default to a 30-day retention period configured by `Ingestion:Retention:RawPayloadRetention` (valid range: one hour through ten years). Each receipt stores the deadline assigned when it is accepted, so later configuration changes do not silently rewrite existing retention obligations. Only processed or rejected receipts can be claimed; pending/applying proposals and non-expired reprocessing reservations keep source evidence out of the claim query. Reprocessing reservations expire automatically and are not substitutes for legal holds. The `purge-expired-raw-payloads` TaskRuntime job uses a durable claim before deleting MinIO content and finalizes the receipt afterward; the same task retry can resume immediately, another task can recover a stale claim, and an already-missing object is successful idempotent deletion. Admin API and CLI enqueue this tenant-scoped job behind `ingestion.retention.manage` and explicit confirmation.
 
+Automatic Retention executions additionally fence every owner mutation by the
+exact current attempt under one tenant-qualified transaction lock. Attempt
+advance, raw claim, raw completion, sensitive-history redaction, and terminal
+completion serialize on that stable execution coordinate before source-graph
+locking or candidate discovery. Manual TaskRuntime maintenance jobs retain
+their coordinate-free owner-idempotency path. See
+[Ingestion Retention Attempt Fencing Task](../../../docs/planning/ingestion-retention-attempt-fencing-task.md).
+
 DataRights uses exact product reservation or Ingestion-owned reservation
 source-link coordinates only; no raw-provider or fuzzy identity search is
 available. A selected coordinate streams its reachable source link, receipts,

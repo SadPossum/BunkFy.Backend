@@ -451,12 +451,13 @@ public sealed partial class IngestionTenantTerminationIntegrationTests
                 attempt: 1,
                 SeedNowUtc.AddMinutes(12),
                 SeedNowUtc.AddMinutes(42)).Value;
-        Assert.True(retention.RecordAffected(1).IsSuccess);
+        Assert.True(retention.RecordAffected(attempt: 1, count: 1).IsSuccess);
         Assert.True(retention.Complete(
             IngestionRetentionExecutionState.Completed,
+            attempt: 1,
             remainingCount: 0,
-            "completed",
-            SeedNowUtc.AddMinutes(13),
+            outcomeCode: "completed",
+            completedAtUtc: SeedNowUtc.AddMinutes(13),
             holdReviewDueAtUtc: null).IsSuccess);
 
         IngestionAnonymisationReceipt anonymisationReceipt =
