@@ -159,6 +159,7 @@
     <File Path="docs/planning/operations-notifications-personal-data-catalogue-task.md" />
     <File Path="docs/planning/operations-notifications-production-admission-task.md" />
     <File Path="docs/planning/operations-notifications-staff-data-rights-task.md" />
+    <File Path="docs/planning/operations-notifications-tenant-termination-result-fencing-task.md" />
     <File Path="docs/planning/organizations-tenant-termination-owner-task.md" />
     <File Path="docs/planning/personal-data-output-sink-enforcement-task.md" />
     <File Path="docs/planning/pre-module-readiness.md" />
