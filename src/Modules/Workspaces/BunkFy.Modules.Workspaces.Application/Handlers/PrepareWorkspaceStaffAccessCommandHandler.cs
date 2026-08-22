@@ -29,8 +29,9 @@ internal sealed class PrepareWorkspaceStaffAccessCommandHandler(
                 WorkspaceStaffAccessApplicationErrors.ProcessConflict);
         }
 
-        await mutations.AcquireStaffAsync(
+        await mutations.AcquireCoordinatesAsync(
                 context.StaffMemberId,
+                context.AuthSubjectId,
                 cancellationToken).ConfigureAwait(false);
 
         WorkspaceStaffAccessTargetState targetState = ToTargetState(context.TargetStatus);

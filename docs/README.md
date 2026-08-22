@@ -113,6 +113,7 @@ Useful entry points:
 - [Workspace Delegated Join Management Task](planning/workspace-delegated-join-management-task.md)
 - [Workspace Invitation Access Plans Task](planning/workspace-invitation-access-plans-task.md)
 - [Workspace Access Management Facade Task](planning/workspace-access-management-facade-task.md)
+- [Workspace Owner Access Transition Integrity Task](planning/workspace-owner-access-transition-integrity-task.md)
 - [Workspace Staff Access Lifecycle Task](planning/workspace-staff-access-lifecycle-task.md)
 - [Workspace Staff Access Mutation Serialization Task](planning/workspace-staff-access-mutation-serialization-task.md)
 - [Workspace Staff Onboarding Source Mutation Serialization Task](planning/workspace-staff-onboarding-source-mutation-serialization-task.md)

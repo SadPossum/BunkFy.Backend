@@ -48,6 +48,9 @@ public static class DependencyInjection
             IStaffDataRightsAuthorityReader,
             StaffDataRightsAuthorityReader>();
         builder.Services.TryAddScoped<
+            IStaffOperationalIdentityReader,
+            StaffOperationalIdentityReader>();
+        builder.Services.TryAddScoped<
             IStaffProcessingRestrictionRepository,
             StaffProcessingRestrictionRepository>();
         builder.Services.TryAddScoped<
