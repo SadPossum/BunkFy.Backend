@@ -92,6 +92,55 @@ public sealed class DeleteExpiredTenantTerminationExportTaskHandlerTests
     }
 
     [Fact]
+    public async Task Late_cancellation_after_artifact_delete_stops_and_retry_converges()
+    {
+        List<string> events = [];
+        using CancellationTokenSource source = new();
+        Guid processId = Guid.NewGuid();
+        Guid artifactId = Guid.NewGuid();
+        RecordingTaskDispatcher dispatcher = new(events);
+        RecordingObjectStore objectStore = new(
+            events,
+            afterDelete: source.Cancel);
+        DeleteExpiredTenantTerminationExportArtifactTaskHandler handler = new(
+            dispatcher,
+            objectStore,
+            new FixedScopeContext(TenantId));
+        DeleteExpiredTenantTerminationExportArtifactPayload payload = new(
+            TenantId,
+            processId,
+            artifactId,
+            ExportOperationRevision: 9,
+            ExpiresAtUtc);
+        TaskExecutionContext context = Context(
+            processId,
+            artifactId,
+            artifact: true);
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            handler.HandleAsync(payload, context, source.Token));
+
+        Assert.Equal(["begin", "delete-artifact"], events);
+        Assert.Null(dispatcher.Completed);
+
+        await handler.HandleAsync(
+            payload,
+            context,
+            CancellationToken.None);
+
+        Assert.Equal(
+            [
+                "begin",
+                "delete-artifact",
+                "begin",
+                "delete-artifact",
+                "complete"
+            ],
+            events);
+        Assert.NotNull(dispatcher.Completed);
+    }
+
+    [Fact]
     public async Task Task_rejects_scope_mismatch_before_any_mutation()
     {
         List<string> events = [];
@@ -240,7 +289,8 @@ public sealed class DeleteExpiredTenantTerminationExportTaskHandlerTests
 
     private sealed class RecordingObjectStore(
         List<string> events,
-        bool deleteResult = true) : ITenantTerminationExportObjectStore
+        bool deleteResult = true,
+        Action? afterDelete = null) : ITenantTerminationExportObjectStore
     {
         public Guid? DeletedArtifactId { get; private set; }
         public Guid? DeletedFragmentId { get; private set; }
@@ -252,6 +302,7 @@ public sealed class DeleteExpiredTenantTerminationExportTaskHandlerTests
         {
             this.DeletedArtifactId = artifactId;
             events.Add("delete-artifact");
+            afterDelete?.Invoke();
             return Task.FromResult(deleteResult);
         }
 
@@ -262,6 +313,7 @@ public sealed class DeleteExpiredTenantTerminationExportTaskHandlerTests
         {
             this.DeletedFragmentId = fragmentId;
             events.Add("delete-fragment");
+            afterDelete?.Invoke();
             return Task.FromResult(deleteResult);
         }
     }

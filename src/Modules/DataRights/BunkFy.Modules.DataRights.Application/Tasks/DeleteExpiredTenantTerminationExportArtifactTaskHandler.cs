@@ -49,6 +49,7 @@ internal sealed class DeleteExpiredTenantTerminationExportArtifactTaskHandler(
             payload.ProcessId,
             payload.ArtifactId,
             cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
         Result<Unit> completed = await commandDispatcher.DispatchAsync<
             CompleteTenantTerminationExportArtifactDeletionCommand,
             Unit>(

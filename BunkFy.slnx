@@ -78,6 +78,7 @@
     <File Path="docs/planning/data-rights-operator-continuity-and-recovery-task.md" />
     <File Path="docs/planning/data-rights-property-projection-tenant-integrity-task.md" />
     <File Path="docs/planning/data-rights-protected-export-artifacts-task.md" />
+    <File Path="docs/planning/data-rights-receipt-backed-late-cancellation-recovery-task.md" />
     <File Path="docs/planning/data-rights-restriction-execution-task.md" />
     <File Path="docs/planning/data-rights-restriction-target-binding-task.md" />
     <File Path="docs/planning/data-rights-subject-owner-failure-taxonomy-task.md" />

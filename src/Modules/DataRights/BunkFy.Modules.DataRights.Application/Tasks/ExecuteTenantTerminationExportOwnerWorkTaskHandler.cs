@@ -103,11 +103,17 @@ internal sealed class ExecuteTenantTerminationExportOwnerWorkTaskHandler(
                         replay.Dispatch,
                         contribution,
                         execution.ObservedAtUtc);
-                _ = await replayStore.AppendAsync(
+                TenantTerminationReplayJournalEntry entry =
                     TenantTerminationReplayJournalEntry.ForResult(
                         replay.Dispatch,
-                        result),
-                    cancellationToken).ConfigureAwait(false);
+                        result);
+                TenantTerminationReplayAppendReceipt receipt =
+                    await replayStore.AppendAsync(entry, cancellationToken)
+                        .ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                TenantTerminationReplayDurability.EnsureMatches(
+                    receipt,
+                    entry);
             }
 
             Result<TenantTerminationOwnerResultRecorded> completed =
@@ -191,9 +197,13 @@ internal sealed class ExecuteTenantTerminationExportOwnerWorkTaskHandler(
                 context.RunId,
                 context.Attempt,
                 recordedAtUtc);
-        _ = await replayStore.AppendAsync(
-            TenantTerminationReplayJournalEntry.ForDispatch(dispatch),
-            cancellationToken).ConfigureAwait(false);
+        TenantTerminationReplayJournalEntry entry =
+            TenantTerminationReplayJournalEntry.ForDispatch(dispatch);
+        TenantTerminationReplayAppendReceipt receipt =
+            await replayStore.AppendAsync(entry, cancellationToken)
+                .ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        TenantTerminationReplayDurability.EnsureMatches(receipt, entry);
         return new TenantTerminationReplayAttempt(dispatch, Result: null);
     }
 

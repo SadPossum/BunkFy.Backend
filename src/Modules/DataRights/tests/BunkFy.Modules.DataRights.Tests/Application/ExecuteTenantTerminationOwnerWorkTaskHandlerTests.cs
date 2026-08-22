@@ -61,6 +61,93 @@ public sealed class ExecuteTenantTerminationOwnerWorkTaskHandlerTests
     }
 
     [Fact]
+    public async Task Late_cancellation_after_result_append_replays_without_reinvoking_owner()
+    {
+        List<string> order = [];
+        using CancellationTokenSource source = new();
+        TenantTerminationOwnerWorkStart start = Start();
+        FakeDispatcher dispatcher = new(start, order);
+        FakeReplayStore replayStore = new(order)
+        {
+            AfterAppend = entry =>
+            {
+                if (entry.Kind == TenantTerminationReplayEntryKind.Result)
+                {
+                    source.Cancel();
+                }
+            }
+        };
+        RecordingContributor contributor = new(Contribution(), order);
+        ExecuteTenantTerminationOwnerWorkTaskHandler handler = new(
+            dispatcher,
+            replayStore,
+            [contributor],
+            new FixedClock(Now.AddSeconds(10)),
+            new FixedScopeContext("tenant-a"),
+            new RecordingScheduler());
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            handler.HandleAsync(Payload(), Context(), source.Token));
+
+        Assert.Equal(
+            ["begin", "append-dispatch", "owner", "append-result"],
+            order);
+        Assert.NotNull(replayStore.Attempt?.Result);
+        Assert.Null(dispatcher.Recorded);
+
+        await handler.HandleAsync(
+            Payload(),
+            Context(),
+            CancellationToken.None);
+
+        Assert.Equal(
+            [
+                "begin",
+                "append-dispatch",
+                "owner",
+                "append-result",
+                "begin",
+                "record"
+            ],
+            order);
+        Assert.NotNull(dispatcher.Recorded);
+    }
+
+    [Fact]
+    public async Task Invalid_dispatch_durability_receipt_stops_before_owner()
+    {
+        List<string> order = [];
+        TenantTerminationOwnerWorkStart start = Start();
+        FakeDispatcher dispatcher = new(start, order);
+        FakeReplayStore replayStore = new(order)
+        {
+            ReturnInvalidReceipt = true
+        };
+        RecordingContributor contributor = new(Contribution(), order);
+        ExecuteTenantTerminationOwnerWorkTaskHandler handler = new(
+            dispatcher,
+            replayStore,
+            [contributor],
+            new FixedClock(Now.AddSeconds(10)),
+            new FixedScopeContext("tenant-a"),
+            new RecordingScheduler());
+
+        InvalidOperationException failure =
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                handler.HandleAsync(
+                    Payload(),
+                    Context(),
+                    CancellationToken.None));
+
+        Assert.Equal(
+            "DataRights.TenantTerminationReplayProofInvalid",
+            failure.Message);
+        Assert.Equal(["begin", "append-dispatch"], order);
+        Assert.Null(contributor.Request);
+        Assert.Null(dispatcher.Recorded);
+    }
+
+    [Fact]
     public async Task Normal_return_at_deadline_is_not_journaled_or_recorded()
     {
         List<string> order = [];
@@ -441,6 +528,12 @@ public sealed class ExecuteTenantTerminationOwnerWorkTaskHandlerTests
         : ITenantTerminationReplayStore
     {
         public TenantTerminationReplayAttempt? Attempt { get; set; }
+        public Action<TenantTerminationReplayJournalEntry>? AfterAppend
+        {
+            get;
+            init;
+        }
+        public bool ReturnInvalidReceipt { get; init; }
 
         public Task<TenantTerminationReplayStoreReadiness> CheckReadinessAsync(
             CancellationToken cancellationToken) =>
@@ -461,9 +554,12 @@ public sealed class ExecuteTenantTerminationOwnerWorkTaskHandlerTests
                     new(entry.Dispatch!, entry.Result),
                 _ => throw new InvalidOperationException()
             };
+            this.AfterAppend?.Invoke(entry);
             return Task.FromResult(new TenantTerminationReplayAppendReceipt(
                 TenantTerminationReplayAppendReceipt.CurrentContractVersion,
-                entry.LogicalEntryId,
+                this.ReturnInvalidReceipt
+                    ? new string('f', 64)
+                    : entry.LogicalEntryId,
                 entry.Kind,
                 new(1, new string('c', 64)),
                 Now.AddSeconds(10),

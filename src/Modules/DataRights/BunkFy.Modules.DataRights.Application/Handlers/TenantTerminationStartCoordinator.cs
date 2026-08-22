@@ -285,19 +285,8 @@ internal sealed class TenantTerminationStartCoordinator(
             TenantTerminationReplayAppendReceipt receipt =
                 await replayStore.AppendAsync(entry, cancellationToken)
                     .ConfigureAwait(false);
-            return receipt.ContractVersion ==
-                    TenantTerminationReplayAppendReceipt
-                        .CurrentContractVersion &&
-                receipt.Kind == TenantTerminationReplayEntryKind.Intent &&
-                string.Equals(
-                    receipt.LogicalEntryId,
-                    entry.LogicalEntryId,
-                    StringComparison.Ordinal) &&
-                receipt.Cursor.Sequence > 0 &&
-                TenantTerminationReplayProof.IsSha256(
-                    receipt.Cursor.RecordSha256) &&
-                TenantTerminationReplayProof.IsSha256(
-                    receipt.DurabilityProofSha256)
+            cancellationToken.ThrowIfCancellationRequested();
+            return TenantTerminationReplayDurability.Matches(receipt, entry)
                     ? Result.Success()
                     : Result.Failure(
                         DataRightsApplicationErrors

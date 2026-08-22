@@ -49,6 +49,7 @@ internal sealed class DeleteExpiredTenantTerminationExportFragmentTaskHandler(
             payload.ProcessId,
             payload.FragmentId,
             cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
         Result<Unit> completed = await commandDispatcher.DispatchAsync<
             CompleteTenantTerminationExportFragmentDeletionCommand,
             Unit>(
