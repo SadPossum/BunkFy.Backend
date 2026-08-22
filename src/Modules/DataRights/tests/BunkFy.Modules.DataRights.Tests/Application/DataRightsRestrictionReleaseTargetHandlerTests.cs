@@ -187,6 +187,37 @@ public sealed class DataRightsRestrictionReleaseTargetHandlerTests
     }
 
     [Fact]
+    public async Task Resolution_accepts_an_owner_timestamp_observed_during_call()
+    {
+        DataRightsCase dataRightsCase = CreateDiscoveryCase();
+        DateTimeOffset observedAtUtc = Now.AddSeconds(1);
+        MutableClock clock = new(Now);
+        RecordingContributor contributor = new(_ =>
+        {
+            clock.UtcNow = observedAtUtc;
+            return DataRightsRestrictionTargetResolutionResult.Completed(
+                [new(Guid.NewGuid(), 2, Guid.NewGuid(), observedAtUtc)]);
+        });
+
+        var result = await GetDataRightsRestrictionReleaseTargetsQueryHandler
+            .ResolveAsync(
+                contributor,
+                dataRightsCase,
+                DataRightsCaseScope.ForProperty(
+                    dataRightsCase.PropertyId!.Value),
+                dataRightsCase.SelectedSubjects.Single(),
+                targetId: null,
+                targetVersion: null,
+                Now.AddSeconds(30),
+                clock,
+                NullLogger.Instance,
+                CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.Code);
+        Assert.Equal(observedAtUtc, result.Value.Targets.Single().AppliedAtUtc);
+    }
+
+    [Fact]
     public async Task Resolution_enforces_the_owner_deadline()
     {
         DataRightsCase dataRightsCase = CreateDiscoveryCase();
@@ -199,10 +230,36 @@ public sealed class DataRightsRestrictionReleaseTargetHandlerTests
             dataRightsCase.SelectedSubjects.Single(),
             targetId: null,
             targetVersion: null,
-            Now,
             Now.AddMilliseconds(25),
+            new TestClock(),
             NullLogger.Instance,
             CancellationToken.None);
+
+        Assert.Equal(
+            DataRightsApplicationErrors.RestrictionOwnerRetryRequired,
+            result.Error);
+        Assert.True(contributor.CancellationObserved);
+    }
+
+    [Fact]
+    public async Task Resolution_rejects_a_normal_return_after_deadline_cancellation()
+    {
+        DataRightsCase dataRightsCase = CreateDiscoveryCase();
+        CancellationIgnoringContributor contributor = new();
+
+        var result = await GetDataRightsRestrictionReleaseTargetsQueryHandler
+            .ResolveAsync(
+                contributor,
+                dataRightsCase,
+                DataRightsCaseScope.ForProperty(
+                    dataRightsCase.PropertyId!.Value),
+                dataRightsCase.SelectedSubjects.Single(),
+                targetId: null,
+                targetVersion: null,
+                Now.AddMilliseconds(25),
+                new TestClock(),
+                NullLogger.Instance,
+                CancellationToken.None);
 
         Assert.Equal(
             DataRightsApplicationErrors.RestrictionOwnerRetryRequired,
@@ -226,12 +283,70 @@ public sealed class DataRightsRestrictionReleaseTargetHandlerTests
                 dataRightsCase.SelectedSubjects.Single(),
                 targetId: null,
                 targetVersion: null,
-                Now,
                 Now.AddMinutes(1),
+                new TestClock(),
                 NullLogger.Instance,
                 cancellation.Token));
 
         Assert.True(contributor.CancellationObserved);
+    }
+
+    [Fact]
+    public async Task Resolution_returned_at_deadline_requests_retry()
+    {
+        DataRightsCase dataRightsCase = CreateDiscoveryCase();
+        MutableClock clock = new(Now);
+        RecordingContributor contributor = new(request =>
+        {
+            clock.UtcNow = request.DeadlineUtc;
+            return DataRightsRestrictionTargetResolutionResult.Completed(
+                [new(Guid.NewGuid(), 2, Guid.NewGuid(), Now.AddMinutes(-1))]);
+        });
+
+        var result = await GetDataRightsRestrictionReleaseTargetsQueryHandler
+            .ResolveAsync(
+                contributor,
+                dataRightsCase,
+                DataRightsCaseScope.ForProperty(
+                    dataRightsCase.PropertyId!.Value),
+                dataRightsCase.SelectedSubjects.Single(),
+                targetId: null,
+                targetVersion: null,
+                Now.AddSeconds(30),
+                clock,
+                NullLogger.Instance,
+                CancellationToken.None);
+
+        Assert.Equal(
+            DataRightsApplicationErrors.RestrictionOwnerRetryRequired,
+            result.Error);
+    }
+
+    [Fact]
+    public async Task Resolution_rejects_normal_return_after_caller_cancellation()
+    {
+        DataRightsCase dataRightsCase = CreateDiscoveryCase();
+        using CancellationTokenSource cancellation = new();
+        RecordingContributor contributor = new(_ =>
+        {
+            cancellation.Cancel();
+            return DataRightsRestrictionTargetResolutionResult.Completed(
+                [new(Guid.NewGuid(), 2, Guid.NewGuid(), Now.AddMinutes(-1))]);
+        });
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            GetDataRightsRestrictionReleaseTargetsQueryHandler.ResolveAsync(
+                contributor,
+                dataRightsCase,
+                DataRightsCaseScope.ForProperty(
+                    dataRightsCase.PropertyId!.Value),
+                dataRightsCase.SelectedSubjects.Single(),
+                targetId: null,
+                targetVersion: null,
+                Now.AddSeconds(30),
+                new TestClock(),
+                NullLogger.Instance,
+                cancellation.Token));
     }
 
     private static DataRightsCase CreateDiscoveryCase()
@@ -317,6 +432,36 @@ public sealed class DataRightsRestrictionReleaseTargetHandlerTests
             throw new NotSupportedException();
     }
 
+    private sealed class CancellationIgnoringContributor
+        : IDataRightsRestrictionContributor
+    {
+        public string OwnerKey => "guests";
+        public int ContractVersion => DataRightsRestrictionContract.CurrentVersion;
+        public bool CancellationObserved { get; private set; }
+
+        public async Task<DataRightsRestrictionTargetResolutionResult>
+            ResolveReleaseTargetsAsync(
+                DataRightsRestrictionTargetResolutionRequest request,
+                CancellationToken cancellationToken)
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                await Task.Delay(
+                    TimeSpan.FromMilliseconds(1),
+                    CancellationToken.None);
+            }
+
+            this.CancellationObserved = true;
+            return DataRightsRestrictionTargetResolutionResult.Completed(
+                [new(Guid.NewGuid(), 2, Guid.NewGuid(), Now.AddMinutes(-1))]);
+        }
+
+        public Task<DataRightsRestrictionContributionResult> ExecuteAsync(
+            DataRightsRestrictionContributionRequest request,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+    }
+
     private sealed class StubCaseRepository(DataRightsCase dataRightsCase)
         : IDataRightsCaseRepository
     {
@@ -356,5 +501,10 @@ public sealed class DataRightsRestrictionReleaseTargetHandlerTests
     private sealed class TestClock : ISystemClock
     {
         public DateTimeOffset UtcNow => Now;
+    }
+
+    private sealed class MutableClock(DateTimeOffset utcNow) : ISystemClock
+    {
+        public DateTimeOffset UtcNow { get; set; } = utcNow;
     }
 }

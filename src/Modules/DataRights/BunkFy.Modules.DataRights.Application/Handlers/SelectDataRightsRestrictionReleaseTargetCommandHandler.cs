@@ -70,8 +70,8 @@ internal sealed class SelectDataRightsRestrictionReleaseTargetCommandHandler(
                 subject.Value,
                 command.OwnerOperationId,
                 command.OwnerOperationVersion,
-                nowUtc,
                 nowUtc.Add(OwnerDeadline),
+                clock,
                 logger,
                 cancellationToken).ConfigureAwait(false);
         if (resolved.IsFailure)
@@ -79,13 +79,14 @@ internal sealed class SelectDataRightsRestrictionReleaseTargetCommandHandler(
             return Result.Failure<DataRightsCaseDto>(resolved.Error);
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         Result selected = dataRightsCase.SelectRestrictionReleaseTarget(
             subject.Value.OwnerKey,
             command.OwnerOperationId,
             command.OwnerOperationVersion,
             command.ExpectedVersion,
             command.ActorId,
-            nowUtc);
+            clock.UtcNow);
         return selected.IsSuccess
             ? Result.Success(dataRightsCase.ToDto())
             : Result.Failure<DataRightsCaseDto>(selected.Error);

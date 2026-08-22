@@ -1,4 +1,4 @@
-namespace BunkFy.Modules.DataRights.Application.Tasks;
+namespace BunkFy.Modules.DataRights.Application;
 
 using Gma.Framework.Runtime.Time;
 
@@ -28,6 +28,7 @@ internal static class DataRightsDeadlineExecutor
         {
             T result = await execute(deadline.Token).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
+            deadline.Token.ThrowIfCancellationRequested();
             DateTimeOffset observedAtUtc = clock.UtcNow;
             if (observedAtUtc >= deadlineUtc)
             {
@@ -44,6 +45,6 @@ internal static class DataRightsDeadlineExecutor
     }
 }
 
-internal sealed record DataRightsDeadlineExecution<T>(
+internal readonly record struct DataRightsDeadlineExecution<T>(
     T Value,
     DateTimeOffset ObservedAtUtc);

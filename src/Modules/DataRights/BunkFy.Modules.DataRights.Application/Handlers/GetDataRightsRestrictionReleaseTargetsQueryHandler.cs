@@ -72,8 +72,8 @@ internal sealed class GetDataRightsRestrictionReleaseTargetsQueryHandler(
             subject.Value,
             targetId: null,
             targetVersion: null,
-            nowUtc,
             nowUtc.Add(OwnerDeadline),
+            clock,
             logger,
             cancellationToken).ConfigureAwait(false);
         if (resolved.IsFailure)
@@ -100,48 +100,44 @@ internal sealed class GetDataRightsRestrictionReleaseTargetsQueryHandler(
         SelectedSubject subject,
         Guid? targetId,
         long? targetVersion,
-        DateTimeOffset startedAtUtc,
         DateTimeOffset deadlineUtc,
+        ISystemClock clock,
         ILogger logger,
         CancellationToken cancellationToken)
     {
-        TimeSpan remaining = deadlineUtc - startedAtUtc;
-        if (remaining <= TimeSpan.Zero)
-        {
-            return Result.Failure<DataRightsRestrictionTargetSet>(
-                DataRightsApplicationErrors.RestrictionOwnerRetryRequired);
-        }
-
-        using CancellationTokenSource deadline =
-            CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        deadline.CancelAfter(remaining);
         try
         {
-            DataRightsRestrictionTargetResolutionResult result =
-                await contributor.ResolveReleaseTargetsAsync(
-                    new DataRightsRestrictionTargetResolutionRequest(
-                        DataRightsRestrictionContract.CurrentVersion,
-                        dataRightsCase.ScopeId,
-                        scope.PropertyId,
-                        dataRightsCase.Id,
-                        new BunkFy.Modules.DataRights.Contracts.DataRightsSubjectCoordinate(
-                            subject.OwnerKey,
-                            subject.RecordType,
-                            subject.RecordId,
-                            subject.RecordVersion),
-                        deadlineUtc,
-                        scope.CaseType,
-                        targetId,
-                        targetVersion),
-                    deadline.Token).ConfigureAwait(false);
+            DataRightsDeadlineExecution<
+                DataRightsRestrictionTargetResolutionResult> execution =
+                await DataRightsDeadlineExecutor.ExecuteAsync(
+                    clock,
+                    deadlineUtc,
+                    "DataRights.RestrictionTargetDeadlineExceeded",
+                    token => contributor.ResolveReleaseTargetsAsync(
+                        new DataRightsRestrictionTargetResolutionRequest(
+                            DataRightsRestrictionContract.CurrentVersion,
+                            dataRightsCase.ScopeId,
+                            scope.PropertyId,
+                            dataRightsCase.Id,
+                            new BunkFy.Modules.DataRights.Contracts
+                                .DataRightsSubjectCoordinate(
+                                    subject.OwnerKey,
+                                    subject.RecordType,
+                                    subject.RecordId,
+                                    subject.RecordVersion),
+                            deadlineUtc,
+                            scope.CaseType,
+                            targetId,
+                            targetVersion),
+                        token),
+                    cancellationToken).ConfigureAwait(false);
             return DataRightsRestrictionTargetResolution.Validate(
-                result,
-                startedAtUtc,
+                execution.Value,
+                execution.ObservedAtUtc,
                 targetId,
                 targetVersion);
         }
-        catch (OperationCanceledException)
-            when (!cancellationToken.IsCancellationRequested)
+        catch (TimeoutException)
         {
             logger.LogWarning(
                 "Data Rights restriction target owner {OwnerKey} exceeded its deadline.",

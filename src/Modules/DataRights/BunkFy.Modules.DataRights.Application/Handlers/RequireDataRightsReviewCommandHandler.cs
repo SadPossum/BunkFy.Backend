@@ -39,20 +39,6 @@ internal sealed class RequireDataRightsReviewCommandHandler(
                 DataRightsApplicationErrors.CaseNotFound);
         }
 
-        DateTimeOffset nowUtc = clock.UtcNow;
-        Result targetCurrent = await ValidateRestrictionReleaseTargetAsync(
-            dataRightsCase,
-            command.Scope,
-            restrictionContributors,
-            nowUtc,
-            nowUtc.Add(OwnerDeadline),
-            logger,
-            cancellationToken).ConfigureAwait(false);
-        if (targetCurrent.IsFailure)
-        {
-            return Result.Failure<DataRightsCaseDto>(targetCurrent.Error);
-        }
-
         Result<IReadOnlyCollection<DataRightsSubjectSelection>> companions =
             await companionExpander.ExpandAsync(
                 dataRightsCase,
@@ -62,11 +48,26 @@ internal sealed class RequireDataRightsReviewCommandHandler(
             return Result.Failure<DataRightsCaseDto>(companions.Error);
         }
 
+        DateTimeOffset targetStartedAtUtc = clock.UtcNow;
+        Result targetCurrent = await ValidateRestrictionReleaseTargetAsync(
+            dataRightsCase,
+            command.Scope,
+            restrictionContributors,
+            targetStartedAtUtc.Add(OwnerDeadline),
+            clock,
+            logger,
+            cancellationToken).ConfigureAwait(false);
+        if (targetCurrent.IsFailure)
+        {
+            return Result.Failure<DataRightsCaseDto>(targetCurrent.Error);
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
         Result transitioned = dataRightsCase.RequireReview(
             companions.Value,
             command.ExpectedVersion,
             command.ActorId,
-            nowUtc);
+            clock.UtcNow);
         return transitioned.IsSuccess
             ? Result.Success(dataRightsCase.ToDto())
             : Result.Failure<DataRightsCaseDto>(transitioned.Error);
@@ -76,8 +77,8 @@ internal sealed class RequireDataRightsReviewCommandHandler(
         DataRightsCase dataRightsCase,
         DataRightsCaseScope scope,
         IEnumerable<IDataRightsRestrictionContributor> contributors,
-        DateTimeOffset startedAtUtc,
         DateTimeOffset deadlineUtc,
+        ISystemClock clock,
         ILogger logger,
         CancellationToken cancellationToken)
     {
@@ -121,8 +122,8 @@ internal sealed class RequireDataRightsReviewCommandHandler(
                 subject.Value,
                 target.OwnerOperationId,
                 target.OwnerOperationVersion,
-                startedAtUtc,
                 deadlineUtc,
+                clock,
                 logger,
                 cancellationToken).ConfigureAwait(false);
         return resolved.IsSuccess

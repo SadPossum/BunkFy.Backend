@@ -64,6 +64,7 @@
     <File Path="docs/planning/auth-and-organizations-maintenance-production-admission-task.md" />
     <File Path="docs/planning/automatic-retention-control-plane-task.md" />
     <File Path="docs/planning/backend-release-candidate-publication-task.md" />
+    <File Path="docs/planning/data-rights-bounded-owner-call-fencing-task.md" />
     <File Path="docs/planning/data-rights-case-creation-idempotency-task.md" />
     <File Path="docs/planning/data-rights-confirmation-revision-pinning-task.md" />
     <File Path="docs/planning/data-rights-coordinator-mutation-serialization-task.md" />
