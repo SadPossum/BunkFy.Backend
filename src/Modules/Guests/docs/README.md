@@ -131,6 +131,10 @@ Guests owns BunkFy's tenant-wide canonical guest profiles and staff-facing stay 
   fair-scan checkpoints, receipts, Guests, tombstones and PII-free events use
   stable named constraints and same-tenant relationships; only reachable
   control states, system attribution and lowercase SHA-256 proof can persist;
+- attempt-fenced retention mutation and completion: an already stale worker is
+  rejected before owner discovery or locking, a failed attempt leaves the
+  fair-scan checkpoint at its proven start, and only a higher Retention attempt
+  may reopen that execution while preserving its cumulative affected count;
 - Guests tenant-termination owner catalog version 5, binding personal-data
   catalog 16 and tenant export schema 4 without reusing the prior version-4
   catalog coordinate. Frozen version-4 owner work fails the existing exact
@@ -182,10 +186,12 @@ surfaces: correct an active property through Properties time-zone compliance,
 allow the dedicated event to converge or complete the existing Guests
 Properties projection rebuild, re-check Properties compliance, then trigger or
 await a new policy-version-2 retention execution and verify its PII-free
-outcome clears. A terminal failed execution remains immutable audit evidence;
-replaying its identifier returns the stored failure and does not redispatch
-work. A retired alias cannot be corrected; its current Properties snapshot plus
-a verified Guests rebuild is the bounded recovery path. There is no raw Guests
+outcome clears. A failed owner result is replayed for the same attempt. A higher
+Retention attempt deliberately reopens the same owner execution from its proven
+failed cursor; the current execution row then supersedes that failed result,
+while immutable Guest anonymisation receipts and tombstones are never rewritten.
+A retired alias cannot be corrected; its current Properties snapshot plus a
+verified Guests rebuild is the bounded recovery path. There is no raw Guests
 projection editor or new Guest HTTP/Admin/CLI route.
 
 The schema upgrade deliberately marks legacy projections fail closed. A hosted

@@ -429,6 +429,7 @@ public sealed class GuestRetentionControlProofAuditIntegrityMigrationIntegration
         Assert.True(execution.RecordAffected().IsSuccess);
         Assert.True(execution.Complete(
             GuestRetentionExecutionState.Completed,
+            attempt: execution.Attempt,
             scannedCount: 1,
             remainingCount: 0,
             "guests.guest-operational.completed",

@@ -25,6 +25,7 @@ public sealed class GuestRetentionDomainTests
             "Guests.RetentionExecutionResultInvalid",
             execution.Complete(
                 GuestRetentionExecutionState.Completed,
+                attempt: execution.Attempt,
                 scannedCount: 1,
                 remainingCount: 0,
                 "guests.guest-operational.completed",
@@ -36,6 +37,7 @@ public sealed class GuestRetentionDomainTests
 
         Assert.True(execution.Complete(
             GuestRetentionExecutionState.Completed,
+            attempt: execution.Attempt,
             scannedCount: 2,
             remainingCount: 0,
             "guests.guest-operational.completed",
@@ -87,6 +89,7 @@ public sealed class GuestRetentionDomainTests
             "Guests.RetentionExecutionResultInvalid",
             execution.Complete(
                 GuestRetentionExecutionState.Completed,
+                attempt: execution.Attempt,
                 scannedCount: 0,
                 remainingCount: 0,
                 "guests/guest-operational/completed",

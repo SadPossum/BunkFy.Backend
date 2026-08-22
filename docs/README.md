@@ -79,6 +79,7 @@ Useful entry points:
 - [Guests Anonymisation-Proof Audit Integrity Task](planning/guests-anonymisation-proof-audit-integrity-task.md)
 - [Guests Correction-Receipt Audit Integrity Task](planning/guests-correction-receipt-audit-integrity-task.md)
 - [Guests Retention Control And Proof Audit Integrity Task](planning/guests-retention-control-proof-audit-integrity-task.md)
+- [Guests Retention Attempt Fencing And Failed Retry Task](planning/guests-retention-attempt-fencing-and-failed-retry-task.md)
 - [Guests Data-Hold Audit Integrity Task](planning/guests-data-hold-audit-integrity-task.md)
 - [Guests Processing-Restriction Audit Integrity Task](planning/guests-processing-restriction-audit-integrity-task.md)
 - [Guests Management Create Idempotency Task](planning/guests-management-create-idempotency-task.md)

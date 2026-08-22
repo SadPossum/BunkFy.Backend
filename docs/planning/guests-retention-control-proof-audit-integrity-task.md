@@ -15,19 +15,24 @@ eligibility, mutation batching, public contracts, or tenant termination.
 
 ## Audit Result
 
-The runtime ownership and retry model are sound. Retention owns the generic
-schedule and dispatch contract. Guests starts or resumes its execution in one
-transaction, re-evaluates each candidate under the Guest operation lock, and
-atomically writes the scrubbed profile, retention receipt, tombstone, affected
-count, and PII-free event. Execution completion and cursor advancement share a
-second Guests transaction. A cancelled batch remains `Running`; retry rescans
-from the durable cursor while exact receipt/tombstone replay prevents a second
-mutation.
+The runtime ownership and transaction boundaries are sound. Retention owns the
+generic schedule and dispatch contract. Guests starts or resumes its execution
+in one transaction, re-evaluates each candidate under the Guest operation
+lock, and atomically writes the scrubbed profile, retention receipt, tombstone,
+affected count, and PII-free event. Execution completion and cursor advancement
+share a second Guests transaction. A cancelled batch remains `Running`; retry
+rescans from the durable cursor while exact receipt/tombstone replay prevents a
+second mutation.
 
-Provider enforcement is incomplete. Empty coordinates, malformed normalized
+A later cross-owner parity audit found that this persistence-focused slice did
+not fence mutation and completion to the active task attempt or preserve the
+failed page cursor. That runtime correction is tracked by
+[Guests retention attempt fencing and failed retry](guests-retention-attempt-fencing-and-failed-retry-task.md).
+
+Provider enforcement was incomplete. Empty coordinates, malformed normalized
 keys, default timestamps, non-system receipt attribution, duplicate event or
 checkpoint-execution evidence, and unreachable initial/advanced checkpoint
-shapes can be written directly. Receipt foreign keys and indexes also have
+shapes could be written directly. Receipt foreign keys and indexes also had
 provider-generated truncated names. The original retention migration used
 ASCII outcome and lowercase SHA-256 regex checks, while later generated model
 metadata recorded weaker trim or length checks.

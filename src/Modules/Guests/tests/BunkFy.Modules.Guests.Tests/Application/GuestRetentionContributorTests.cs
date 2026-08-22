@@ -64,6 +64,10 @@ public sealed class GuestRetentionContributorTests
         Assert.Equal(
             GuestRetentionCoordinates.BacklogOutcome,
             completed.OutcomeCode);
+        Assert.Equal(1, completed.Attempt);
+        Assert.All(
+            dispatcher.ApplyAttempts,
+            attempt => Assert.Equal(1, attempt));
         Assert.Equal(2, dispatcher.ApplyCount);
         Assert.Equal(2, result.AffectedCount);
     }
@@ -95,6 +99,7 @@ public sealed class GuestRetentionContributorTests
             Assert.IsType<CompleteGuestRetentionExecutionCommand>(
                 dispatcher.CompletedCommand);
         Assert.Equal(3, completed.ScannedCount);
+        Assert.Equal(2, completed.Attempt);
         Assert.Equal(0, completed.NextAfterProjectionOrdinal);
         Assert.Equal(2, result.AffectedCount);
         Assert.True(result.AffectedCount <= result.ScannedCount);
@@ -304,6 +309,7 @@ public sealed class GuestRetentionContributorTests
             new(mutationResults);
 
         public int ApplyCount { get; private set; }
+        public List<int> ApplyAttempts { get; } = [];
         public object? CompletedCommand { get; private set; }
         private int AppliedCount { get; set; }
 
@@ -319,7 +325,8 @@ public sealed class GuestRetentionContributorTests
                         StartingProjectionOrdinal: 0,
                         AffectedCount: initialAffectedCount,
                         CompletedResult: null),
-                ApplyGuestRetentionCommand => this.NextMutation(),
+                ApplyGuestRetentionCommand apply =>
+                    this.NextMutation(apply),
                 CompleteGuestRetentionExecutionCommand completed =>
                     this.Complete(completed),
                 _ => throw new NotSupportedException(
@@ -334,9 +341,11 @@ public sealed class GuestRetentionContributorTests
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 
-        private GuestRetentionMutationResult NextMutation()
+        private GuestRetentionMutationResult NextMutation(
+            ApplyGuestRetentionCommand command)
         {
             this.ApplyCount++;
+            this.ApplyAttempts.Add(command.Attempt);
             GuestRetentionMutationResult result =
                 this.mutations.Dequeue();
             if (result.Status == GuestRetentionMutationStatus.Applied)

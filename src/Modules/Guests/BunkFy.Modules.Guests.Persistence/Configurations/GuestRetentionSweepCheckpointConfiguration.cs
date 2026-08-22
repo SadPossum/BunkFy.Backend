@@ -30,7 +30,8 @@ internal sealed class GuestRetentionSweepCheckpointConfiguration
             table.HasCheckConstraint(
                 "CK_guest_retention_sweep_checkpoints_lifecycle",
                 "(\"LastExecutionId\" IS NULL AND " +
-                "\"AfterProjectionOrdinal\" = 0 AND \"Version\" = 1) OR " +
+                "((\"Version\" = 1 AND \"AfterProjectionOrdinal\" = 0) OR " +
+                "\"Version\" >= 3)) OR " +
                 "(\"LastExecutionId\" IS NOT NULL AND " +
                 $"\"LastExecutionId\" <> '{EmptyGuid}' AND \"Version\" >= 2)");
             table.HasCheckConstraint(

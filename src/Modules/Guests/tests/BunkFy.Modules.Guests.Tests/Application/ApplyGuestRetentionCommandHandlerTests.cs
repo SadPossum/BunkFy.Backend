@@ -31,6 +31,7 @@ public sealed class ApplyGuestRetentionCommandHandlerTests
         Fixture fixture = CreateFixture("tenant-a");
         ApplyGuestRetentionCommand command = new(
             fixture.Execution.Id,
+            fixture.Execution.Attempt,
             fixture.Profile.Id,
             fixture.Profile.Version);
 
@@ -74,6 +75,7 @@ public sealed class ApplyGuestRetentionCommandHandlerTests
             await fixture.Handler.HandleAsync(
                 new(
                     fixture.Execution.Id,
+                    fixture.Execution.Attempt,
                     fixture.Profile.Id,
                     fixture.Profile.Version),
                 CancellationToken.None);
@@ -81,6 +83,33 @@ public sealed class ApplyGuestRetentionCommandHandlerTests
         Assert.Equal(
             GuestsApplicationErrors.RetentionExecutionNotFound,
             result.Error);
+        Assert.Equal(0, fixture.Candidates.LoadCount);
+        Assert.Equal(0, fixture.Boundary.CallCount);
+        Assert.Equal(GuestProfileState.Active, fixture.Profile.Status);
+    }
+
+    [Fact]
+    public async Task Stale_attempt_is_rejected_before_owner_work()
+    {
+        Fixture fixture = CreateFixture("tenant-a");
+        Assert.True(fixture.Execution.BeginRetry(
+            attempt: 2,
+            GuestRetentionTestData.Now,
+            GuestRetentionTestData.Now.AddMinutes(11)).IsSuccess);
+
+        Result<GuestRetentionMutationResult> result =
+            await fixture.Handler.HandleAsync(
+                new(
+                    fixture.Execution.Id,
+                    Attempt: 1,
+                    fixture.Profile.Id,
+                    fixture.Profile.Version),
+                CancellationToken.None);
+
+        Assert.Equal(
+            GuestsApplicationErrors.RetentionExecutionNotFound,
+            result.Error);
+        Assert.Equal(0, fixture.Repository.ReceiptLookupCount);
         Assert.Equal(0, fixture.Candidates.LoadCount);
         Assert.Equal(0, fixture.Boundary.CallCount);
         Assert.Equal(GuestProfileState.Active, fixture.Profile.Status);
@@ -106,6 +135,7 @@ public sealed class ApplyGuestRetentionCommandHandlerTests
             await fixture.Handler.HandleAsync(
                 new(
                     fixture.Execution.Id,
+                    fixture.Execution.Attempt,
                     fixture.Profile.Id,
                     fixture.Profile.Version),
                 CancellationToken.None);
@@ -146,6 +176,7 @@ public sealed class ApplyGuestRetentionCommandHandlerTests
             await fixture.Handler.HandleAsync(
                 new(
                     fixture.Execution.Id,
+                    fixture.Execution.Attempt,
                     fixture.Profile.Id,
                     fixture.Profile.Version),
                 CancellationToken.None);
@@ -167,6 +198,7 @@ public sealed class ApplyGuestRetentionCommandHandlerTests
         Fixture fixture = CreateFixture("tenant-a");
         ApplyGuestRetentionCommand command = new(
             fixture.Execution.Id,
+            fixture.Execution.Attempt,
             fixture.Profile.Id,
             fixture.Profile.Version);
 
@@ -177,6 +209,7 @@ public sealed class ApplyGuestRetentionCommandHandlerTests
                 CancellationToken.None)).Value.Status);
         Assert.True(fixture.Execution.Complete(
             GuestRetentionExecutionState.Completed,
+            attempt: fixture.Execution.Attempt,
             scannedCount: 1,
             remainingCount: 0,
             GuestRetentionCoordinates.CompletedOutcome,
@@ -201,6 +234,7 @@ public sealed class ApplyGuestRetentionCommandHandlerTests
         Fixture fixture = CreateFixture("tenant-a");
         ApplyGuestRetentionCommand command = new(
             fixture.Execution.Id,
+            fixture.Execution.Attempt,
             fixture.Profile.Id,
             fixture.Profile.Version);
         Assert.Equal(
@@ -228,6 +262,7 @@ public sealed class ApplyGuestRetentionCommandHandlerTests
             1);
         Assert.True(fixture.Execution.Complete(
             GuestRetentionExecutionState.Completed,
+            attempt: fixture.Execution.Attempt,
             scannedCount: 1,
             remainingCount: 0,
             GuestRetentionCoordinates.CompletedOutcome,
@@ -362,11 +397,12 @@ public sealed class ApplyGuestRetentionCommandHandlerTests
         }
 
         public int AddProofCount { get; private set; }
+        public int ReceiptLookupCount { get; private set; }
 
         public Task<GuestRetentionExecution?> GetExecutionAsync(
             Guid executionId,
             CancellationToken cancellationToken) =>
-            Task.FromResult<GuestRetentionExecution?>(
+            Task.FromResult(
                 execution.Id == executionId ? execution : null);
 
         public Task AddExecutionAsync(
@@ -386,11 +422,14 @@ public sealed class ApplyGuestRetentionCommandHandlerTests
 
         public Task<GuestRetentionAnonymisationReceipt?> GetReceiptAsync(
             Guid guestId,
-            CancellationToken cancellationToken) =>
-            Task.FromResult(
+            CancellationToken cancellationToken)
+        {
+            this.ReceiptLookupCount++;
+            return Task.FromResult(
                 this.Receipt?.GuestId == guestId
                     ? this.Receipt
                     : null);
+        }
 
         public Task<GuestAnonymisationTombstone?> GetTombstoneAsync(
             Guid guestId,
@@ -403,7 +442,7 @@ public sealed class ApplyGuestRetentionCommandHandlerTests
         public Task<GuestProfile?> GetProfileAsync(
             Guid guestId,
             CancellationToken cancellationToken) =>
-            Task.FromResult<GuestProfile?>(
+            Task.FromResult(
                 profile.Id == guestId ? profile : null);
 
         public Task AddAnonymisationProofAsync(
@@ -438,7 +477,7 @@ public sealed class ApplyGuestRetentionCommandHandlerTests
             CancellationToken cancellationToken)
         {
             this.LoadCount++;
-            return Task.FromResult<GuestRetentionCandidateSnapshot?>(
+            return Task.FromResult(
                 this.Snapshot.GuestId == guestId
                     ? this.Snapshot
                     : null);

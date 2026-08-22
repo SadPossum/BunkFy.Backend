@@ -35,6 +35,7 @@ internal sealed class ApplyGuestRetentionCommandHandler(
             scopeContext.IsEnabled ? scopeContext.ScopeId : null;
         if (string.IsNullOrWhiteSpace(tenantId) ||
             command.ExecutionId == Guid.Empty ||
+            command.Attempt < 1 ||
             command.GuestId == Guid.Empty ||
             command.ExpectedGuestVersion < 1)
         {
@@ -50,7 +51,8 @@ internal sealed class ApplyGuestRetentionCommandHandler(
             !string.Equals(
                 execution.ScopeId,
                 tenantId,
-                StringComparison.Ordinal))
+                StringComparison.Ordinal) ||
+            execution.Attempt != command.Attempt)
         {
             return Result.Failure<GuestRetentionMutationResult>(
                 GuestsApplicationErrors.RetentionExecutionNotFound);

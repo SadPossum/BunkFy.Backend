@@ -78,6 +78,14 @@ public sealed class GuestRetentionModelTests
             "CK_guest_retention_sweep_checkpoints_version",
             "CK_guest_retention_sweep_checkpoints_lifecycle",
             "CK_guest_retention_sweep_checkpoints_timestamp");
+        Assert.Contains(
+            "\"Version\" >= 3",
+            designModel
+                .FindEntityType(typeof(GuestRetentionSweepCheckpoint))!
+                .GetCheckConstraints()
+                .Single(constraint => constraint.Name ==
+                    "CK_guest_retention_sweep_checkpoints_lifecycle")
+                .Sql);
 
         Assert.Single(receipt.GetKeys());
         Assert.Contains(receipt.GetIndexes(), index => index.IsUnique &&

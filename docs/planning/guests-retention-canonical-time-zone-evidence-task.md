@@ -196,11 +196,15 @@ Guest management surface:
 5. trigger or await a new policy-version-2 retention execution and verify its
    stable PII-free owner outcome clears the time-zone-unavailable condition.
 
-The terminal failed execution is immutable and remains visible through
-Retention health with a stable, PII-free owner outcome; replaying its execution
-identifier returns the stored failure and does not redispatch work. Operators
-must not edit the Guests schema, rewrite an immutable receipt, or present a
-replay of that failed execution as recovery.
+A failed owner result remains visible through Retention health with a stable,
+PII-free outcome and is replayed for the same attempt. A higher Retention
+attempt may deliberately reopen the same owner execution from the proven failed
+cursor; that retry, not an exact replay, performs recovery. Immutable Guest
+anonymisation receipts and tombstones are never rewritten. Operators must not
+edit the Guests schema, rewrite immutable proof, or present a same-attempt
+replay of the failed result as recovery. The later attempt-fencing correction is
+specified in
+[Guests retention attempt fencing and failed retry](guests-retention-attempt-fencing-and-failed-retry-task.md).
 
 ## Delivery
 

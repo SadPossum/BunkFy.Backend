@@ -102,6 +102,7 @@
     <File Path="docs/planning/guests-operational-surface-hardening-task.md" />
     <File Path="docs/planning/guests-processing-restriction-audit-integrity-task.md" />
     <File Path="docs/planning/guests-read-surface-hardening-task.md" />
+    <File Path="docs/planning/guests-retention-attempt-fencing-and-failed-retry-task.md" />
     <File Path="docs/planning/guests-retention-canonical-time-zone-evidence-task.md" />
     <File Path="docs/planning/guests-retention-control-proof-audit-integrity-task.md" />
     <File Path="docs/planning/guests-sensitive-mutation-assurance-task.md" />

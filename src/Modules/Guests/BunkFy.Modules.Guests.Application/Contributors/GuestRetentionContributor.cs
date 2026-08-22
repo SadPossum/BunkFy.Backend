@@ -136,6 +136,7 @@ internal sealed class GuestRetentionContributor
                 await this.dispatcher.SendAsync(
                     new ApplyGuestRetentionCommand(
                         request.ExecutionId,
+                        request.Attempt,
                         candidate.GuestId,
                         candidate.GuestVersion),
                     cancellationToken).ConfigureAwait(false);
@@ -224,6 +225,7 @@ internal sealed class GuestRetentionContributor
             await this.dispatcher.SendAsync(
                 new CompleteGuestRetentionExecutionCommand(
                     request.ExecutionId,
+                    request.Attempt,
                     state,
                     scannedCount,
                     remainingCount,
