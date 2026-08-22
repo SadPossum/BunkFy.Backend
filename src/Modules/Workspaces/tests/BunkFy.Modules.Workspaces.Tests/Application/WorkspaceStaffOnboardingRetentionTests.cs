@@ -14,8 +14,11 @@ using Gma.Framework.Cqrs;
 using Gma.Framework.Pagination;
 using Gma.Framework.Results;
 using Gma.Framework.Runtime.Time;
+using Gma.Framework.Scoping;
 using Gma.Modules.AccessControl.Contracts;
 using Gma.Modules.Organizations.Contracts;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Xunit;
@@ -78,9 +81,7 @@ public sealed class WorkspaceStaffOnboardingRetentionTests
 
         Result<WorkspaceStaffOnboardingRetentionReconciliation> result =
             await handler.HandleAsync(
-                new(
-                    application.Id,
-                    application.Version),
+                Command(application.Id, application.Version),
                 CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Error.Code);
@@ -114,7 +115,7 @@ public sealed class WorkspaceStaffOnboardingRetentionTests
 
         Result<WorkspaceStaffOnboardingRetentionReconciliation> result =
             await handler.HandleAsync(
-                new(application.Id, application.Version),
+                Command(application.Id, application.Version),
                 CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Error.Code);
@@ -147,7 +148,7 @@ public sealed class WorkspaceStaffOnboardingRetentionTests
 
         Result<WorkspaceStaffOnboardingRetentionReconciliation> result =
             await handler.HandleAsync(
-                new(application.Id, application.Version),
+                Command(application.Id, application.Version),
                 CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Error.Code);
@@ -180,7 +181,7 @@ public sealed class WorkspaceStaffOnboardingRetentionTests
 
         Result<WorkspaceStaffOnboardingRetentionReconciliation> result =
             await handler.HandleAsync(
-                new(application.Id, application.Version),
+                Command(application.Id, application.Version),
                 CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -222,7 +223,7 @@ public sealed class WorkspaceStaffOnboardingRetentionTests
 
         Result<WorkspaceStaffOnboardingRetentionReconciliation> result =
             await handler.HandleAsync(
-                new(application.Id, application.Version),
+                Command(application.Id, application.Version),
                 CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Error.Code);
@@ -276,6 +277,7 @@ public sealed class WorkspaceStaffOnboardingRetentionTests
         ReconcileWorkspaceStaffOnboardingRetentionCandidateCommandHandler handler = new(
             applications,
             plans,
+            CreateRetentionCoordinator(),
             WorkspaceStaffOnboardingMutationTestSupport.Create(
                 applications,
                 new FakeOperationLock()),
@@ -288,7 +290,7 @@ public sealed class WorkspaceStaffOnboardingRetentionTests
 
         Result<WorkspaceStaffOnboardingRetentionReconciliation> result =
             await handler.HandleAsync(
-                new(application.Id, application.Version),
+                Command(application.Id, application.Version),
                 CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Error.Code);
@@ -318,7 +320,7 @@ public sealed class WorkspaceStaffOnboardingRetentionTests
 
         Result<WorkspaceStaffOnboardingRetentionReconciliation> result =
             await handler.HandleAsync(
-                new(application.Id, application.Version - 1),
+                Command(application.Id, application.Version - 1),
                 CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.Error.Code);
@@ -329,6 +331,74 @@ public sealed class WorkspaceStaffOnboardingRetentionTests
         Assert.Equal(WorkspaceStaffOnboardingState.Submitted, application.Status);
     }
 
+    [Fact]
+    public void Application_registration_adds_one_retention_contributor()
+    {
+        ServiceCollection services = new();
+        IConfiguration configuration = new ConfigurationBuilder().Build();
+
+        services.AddWorkspacesApplication(configuration, "global");
+        services.AddWorkspacesApplication(configuration, "global");
+
+        Assert.Single(
+            services,
+            descriptor =>
+                descriptor.ServiceType ==
+                    typeof(IRetentionExecutionContributor) &&
+                descriptor.ImplementationType ==
+                    typeof(WorkspaceStaffOnboardingRetentionContributor));
+        Assert.Single(
+            services,
+            descriptor =>
+                descriptor.ServiceType ==
+                    typeof(IValidateOptions<
+                        WorkspaceStaffOnboardingRetentionOptions>) &&
+                descriptor.ImplementationType ==
+                    typeof(WorkspaceStaffOnboardingRetentionOptionsValidator));
+    }
+
+    [Fact]
+    public async Task Reconciliation_records_scan_and_mutation_on_the_owner_execution()
+    {
+        WorkspaceStaffOnboarding application =
+            WorkspaceStaffOnboardingTests.CreateApplication();
+        WorkspaceStaffAccessPlan plan = CreatePlan(
+            application,
+            Now.AddHours(-3),
+            active: true);
+        FakeOnboardingRepository applications = new(application);
+        WorkspaceStaffOnboardingRetentionExecution execution =
+            CreateRetentionExecution();
+        WorkspaceStaffOnboardingRetentionExecutionCoordinator coordinator =
+            new(
+                new FakeRetentionExecutionLock(),
+                new FakeRetentionExecutionRepository(execution),
+                new TestScopeContext());
+        ReconcileWorkspaceStaffOnboardingRetentionCandidateCommandHandler
+            handler = new(
+                applications,
+                new FakeAccessPlanRepository(plan),
+                coordinator,
+                WorkspaceStaffOnboardingMutationTestSupport.Create(
+                    applications,
+                    new FakeOperationLock()),
+                new FakeClaimInspector(null),
+                null!,
+                Options.Create(
+                    new WorkspaceStaffOnboardingRetentionOptions()),
+                new FakeClock());
+
+        Result<WorkspaceStaffOnboardingRetentionReconciliation> result =
+            await handler.HandleAsync(
+                Command(application.Id, application.Version),
+                CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.Error.Code);
+        Assert.True(result.Value.Affected);
+        Assert.Equal(1, execution.ScannedCount);
+        Assert.Equal(1, execution.AffectedCount);
+    }
+
     private static ReconcileWorkspaceStaffOnboardingRetentionCandidateCommandHandler
         CreateHandler(
             FakeOnboardingRepository applications,
@@ -337,6 +407,7 @@ public sealed class WorkspaceStaffOnboardingRetentionTests
         new(
             applications,
             plans,
+            CreateRetentionCoordinator(),
             WorkspaceStaffOnboardingMutationTestSupport.Create(
                 applications,
                 new FakeOperationLock()),
@@ -344,6 +415,28 @@ public sealed class WorkspaceStaffOnboardingRetentionTests
             null!,
             Options.Create(new WorkspaceStaffOnboardingRetentionOptions()),
             new FakeClock());
+
+    private static ReconcileWorkspaceStaffOnboardingRetentionCandidateCommand
+        Command(Guid applicationId, long expectedVersion) =>
+        new(RetentionExecutionId, 1, applicationId, expectedVersion);
+
+    private static WorkspaceStaffOnboardingRetentionExecutionCoordinator
+        CreateRetentionCoordinator() =>
+        new(
+            new FakeRetentionExecutionLock(),
+            new FakeRetentionExecutionRepository(CreateRetentionExecution()),
+            new TestScopeContext());
+
+    private static WorkspaceStaffOnboardingRetentionExecution
+        CreateRetentionExecution() =>
+        WorkspaceStaffOnboardingRetentionExecution.Start(
+            RetentionExecutionId,
+            WorkspaceStaffOnboardingTests.OrganizationId.ToString("D"),
+            WorkspaceStaffOnboardingRetentionCoordinates.DataClassKey,
+            WorkspaceStaffOnboardingRetentionCoordinates.ExecutionPolicyVersion,
+            attempt: 1,
+            Now.AddMinutes(-1),
+            Now.AddMinutes(9)).Value;
 
     private static WorkspaceStaffAccessPlan CreatePlan(
         WorkspaceStaffOnboarding application,
@@ -386,6 +479,40 @@ public sealed class WorkspaceStaffOnboardingRetentionTests
 
     private static readonly DateTimeOffset Now =
         WorkspaceStaffOnboardingTests.Now.AddDays(7);
+    private static readonly Guid RetentionExecutionId =
+        Guid.Parse("10000000-0000-0000-0000-000000000001");
+
+    private sealed class TestScopeContext : IScopeContext
+    {
+        public bool IsEnabled => true;
+        public string ScopeId =>
+            WorkspaceStaffOnboardingTests.OrganizationId.ToString("D");
+    }
+
+    private sealed class FakeRetentionExecutionLock
+        : IWorkspaceStaffOnboardingRetentionExecutionLock
+    {
+        public Task AcquireAsync(
+            string tenantId,
+            Guid executionId,
+            CancellationToken cancellationToken) => Task.CompletedTask;
+    }
+
+    private sealed class FakeRetentionExecutionRepository(
+        WorkspaceStaffOnboardingRetentionExecution execution)
+        : IWorkspaceStaffOnboardingRetentionExecutionRepository
+    {
+        public Task<WorkspaceStaffOnboardingRetentionExecution?> GetAsync(
+            Guid executionId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<WorkspaceStaffOnboardingRetentionExecution?>(
+                execution.Id == executionId ? execution : null);
+
+        public Task AddAsync(
+            WorkspaceStaffOnboardingRetentionExecution added,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+    }
 
     private sealed class FakeClock : ISystemClock
     {
@@ -637,13 +764,12 @@ public sealed class WorkspaceStaffOnboardingRetentionContributorTests
             Candidate(2),
             Candidate(3)
         ];
-        FakeCandidateRepository repository = new(candidates);
         FakeDispatcher dispatcher = new(
+            candidates,
             WorkspaceStaffOnboardingRetentionOutcome.Expired,
             WorkspaceStaffOnboardingRetentionOutcome.Unchanged);
         WorkspaceStaffOnboardingRetentionContributor contributor = CreateContributor(
             dispatcher,
-            repository,
             new WorkspaceStaffOnboardingRetentionOptions { BatchSize = 2 });
 
         RetentionContributionResult result = await contributor.ExecuteAsync(
@@ -658,17 +784,16 @@ public sealed class WorkspaceStaffOnboardingRetentionContributorTests
             WorkspaceStaffOnboardingRetentionCoordinates.BacklogOutcome,
             result.OutcomeCode);
         Assert.Equal(2, dispatcher.CallCount);
-        Assert.Equal(3, repository.MaximumCount);
+        Assert.Equal(3, dispatcher.MaximumCount);
     }
 
     [Fact]
     public async Task Contributor_surfaces_authority_lapse_as_a_failed_run()
     {
-        FakeCandidateRepository repository = new([Candidate(1)]);
         WorkspaceStaffOnboardingRetentionContributor contributor = CreateContributor(
             new FakeDispatcher(
+                [Candidate(1)],
                 WorkspaceStaffOnboardingRetentionOutcome.AuthorityLapsed),
-            repository,
             new WorkspaceStaffOnboardingRetentionOptions());
 
         RetentionContributionResult result = await contributor.ExecuteAsync(
@@ -684,13 +809,45 @@ public sealed class WorkspaceStaffOnboardingRetentionContributorTests
         Assert.Equal(TimeSpan.FromHours(1), contributor.Schedule.Interval);
     }
 
+    [Fact]
+    public async Task Contributor_persists_only_the_candidates_reached_before_a_known_failure()
+    {
+        FakeDispatcher dispatcher = new(
+            [Candidate(1), Candidate(2), Candidate(3)],
+            WorkspaceStaffOnboardingRetentionOutcome.Expired)
+        {
+            ReconciliationFailure =
+                WorkspaceStaffOnboardingApplicationErrors
+                    .RetentionPlanInconsistent
+        };
+        WorkspaceStaffOnboardingRetentionContributor contributor =
+            CreateContributor(
+                dispatcher,
+                new WorkspaceStaffOnboardingRetentionOptions
+                {
+                    BatchSize = 3
+                });
+
+        RetentionContributionResult result = await contributor.ExecuteAsync(
+            Request(),
+            CancellationToken.None);
+
+        Assert.Equal(RetentionContributionStatus.Failed, result.Status);
+        Assert.Equal(1, result.ScannedCount);
+        Assert.Equal(0, result.AffectedCount);
+        Assert.Equal(1, result.RemainingCount);
+        Assert.Equal(
+            WorkspaceStaffOnboardingRetentionCoordinates
+                .ReconciliationFailedOutcome,
+            result.OutcomeCode);
+        Assert.Equal(1, dispatcher.CallCount);
+    }
+
     private static WorkspaceStaffOnboardingRetentionContributor CreateContributor(
         FakeDispatcher dispatcher,
-        FakeCandidateRepository repository,
         WorkspaceStaffOnboardingRetentionOptions options) =>
         new(
             dispatcher,
-            repository,
             Options.Create(options),
             new FakeClock(),
             NullLogger<WorkspaceStaffOnboardingRetentionContributor>.Instance);
@@ -722,27 +879,8 @@ public sealed class WorkspaceStaffOnboardingRetentionContributorTests
         public DateTimeOffset UtcNow => Now;
     }
 
-    private sealed class FakeCandidateRepository(
-        IReadOnlyList<WorkspaceStaffOnboardingRetentionCandidate> candidates)
-        : IWorkspaceStaffOnboardingRetentionRepository
-    {
-        public int MaximumCount { get; private set; }
-
-        public Task<IReadOnlyList<WorkspaceStaffOnboardingRetentionCandidate>>
-            ListEligibleAsync(
-                string tenantId,
-                DateTimeOffset sourceExpiredBeforeUtc,
-                int maximumCount,
-                CancellationToken cancellationToken)
-        {
-            this.MaximumCount = maximumCount;
-            return Task.FromResult<IReadOnlyList<
-                WorkspaceStaffOnboardingRetentionCandidate>>(
-                    candidates.Take(maximumCount).ToArray());
-        }
-    }
-
     private sealed class FakeDispatcher(
+        IReadOnlyList<WorkspaceStaffOnboardingRetentionCandidate> candidates,
         params WorkspaceStaffOnboardingRetentionOutcome[] outcomes)
         : IRequestDispatcher
     {
@@ -750,27 +888,83 @@ public sealed class WorkspaceStaffOnboardingRetentionContributorTests
             new(outcomes);
 
         public int CallCount { get; private set; }
+        public int MaximumCount { get; private set; }
+        public Error? ReconciliationFailure { get; init; }
+        private int affectedCount;
 
         public Task<Result<TResponse>> SendAsync<TResponse>(
             ICommand<TResponse> command,
             CancellationToken cancellationToken = default)
         {
-            Assert.IsType<
-                ReconcileWorkspaceStaffOnboardingRetentionCandidateCommand>(command);
-            this.CallCount++;
-            WorkspaceStaffOnboardingRetentionOutcome outcome =
-                this.outcomes.Dequeue();
-            WorkspaceStaffOnboardingRetentionReconciliation response = new(
-                outcome,
-                outcome is not (
-                    WorkspaceStaffOnboardingRetentionOutcome.Unchanged or
-                    WorkspaceStaffOnboardingRetentionOutcome.AuthorityLapsed));
-            return Task.FromResult(Result.Success((TResponse)(object)response));
+            if (command is
+                    ReconcileWorkspaceStaffOnboardingRetentionCandidateCommand &&
+                this.ReconciliationFailure is not null)
+            {
+                this.CallCount++;
+                return Task.FromResult(
+                    Result.Failure<TResponse>(
+                        this.ReconciliationFailure));
+            }
+
+            object response = command switch
+            {
+                BeginWorkspaceStaffOnboardingRetentionExecutionCommand =>
+                    new WorkspaceStaffOnboardingRetentionExecutionStart(
+                        DispatchRequired: true,
+                        ScannedCount: 0,
+                        AffectedCount: 0,
+                        CompletedResult: null),
+                ListWorkspaceStaffOnboardingRetentionCandidatesCommand listed =>
+                    this.List(listed),
+                ReconcileWorkspaceStaffOnboardingRetentionCandidateCommand
+                    reconciled => this.Reconcile(reconciled),
+                CompleteWorkspaceStaffOnboardingRetentionExecutionCommand
+                    completed => this.Complete(completed),
+                _ => throw new InvalidOperationException(
+                    $"Unexpected command {command.GetType().Name}.")
+            };
+            return Task.FromResult(Result.Success((TResponse)response));
         }
 
         public Task<Result<TResponse>> QueryAsync<TResponse>(
             IQuery<TResponse> query,
             CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
+
+        private WorkspaceStaffOnboardingRetentionCandidate[] List(
+            ListWorkspaceStaffOnboardingRetentionCandidatesCommand command)
+        {
+            this.MaximumCount = command.MaximumCount;
+            return candidates.Take(command.MaximumCount).ToArray();
+        }
+
+        private WorkspaceStaffOnboardingRetentionReconciliation Reconcile(
+            ReconcileWorkspaceStaffOnboardingRetentionCandidateCommand command)
+        {
+            Assert.NotEqual(Guid.Empty, command.ExecutionId);
+            Assert.Equal(1, command.Attempt);
+            this.CallCount++;
+            WorkspaceStaffOnboardingRetentionOutcome outcome =
+                this.outcomes.Dequeue();
+            bool affected = outcome is not (
+                WorkspaceStaffOnboardingRetentionOutcome.Unchanged or
+                WorkspaceStaffOnboardingRetentionOutcome.AuthorityLapsed);
+            this.affectedCount += affected ? 1 : 0;
+            return new(outcome, affected);
+        }
+
+        private RetentionContributionResult Complete(
+            CompleteWorkspaceStaffOnboardingRetentionExecutionCommand command) =>
+            new(
+                RetentionExecutionContract.CurrentVersion,
+                command.State ==
+                    WorkspaceStaffOnboardingRetentionExecutionState.Completed
+                        ? RetentionContributionStatus.Completed
+                        : RetentionContributionStatus.Failed,
+                command.ScannedCount,
+                this.affectedCount,
+                command.RemainingCount,
+                command.OutcomeCode,
+                command.CompletedAtUtc);
     }
 }

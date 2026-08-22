@@ -174,6 +174,14 @@ internal sealed partial class WorkspaceTenantDestructionOwner
                             fence.Id != operation.FenceId),
                     fence => fence.Id,
                     cancellationToken),
+            WorkspaceTenantDestroyStage.StaffOnboardingRetentionExecutions =>
+                this.RemoveGuidBatchAsync(
+                    operation,
+                    dbContext.StaffOnboardingRetentionExecutions
+                        .IgnoreQueryFilters()
+                        .Where(execution => execution.ScopeId == tenantId),
+                    execution => execution.Id,
+                    cancellationToken),
             _ => throw new InvalidDataException(
                 "The Workspaces tenant destruction stage is invalid.")
         };
@@ -355,6 +363,10 @@ internal sealed partial class WorkspaceTenantDestructionOwner
             await dbContext.StaffRetentionCorrelationReceipts
                 .IgnoreQueryFilters()
                 .AnyAsync(receipt => receipt.ScopeId == tenantId, cancellationToken)
+                .ConfigureAwait(false) ||
+            await dbContext.StaffOnboardingRetentionExecutions
+                .IgnoreQueryFilters()
+                .AnyAsync(execution => execution.ScopeId == tenantId, cancellationToken)
                 .ConfigureAwait(false) ||
             await dbContext.StaffCorrelationAnonymisationRestoreReceipts
                 .IgnoreQueryFilters()

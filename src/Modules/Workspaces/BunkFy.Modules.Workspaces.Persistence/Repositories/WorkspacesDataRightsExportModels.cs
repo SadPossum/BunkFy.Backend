@@ -126,3 +126,25 @@ internal sealed record WorkspaceStaffRetentionCorrelationProofDataRightsExport(
     int AccessPlanRecordsScrubbed,
     DateTimeOffset CompletedAtUtc,
     string CanonicalSha256);
+
+internal sealed record
+    WorkspaceStaffOnboardingRetentionExecutionDataRightsExport(
+        string ScopeId,
+        Guid ExecutionId,
+        WorkspaceStaffOnboardingRetentionExecutionStateDataRightsExport
+            RetentionExecution);
+
+internal sealed record
+    WorkspaceStaffOnboardingRetentionExecutionStateDataRightsExport(
+        string DataClassKey,
+        int ExecutionPolicyVersion,
+        int Attempt,
+        WorkspaceStaffOnboardingRetentionExecutionState State,
+        DateTimeOffset StartedAtUtc,
+        DateTimeOffset DeadlineUtc,
+        DateTimeOffset? CompletedAtUtc,
+        int AffectedCount,
+        int ScannedCount,
+        int? RemainingCount,
+        string? OutcomeCode,
+        long Version);

@@ -23,6 +23,9 @@ public static class WorkspaceStaffOnboardingApplicationErrors
     public static readonly Error RetentionPlanInconsistent = new(
         "Workspaces.StaffOnboardingRetentionPlanInconsistent",
         "The Staff onboarding access plan is inconsistent with retention reconciliation.");
+    public static readonly Error RetentionExecutionNotFound = new(
+        "Workspaces.StaffOnboardingRetentionExecutionNotFound",
+        "The Staff onboarding retention execution was not found.");
     public static readonly Error CorrectionRequestInvalid = new(
         "Workspaces.StaffOnboardingCorrectionRequestInvalid",
         "The Staff onboarding correction request is invalid.");

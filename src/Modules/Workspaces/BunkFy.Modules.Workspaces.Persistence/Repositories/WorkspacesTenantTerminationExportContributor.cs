@@ -454,6 +454,44 @@ internal sealed class WorkspacesTenantTerminationExportContributor(
             count = checked(count + 1);
         }
 
+        await foreach (
+            WorkspaceStaffOnboardingRetentionExecution execution in
+            dbContext.StaffOnboardingRetentionExecutions
+                .AsNoTracking()
+                .Where(item => item.ScopeId == tenantId)
+                .OrderBy(item => item.Id)
+                .AsAsyncEnumerable()
+                .WithCancellation(cancellationToken)
+                .ConfigureAwait(false))
+        {
+            WorkspaceStaffOnboardingRetentionExecutionDataRightsExport record =
+                new(
+                    execution.ScopeId,
+                    execution.Id,
+                    new(
+                        execution.DataClassKey,
+                        execution.ExecutionPolicyVersion,
+                        execution.Attempt,
+                        execution.State,
+                        execution.StartedAtUtc,
+                        execution.DeadlineUtc,
+                        execution.CompletedAtUtc,
+                        execution.AffectedCount,
+                        execution.ScannedCount,
+                        execution.RemainingCount,
+                        execution.OutcomeCode,
+                        execution.Version));
+            await WriteAsync(
+                WorkspacesTenantTerminationMetadata
+                    .StaffOnboardingRetentionExecutionRecordType,
+                execution.Id,
+                execution.Version,
+                record,
+                sink,
+                cancellationToken).ConfigureAwait(false);
+            count = checked(count + 1);
+        }
+
         return count;
     }
 

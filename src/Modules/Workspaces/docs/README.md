@@ -75,6 +75,14 @@ redaction and reports an operational failure instead of deleting data when
 the authoritative history window has lapsed. Sensitive API and Admin API
 responses are explicitly non-cacheable.
 
+Each automatic staging-cleanup run is admitted by a Workspaces-owned execution
+record keyed by the generic Retention execution id. Begin, bounded discovery,
+per-candidate reconciliation, and completion serialize on that tenant-qualified
+coordinate before source locks are taken. Higher retries preserve cumulative
+scanned and affected counts; stale attempts fail before discovery, and exact
+terminal replay returns the stored result. The evidence is classified,
+tenant-exported, and removed by the bounded termination lifecycle.
+
 Automatic Staff retention also asks Workspaces to close access and remove the
 departed person's Auth subject from terminal onboarding and access history.
 Workspaces blocks while a person-linked onboarding or access workflow is
@@ -94,12 +102,12 @@ pseudonym lookups fail closed.
 
 For an approved optional tenant-termination export, Workspaces streams the
 same catalogue-approved portable staff and access-history shapes across the
-whole frozen tenant. A tenant-scoped transaction lock drains local writes
-before the fence is accepted and remains held through a repeatable-read
-snapshot. The export excludes property projections, transport journals,
-rebuild checkpoints, termination accountability proofs, anonymisation
-tombstones, and generic Organizations, Auth, or Access Control state owned by
-other modules.
+whole frozen tenant, including Staff-onboarding retention execution evidence.
+A tenant-scoped transaction lock drains local writes before the fence is
+accepted and remains held through a repeatable-read snapshot. The export
+excludes property projections, transport journals, rebuild checkpoints,
+termination accountability proofs, anonymisation tombstones, and generic
+Organizations, Auth, or Access Control state owned by other modules.
 
 For irreversible tenant termination, Workspaces is the final product owner.
 It waits for the terminal Properties and Task Runtime branches, transitions

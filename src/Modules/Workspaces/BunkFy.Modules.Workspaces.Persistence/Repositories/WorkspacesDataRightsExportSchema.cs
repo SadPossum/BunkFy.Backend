@@ -11,7 +11,7 @@ using BunkFy.Modules.Workspaces.Contracts;
 internal static class WorkspacesDataRightsExportSchema
 {
     public const string ExportSchemaId = "workspaces.subject-export";
-    public const int ExportSchemaVersion = 1;
+    public const int ExportSchemaVersion = 2;
 
     private const string CatalogResourceName =
         "BunkFy.Modules.Workspaces.Persistence.DataGovernance." +
@@ -48,7 +48,9 @@ internal static class WorkspacesDataRightsExportSchema
         typeof(WorkspaceStaffAccessProfileDataRightsExport),
         typeof(WorkspaceStaffAccessPlanDataRightsExport),
         typeof(WorkspaceStaffAccessPlanPropertyDataRightsExport),
-        typeof(WorkspaceStaffRetentionCorrelationDataRightsExport)
+        typeof(WorkspaceStaffRetentionCorrelationDataRightsExport),
+        typeof(
+            WorkspaceStaffOnboardingRetentionExecutionDataRightsExport)
     ];
 
     private static readonly JsonSerializerOptions ValueSerializerOptions =

@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.Workspaces.Tests;
 
 using BunkFy.Modules.DataRights.Contracts;
+using BunkFy.Modules.Workspaces.Application.Contributors;
 using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Domain;
 using BunkFy.Modules.Workspaces.Domain.DataRights;
@@ -82,10 +83,12 @@ public sealed partial class WorkspacesTenantTerminationExportContributorTests
                 WorkspacesDataRightsExportContributor
                     .StaffAccessPlanPropertyRecordType,
                 WorkspacesDataRightsCoordinates
-                    .StaffRetentionCorrelationReceiptRecordType
+                    .StaffRetentionCorrelationReceiptRecordType,
+                WorkspacesTenantTerminationMetadata
+                    .StaffOnboardingRetentionExecutionRecordType
             ],
             first.Records.Select(record => record.RecordType).ToArray());
-        Assert.Equal(9, result.AffectedCount);
+        Assert.Equal(10, result.AffectedCount);
         Assert.Equal(
             WorkspacesTenantTerminationMetadata.ExportSchemaId,
             contributor.ExportDescriptor.ExportSchemaId);
@@ -293,6 +296,27 @@ public sealed partial class WorkspacesTenantTerminationExportContributorTests
                 accessProcessRecordsScrubbed: 0,
                 accessPlanRecordsScrubbed: 0,
                 FrozenAtUtc.AddHours(-6)).Value;
+        WorkspaceStaffOnboardingRetentionExecution retentionExecution =
+            WorkspaceStaffOnboardingRetentionExecution.Start(
+                Guid.Parse(
+                    "e0000000-0000-0000-0000-000000000002"),
+                TenantId,
+                WorkspaceStaffOnboardingRetentionCoordinates.DataClassKey,
+                WorkspaceStaffOnboardingRetentionCoordinates
+                    .ExecutionPolicyVersion,
+                attempt: 1,
+                FrozenAtUtc.AddHours(-5),
+                FrozenAtUtc.AddHours(-4)).Value;
+        Assert.True(retentionExecution.RecordCandidate(
+            attempt: 1,
+            affected: true).IsSuccess);
+        Assert.True(retentionExecution.Complete(
+            WorkspaceStaffOnboardingRetentionExecutionState.Completed,
+            attempt: 1,
+            scannedCount: 1,
+            remainingCount: 0,
+            WorkspaceStaffOnboardingRetentionCoordinates.CompletedOutcome,
+            FrozenAtUtc.AddHours(-4.5)).IsSuccess);
 
         context.AddRange(
             onboarding,
@@ -301,7 +325,8 @@ public sealed partial class WorkspacesTenantTerminationExportContributorTests
             restrictionReceipt,
             process,
             plan,
-            retention);
+            retention,
+            retentionExecution);
     }
 
     private static WorkspaceTerminationFence SeedFence(

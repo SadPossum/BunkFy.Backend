@@ -167,6 +167,7 @@ public sealed class WorkspacesPersonalDataCatalogTests
         typeof(WorkspaceStaffAccessPlan),
         typeof(WorkspaceStaffAccessPlanProperty),
         typeof(WorkspaceStaffRetentionCorrelationReceipt),
+        typeof(WorkspaceStaffOnboardingRetentionExecution),
         typeof(WorkspaceTerminationFence),
         typeof(WorkspaceTerminationFenceReceipt),
         typeof(WorkspaceTenantDestroyOperation),
@@ -222,6 +223,16 @@ public sealed class WorkspacesPersonalDataCatalogTests
                      typeof(
                          WorkspaceStaffCorrelationAnonymisationRestoreRequest)
                      ,
+                     typeof(
+                         BeginWorkspaceStaffOnboardingRetentionExecutionCommand),
+                     typeof(
+                         WorkspaceStaffOnboardingRetentionExecutionStart),
+                     typeof(
+                         ListWorkspaceStaffOnboardingRetentionCandidatesCommand),
+                     typeof(
+                         ReconcileWorkspaceStaffOnboardingRetentionCandidateCommand),
+                     typeof(
+                         CompleteWorkspaceStaffOnboardingRetentionExecutionCommand),
                      typeof(ApplyWorkspaceTerminationFenceCommand),
                      typeof(ReleaseWorkspaceTerminationFenceCommand)
                  })
@@ -292,7 +303,9 @@ public sealed class WorkspacesPersonalDataCatalogTests
                      typeof(
                          WorkspaceStaffOnboardingProcessingRestrictionDataRightsExport),
                      typeof(
-                         WorkspaceStaffOnboardingProcessingRestrictionReceiptDataRightsExport)
+                         WorkspaceStaffOnboardingProcessingRestrictionReceiptDataRightsExport),
+                     typeof(
+                         WorkspaceStaffOnboardingRetentionExecutionDataRightsExport)
                  })
         {
             yield return (PersonalDataSurface.DataRightsExport, type);

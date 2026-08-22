@@ -179,5 +179,6 @@ internal enum WorkspaceTenantDestroyStage
     AnonymisationReceipts = 17,
     TerminationFenceReceipts = 18,
     HistoricalTerminationFences = 19,
-    Completed = 20
+    StaffOnboardingRetentionExecutions = 20,
+    Completed = 21
 }

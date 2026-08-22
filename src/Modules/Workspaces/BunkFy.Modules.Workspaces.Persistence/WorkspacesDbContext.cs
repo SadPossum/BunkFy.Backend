@@ -20,6 +20,9 @@ public sealed class WorkspacesDbContext(
 
     public DbSet<WorkspaceStaffOnboarding> StaffOnboardingApplications =>
         this.Set<WorkspaceStaffOnboarding>();
+    public DbSet<WorkspaceStaffOnboardingRetentionExecution>
+        StaffOnboardingRetentionExecutions =>
+        this.Set<WorkspaceStaffOnboardingRetentionExecution>();
     public DbSet<WorkspaceStaffOnboardingCorrectionReceipt>
         StaffOnboardingCorrectionReceipts =>
         this.Set<WorkspaceStaffOnboardingCorrectionReceipt>();

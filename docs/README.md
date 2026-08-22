@@ -120,6 +120,7 @@ Useful entry points:
 - [Workspaces Cross-Graph Correlation Mutation Serialization Task](planning/workspaces-cross-graph-correlation-mutation-serialization-task.md)
 - [Workspaces Natural Expiry Consumer Task](planning/workspaces-natural-expiry-consumer-task.md)
 - [Workspace Staff Onboarding Staging Retention Task](planning/workspace-staff-onboarding-staging-retention-task.md)
+- [Workspace Staff Onboarding Retention Attempt Fencing Task](planning/workspace-staff-onboarding-retention-attempt-fencing-task.md)
 - [Workspace Staff Retention Correlation Scrub Task](planning/workspace-staff-retention-correlation-scrub-task.md)
 - [Workspace Onboarding Production Proof](planning/workspace-onboarding-production-proof-task.md)
 - [SMTP Email And Preview Onboarding Proof Task](planning/smtp-email-and-preview-onboarding-proof-task.md)

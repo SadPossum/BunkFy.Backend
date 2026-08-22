@@ -58,6 +58,8 @@ public static class DependencyInjection
         services.TryAddScoped<WorkspaceStaffOnboardingProcessor>();
         services.TryAddScoped<WorkspaceStaffOnboardingMutationCoordinator>();
         services.TryAddScoped<
+            WorkspaceStaffOnboardingRetentionExecutionCoordinator>();
+        services.TryAddScoped<
             WorkspaceStaffOnboardingDataRightsCorrectionAuthorizer>();
         services.TryAddScoped<WorkspaceStaffAccessPlanPolicy>();
         services.TryAddScoped<
