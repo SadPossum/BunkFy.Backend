@@ -61,6 +61,40 @@ public sealed class ExecuteTenantTerminationOwnerWorkTaskHandlerTests
     }
 
     [Fact]
+    public async Task Normal_return_at_deadline_is_not_journaled_or_recorded()
+    {
+        List<string> order = [];
+        TenantTerminationOwnerWorkStart start = Start();
+        MutableClock clock = new(Now.AddSeconds(10));
+        FakeDispatcher dispatcher = new(start, order);
+        FakeReplayStore replayStore = new(order);
+        RecordingContributor contributor = new(
+            Contribution(),
+            order,
+            onExecute: request => clock.UtcNow = request.DeadlineUtc);
+        ExecuteTenantTerminationOwnerWorkTaskHandler handler = new(
+            dispatcher,
+            replayStore,
+            [contributor],
+            clock,
+            new FixedScopeContext("tenant-a"),
+            new RecordingScheduler());
+
+        TimeoutException failure = await Assert.ThrowsAsync<TimeoutException>(
+            () => handler.HandleAsync(
+                Payload(),
+                Context(),
+                CancellationToken.None));
+
+        Assert.Equal(
+            "DataRights.TenantTerminationOwnerDeadlineExceeded",
+            failure.Message);
+        Assert.Equal(["begin", "append-dispatch", "owner"], order);
+        Assert.Null(replayStore.Attempt?.Result);
+        Assert.Null(dispatcher.Recorded);
+    }
+
+    [Fact]
     public async Task Authenticated_result_replay_skips_the_owner()
     {
         List<string> order = [];
@@ -470,7 +504,8 @@ public sealed class ExecuteTenantTerminationOwnerWorkTaskHandlerTests
         TenantTerminationContributionResult result,
         List<string> order,
         TenantTerminationExecutionBoundary boundary =
-            TenantTerminationExecutionBoundary.TenantScopedTask)
+            TenantTerminationExecutionBoundary.TenantScopedTask,
+        Action<TenantTerminationContributionRequest>? onExecute = null)
         : ITenantTerminationContributor
     {
         public TenantTerminationContributionRequest? Request
@@ -500,6 +535,7 @@ public sealed class ExecuteTenantTerminationOwnerWorkTaskHandlerTests
         {
             order.Add("owner");
             this.Request = request;
+            onExecute?.Invoke(request);
             return Task.FromResult(result);
         }
     }
@@ -507,6 +543,11 @@ public sealed class ExecuteTenantTerminationOwnerWorkTaskHandlerTests
     private sealed class FixedClock(DateTimeOffset utcNow) : ISystemClock
     {
         public DateTimeOffset UtcNow { get; } = utcNow;
+    }
+
+    private sealed class MutableClock(DateTimeOffset utcNow) : ISystemClock
+    {
+        public DateTimeOffset UtcNow { get; set; } = utcNow;
     }
 
     private sealed class FixedScopeContext(string scopeId) : IScopeContext

@@ -139,6 +139,7 @@ Useful entry points:
 - [Operations Notifications Least-Privilege Audience Task](planning/operations-notifications-least-privilege-audience-task.md)
 - [Operations Notifications Production Admission Task](planning/operations-notifications-production-admission-task.md)
 - [Operations Notifications Tenant-Termination Result Fencing Task](planning/operations-notifications-tenant-termination-result-fencing-task.md)
+- [Data Rights Tenant-Termination Deadline Result Integrity Task](planning/data-rights-tenant-termination-deadline-result-integrity-task.md)
 - [Backend Architecture Cleanup Task](planning/architecture-cleanup-task.md)
 - [Workspaces Module](../src/Modules/Workspaces/docs/README.md)
 - [Staff Module](../src/Modules/Staff/docs/README.md)
