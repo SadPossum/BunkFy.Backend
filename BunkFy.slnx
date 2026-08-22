@@ -265,6 +265,7 @@
     <File Path="docs/planning/workspace-onboarding-task.md" />
     <File Path="docs/planning/workspace-operational-admission-integration-task.md" />
     <File Path="docs/planning/workspace-owner-access-transition-integrity-task.md" />
+    <File Path="docs/planning/workspace-owner-transfer-staff-eligibility-task.md" />
     <File Path="docs/planning/workspace-staff-access-lifecycle-task.md" />
     <File Path="docs/planning/workspace-staff-access-mutation-serialization-task.md" />
     <File Path="docs/planning/workspace-staff-onboarding-authorization-task.md" />

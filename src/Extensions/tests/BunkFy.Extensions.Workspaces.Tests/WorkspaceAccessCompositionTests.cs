@@ -9,6 +9,7 @@ using Gma.Framework.AccessControl;
 using Gma.Framework.Messaging;
 using Gma.Framework.Tenancy;
 using Gma.Modules.AccessControl.Contracts;
+using Gma.Modules.Organizations.Contracts;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -36,6 +37,9 @@ public sealed class WorkspaceAccessCompositionTests
         Assert.Contains(services, descriptor =>
             descriptor.ServiceType == typeof(IAccessDecisionProvider) &&
             descriptor.ImplementationType == typeof(WorkspaceOwnerMembershipAccessDecisionProvider));
+        Assert.Contains(services, descriptor =>
+            descriptor.ServiceType == typeof(IOrganizationMutationAdmissionPolicy) &&
+            descriptor.ImplementationType == typeof(WorkspaceOrganizationMutationAdmissionPolicy));
     }
 
     [Fact]
