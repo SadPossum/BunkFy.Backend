@@ -372,53 +372,60 @@ public sealed class InventoryAuthorizationIntegrationTests
             ResolveInventoryHandler<RoomCreatedIntegrationEvent>(scope.ServiceProvider);
         IIntegrationEventHandler<BedAddedIntegrationEvent> bedHandler =
             ResolveInventoryHandler<BedAddedIntegrationEvent>(scope.ServiceProvider);
-        await propertyHandler.HandleAsync(
-            new(Guid.NewGuid(), TenantA, now, PropertyA, "Alpha House", "alpha", "UTC", PropertyStatus.Active, 1),
-            CancellationToken.None).ConfigureAwait(false);
-        await roomHandler.HandleAsync(
-            new(Guid.NewGuid(), TenantA, now, PropertyA, RoomA, "101", "Main", "1", RoomStatus.Active, 1),
-            CancellationToken.None).ConfigureAwait(false);
-        await propertyHandler.HandleAsync(
-            new(Guid.NewGuid(), TenantA, now, PropertyC, "Out of Order House", "out-of-order", "UTC", PropertyStatus.Active, 1),
-            CancellationToken.None).ConfigureAwait(false);
-        await bedHandler.HandleAsync(
-            new(Guid.NewGuid(), TenantA, now, PropertyC, RoomC, BedC, "A", BedStatus.Active, roomVersion: 2, bedVersion: 1),
-            CancellationToken.None).ConfigureAwait(false);
-        await roomHandler.HandleAsync(
-            new(Guid.NewGuid(), TenantA, now, PropertyC, RoomC, "301", "Main", "3", RoomStatus.Active, 1),
-            CancellationToken.None).ConfigureAwait(false);
+        await ModuleTransactionIntegrationTestData.ExecuteAsync(
+            dbContext,
+            async token =>
+            {
+                await propertyHandler.HandleAsync(
+                    new(Guid.NewGuid(), TenantA, now, PropertyA, "Alpha House", "alpha", "UTC", PropertyStatus.Active, 1),
+                    token).ConfigureAwait(false);
+                await roomHandler.HandleAsync(
+                    new(Guid.NewGuid(), TenantA, now, PropertyA, RoomA, "101", "Main", "1", RoomStatus.Active, 1),
+                    token).ConfigureAwait(false);
+                await propertyHandler.HandleAsync(
+                    new(Guid.NewGuid(), TenantA, now, PropertyC, "Out of Order House", "out-of-order", "UTC", PropertyStatus.Active, 1),
+                    token).ConfigureAwait(false);
+                await bedHandler.HandleAsync(
+                    new(Guid.NewGuid(), TenantA, now, PropertyC, RoomC, BedC, "A", BedStatus.Active, roomVersion: 2, bedVersion: 1),
+                    token).ConfigureAwait(false);
+                await roomHandler.HandleAsync(
+                    new(Guid.NewGuid(), TenantA, now, PropertyC, RoomC, "301", "Main", "3", RoomStatus.Active, 1),
+                    token).ConfigureAwait(false);
+            }).ConfigureAwait(false);
         IProjectionRebuildWriter<PropertyTopologyProjectionExport> rebuildWriter = scope.ServiceProvider
             .GetRequiredService<IProjectionRebuildWriter<PropertyTopologyProjectionExport>>();
-        ProjectionWriteResult rebuild = await rebuildWriter.WriteAsync(
-            new ProjectionRebuildRequest(
-                InventoryModuleMetadata.TopologyProjectionName,
-                InventoryModuleMetadata.TopologyProjectionVersion,
-                batchSize: 10),
-            [
-                new PropertyTopologyProjectionExport(
-                    TenantA,
-                    PropertyB,
-                    "Beta House",
-                    "beta",
-                    "UTC",
-                    PropertyStatus.Active,
-                    1,
-                    [
-                        new RoomTopologyProjectionExport(
-                            PropertyB,
-                            RoomB,
-                            "201",
-                            "Main",
-                            "2",
-                            RoomStatus.Active,
-                            3,
-                            [
-                                new BedTopologyProjectionExport(PropertyB, RoomB, BedB, "A", BedStatus.Active, 1),
-                                new BedTopologyProjectionExport(PropertyB, RoomB, BedB2, "B", BedStatus.Active, 1)
-                            ])
-                    ])
-            ],
-            CancellationToken.None).ConfigureAwait(false);
+        ProjectionWriteResult rebuild = await ModuleTransactionIntegrationTestData.ExecuteAsync(
+            dbContext,
+            token => rebuildWriter.WriteAsync(
+                new ProjectionRebuildRequest(
+                    InventoryModuleMetadata.TopologyProjectionName,
+                    InventoryModuleMetadata.TopologyProjectionVersion,
+                    batchSize: 10),
+                [
+                    new PropertyTopologyProjectionExport(
+                        TenantA,
+                        PropertyB,
+                        "Beta House",
+                        "beta",
+                        "UTC",
+                        PropertyStatus.Active,
+                        1,
+                        [
+                            new RoomTopologyProjectionExport(
+                                PropertyB,
+                                RoomB,
+                                "201",
+                                "Main",
+                                "2",
+                                RoomStatus.Active,
+                                3,
+                                [
+                                    new BedTopologyProjectionExport(PropertyB, RoomB, BedB, "A", BedStatus.Active, 1),
+                                    new BedTopologyProjectionExport(PropertyB, RoomB, BedB2, "B", BedStatus.Active, 1)
+                                ])
+                        ])
+                ],
+                token)).ConfigureAwait(false);
         Assert.Equal(1, rebuild.WrittenCount);
         Assert.Equal(6, await dbContext.InventoryUnits.CountAsync().ConfigureAwait(false));
         InventoryRoomTopology outOfOrderRoom = await dbContext.RoomTopology
@@ -428,14 +435,18 @@ public sealed class InventoryAuthorizationIntegrationTests
         Assert.Equal(RoomStatus.Active, outOfOrderRoom.Status);
         Assert.Equal(1, outOfOrderRoom.SourceVersion);
 
-        Property property = Property.Create(
-            PropertyB,
-            TenantA,
-            "Beta House",
-            "beta",
-            "UTC",
-            Guid.NewGuid(),
-            now).Value;
+        Result<PropertyMutationReceiptDto> propertyCreated = await scope.ServiceProvider
+            .GetRequiredService<IRequestDispatcher>()
+            .SendAsync(
+                new CreatePropertyCommand(
+                    PropertyB,
+                    "Beta House",
+                    "beta",
+                    "UTC",
+                    "system:inventory-authorization-test"),
+                CancellationToken.None)
+            .ConfigureAwait(false);
+        Assert.True(propertyCreated.IsSuccess, propertyCreated.Error.Code);
         Room room = Room.Create(
             RoomB,
             TenantA,
@@ -447,11 +458,8 @@ public sealed class InventoryAuthorizationIntegrationTests
             now).Value;
         Assert.True(room.AddBed(BedB, "A", room.Version, Guid.NewGuid(), now).IsSuccess);
         Assert.True(room.AddBed(BedB2, "B", room.Version, Guid.NewGuid(), now).IsSuccess);
-        property.ClearDomainEvents();
         room.ClearDomainEvents();
         PropertiesDbContext propertiesDb = scope.ServiceProvider.GetRequiredService<PropertiesDbContext>();
-        await scope.ServiceProvider.GetRequiredService<IPropertyRepository>()
-            .AddAsync(property, CancellationToken.None).ConfigureAwait(false);
         await scope.ServiceProvider.GetRequiredService<IRoomRepository>()
             .AddAsync(room, CancellationToken.None).ConfigureAwait(false);
         await propertiesDb.SaveChangesAsync().ConfigureAwait(false);
@@ -1020,22 +1028,23 @@ public sealed class InventoryAuthorizationIntegrationTests
         using (IServiceScope bedOutcomeScope = api.Services.CreateScope())
         {
             bedOutcomeScope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantA);
+            InventoryDbContext inventoryDb = bedOutcomeScope.ServiceProvider
+                .GetRequiredService<InventoryDbContext>();
             IIntegrationEventHandler<BedRetiredIntegrationEvent> bedTopology =
                 ResolveInventoryHandler<BedRetiredIntegrationEvent>(bedOutcomeScope.ServiceProvider);
-            await bedTopology.HandleAsync(
-                new(
-                    Guid.NewGuid(),
-                    TenantA,
-                    DateTimeOffset.UtcNow,
-                    PropertyB,
-                    RoomB,
-                    BedB2,
-                    roomVersion,
-                    bedVersion),
-                CancellationToken.None).ConfigureAwait(false);
-
-            InventoryDbContext inventoryDb = bedOutcomeScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
-            await inventoryDb.SaveChangesAsync().ConfigureAwait(false);
+            await ModuleTransactionIntegrationTestData.ExecuteAsync(
+                inventoryDb,
+                token => bedTopology.HandleAsync(
+                    new(
+                        Guid.NewGuid(),
+                        TenantA,
+                        DateTimeOffset.UtcNow,
+                        PropertyB,
+                        RoomB,
+                        BedB2,
+                        roomVersion,
+                        bedVersion),
+                    token)).ConfigureAwait(false);
             Assert.All(
                 await inventoryDb.InventoryUnits.AsNoTracking().Where(item => item.RoomId == RoomB).ToArrayAsync(),
                 unit => Assert.False(unit.IsTopologyActive));

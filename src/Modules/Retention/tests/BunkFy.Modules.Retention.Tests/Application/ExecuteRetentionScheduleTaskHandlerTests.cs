@@ -232,11 +232,12 @@ public sealed class ExecuteRetentionScheduleTaskHandlerTests
             securitySignals.Records);
         Assert.Equal("retention.scheduled-execution-failed", signal.Definition.Code);
         Assert.Equal(context.CorrelationId, signal.CorrelationId);
-        Assert.Contains(
-            logger.Messages,
-            message => message.EndsWith(
-                "at attempt 4",
-                StringComparison.Ordinal));
+        string logged = Assert.Single(logger.Messages);
+        Assert.EndsWith(
+            "at attempt 4 because InvalidOperationException was raised",
+            logged,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain("owner failed", logged, StringComparison.Ordinal);
     }
 
     [Fact]

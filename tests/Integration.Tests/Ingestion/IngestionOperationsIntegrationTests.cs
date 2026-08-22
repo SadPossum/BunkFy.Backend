@@ -764,16 +764,21 @@ public sealed class IngestionOperationsIntegrationTests
                                           item.EventType == typeof(PropertyCreatedIntegrationEvent));
         var handler = (IIntegrationEventHandler<PropertyCreatedIntegrationEvent>)scope.ServiceProvider
             .GetRequiredService(subscription.HandlerType);
-        await handler.HandleAsync(
-            new(Guid.NewGuid(), tenantId, DateTimeOffset.UtcNow, propertyId, propertyName, propertyCode,
-                "UTC", PropertyStatus.Active, 1), CancellationToken.None).ConfigureAwait(false);
+        IngestionDbContext dbContext = scope.ServiceProvider
+            .GetRequiredService<IngestionDbContext>();
+        await ModuleTransactionIntegrationTestData.ExecuteAsync(
+            dbContext,
+            token => handler.HandleAsync(
+                new(Guid.NewGuid(), tenantId, DateTimeOffset.UtcNow, propertyId, propertyName, propertyCode,
+                    "UTC", PropertyStatus.Active, 1),
+                token)).ConfigureAwait(false);
         await CountryPolicyIntegrationTestData.ApplyActivationAsync(
             scope.ServiceProvider,
             IngestionModuleMetadata.Name,
             tenantId,
             propertyId,
             2).ConfigureAwait(false);
-        await scope.ServiceProvider.GetRequiredService<IngestionDbContext>().SaveChangesAsync().ConfigureAwait(false);
+        await dbContext.SaveChangesAsync().ConfigureAwait(false);
     }
 
     private static async Task GrantAccessAsync(

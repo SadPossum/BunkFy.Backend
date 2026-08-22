@@ -554,7 +554,7 @@ public sealed class HostCompositionGuardTests
             fixture,
             StringComparison.Ordinal);
         Assert.Equal(
-            2,
+            3,
             CountOccurrences(
                 fixture,
                 "await this.MigrateWorkspaceAdmissionDatabaseAsync()"));

@@ -33,7 +33,7 @@ internal sealed class RedactExpiredSensitiveHistoryCommandHandler(
                 IngestionApplicationErrors.RetentionTaskOptionsInvalid);
         }
 
-        Result<IngestionRetentionExecution?> execution =
+        Result<IngestionRetentionExecutionLease> execution =
             await retentionMutations.AcquireRunningAsync(
                 command.RetentionExecutionId,
                 command.RetentionAttempt,
@@ -74,7 +74,7 @@ internal sealed class RedactExpiredSensitiveHistoryCommandHandler(
                     .ToArray(),
                 nowUtc,
                 cancellationToken).ConfigureAwait(false);
-        if (execution.Value is { } currentExecution &&
+        if (execution.Value.Execution is { } currentExecution &&
             result.TotalCount > 0)
         {
             Result recorded = currentExecution.RecordAffected(

@@ -136,8 +136,18 @@ public sealed class PropertiesDbContext(
         {
             if (ownedTransaction is not null)
             {
-                await ownedTransaction.RollbackAsync(CancellationToken.None)
-                    .ConfigureAwait(false);
+                try
+                {
+                    await ownedTransaction.RollbackAsync(CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+                catch
+                {
+                    // A failed deferred-constraint commit can already have
+                    // completed the provider transaction. Preserve the
+                    // original commit exception instead of masking it with a
+                    // secondary rollback failure.
+                }
             }
 
             throw;

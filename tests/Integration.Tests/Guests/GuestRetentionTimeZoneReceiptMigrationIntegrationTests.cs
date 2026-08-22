@@ -7,6 +7,7 @@ using System.Text.Json;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Guests.Contracts;
 using BunkFy.Modules.Guests.Domain.Aggregates;
+using BunkFy.Modules.Guests.Domain.DataRights;
 using BunkFy.Modules.Guests.Domain.Retention;
 using BunkFy.Modules.Guests.Persistence;
 using BunkFy.Modules.Guests.Persistence.Repositories;
@@ -80,7 +81,7 @@ public sealed class GuestRetentionTimeZoneReceiptMigrationIntegrationTests
         string policySetSha256 = new(
             'a',
             GuestRetentionAnonymisationReceipt.Sha256Length);
-        const string actorId = "system:guests.retention";
+        const string actorId = GuestRetentionAnonymisationReceipt.SystemActorId;
         string v1CanonicalSha256 = ComputeV1CanonicalSha256(
             receiptId,
             executionId,
@@ -133,6 +134,14 @@ public sealed class GuestRetentionTimeZoneReceiptMigrationIntegrationTests
                     {1}, {1}, {0},
                     {"guests.guest-operational.completed"}, NULL, {2L},
                     {TenantId});
+
+                INSERT INTO guests.guest_anonymisation_tombstones (
+                    "Id", "Authority", "CompletedAtUtc", "ContractVersion",
+                    "LastReplayedAtUtc", "LedgerEntryId",
+                    "OwnerReceiptSha256", "Revision", "ScopeId", "State")
+                VALUES (
+                    {guestId}, {2}, {completedAtUtc}, {2}, NULL, NULL,
+                    {v1CanonicalSha256}, {1L}, {TenantId}, {1});
 
                 INSERT INTO guests.guest_retention_anonymisation_receipts (
                     "Id", "ContractVersion", "ExecutionId", "GuestId",
@@ -651,21 +660,34 @@ public sealed class GuestRetentionTimeZoneReceiptMigrationIntegrationTests
             1,
             0,
             TimeSpan.Zero);
-        await dbContext.Database.ExecuteSqlInterpolatedAsync($"""
-            INSERT INTO guests.guest_retention_anonymisation_receipts (
-                "Id", "ContractVersion", "ExecutionId", "GuestId",
-                "SelectedGuestVersion", "ResultingGuestVersion",
-                "AffectedPropertyCount", "RetentionDeadlineUtc",
-                "PolicySetSha256", "TimeZoneCatalogVersion", "EventId",
-                "ActorId", "CompletedAtUtc", "CanonicalSha256",
-                "ScopeId")
-            VALUES (
-                {receiptId}, {2}, {executionId}, {guestId}, {1L}, {2L},
-                {1}, {completedAtUtc.AddDays(-1)}, {new string('b', 64)},
-                {TimeZoneCatalog.Default.CatalogVersion}, {Guid.NewGuid()},
-                {"system:provider-test"}, {completedAtUtc},
-                {new string('c', 64)}, {TenantId});
-            """).ConfigureAwait(false);
+        Guid eventId = Guid.NewGuid();
+        var anonymised = profile.AnonymiseForRetention(
+            profile.Version,
+            GuestRetentionAnonymisationReceipt.SystemActorId,
+            eventId,
+            completedAtUtc);
+        Assert.True(anonymised.IsSuccess);
+        GuestRetentionAnonymisationReceipt receipt =
+            GuestRetentionAnonymisationReceipt.Create(
+                receiptId,
+                TenantId,
+                executionId,
+                guestId,
+                anonymised.Value.PreviousVersion,
+                anonymised.Value.CurrentVersion,
+                affectedPropertyCount: 1,
+                completedAtUtc.AddDays(-1),
+                new string('b', 64),
+                TimeZoneCatalog.Default.CatalogVersion,
+                eventId,
+                GuestRetentionAnonymisationReceipt.SystemActorId,
+                completedAtUtc).Value;
+        dbContext.RetentionAnonymisationReceipts.Add(receipt);
+        dbContext.AnonymisationTombstones.Add(
+            GuestAnonymisationTombstone.CreateForRetention(
+                TenantId,
+                receipt).Value);
+        await dbContext.SaveChangesAsync().ConfigureAwait(false);
 
         await AssertMigrationRefusalAsync(
                 migrator,

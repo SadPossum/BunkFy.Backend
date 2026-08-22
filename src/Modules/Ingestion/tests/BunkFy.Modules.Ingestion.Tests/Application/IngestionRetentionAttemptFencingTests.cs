@@ -33,7 +33,25 @@ public sealed class IngestionRetentionAttemptFencingTests
             CancellationToken.None);
 
         Assert.True(acquired.IsSuccess, acquired.Error.Code);
-        Assert.Same(execution, acquired.Value);
+        Assert.Same(execution, acquired.Value.Execution);
+        Assert.Equal(["retention-lock", "execution-reload"], calls);
+    }
+
+    [Fact]
+    public async Task Missing_execution_is_represented_by_a_non_null_lease()
+    {
+        List<string> calls = [];
+        IngestionRetentionMutationCoordinator coordinator = new(
+            new RecordingExecutionLock(calls),
+            new RecordingExecutionRepository(execution: null, calls),
+            new TestScope());
+
+        var acquired = await coordinator.AcquireAsync(
+            Guid.NewGuid(),
+            CancellationToken.None);
+
+        Assert.True(acquired.IsSuccess, acquired.Error.Code);
+        Assert.Null(acquired.Value.Execution);
         Assert.Equal(["retention-lock", "execution-reload"], calls);
     }
 
@@ -203,7 +221,7 @@ public sealed class IngestionRetentionAttemptFencingTests
     }
 
     private sealed class RecordingExecutionRepository(
-        IngestionRetentionExecution execution,
+        IngestionRetentionExecution? execution,
         List<string> calls)
         : IIngestionRetentionExecutionRepository
     {
@@ -218,7 +236,7 @@ public sealed class IngestionRetentionAttemptFencingTests
         {
             calls.Add("execution-reload");
             return Task.FromResult<IngestionRetentionExecution?>(
-                execution.Id == executionId ? execution : null);
+                execution?.Id == executionId ? execution : null);
         }
     }
 

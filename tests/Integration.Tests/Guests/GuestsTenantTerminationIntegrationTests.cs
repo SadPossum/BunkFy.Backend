@@ -518,6 +518,18 @@ public sealed class GuestsTenantTerminationIntegrationTests
                 "user:owner",
                 Guid.NewGuid(),
                 ExportNowUtc.AddMinutes(-7)).Value;
+        GuestProcessingRestrictionProjection restrictionProjection =
+            GuestProcessingRestrictionProjection.Create(
+                tenantId,
+                PropertyId,
+                profile.Id,
+                GuestProcessingRestrictionContract.CurrentVersion,
+                ExportNowUtc.AddMinutes(-7)).Value;
+        Assert.True(restrictionProjection.Apply(
+            expectedRevision: 0,
+            GuestProcessingRestrictionContract.CurrentVersion,
+            ExportNowUtc.AddMinutes(-7)).IsSuccess);
+        context.ProcessingRestrictionProjections.Add(restrictionProjection);
         context.ProcessingRestrictions.Add(restriction);
         context.ProcessingRestrictionReceipts.Add(restrictionReceipt);
 

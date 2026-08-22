@@ -358,7 +358,7 @@ public sealed partial class RetentionControlPlaneIntegrationTests
             propertyId,
             "Retention Test Property",
             $"retention-{propertyId:N}",
-            "UTC",
+            "Etc/UTC",
             PropertyStatus.Active,
             propertyVersion: 1);
         IntegrationEventSubscription propertySubscription =
@@ -369,9 +369,12 @@ public sealed partial class RetentionControlPlaneIntegrationTests
             (IIntegrationEventHandler<PropertyCreatedIntegrationEvent>)
             scope.ServiceProvider.GetRequiredService(
                 propertySubscription.HandlerType);
-        await propertyHandler.HandleAsync(
-            propertyCreated,
-            CancellationToken.None).ConfigureAwait(false);
+        IngestionDbContext ingestion =
+            scope.ServiceProvider.GetRequiredService<IngestionDbContext>();
+        await ModuleTransactionIntegrationTestData.ExecuteAsync(
+            ingestion,
+            token => propertyHandler.HandleAsync(propertyCreated, token))
+            .ConfigureAwait(false);
         await ApplyGuestPropertyCreatedAsync(
             scope.ServiceProvider,
             subscriptions,
@@ -409,8 +412,6 @@ public sealed partial class RetentionControlPlaneIntegrationTests
         Guid connectionId = Guid.NewGuid();
         Guid receiptId = Guid.NewGuid();
         Guid payloadFileId = Guid.NewGuid();
-        IngestionDbContext ingestion =
-            scope.ServiceProvider.GetRequiredService<IngestionDbContext>();
         ingestion.AdapterConnections.Add(AdapterConnection.Create(
             connectionId,
             tenantId,

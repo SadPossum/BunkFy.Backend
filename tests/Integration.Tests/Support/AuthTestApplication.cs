@@ -8,6 +8,7 @@ using BunkFy.Modules.Ingestion.Persistence;
 using BunkFy.Modules.Inventory.Persistence;
 using BunkFy.Modules.Properties.Persistence;
 using BunkFy.Modules.Reservations.Persistence;
+using BunkFy.Modules.Retention.Persistence;
 using BunkFy.Modules.Staff.Persistence;
 using BunkFy.Modules.Workspaces.Persistence;
 using Gma.Framework.Messaging;
@@ -303,6 +304,14 @@ internal sealed class AuthTestApplication(
         await scope.ServiceProvider.GetRequiredService<OrganizationsDbContext>()
             .Database.MigrateAsync().ConfigureAwait(false);
         await scope.ServiceProvider.GetRequiredService<IngestionDbContext>()
+            .Database.MigrateAsync().ConfigureAwait(false);
+    }
+
+    public async Task MigrateRetentionDatabaseAsync()
+    {
+        await this.MigrateWorkspaceAdmissionDatabaseAsync().ConfigureAwait(false);
+        using IServiceScope scope = this.Services.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<RetentionDbContext>()
             .Database.MigrateAsync().ConfigureAwait(false);
     }
 

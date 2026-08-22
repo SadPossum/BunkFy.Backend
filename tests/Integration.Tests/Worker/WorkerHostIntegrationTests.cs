@@ -759,18 +759,22 @@ public sealed class WorkerHostIntegrationTests
                                           item.EventType == typeof(PropertyCreatedIntegrationEvent));
         var handler = (IIntegrationEventHandler<PropertyCreatedIntegrationEvent>)scope.ServiceProvider
             .GetRequiredService(subscription.HandlerType);
-        await handler.HandleAsync(
-            new PropertyCreatedIntegrationEvent(
-                Guid.NewGuid(),
-                tenantId,
-                DateTimeOffset.UtcNow,
-                propertyId,
-                "File Drop House",
-                "file-drop-house",
-                "UTC",
-                PropertyStatus.Active,
-                1),
-            CancellationToken.None).ConfigureAwait(false);
+        IngestionDbContext dbContext = scope.ServiceProvider
+            .GetRequiredService<IngestionDbContext>();
+        await ModuleTransactionIntegrationTestData.ExecuteAsync(
+            dbContext,
+            token => handler.HandleAsync(
+                new PropertyCreatedIntegrationEvent(
+                    Guid.NewGuid(),
+                    tenantId,
+                    DateTimeOffset.UtcNow,
+                    propertyId,
+                    "File Drop House",
+                    "file-drop-house",
+                    "UTC",
+                    PropertyStatus.Active,
+                    1),
+                token)).ConfigureAwait(false);
         await CountryPolicyIntegrationTestData.ApplyActivationAsync(
             scope.ServiceProvider,
             IngestionModuleMetadata.Name,
@@ -778,7 +782,6 @@ public sealed class WorkerHostIntegrationTests
             propertyId,
             2).ConfigureAwait(false);
 
-        IngestionDbContext dbContext = scope.ServiceProvider.GetRequiredService<IngestionDbContext>();
         dbContext.AdapterConnections.Add(AdapterConnection.Create(
             connectionId,
             tenantId,

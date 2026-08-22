@@ -55,7 +55,7 @@ public sealed class PropertiesDetailsUpdateOperationIntegrationTests
             updateOperationId,
             "Updated House",
             "updated-house",
-            "UTC",
+            TimeZoneId: null,
             ExpectedVersion: 1);
         Result<PropertyMutationReceiptDto>[] concurrent =
             await Task.WhenAll(
@@ -63,8 +63,7 @@ public sealed class PropertiesDetailsUpdateOperationIntegrationTests
                 SendAsync(services, update with
                 {
                     Name = "  Updated House  ",
-                    Code = " UPDATED-HOUSE ",
-                    TimeZoneId = " UTC "
+                    Code = " UPDATED-HOUSE "
                 })).ConfigureAwait(false);
 
         Assert.All(
@@ -99,7 +98,7 @@ public sealed class PropertiesDetailsUpdateOperationIntegrationTests
             correctedOperationId,
             "Harbour Annex",
             "occupied-house",
-            "UTC",
+            TimeZoneId: null,
             ExpectedVersion: 2);
         Result<PropertyMutationReceiptDto> failed = await SendAsync(
             services,
@@ -127,7 +126,7 @@ public sealed class PropertiesDetailsUpdateOperationIntegrationTests
                 noChangeOperationId,
                 " Harbour Annex ",
                 " HARBOUR-ANNEX ",
-                " UTC ",
+                TimeZoneId: null,
                 ExpectedVersion: 3)).ConfigureAwait(false);
         Assert.True(noChange.IsSuccess, noChange.Error.Code);
         Assert.Equal(3, noChange.Value.Version);

@@ -73,6 +73,8 @@ public sealed partial class ReservationsSagaIntegrationTests
                 .ConfigureAwait(false);
             await migrationApi.MigrateIngestionDatabaseAsync()
                 .ConfigureAwait(false);
+            await migrationApi.MigrateRetentionDatabaseAsync()
+                .ConfigureAwait(false);
         }
 
         await using AdminCliTestApplication admin = new(

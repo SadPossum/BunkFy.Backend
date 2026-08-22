@@ -6,19 +6,22 @@ using BunkFy.Modules.Ingestion.Domain.Retention;
 using Gma.Framework.Results;
 using Gma.Framework.Scoping;
 
+internal sealed record IngestionRetentionExecutionLease(
+    IngestionRetentionExecution? Execution);
+
 internal sealed class IngestionRetentionMutationCoordinator(
     IIngestionExecutionLock executionLock,
     IIngestionRetentionExecutionRepository executions,
     IScopeContext scopeContext)
 {
-    public async Task<Result<IngestionRetentionExecution?>> AcquireAsync(
+    public async Task<Result<IngestionRetentionExecutionLease>> AcquireAsync(
         Guid executionId,
         CancellationToken cancellationToken)
     {
         string tenantId = this.GetTenantId();
         if (tenantId.Length == 0 || executionId == Guid.Empty)
         {
-            return Result.Failure<IngestionRetentionExecution?>(
+            return Result.Failure<IngestionRetentionExecutionLease>(
                 IngestionRetentionExecutionErrors.CoordinateInvalid);
         }
 
@@ -32,14 +35,14 @@ internal sealed class IngestionRetentionMutationCoordinator(
         if (execution is not null &&
             !string.Equals(execution.ScopeId, tenantId, StringComparison.Ordinal))
         {
-            return Result.Failure<IngestionRetentionExecution?>(
+            return Result.Failure<IngestionRetentionExecutionLease>(
                 IngestionRetentionExecutionErrors.CoordinateInvalid);
         }
 
-        return Result.Success(execution);
+        return Result.Success(new IngestionRetentionExecutionLease(execution));
     }
 
-    public async Task<Result<IngestionRetentionExecution?>> AcquireRunningAsync(
+    public async Task<Result<IngestionRetentionExecutionLease>> AcquireRunningAsync(
         Guid? executionId,
         int? attempt,
         string dataClassKey,
@@ -47,18 +50,18 @@ internal sealed class IngestionRetentionMutationCoordinator(
     {
         if (executionId is null && attempt is null)
         {
-            return Result.Success<IngestionRetentionExecution?>(null);
+            return Result.Success(new IngestionRetentionExecutionLease(null));
         }
 
         if (executionId is not { } id ||
             id == Guid.Empty ||
             attempt is not > 0)
         {
-            return Result.Failure<IngestionRetentionExecution?>(
+            return Result.Failure<IngestionRetentionExecutionLease>(
                 IngestionRetentionExecutionErrors.CoordinateInvalid);
         }
 
-        Result<IngestionRetentionExecution?> acquired = await this.AcquireAsync(
+        Result<IngestionRetentionExecutionLease> acquired = await this.AcquireAsync(
             id,
             cancellationToken).ConfigureAwait(false);
         if (acquired.IsFailure)
@@ -66,10 +69,10 @@ internal sealed class IngestionRetentionMutationCoordinator(
             return acquired;
         }
 
-        IngestionRetentionExecution? execution = acquired.Value;
+        IngestionRetentionExecution? execution = acquired.Value.Execution;
         if (execution is null)
         {
-            return Result.Failure<IngestionRetentionExecution?>(
+            return Result.Failure<IngestionRetentionExecutionLease>(
                 IngestionApplicationErrors.RetentionExecutionNotFound);
         }
 
@@ -78,8 +81,8 @@ internal sealed class IngestionRetentionMutationCoordinator(
             execution.MatchesCoordinate(
                 dataClassKey,
                 IngestionRetentionCoordinates.ExecutionPolicyVersion)
-                ? Result.Success<IngestionRetentionExecution?>(execution)
-                : Result.Failure<IngestionRetentionExecution?>(
+                ? acquired
+                : Result.Failure<IngestionRetentionExecutionLease>(
                     IngestionRetentionExecutionErrors.CoordinateInvalid);
     }
 
@@ -94,7 +97,7 @@ internal sealed class IngestionRetentionMutationCoordinator(
                 IngestionRetentionExecutionErrors.CoordinateInvalid);
         }
 
-        Result<IngestionRetentionExecution?> acquired = await this.AcquireAsync(
+        Result<IngestionRetentionExecutionLease> acquired = await this.AcquireAsync(
             executionId,
             cancellationToken).ConfigureAwait(false);
         if (acquired.IsFailure)
@@ -102,7 +105,7 @@ internal sealed class IngestionRetentionMutationCoordinator(
             return Result.Failure<IngestionRetentionExecution>(acquired.Error);
         }
 
-        IngestionRetentionExecution? execution = acquired.Value;
+        IngestionRetentionExecution? execution = acquired.Value.Execution;
         if (execution is null)
         {
             return Result.Failure<IngestionRetentionExecution>(

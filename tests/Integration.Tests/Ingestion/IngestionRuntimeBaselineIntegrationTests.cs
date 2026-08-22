@@ -192,18 +192,20 @@ public sealed class IngestionRuntimeBaselineIntegrationTests(ITestOutputHelper o
         IIntegrationEventHandler<PropertyCreatedIntegrationEvent> handler =
             ResolveHandler<PropertyCreatedIntegrationEvent>(scope.ServiceProvider, IngestionModuleMetadata.Name);
         DateTimeOffset now = DateTimeOffset.UtcNow;
-        await handler.HandleAsync(
-            new PropertyCreatedIntegrationEvent(
-                Guid.NewGuid(),
-                seed.TenantId,
-                now,
-                seed.PropertyId,
-                $"Runtime {seed.TenantId}",
-                seed.TenantId,
-                "UTC",
-                PropertyStatus.Active,
-                1),
-            CancellationToken.None).ConfigureAwait(false);
+        await ModuleTransactionIntegrationTestData.ExecuteAsync(
+            dbContext,
+            token => handler.HandleAsync(
+                new PropertyCreatedIntegrationEvent(
+                    Guid.NewGuid(),
+                    seed.TenantId,
+                    now,
+                    seed.PropertyId,
+                    $"Runtime {seed.TenantId}",
+                    seed.TenantId,
+                    "UTC",
+                    PropertyStatus.Active,
+                    1),
+                token)).ConfigureAwait(false);
         await CountryPolicyIntegrationTestData.ApplyActivationAsync(
             scope.ServiceProvider,
             IngestionModuleMetadata.Name,

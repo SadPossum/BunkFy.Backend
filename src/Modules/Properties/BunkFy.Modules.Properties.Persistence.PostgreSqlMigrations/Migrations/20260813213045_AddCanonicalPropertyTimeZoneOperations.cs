@@ -65,7 +65,8 @@ namespace BunkFy.Modules.Properties.Persistence.PostgreSqlMigrations.Migrations
 
                     IF EXISTS (
                         SELECT 1
-                        FROM properties.tenant_destroy_operations) OR
+                        FROM properties.tenant_destroy_operations
+                        WHERE "Stage" <> 10) OR
                        EXISTS (
                         SELECT 1
                         FROM properties.tenant_revisions

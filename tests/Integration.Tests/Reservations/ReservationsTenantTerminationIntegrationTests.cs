@@ -922,6 +922,8 @@ public sealed class ReservationsTenantTerminationIntegrationTests
         context.Reservations.Add(reservation);
         context.RetentionExecutions.Add(execution);
         context.RetentionAnonymisationReceipts.Add(receipt);
+        context.AnonymisationTombstones.Add(
+            ReservationAnonymisationTombstone.CreateForRetention(receipt).Value);
         return receipt;
     }
 

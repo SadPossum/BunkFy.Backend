@@ -44,7 +44,7 @@ internal sealed class ClaimExpiredRawPayloadsCommandHandler(
                 IngestionRetentionExecutionErrors.CoordinateInvalid);
         }
 
-        Result<IngestionRetentionExecution?> execution =
+        Result<IngestionRetentionExecutionLease> execution =
             await retentionMutations.AcquireRunningAsync(
                 command.RetentionExecutionId,
                 command.RetentionAttempt,
@@ -101,7 +101,7 @@ internal sealed class CompleteRawPayloadPurgeCommandHandler(
                 IngestionRetentionExecutionErrors.CoordinateInvalid);
         }
 
-        Result<IngestionRetentionExecution?> execution =
+        Result<IngestionRetentionExecutionLease> execution =
             await retentionMutations.AcquireRunningAsync(
                 command.RetentionExecutionId,
                 command.RetentionAttempt,
@@ -135,7 +135,7 @@ internal sealed class CompleteRawPayloadPurgeCommandHandler(
             return Result.Failure<Unit>(completed.Error);
         }
 
-        if (execution.Value is { } currentExecution)
+        if (execution.Value.Execution is { } currentExecution)
         {
             Result recorded = currentExecution.RecordAffected(
                 command.RetentionAttempt!.Value,

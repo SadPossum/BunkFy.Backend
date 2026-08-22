@@ -196,6 +196,39 @@ public sealed partial class PropertiesPersistenceIntegrationTests
             await migrator.MigrateAsync();
         }
 
+        Guid secondPropertyId;
+        Guid thirdPropertyId;
+        using (ServiceProvider seedProvider = CreatePersistenceProvider(
+                   postgreSql.GetConnectionString()))
+        using (IServiceScope seedScope = seedProvider.CreateScope())
+        {
+            IServiceProvider seedServices = seedScope.ServiceProvider;
+            await seedServices.GetRequiredService<WorkspacesDbContext>()
+                .Database.MigrateAsync();
+            IPropertyRepository properties = seedServices
+                .GetRequiredService<IPropertyRepository>();
+            Property secondProperty = CreateProperty(
+                "aaa-property",
+                "AAA Property");
+            Property thirdProperty = CreateProperty(
+                "zzz-property",
+                "ZZZ Property");
+            await properties.AddAsync(secondProperty, CancellationToken.None);
+            await properties.AddAsync(thirdProperty, CancellationToken.None);
+            await AppendCreatedTimeZoneOperationAsync(
+                seedServices,
+                secondProperty,
+                "system:migration-test");
+            await AppendCreatedTimeZoneOperationAsync(
+                seedServices,
+                thirdProperty,
+                "system:migration-test");
+            await seedServices.GetRequiredService<PropertiesDbContext>()
+                .SaveChangesAsync();
+            secondPropertyId = secondProperty.Id;
+            thirdPropertyId = thirdProperty.Id;
+        }
+
         await using (PropertiesDbContext verification = CreateDbContext(postgreSql.GetConnectionString()))
         {
             Property property = await verification.Properties.SingleAsync(item => item.Id == PropertyId);
@@ -233,10 +266,10 @@ public sealed partial class PropertiesPersistenceIntegrationTests
                         AND "ScopeId" = {TenantA}
                     """).SingleAsync());
 
-            Property secondProperty = CreateProperty("aaa-property", "AAA Property");
-            Property thirdProperty = CreateProperty("zzz-property", "ZZZ Property");
-            verification.Properties.AddRange(secondProperty, thirdProperty);
-            await verification.SaveChangesAsync();
+            Property secondProperty = await verification.Properties
+                .SingleAsync(item => item.Id == secondPropertyId);
+            Property thirdProperty = await verification.Properties
+                .SingleAsync(item => item.Id == thirdPropertyId);
 
             Property lowerOrdinal = secondProperty.ProjectionOrdinal < thirdProperty.ProjectionOrdinal
                 ? secondProperty

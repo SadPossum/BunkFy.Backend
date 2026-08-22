@@ -425,12 +425,10 @@ public sealed partial class InventoryTenantTerminationIntegrationTests
                     clock.UtcNow)));
         await context.SaveChangesAsync().ConfigureAwait(false);
 
-        Guid lockId =
-            Guid.Parse("d3000000-0000-0000-0000-000000000001");
         await context.Database.ExecuteSqlInterpolatedAsync($"""
             INSERT INTO inventory.allocation_operation_locks
                 ("Id", "AllocationId", "Revision", "ScopeId")
-            VALUES ({lockId}, {AllocationId}, 1, {TenantA});
+            VALUES ({AllocationId}, {AllocationId}, 1, {TenantA});
             """).ConfigureAwait(false);
     }
 

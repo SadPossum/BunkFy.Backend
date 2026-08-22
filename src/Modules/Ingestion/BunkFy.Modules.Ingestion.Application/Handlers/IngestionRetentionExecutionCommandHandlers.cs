@@ -41,7 +41,7 @@ internal sealed class BeginIngestionRetentionExecutionCommandHandler(
                 IngestionRetentionExecutionErrors.CoordinateInvalid);
         }
 
-        Result<IngestionRetentionExecution?> acquired = await mutations.AcquireAsync(
+        Result<IngestionRetentionExecutionLease> acquired = await mutations.AcquireAsync(
             request.ExecutionId,
             cancellationToken).ConfigureAwait(false);
         if (acquired.IsFailure)
@@ -50,7 +50,7 @@ internal sealed class BeginIngestionRetentionExecutionCommandHandler(
                 acquired.Error);
         }
 
-        IngestionRetentionExecution? execution = acquired.Value;
+        IngestionRetentionExecution? execution = acquired.Value.Execution;
         if (execution is null)
         {
             Result<IngestionRetentionExecution> started =
