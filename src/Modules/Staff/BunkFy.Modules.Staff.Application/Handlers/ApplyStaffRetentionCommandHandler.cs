@@ -38,6 +38,7 @@ internal sealed class ApplyStaffRetentionCommandHandler(
             scopeContext.IsEnabled ? scopeContext.ScopeId : null;
         if (string.IsNullOrWhiteSpace(tenantId) ||
             command.ExecutionId == Guid.Empty ||
+            command.Attempt < 1 ||
             command.StaffMemberId == Guid.Empty ||
             command.ExpectedStaffVersion < 1)
         {
@@ -55,6 +56,7 @@ internal sealed class ApplyStaffRetentionCommandHandler(
                 tenantId,
                 StringComparison.Ordinal) ||
             execution.State != StaffRetentionExecutionState.Running ||
+            execution.Attempt != command.Attempt ||
             !execution.MatchesCoordinate(
                 StaffRetentionCoordinates.DataClassKey,
                 StaffRetentionCoordinates.ExecutionPolicyVersion))

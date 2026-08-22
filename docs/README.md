@@ -73,6 +73,7 @@ Useful entry points:
 - [Staff Data Rights Anonymisation Task](planning/staff-data-rights-anonymisation-task.md)
 - [Staff Record Retention Task](planning/staff-record-retention-task.md)
 - [Staff Retention Prerequisite Transaction Boundary Task](planning/staff-retention-prerequisite-transaction-boundary-task.md)
+- [Staff Retention Control And Proof Audit Integrity Task](planning/staff-retention-control-proof-audit-integrity-task.md)
 - [Guest Records Module Task](planning/guest-records-module-task.md)
 - [Guests Authoritative Profile State Integrity Task](planning/guests-authoritative-profile-state-integrity-task.md)
 - [Guests Anonymisation-Proof Audit Integrity Task](planning/guests-anonymisation-proof-audit-integrity-task.md)

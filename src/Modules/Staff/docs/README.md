@@ -127,8 +127,17 @@ departure access process and idempotently re-deny access. Staff then records
 its own append-only receipt and a `Retention`-authority tombstone; Retention
 receives only counts and stable outcome codes.
 
-The executable delivery contract is
-[Staff record automatic retention](../../../../docs/planning/staff-record-retention-task.md).
+Staff carries the active Retention attempt through mutation and completion.
+Failed attempts leave the fair-scan checkpoint untouched, later attempts
+resume from the exact failed cursor, and stale workers cannot mutate or
+terminalize newer work. PostgreSQL independently rejects unreachable control
+state, malformed proof, duplicate event/cursor markers, and receipts missing
+their same-tenant execution, Staff member, or tombstone.
+
+The executable delivery contracts are
+[Staff record automatic retention](../../../../docs/planning/staff-record-retention-task.md)
+and
+[Staff retention control and proof audit integrity](../../../../docs/planning/staff-retention-control-proof-audit-integrity-task.md).
 
 ## Tenant termination export
 

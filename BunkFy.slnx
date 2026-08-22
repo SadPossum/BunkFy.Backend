@@ -235,6 +235,7 @@
     <File Path="docs/planning/staff-property-assignment-idempotency-task.md" />
     <File Path="docs/planning/staff-property-authority-tenant-integrity-task.md" />
     <File Path="docs/planning/staff-record-retention-task.md" />
+    <File Path="docs/planning/staff-retention-control-proof-audit-integrity-task.md" />
     <File Path="docs/planning/staff-retention-prerequisite-transaction-boundary-task.md" />
     <File Path="docs/planning/staff-retired-property-operational-visibility-task.md" />
     <File Path="docs/planning/staff-self-service-profile-ownership-task.md" />
