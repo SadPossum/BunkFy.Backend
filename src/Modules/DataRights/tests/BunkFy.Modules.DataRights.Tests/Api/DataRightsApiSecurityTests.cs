@@ -60,6 +60,11 @@ public sealed class DataRightsApiSecurityTests
             DataRightsAdminPermissionCodes.Discover);
         AssertPermission(
             endpoints,
+            HttpMethods.Get,
+            $"{cases}/{{caseId:guid}}/review-evidence",
+            DataRightsAdminPermissionCodes.Review);
+        AssertPermission(
+            endpoints,
             HttpMethods.Post,
             $"{cases}/{{caseId:guid}}/subjects/discover",
             DataRightsAdminPermissionCodes.Discover);
@@ -251,6 +256,10 @@ public sealed class DataRightsApiSecurityTests
                 HttpMethods.Get,
                 $"{cases}/{{caseId:guid}}/subjects",
                 DataRightsAdminPermissionCodes.Discover),
+            (
+                HttpMethods.Get,
+                $"{cases}/{{caseId:guid}}/review-evidence",
+                DataRightsAdminPermissionCodes.Review),
             (
                 HttpMethods.Post,
                 $"{cases}/{{caseId:guid}}/subjects/discover",
@@ -697,6 +706,15 @@ public sealed class DataRightsApiSecurityTests
                 "/api/data-rights/tenant/cases/{caseId:guid}/restriction/" +
                 "release-targets",
                 null,
+                Guid.NewGuid()),
+            (
+                "/api/data-rights/properties/{propertyId:guid}/cases/" +
+                "{caseId:guid}/review-evidence",
+                Guid.NewGuid(),
+                Guid.NewGuid()),
+            (
+                "/api/data-rights/tenant/cases/{caseId:guid}/review-evidence",
+                null,
                 Guid.NewGuid())
         ];
 
@@ -765,6 +783,11 @@ public sealed class DataRightsApiSecurityTests
             typeof(DataRightsSelectedSubjectsResponse));
         AssertProduces(
             endpoints,
+            HttpMethods.Get,
+            $"{cases}/{{caseId:guid}}/review-evidence",
+            typeof(DataRightsSelectedSubjectsResponse));
+        AssertProduces(
+            endpoints,
             HttpMethods.Post,
             $"{cases}/{{caseId:guid}}/subjects/select",
             typeof(DataRightsCaseDto));
@@ -810,6 +833,11 @@ public sealed class DataRightsApiSecurityTests
             typeof(DataRightsExportArtifactDto));
 
         const string tenantCases = "/api/data-rights/tenant/cases";
+        AssertProduces(
+            endpoints,
+            HttpMethods.Get,
+            $"{tenantCases}/{{caseId:guid}}/review-evidence",
+            typeof(DataRightsSelectedSubjectsResponse));
         AssertProduces(
             endpoints,
             HttpMethods.Get,
@@ -953,6 +981,14 @@ public sealed class DataRightsApiSecurityTests
                         CaseVersion: 1,
                         Targets: [],
                         LimitReached: false)));
+            }
+
+            if (query is GetDataRightsSelectedSubjectsQuery)
+            {
+                return Task.FromResult((Result<TResponse>)(object)Result.Success(
+                    new DataRightsSelectedSubjectsResponse(
+                        CaseVersion: 1,
+                        Subjects: [])));
             }
 
             return Task.FromResult((Result<TResponse>)(object)Result.Success(

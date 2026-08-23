@@ -176,6 +176,7 @@ Useful entry points:
 - [Data Rights Correction Execution Task](planning/data-rights-correction-execution-task.md)
 - [Data Rights Mutation Continuity Task](planning/data-rights-mutation-continuity-task.md)
 - [Data Rights Restriction Target Binding Task](planning/data-rights-restriction-target-binding-task.md)
+- [Data Rights Review Evidence Access Task](planning/data-rights-review-evidence-access-task.md)
 - [Data Rights Coordinator Mutation Serialization Task](planning/data-rights-coordinator-mutation-serialization-task.md)
 - [Data Rights Operational Surface Hardening Task](planning/data-rights-operational-surface-hardening-task.md)
 - [Data Rights Operator Continuity And Recovery Task](planning/data-rights-operator-continuity-and-recovery-task.md)

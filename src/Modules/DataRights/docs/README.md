@@ -63,7 +63,9 @@ deterministically generated
 - restriction approvals bind an explicit apply or release directive, so one
   approved intent cannot authorize the opposite transition;
 - resumable selected-coordinate reads behind the sensitive discovery
-  permission, while ordinary case DTOs expose only a count;
+  permission, plus a separate Review-guarded read of only the coordinates and
+  pinned versions already attached to a case; ordinary case DTOs expose only a
+  count;
 - a PII-carrying owner-export envelope that is explicitly catalogued as a
   subject-scoped, cross-module, one-hour transient fragment;
 - a neutral streaming contributor/sink contract; callers must discard partial
@@ -135,6 +137,12 @@ event.
 - Exact subject discovery remains bounded to 20 candidates and returns
   `LimitReached` when that bound is filled, prompting the operator to refine a
   strong identifier rather than broadening the search.
+- Review and Discover remain deliberately separate capabilities. Reviewers can
+  read only the selected opaque coordinates and pinned versions through the
+  exact-scope `review-evidence` route; lookup, candidate disclosure, selection,
+  and unselection continue to require Discover. The client version-binds this
+  evidence and withholds review or decision actions when it is missing, stale,
+  or failed.
 - The operator client snapshots normalized exact-match criteria with the case
   ID and version, aborts obsolete discovery requests, and renders only the
   current generation. Criteria remain in component memory, while selection is
