@@ -1281,6 +1281,20 @@ public sealed class HostCompositionGuardTests
     }
 
     [Fact]
+    public void Public_api_smoke_exposes_the_non_secret_admission_identity()
+    {
+        string program = RepositoryPaths.Read(
+            "src",
+            "BunkFy.Host.Api",
+            "Program.cs");
+
+        Assert.Contains(
+            "deployment.Value.AdmissionEvidenceReference",
+            program,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Adapter_host_production_admission_is_fail_closed_and_status_is_gated()
     {
         string program = RepositoryPaths.Read(

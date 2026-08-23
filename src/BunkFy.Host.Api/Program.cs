@@ -251,6 +251,7 @@ app.MapGet("/api/smoke", (IOptions<BunkFyDeploymentOptions> deployment) => Resul
     ReleaseId = string.IsNullOrWhiteSpace(deployment.Value.ReleaseId)
         ? "local-unversioned"
         : deployment.Value.ReleaseId,
+    deployment.Value.AdmissionEvidenceReference,
     TimestampUtc = DateTimeOffset.UtcNow
 }));
 app.MapBunkFyProductCapabilities();
