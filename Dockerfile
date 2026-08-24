@@ -12,7 +12,7 @@ RUN --mount=type=cache,id=bunkfy-nuget,target=/root/.nuget/packages \
     && dotnet publish src/BunkFy.AdapterHost/BunkFy.AdapterHost.csproj -c Release -o /out/adapter-host --nologo \
     && dotnet publish src/BunkFy.Host.Migrations/BunkFy.Host.Migrations.csproj -c Release -o /out/migrations --nologo
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0.11@sha256:207cc51496778557731c81ff670333d8ade4a4fec22768fd1be8e78474a84ecf AS runtime-base
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.11@sha256:a4556ed033fa96f984bb7a8d348851cb2d36b1281dd2420070045f664fbb5f94 AS runtime-base
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/* \
