@@ -1,6 +1,7 @@
 namespace BunkFy.Extensions.Workspaces;
 
 using BunkFy.Modules.Staff.Contracts;
+using BunkFy.Modules.Workspaces.Contracts;
 using Gma.Framework.AccessControl;
 using Gma.Framework.Messaging;
 using Gma.Framework.Observability;
@@ -75,6 +76,7 @@ public static class DependencyInjection
         services.TryAddEnumerable(ServiceDescriptor.Scoped<
             IAccessDecisionProvider,
             WorkspaceOwnerMembershipAccessDecisionProvider>());
+        services.TryAddScoped<IWorkspaceStaffStationAdmissionObserver, WorkspaceStaffStationAdmissionObserver>();
         services.TryAddEnumerable(ServiceDescriptor.Scoped<
             IOrganizationMutationAdmissionPolicy,
             WorkspaceOrganizationMutationAdmissionPolicy>());

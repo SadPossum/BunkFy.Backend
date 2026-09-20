@@ -3,6 +3,7 @@ namespace BunkFy.Modules.Properties.Tests;
 using System.Reflection;
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Properties.Domain.Aggregates;
+using BunkFy.Modules.Properties.Domain.ValueObjects;
 using BunkFy.Modules.Properties.Persistence;
 using BunkFy.Modules.Properties.Persistence.Repositories;
 using Gma.Framework.Scoping;
@@ -14,7 +15,7 @@ public sealed class PropertyStationEligibilitySourceTests
 {
     private static readonly DateTimeOffset Now = new(2026, 9, 20, 0, 0, 0, TimeSpan.Zero);
     private static readonly string[] SnapshotProperties =
-        ["ConfiguredProcessingStatus", "PropertyId", "ScopeId", "Status", "Version"];
+        ["ConfiguredProcessingStatus", "PropertyId", "ScopeId", "Status", "TimeZoneId", "Version"];
 
     [Fact]
     public async Task Current_owner_facts_are_untracked_minimal_and_follow_retirement()
@@ -26,7 +27,7 @@ public sealed class PropertyStationEligibilitySourceTests
         db.ChangeTracker.Clear();
         var reader = new PropertyStationEligibilitySource(db);
         var facts = Assert.IsType<PropertyStationEligibilitySnapshot>(await reader.FindAsync("tenant-a", property.Id));
-        Assert.Equal(new("tenant-a", property.Id, PropertyStatus.Active, property.Version, PropertyProcessingStatus.Unconfigured), facts);
+        Assert.Equal(new("tenant-a", property.Id, PropertyStatus.Active, property.Version, PropertyProcessingStatus.Unconfigured, "Etc/UTC"), facts);
         Assert.Empty(db.ChangeTracker.Entries());
         db.Properties.Attach(property);
         Assert.True(property.Retire(property.Version, Guid.NewGuid(), Now).IsSuccess);
@@ -51,6 +52,24 @@ public sealed class PropertyStationEligibilitySourceTests
         db.Properties.Add(property);
         await db.SaveChangesAsync();
         Assert.Equal(expected, (await new PropertyStationEligibilitySource(db).FindAsync("tenant-a", property.Id))!.ConfiguredProcessingStatus);
+    }
+
+    [Fact]
+    public async Task Time_zone_and_version_are_current_owner_facts_not_cached()
+    {
+        await using var db = Context();
+        var property = Create();
+        db.Properties.Add(property);
+        await db.SaveChangesAsync();
+        var reader = new PropertyStationEligibilitySource(db);
+        var before = (await reader.FindAsync("tenant-a", property.Id))!;
+        Assert.True(property.SetTimeZone(PropertyTimeZoneId.Create("America/New_York").Value,
+            property.Version, Guid.NewGuid(), Now.AddMinutes(1)).IsSuccess);
+        await db.SaveChangesAsync();
+        var after = (await reader.FindAsync("tenant-a", property.Id))!;
+        Assert.Equal("America/New_York", after.TimeZoneId);
+        Assert.True(after.Version > before.Version);
+        Assert.Equal("Etc/UTC", before.TimeZoneId);
     }
 
     [Theory]

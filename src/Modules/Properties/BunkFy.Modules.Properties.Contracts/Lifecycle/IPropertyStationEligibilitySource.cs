@@ -14,4 +14,5 @@ public sealed record PropertyStationEligibilitySnapshot(
     Guid PropertyId,
     PropertyStatus Status,
     long Version,
-    PropertyProcessingStatus ConfiguredProcessingStatus);
+    PropertyProcessingStatus ConfiguredProcessingStatus,
+    string TimeZoneId);

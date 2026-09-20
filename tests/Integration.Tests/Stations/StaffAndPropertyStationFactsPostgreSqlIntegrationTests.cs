@@ -86,6 +86,7 @@ public sealed class StaffAndPropertyStationFactsPostgreSqlIntegrationTests
         Assert.Single(sql.Commands);
         Assert.DoesNotContain("\"Name\"", sql.Commands[0], StringComparison.Ordinal);
         Assert.Equal(PropertyStatus.Active, property.Status);
+        Assert.Equal("Etc/UTC", property.TimeZoneId);
         Assert.Equal(PropertyProcessingStatus.Unconfigured, property.ConfiguredProcessingStatus);
         Assert.Empty(read.ServiceProvider.GetRequiredService<PropertiesDbContext>().ChangeTracker.Entries());
         Assert.Null(await staffReader.FindAsync(TenantB, propertyA, memberA));
