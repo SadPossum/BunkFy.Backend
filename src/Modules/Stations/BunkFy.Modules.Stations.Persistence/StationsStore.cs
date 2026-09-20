@@ -11,14 +11,15 @@ using Microsoft.Extensions.Options;
 
 /// <summary>Serialized local state only. External Staff/Auth/Access/property admission is a later mandatory caller.</summary>
 internal sealed class StationsStore(StationsDbContext db, IStationPinVerifier verifier, IOptions<StationOptions> configured)
-    : IStationsStore
+    : IStationsStore, IStationRuntimeStore, IStationCredentialBootstrap
 {
     private readonly StationOptions options = configured.Value;
     public Task<StationCoreResult> TryUnlockCoreAsync(Guid operationId, Guid stationId, Guid browserId, Guid staffId,
         long expectedGeneration, long expectedCredentialRevision, StationAuthorityKind kind, long? expectedGrantRevision,
-        string pin, DateTimeOffset now, CancellationToken cancellationToken = default) =>
+        string pin, DateTimeOffset now, StationEnrollmentBinding? enrollment = null, bool ownerRejected = false,
+        string? opaqueCredential = null, CancellationToken cancellationToken = default) =>
         this.RunAsync(operationId, StationOperationKind.Unlock,
-            Fingerprint(stationId, browserId, staffId, expectedGeneration, expectedCredentialRevision, (int)kind, expectedGrantRevision),
+            Fingerprint(stationId, browserId, staffId, expectedGeneration, expectedCredentialRevision, (int)kind, expectedGrantRevision, enrollment?.Kind, enrollment?.AuthSubjectId, ownerRejected),
             now, async () =>
             {
                 StationBrowserSession? browser = await db.BrowserSessions.SingleOrDefaultAsync(x => x.Id == browserId && x.StationId == stationId, cancellationToken).ConfigureAwait(false);
@@ -27,7 +28,8 @@ internal sealed class StationsStore(StationsDbContext db, IStationPinVerifier ve
                 {
                     return Conflict(browser.Generation);
                 }
-                if (browser is null || station is null || station.Revoked || !browser.PairingCurrent(now, this.options.ExternalEpoch))
+                if (browser is null || station is null || station.Revoked || !browser.PairingCurrent(now, this.options.ExternalEpoch) ||
+                    (opaqueCredential is not null && browser.CredentialDigest != StationCredentialEncoding.Digest(opaqueCredential)))
                 {
                     return Rejected();
                 }
@@ -40,7 +42,8 @@ internal sealed class StationsStore(StationsDbContext db, IStationPinVerifier ve
                 StationStaffCheckInGrant? grant = await db.CheckInGrants.SingleOrDefaultAsync(x =>
                     x.PropertyId == browser.PropertyId && x.StaffMemberId == staffId, cancellationToken).ConfigureAwait(false);
                 // Stale coordinates never mutate A. Current authentication attempts deliberately lock A before checking B.
-                if (credential is not null && (credential.Revision != expectedCredentialRevision || now < credential.LastObservedAtUtc))
+                if (credential is not null && (credential.Revision != expectedCredentialRevision || now < credential.LastObservedAtUtc ||
+                    (enrollment is not null && credential.Enrollment() != enrollment)))
                 {
                     return Conflict(browser.Generation);
                 }
@@ -56,7 +59,7 @@ internal sealed class StationsStore(StationsDbContext db, IStationPinVerifier ve
                 {
                     return new(StationCoreOutcome.Throttled, Generation: browser.Generation, RetryAfterUtc: browser.CooldownUntilUtc);
                 }
-                if (credential is null || credential.Revoked ||
+                if (credential is null || credential.Revoked || ownerRejected ||
                     (kind == StationAuthorityKind.StationOnly && (grant is null || grant.Revoked)) ||
                     (kind == StationAuthorityKind.LinkedStation && expectedGrantRevision is not null) ||
                     kind is not (StationAuthorityKind.LinkedStation or StationAuthorityKind.StationOnly))
@@ -91,7 +94,7 @@ internal sealed class StationsStore(StationsDbContext db, IStationPinVerifier ve
             }, cancellationToken);
 
     public Task<StationCoreResult> LockCoreAsync(Guid operationId, Guid stationId, Guid browserId, long expectedGeneration,
-        DateTimeOffset now, CancellationToken cancellationToken = default) =>
+        DateTimeOffset now, string? opaqueCredential = null, CancellationToken cancellationToken = default) =>
         this.RunAsync(operationId, StationOperationKind.Lock, Fingerprint(stationId, browserId, expectedGeneration), now, async () =>
         {
             StationBrowserSession? browser = await db.BrowserSessions.SingleOrDefaultAsync(x => x.Id == browserId && x.StationId == stationId, cancellationToken).ConfigureAwait(false);
@@ -99,7 +102,8 @@ internal sealed class StationsStore(StationsDbContext db, IStationPinVerifier ve
             {
                 return Conflict(browser.Generation);
             }
-            if (browser is null || !browser.PairingCurrent(now, this.options.ExternalEpoch))
+            if (browser is null || !browser.PairingCurrent(now, this.options.ExternalEpoch) ||
+                (opaqueCredential is not null && browser.CredentialDigest != StationCredentialEncoding.Digest(opaqueCredential)))
             {
                 return Rejected();
             }
@@ -209,8 +213,9 @@ internal sealed class StationsStore(StationsDbContext db, IStationPinVerifier ve
         }, cancellationToken);
 
     public Task<StationCoreResult> RedeemSetupCoreAsync(Guid operationId, Guid setupId, Guid browserId, StationPinMaterial material,
-        DateTimeOffset now, CancellationToken cancellationToken = default) =>
-        this.RunAsync(operationId, StationOperationKind.RedeemSetup, Fingerprint(setupId, browserId, material.Salt, material.Verifier, material.PepperVersion), now, async () =>
+        DateTimeOffset now, StationEnrollmentBinding? enrollment = null, string? opaqueCredential = null,
+        CancellationToken cancellationToken = default) =>
+        this.RunAsync(operationId, StationOperationKind.RedeemSetup, SetupFingerprint(setupId, browserId, enrollment), now, async () =>
         {
             StationSetupGrant? setup = await db.SetupGrants.SingleOrDefaultAsync(x => x.Id == setupId && x.BrowserSessionId == browserId, cancellationToken).ConfigureAwait(false);
             StationBrowserSession? browser = await db.BrowserSessions.SingleOrDefaultAsync(x => x.Id == browserId, cancellationToken).ConfigureAwait(false);
@@ -218,7 +223,8 @@ internal sealed class StationsStore(StationsDbContext db, IStationPinVerifier ve
             {
                 return Conflict(browser.Generation);
             }
-            if (setup is null || browser is null || !browser.PairingCurrent(now, this.options.ExternalEpoch))
+            if (setup is null || browser is null || !browser.PairingCurrent(now, this.options.ExternalEpoch) ||
+                (opaqueCredential is not null && browser.CredentialDigest != StationCredentialEncoding.Digest(opaqueCredential)))
             {
                 return Rejected();
             }
@@ -230,7 +236,8 @@ internal sealed class StationsStore(StationsDbContext db, IStationPinVerifier ve
             }
 
             StationStaffCredential? credential = await db.Credentials.SingleOrDefaultAsync(x => x.StaffMemberId == setup.StaffMemberId, cancellationToken).ConfigureAwait(false);
-            if ((credential?.Revision ?? 0) != setup.ExpectedCredentialRevision)
+            if ((credential?.Revision ?? 0) != setup.ExpectedCredentialRevision ||
+                (enrollment is not null && (!enrollment.IsBound || setup.ExpectedEnrollment() != enrollment || setup.AuthorityKind != enrollment.Kind)))
             {
                 return Conflict();
             }
@@ -248,11 +255,11 @@ internal sealed class StationsStore(StationsDbContext db, IStationPinVerifier ve
 
             if (credential is null)
             {
-                db.Credentials.Add(new StationStaffCredential(db.CurrentScopeId, setup.StaffMemberId, material, now));
+                db.Credentials.Add(new StationStaffCredential(db.CurrentScopeId, setup.StaffMemberId, material, now, enrollment));
             }
             else
             {
-                credential.Replace(material, now);
+                credential.Replace(material, now, enrollment);
             }
 
             foreach (StationBrowserSession session in sessions)
@@ -267,6 +274,128 @@ internal sealed class StationsStore(StationsDbContext db, IStationPinVerifier ve
 
             return new(StationCoreOutcome.Applied);
         }, cancellationToken);
+
+    public async Task<StationDeviceReference?> FindAsync(string opaqueCredential, CancellationToken cancellationToken = default)
+    {
+        string? digest = StationCredentialEncoding.Digest(opaqueCredential);
+        if (digest is null)
+        {
+            return null;
+        }
+        db.RequirePostgreSql();
+        // The only unscoped read: exact unique random credential digest, projected coordinates only.
+        StationDeviceReference[] matches = await db.BrowserSessions.IgnoreQueryFilters().AsNoTracking()
+            .Where(x => x.CredentialDigest == digest)
+            .Select(x => new StationDeviceReference(x.ScopeId, x.Id, x.StationId, x.PropertyId))
+            .Take(2).ToArrayAsync(cancellationToken).ConfigureAwait(false);
+        return matches.Length == 1 ? matches[0] : null;
+    }
+
+    public async Task<StationRuntimeFacts?> ReadAsync(StationDeviceReference device, string opaqueCredential,
+        Guid? selectedStaff, DateTimeOffset now, CancellationToken cancellationToken = default)
+    {
+        string? digest = StationCredentialEncoding.Digest(opaqueCredential);
+        if (digest is null || !db.ScopeFilterEnabled || db.CurrentScopeId != device.ScopeId)
+        {
+            return null;
+        }
+        db.RequirePostgreSql();
+        if (await db.Lifecycle.AsNoTracking().AnyAsync(x => x.Closed, cancellationToken).ConfigureAwait(false))
+        {
+            return null;
+        }
+        StationBrowserSession? browser = await db.BrowserSessions.AsNoTracking().SingleOrDefaultAsync(x =>
+            x.Id == device.BrowserSessionId && x.StationId == device.StationId && x.PropertyId == device.PropertyId &&
+            x.CredentialDigest == digest, cancellationToken).ConfigureAwait(false);
+        if (browser is null || !browser.PairingCurrent(now, this.options.ExternalEpoch) ||
+            !await db.Stations.AsNoTracking().AnyAsync(x => x.Id == device.StationId && x.PropertyId == device.PropertyId && !x.Revoked, cancellationToken).ConfigureAwait(false))
+        {
+            return null;
+        }
+        Guid? staffId = selectedStaff ?? browser.StaffMemberId;
+        StationStaffCredential? credential = await db.Credentials.AsNoTracking().SingleOrDefaultAsync(x => x.StaffMemberId == staffId, cancellationToken).ConfigureAwait(false);
+        StationStaffCheckInGrant? grant = await db.CheckInGrants.AsNoTracking().SingleOrDefaultAsync(x => x.PropertyId == device.PropertyId && x.StaffMemberId == staffId, cancellationToken).ConfigureAwait(false);
+        StationActorCoordinate? actor = browser.ActorSessionId is { } actorId && browser.StaffMemberId is { } actorStaff
+            ? new(actorStaff, actorId, browser.Generation, (StationAuthorityKind)browser.AuthorityKind) : null;
+        var snapshot = new StationSessionSnapshot(browser.StationId, browser.PropertyId, browser.Id, browser.Generation,
+            actor, browser.PairingExpiresAtUtc, browser.ActorIdleExpiresAtUtc, browser.ActorAbsoluteExpiresAtUtc);
+        bool active = browser.ActorCurrent(now, this.options.ExternalEpoch) && credential is not null &&
+            !credential.Revoked && browser.CredentialRevision == credential.Revision &&
+            browser.AuthorityKind == credential.EnrollmentAuthorityKind &&
+            (browser.AuthorityKind != StationActorKind.StationOnly || (grant is { Revoked: false } && browser.GrantRevision == grant.Revision));
+        return new(snapshot, active, credential is null ? null : new(credential.StaffMemberId, credential.Revision,
+            credential.Revoked, credential.Enrollment()), grant?.Revision, grant?.Revoked ?? true);
+    }
+
+    public async Task<StationSetupFacts?> ReadSetupAsync(StationDeviceReference device, Guid setupId, DateTimeOffset now,
+        CancellationToken cancellationToken = default)
+    {
+        if (!db.ScopeFilterEnabled || db.CurrentScopeId != device.ScopeId)
+        {
+            return null;
+        }
+        StationSetupGrant? setup = await db.SetupGrants.AsNoTracking().SingleOrDefaultAsync(x => x.Id == setupId &&
+            x.StationId == device.StationId && x.BrowserSessionId == device.BrowserSessionId && x.PropertyId == device.PropertyId &&
+            !x.Revoked && x.CreatedAtUtc <= now && x.ExpiresAtUtc > now, cancellationToken).ConfigureAwait(false);
+        return setup is null ? null : new(setup.Id, setup.StaffMemberId, setup.ExpectedCredentialRevision,
+            setup.ExpectedEnrollment(), setup.AuthorityKind, setup.ExpiresAtUtc);
+    }
+
+    public async Task<StationCoreResult?> ReadSetupOutcomeAsync(Guid operationId, StationSetupFacts setup, StationDeviceReference device,
+        CancellationToken cancellationToken = default)
+    {
+        if (!db.ScopeFilterEnabled || db.CurrentScopeId != device.ScopeId)
+        {
+            return Conflict();
+        }
+        StationOperationReceipt? receipt = await db.OperationReceipts.AsNoTracking().SingleOrDefaultAsync(x => x.Id == operationId, cancellationToken).ConfigureAwait(false);
+        if (receipt is null)
+        {
+            return null;
+        }
+        if (!receipt.Matches(StationMutationKind.RedeemSetup, SetupFingerprint(setup.Id, device.BrowserSessionId, setup.Enrollment)))
+        {
+            return Conflict();
+        }
+        StationStaffCredential? credential = await db.Credentials.AsNoTracking().SingleOrDefaultAsync(x => x.StaffMemberId == setup.StaffMemberId, cancellationToken).ConfigureAwait(false);
+        if (receipt.Outcome == StationMutationOutcome.Applied && (credential is null || credential.Revoked ||
+            credential.Revision != setup.CredentialRevision + 1 || credential.Enrollment() != setup.Enrollment))
+        {
+            return Conflict();
+        }
+        return new((StationCoreOutcome)receipt.Outcome, receipt.ActorSessionId, receipt.Generation, receipt.RetryAfterUtc);
+    }
+
+    public Task<StationCoreResult> ForegroundActivityAsync(Guid operationId, StationDeviceReference device, string opaqueCredential,
+        StationActorCoordinate actor, StationCredentialFacts expectedCredential, long? grantRevision, DateTimeOffset now,
+        CancellationToken cancellationToken = default) =>
+        this.RunAsync(operationId, StationOperationKind.ForegroundActivity,
+            Fingerprint(device.StationId, device.BrowserSessionId, actor.StaffMemberId, actor.ActorSessionId, actor.Generation,
+                actor.AuthorityKind, expectedCredential.Revision, expectedCredential.Enrollment.Kind, expectedCredential.Enrollment.AuthSubjectId, grantRevision),
+            now, async () =>
+            {
+                if (db.CurrentScopeId != device.ScopeId || !expectedCredential.Enrollment.IsBound)
+                {
+                    return Conflict();
+                }
+                StationBrowserSession? browser = await db.BrowserSessions.SingleOrDefaultAsync(x => x.Id == device.BrowserSessionId &&
+                    x.StationId == device.StationId && x.PropertyId == device.PropertyId, cancellationToken).ConfigureAwait(false);
+                StationStaffCredential? credential = await db.Credentials.SingleOrDefaultAsync(x => x.StaffMemberId == actor.StaffMemberId, cancellationToken).ConfigureAwait(false);
+                StationStaffCheckInGrant? grant = await db.CheckInGrants.SingleOrDefaultAsync(x => x.PropertyId == device.PropertyId && x.StaffMemberId == actor.StaffMemberId, cancellationToken).ConfigureAwait(false);
+                if (browser is null || browser.CredentialDigest != StationCredentialEncoding.Digest(opaqueCredential) ||
+                    !browser.ActorCurrent(now, this.options.ExternalEpoch) || browser.ActorSessionId != actor.ActorSessionId ||
+                    browser.StaffMemberId != actor.StaffMemberId || browser.Generation != actor.Generation ||
+                    browser.AuthorityKind != (StationActorKind)actor.AuthorityKind || credential is null || credential.Revoked ||
+                    credential.Revision != expectedCredential.Revision || browser.CredentialRevision != credential.Revision ||
+                    credential.Enrollment() != expectedCredential.Enrollment || credential.EnrollmentAuthorityKind != browser.AuthorityKind ||
+                    (browser.AuthorityKind == StationActorKind.StationOnly && (grant is null || grant.Revoked || grant.Revision != grantRevision || browser.GrantRevision != grantRevision)) ||
+                    !await db.Stations.AnyAsync(x => x.Id == device.StationId && !x.Revoked, cancellationToken).ConfigureAwait(false))
+                {
+                    return Conflict();
+                }
+                return browser.RecordForegroundActivity(actor.ActorSessionId, actor.Generation, now, TimeSpan.FromMinutes(this.options.ActorIdleMinutes))
+                    ? new(StationCoreOutcome.Applied, actor.ActorSessionId, actor.Generation) : Conflict();
+            }, cancellationToken);
 
     private TimeSpan Window => TimeSpan.FromMinutes(this.options.AttemptWindowMinutes);
     private TimeSpan Cooldown => TimeSpan.FromMinutes(this.options.CooldownMinutes);
@@ -309,7 +438,7 @@ internal sealed class StationsStore(StationsDbContext db, IStationPinVerifier ve
                 return Conflict();
             }
 
-            if (kind == StationOperationKind.Unlock && existing.Outcome == StationMutationOutcome.Applied)
+            if (kind is StationOperationKind.Unlock or StationOperationKind.ForegroundActivity && existing.Outcome == StationMutationOutcome.Applied)
             {
                 StationBrowserSession? current = await db.BrowserSessions.SingleOrDefaultAsync(x => x.ActorSessionId == existing.ActorSessionId && x.Generation == existing.Generation, ct).ConfigureAwait(false);
                 if (current is null || !current.ActorCurrent(now, this.options.ExternalEpoch))
@@ -336,4 +465,6 @@ internal sealed class StationsStore(StationsDbContext db, IStationPinVerifier ve
         }));
         return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
     }
+    private static string SetupFingerprint(Guid setupId, Guid browserId, StationEnrollmentBinding? enrollment) =>
+        Fingerprint(setupId, browserId, enrollment?.Kind, enrollment?.AuthSubjectId);
 }

@@ -14,6 +14,37 @@ public sealed class StationDomainTests
     internal static StationBrowserSession Browser() => new(Guid.NewGuid(), Tenant, Guid.NewGuid(), Guid.NewGuid(), new string('a', 64), Now, Now.AddDays(30), 1);
 
     [Fact]
+    public void Enrollment_binding_is_exact_closed_and_reset_does_not_retain_identity()
+    {
+        Assert.Throws<ArgumentException>(() => new StationEnrollmentBinding(StationActorKind.LinkedStation, null));
+        Assert.Throws<ArgumentException>(() => new StationEnrollmentBinding(StationActorKind.StationOnly, "account"));
+        Assert.Throws<ArgumentException>(() => new StationEnrollmentBinding(StationActorKind.LinkedStation, " account "));
+        Assert.Throws<ArgumentException>(() => new StationEnrollmentBinding((StationActorKind)99, null));
+        var binding = new StationEnrollmentBinding(StationActorKind.LinkedStation, "Account-A");
+        Assert.NotEqual(binding, new StationEnrollmentBinding(StationActorKind.LinkedStation, "account-a"));
+        var credential = new StationStaffCredential(Tenant, Guid.NewGuid(), Material(), Now, binding);
+        Assert.Equal(binding, credential.Enrollment());
+        credential.Revoke(Now);
+        Assert.False(credential.Enrollment().IsBound);
+        Assert.Null(credential.EnrollmentAuthSubjectId);
+        credential.Replace(Material(), Now, new(StationActorKind.StationOnly, null));
+        Assert.Equal(StationActorKind.StationOnly, credential.EnrollmentAuthorityKind);
+        Assert.Null(credential.EnrollmentAuthSubjectId);
+    }
+
+    [Fact]
+    public void Setup_intent_cannot_substitute_for_enrollment_and_conflicting_kind_is_invalid()
+    {
+        var browser = Browser();
+        var legacy = new StationSetupGrant(Guid.NewGuid(), Tenant, browser.StationId, browser.Id, browser.PropertyId,
+            Guid.NewGuid(), StationActorKind.LinkedStation, 0, Now, Now.AddMinutes(10));
+        Assert.False(legacy.ExpectedEnrollment().IsBound);
+        Assert.Throws<ArgumentException>(() => new StationSetupGrant(Guid.NewGuid(), Tenant, browser.StationId,
+            browser.Id, browser.PropertyId, Guid.NewGuid(), StationActorKind.LinkedStation, 0, Now, Now.AddMinutes(10),
+            new(StationActorKind.StationOnly, null)));
+    }
+
+    [Fact]
     public void Lock_retains_device_binding_and_invalidates_the_previous_generation()
     {
         StationBrowserSession browser = Browser();

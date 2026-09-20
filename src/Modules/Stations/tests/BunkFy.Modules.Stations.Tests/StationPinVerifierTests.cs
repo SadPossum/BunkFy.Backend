@@ -51,7 +51,12 @@ public sealed class StationPinVerifierTests(ITestOutputHelper output)
         using var verifier = new StationPinVerifier(new TestPeppers(), Options.Create(options));
         Task<StationPinMaterial?> first = verifier.CreateAsync("000001");
         Assert.Null(await verifier.CreateAsync("000002"));
-        Assert.NotNull(await first);
+        StationPinMaterial material = Assert.IsType<StationPinMaterial>(await first);
+        var credential = new StationStaffCredential(StationDomainTests.Tenant, Guid.NewGuid(), material, StationDomainTests.Now);
+        Task<StationPinVerification> verify = verifier.VerifyAsync("000001", credential);
+        Assert.Equal(StationPinVerification.Busy, await verifier.VerifyAsync("000001", credential));
+        Assert.Equal(StationPinVerification.Valid, await verify);
+        Assert.Equal(StationPinVerification.Valid, await verifier.VerifyAsync("000001", credential));
         using var canceled = new CancellationTokenSource();
         canceled.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => verifier.CreateAsync("000001", canceled.Token));
@@ -67,4 +72,3 @@ public sealed class StationPinVerifierTests(ITestOutputHelper output)
         }
     }
 }
-

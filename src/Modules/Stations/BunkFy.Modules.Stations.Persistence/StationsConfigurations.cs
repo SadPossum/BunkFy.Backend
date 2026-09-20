@@ -37,6 +37,7 @@ internal static class StationsConfigurations
         {
             t.HasCheckConstraint("CK_credential_version", "\"Revision\" > 0 AND \"AlgorithmVersion\" = 1 AND \"Iterations\" = 600000");
             t.HasCheckConstraint("CK_credential_failure", "\"FailureCount\" >= 0");
+            t.HasCheckConstraint("CK_credential_enrollment", "(\"EnrollmentAuthorityKind\" IN (0,2) AND \"EnrollmentAuthSubjectId\" IS NULL) OR (\"EnrollmentAuthorityKind\" = 1 AND \"EnrollmentAuthSubjectId\" IS NOT NULL AND length(btrim(\"EnrollmentAuthSubjectId\")) > 0 AND \"EnrollmentAuthSubjectId\" = btrim(\"EnrollmentAuthSubjectId\"))");
         });
         credential.HasKey(x => new { x.ScopeId, x.StaffMemberId });
         credential.Property(x => x.ScopeId).HasMaxLength(36);
@@ -44,11 +45,17 @@ internal static class StationsConfigurations
         credential.Property(x => x.Salt).HasMaxLength(88);
         credential.Property(x => x.Verifier).HasMaxLength(44);
         credential.Property(x => x.PepperVersion).HasMaxLength(64);
+        credential.Property(x => x.EnrollmentAuthSubjectId).HasMaxLength(256);
 
         var setup = model.Entity<StationSetupGrant>();
-        setup.ToTable("setup_grants", t => t.HasCheckConstraint("CK_setup_valid", "\"ExpiresAtUtc\" > \"CreatedAtUtc\" AND \"ExpectedCredentialRevision\" >= 0 AND \"AuthorityKind\" IN (1,2)"));
+        setup.ToTable("setup_grants", t =>
+        {
+            t.HasCheckConstraint("CK_setup_valid", "\"ExpiresAtUtc\" > \"CreatedAtUtc\" AND \"ExpectedCredentialRevision\" >= 0 AND \"AuthorityKind\" IN (1,2)");
+            t.HasCheckConstraint("CK_setup_enrollment", "(\"ExpectedEnrollmentAuthorityKind\" = 0 AND \"ExpectedEnrollmentAuthSubjectId\" IS NULL) OR (\"ExpectedEnrollmentAuthorityKind\" = \"AuthorityKind\" AND ((\"ExpectedEnrollmentAuthorityKind\" = 2 AND \"ExpectedEnrollmentAuthSubjectId\" IS NULL) OR (\"ExpectedEnrollmentAuthorityKind\" = 1 AND \"ExpectedEnrollmentAuthSubjectId\" IS NOT NULL AND length(btrim(\"ExpectedEnrollmentAuthSubjectId\")) > 0 AND \"ExpectedEnrollmentAuthSubjectId\" = btrim(\"ExpectedEnrollmentAuthSubjectId\"))))");
+        });
         setup.HasKey(x => new { x.ScopeId, x.Id });
         setup.Property(x => x.ScopeId).HasMaxLength(36);
+        setup.Property(x => x.ExpectedEnrollmentAuthSubjectId).HasMaxLength(256);
         setup.HasOne<StationBrowserSession>().WithMany().HasForeignKey(x => new { x.ScopeId, x.BrowserSessionId, x.StationId, x.PropertyId })
             .HasPrincipalKey(x => new { x.ScopeId, x.Id, x.StationId, x.PropertyId }).OnDelete(DeleteBehavior.Restrict);
 
@@ -59,7 +66,7 @@ internal static class StationsConfigurations
         grant.Property(x => x.Revision).IsConcurrencyToken();
 
         var receipt = model.Entity<StationOperationReceipt>();
-        receipt.ToTable("operation_receipts", t => t.HasCheckConstraint("CK_receipt_kind", "\"Kind\" BETWEEN 1 AND 7 AND \"Outcome\" BETWEEN 1 AND 5"));
+        receipt.ToTable("operation_receipts", t => t.HasCheckConstraint("CK_receipt_kind", "\"Kind\" BETWEEN 1 AND 8 AND \"Outcome\" BETWEEN 1 AND 5"));
         receipt.HasKey(x => new { x.ScopeId, x.Id });
         receipt.Property(x => x.ScopeId).HasMaxLength(36);
         receipt.Property(x => x.Fingerprint).HasMaxLength(64);

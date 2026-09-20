@@ -6,13 +6,15 @@ public sealed class StationSetupGrant : IScopedEntity
 {
     private StationSetupGrant() { }
     public StationSetupGrant(Guid id, string scopeId, Guid stationId, Guid browserSessionId, Guid propertyId,
-        Guid staffId, StationActorKind kind, long expectedCredentialRevision, DateTimeOffset now, DateTimeOffset expires)
+        Guid staffId, StationActorKind kind, long expectedCredentialRevision, DateTimeOffset now, DateTimeOffset expires,
+        StationEnrollmentBinding? enrollment = null)
     {
         StationRules.Coordinates(scopeId, id, stationId, browserSessionId, propertyId, staffId);
         StationRules.Utc(now);
         StationRules.Utc(expires);
         if (kind is not (StationActorKind.LinkedStation or StationActorKind.StationOnly) ||
-            expectedCredentialRevision < 0 || expires <= now || expires - now > TimeSpan.FromMinutes(10))
+            expectedCredentialRevision < 0 || expires <= now || expires - now > TimeSpan.FromMinutes(10) ||
+            (enrollment is not null && (!enrollment.IsBound || enrollment.Kind != kind)))
         {
             throw new ArgumentException("Invalid setup grant.");
         }
@@ -24,6 +26,8 @@ public sealed class StationSetupGrant : IScopedEntity
         this.PropertyId = propertyId;
         this.StaffMemberId = staffId;
         this.AuthorityKind = kind;
+        this.ExpectedEnrollmentAuthorityKind = enrollment?.Kind ?? StationActorKind.Unknown;
+        this.ExpectedEnrollmentAuthSubjectId = enrollment?.AuthSubjectId;
         this.ExpectedCredentialRevision = expectedCredentialRevision;
         this.CreatedAtUtc = now;
         this.ExpiresAtUtc = expires;
@@ -35,6 +39,9 @@ public sealed class StationSetupGrant : IScopedEntity
     public Guid PropertyId { get; private set; }
     public Guid StaffMemberId { get; private set; }
     public StationActorKind AuthorityKind { get; private set; }
+    public StationActorKind ExpectedEnrollmentAuthorityKind { get; private set; }
+    public string? ExpectedEnrollmentAuthSubjectId { get; private set; }
+    public StationEnrollmentBinding ExpectedEnrollment() => new(this.ExpectedEnrollmentAuthorityKind, this.ExpectedEnrollmentAuthSubjectId);
     public long ExpectedCredentialRevision { get; private set; }
     public DateTimeOffset CreatedAtUtc { get; private set; }
     public DateTimeOffset ExpiresAtUtc { get; private set; }

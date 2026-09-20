@@ -40,6 +40,6 @@ public sealed class StationOperationReceipt : IScopedEntity
 }
 
 
-public enum StationMutationKind { Unknown = 0, Register = 1, RedeemSetup = 2, Unlock = 3, Lock = 4, Reset = 5, RevokeGrant = 6, RevokeStation = 7 }
+public enum StationMutationKind { Unknown = 0, Register = 1, RedeemSetup = 2, Unlock = 3, Lock = 4, Reset = 5, RevokeGrant = 6, RevokeStation = 7, ForegroundActivity = 8 }
 public enum StationMutationOutcome { Unknown = 0, Applied = 1, Rejected = 2, Throttled = 3, Conflict = 4, Unavailable = 5 }
 public sealed record StationMutationResult(StationMutationOutcome Outcome, Guid? ActorSessionId = null, long? Generation = null, DateTimeOffset? RetryAfterUtc = null);

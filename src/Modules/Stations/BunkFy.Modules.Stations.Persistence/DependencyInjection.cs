@@ -23,8 +23,10 @@ public static class DependencyInjection
         builder.Services.TryAddModuleDbContext<StationsDbContext>(o => o.UseNpgsql(connection,
             n => n.MigrationsAssembly(StationsMigrations.PostgreSqlAssembly)
                 .MigrationsHistoryTable(StationsMigrations.HistoryTable, StationsMigrations.Schema)));
-        builder.Services.TryAddScoped<IStationsStore, StationsStore>();
+        builder.Services.TryAddScoped<StationsStore>();
+        builder.Services.TryAddScoped<IStationsStore>(s => s.GetRequiredService<StationsStore>());
+        builder.Services.TryAddScoped<IStationCredentialBootstrap>(s => s.GetRequiredService<StationsStore>());
+        builder.Services.TryAddScoped<IStationRuntimeStore>(s => s.GetRequiredService<StationsStore>());
         return builder;
     }
 }
-
