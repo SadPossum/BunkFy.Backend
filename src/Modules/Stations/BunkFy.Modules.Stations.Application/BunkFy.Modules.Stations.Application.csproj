@@ -7,6 +7,10 @@
     <ProjectReference Include="../../Workspaces/BunkFy.Modules.Workspaces.Contracts/BunkFy.Modules.Workspaces.Contracts.csproj" />
     <ProjectReference Include="../../../Shared/BunkFy.TimeZones/BunkFy.TimeZones.csproj" />
     <ProjectReference Include="$(GmaModuleOrganizationsRoot)Gma.Modules.Organizations.Contracts/Gma.Modules.Organizations.Contracts.csproj" />
+    <ProjectReference Include="$(GmaModuleAuthRoot)Gma.Modules.Auth.Contracts/Gma.Modules.Auth.Contracts.csproj" />
+    <ProjectReference Include="$(GmaModuleAccessControlRoot)Gma.Modules.AccessControl.Contracts/Gma.Modules.AccessControl.Contracts.csproj" />
+    <ProjectReference Include="$(GmaFrameworkRoot)Security/Gma.Framework.Security/Gma.Framework.Security.csproj" />
+    <ProjectReference Include="$(GmaFrameworkRoot)Security/Gma.Framework.AccessControl/Gma.Framework.AccessControl.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Scoping/Gma.Framework.Scoping/Gma.Framework.Scoping.csproj" />
     <ProjectReference Include="$(GmaFrameworkRoot)Runtime/Gma.Framework.Runtime/Gma.Framework.Runtime.csproj" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />

@@ -10,8 +10,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 /// <summary>Serialized local state only. External Staff/Auth/Access/property admission is a later mandatory caller.</summary>
-internal sealed class StationsStore(StationsDbContext db, IStationPinVerifier verifier, IOptions<StationOptions> configured)
-    : IStationsStore, IStationRuntimeStore, IStationCredentialBootstrap
+internal sealed partial class StationsStore(StationsDbContext db, IStationPinVerifier verifier, IOptions<StationOptions> configured)
+    : IStationsStore, IStationRuntimeStore, IStationCredentialBootstrap, IStationManagementStore
 {
     private readonly StationOptions options = configured.Value;
     public Task<StationCoreResult> TryUnlockCoreAsync(Guid operationId, Guid stationId, Guid browserId, Guid staffId,
@@ -37,6 +37,8 @@ internal sealed class StationsStore(StationsDbContext db, IStationPinVerifier ve
                 {
                     return Conflict(browser.Generation);
                 }
+                if (opaqueCredential is not null && !await this.RegisteredAsync(browser.PropertyId, staffId, cancellationToken).ConfigureAwait(false))
+                { return Conflict(browser.Generation); }
 
                 StationStaffCredential? credential = await db.Credentials.SingleOrDefaultAsync(x => x.StaffMemberId == staffId, cancellationToken).ConfigureAwait(false);
                 StationStaffCheckInGrant? grant = await db.CheckInGrants.SingleOrDefaultAsync(x =>
@@ -235,6 +237,10 @@ internal sealed class StationsStore(StationsDbContext db, IStationPinVerifier ve
                 return Rejected();
             }
 
+            if (opaqueCredential is not null && (!await this.RegisteredAsync(setup.PropertyId, setup.StaffMemberId, cancellationToken).ConfigureAwait(false) ||
+                setup.IssuerKind != StationIssuerKind.Manager || setup.AuthorityKind != StationActorKind.StationOnly || setup.AssuranceExpiresAtUtc <= now))
+            { return Conflict(); }
+
             StationStaffCredential? credential = await db.Credentials.SingleOrDefaultAsync(x => x.StaffMemberId == setup.StaffMemberId, cancellationToken).ConfigureAwait(false);
             if ((credential?.Revision ?? 0) != setup.ExpectedCredentialRevision ||
                 (enrollment is not null && (!enrollment.IsBound || setup.ExpectedEnrollment() != enrollment || setup.AuthorityKind != enrollment.Kind)))
@@ -313,18 +319,19 @@ internal sealed class StationsStore(StationsDbContext db, IStationPinVerifier ve
             return null;
         }
         Guid? staffId = selectedStaff ?? browser.StaffMemberId;
+        bool registered = staffId is null || await this.RegisteredAsync(device.PropertyId, staffId.Value, cancellationToken).ConfigureAwait(false);
         StationStaffCredential? credential = await db.Credentials.AsNoTracking().SingleOrDefaultAsync(x => x.StaffMemberId == staffId, cancellationToken).ConfigureAwait(false);
         StationStaffCheckInGrant? grant = await db.CheckInGrants.AsNoTracking().SingleOrDefaultAsync(x => x.PropertyId == device.PropertyId && x.StaffMemberId == staffId, cancellationToken).ConfigureAwait(false);
         StationActorCoordinate? actor = browser.ActorSessionId is { } actorId && browser.StaffMemberId is { } actorStaff
             ? new(actorStaff, actorId, browser.Generation, (StationAuthorityKind)browser.AuthorityKind) : null;
         var snapshot = new StationSessionSnapshot(browser.StationId, browser.PropertyId, browser.Id, browser.Generation,
             actor, browser.PairingExpiresAtUtc, browser.ActorIdleExpiresAtUtc, browser.ActorAbsoluteExpiresAtUtc);
-        bool active = browser.ActorCurrent(now, this.options.ExternalEpoch) && credential is not null &&
+        bool active = registered && browser.ActorCurrent(now, this.options.ExternalEpoch) && credential is not null &&
             !credential.Revoked && browser.CredentialRevision == credential.Revision &&
             browser.AuthorityKind == credential.EnrollmentAuthorityKind &&
             (browser.AuthorityKind != StationActorKind.StationOnly || (grant is { Revoked: false } && browser.GrantRevision == grant.Revision));
         return new(snapshot, active, credential is null ? null : new(credential.StaffMemberId, credential.Revision,
-            credential.Revoked, credential.Enrollment()), grant?.Revision, grant?.Revoked ?? true);
+            credential.Revoked, credential.Enrollment()), grant?.Revision, grant?.Revoked ?? true, registered);
     }
 
     public async Task<StationSetupFacts?> ReadSetupAsync(StationDeviceReference device, Guid setupId, DateTimeOffset now,
@@ -337,8 +344,10 @@ internal sealed class StationsStore(StationsDbContext db, IStationPinVerifier ve
         StationSetupGrant? setup = await db.SetupGrants.AsNoTracking().SingleOrDefaultAsync(x => x.Id == setupId &&
             x.StationId == device.StationId && x.BrowserSessionId == device.BrowserSessionId && x.PropertyId == device.PropertyId &&
             !x.Revoked && x.CreatedAtUtc <= now && x.ExpiresAtUtc > now, cancellationToken).ConfigureAwait(false);
-        return setup is null ? null : new(setup.Id, setup.StaffMemberId, setup.ExpectedCredentialRevision,
-            setup.ExpectedEnrollment(), setup.AuthorityKind, setup.ExpiresAtUtc);
+        return setup is null || !await this.RegisteredAsync(device.PropertyId, setup.StaffMemberId, cancellationToken).ConfigureAwait(false)
+            ? null : new(setup.Id, setup.StaffMemberId, setup.ExpectedCredentialRevision,
+                setup.ExpectedEnrollment(), setup.AuthorityKind, setup.ExpiresAtUtc,
+                setup.IssuerKind, setup.IssuerSubjectId, setup.AssuranceExpiresAtUtc);
     }
 
     public async Task<StationCoreResult?> ReadSetupOutcomeAsync(Guid operationId, StationSetupFacts setup, StationDeviceReference device,
@@ -389,7 +398,8 @@ internal sealed class StationsStore(StationsDbContext db, IStationPinVerifier ve
                     credential.Revision != expectedCredential.Revision || browser.CredentialRevision != credential.Revision ||
                     credential.Enrollment() != expectedCredential.Enrollment || credential.EnrollmentAuthorityKind != browser.AuthorityKind ||
                     (browser.AuthorityKind == StationActorKind.StationOnly && (grant is null || grant.Revoked || grant.Revision != grantRevision || browser.GrantRevision != grantRevision)) ||
-                    !await db.Stations.AnyAsync(x => x.Id == device.StationId && !x.Revoked, cancellationToken).ConfigureAwait(false))
+                    !await db.Stations.AnyAsync(x => x.Id == device.StationId && !x.Revoked, cancellationToken).ConfigureAwait(false) ||
+                    !await this.RegisteredAsync(device.PropertyId, actor.StaffMemberId, cancellationToken).ConfigureAwait(false))
                 {
                     return Conflict();
                 }
@@ -406,7 +416,9 @@ internal sealed class StationsStore(StationsDbContext db, IStationPinVerifier ve
         : new(StationCoreOutcome.Rejected, Generation: browser.Generation);
 
     private async Task<StationCoreResult> RunAsync(Guid operationId, StationOperationKind kind, string fingerprint,
-        DateTimeOffset now, Func<Task<StationCoreResult>> apply, CancellationToken ct)
+        DateTimeOffset now, Func<Task<StationCoreResult>> apply, CancellationToken ct,
+        string? issuerSubjectId = null, StationIssuerKind issuerKind = StationIssuerKind.Unknown, Guid? issuerSessionId = null,
+        StationManagementReceipt? requestCoordinates = null)
     {
         if (!this.options.IsValid())
         {
@@ -433,7 +445,7 @@ internal sealed class StationsStore(StationsDbContext db, IStationPinVerifier ve
         StationOperationReceipt? existing = await db.OperationReceipts.SingleOrDefaultAsync(x => x.Id == operationId, ct).ConfigureAwait(false);
         if (existing is not null)
         {
-            if (!existing.Matches((StationMutationKind)kind, fingerprint))
+            if (!existing.Matches((StationMutationKind)kind, fingerprint) || existing.IssuerSubjectId != issuerSubjectId || existing.IssuerKind != issuerKind)
             {
                 return Conflict();
             }
@@ -446,12 +458,21 @@ internal sealed class StationsStore(StationsDbContext db, IStationPinVerifier ve
                     return Conflict();
                 }
             }
-            return new((StationCoreOutcome)existing.Outcome, existing.ActorSessionId, existing.Generation, existing.RetryAfterUtc);
+            return ToCore(existing.Result());
         }
         StationCoreResult result = await apply().ConfigureAwait(false);
+        if (issuerKind != StationIssuerKind.Unknown)
+        {
+            result = result with
+            {
+                Management = (result.Management ?? requestCoordinates ?? new()) with
+                { Kind = kind, IssuerKind = (StationSetupIssuerKind)issuerKind, IssuerSubjectId = issuerSubjectId, IssuerSessionId = issuerSessionId }
+            };
+        }
         // Rejections are receipts too: commit device and credential counters, never throw to signal a wrong PIN.
         db.OperationReceipts.Add(new(db.CurrentScopeId, operationId, (StationMutationKind)kind, fingerprint,
-            new((StationMutationOutcome)result.Outcome, result.ActorSessionId, result.Generation, result.RetryAfterUtc), now));
+            new((StationMutationOutcome)result.Outcome, result.ActorSessionId, result.Generation, result.RetryAfterUtc,
+                ToDomain(result.Management)), now, issuerSubjectId, issuerKind, issuerSessionId));
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
         await transaction.CommitAsync(ct).ConfigureAwait(false);
         return result;
@@ -467,4 +488,14 @@ internal sealed class StationsStore(StationsDbContext db, IStationPinVerifier ve
     }
     private static string SetupFingerprint(Guid setupId, Guid browserId, StationEnrollmentBinding? enrollment) =>
         Fingerprint(setupId, browserId, enrollment?.Kind, enrollment?.AuthSubjectId);
+
+    private static StationManagementCoordinates? ToDomain(StationManagementReceipt? r) => r is null ? null :
+        new(r.StationId, r.BrowserSessionId, r.PropertyId, r.StaffMemberId, r.SetupGrantId, r.Version,
+            (StationMutationKind)r.Kind, (StationIssuerKind)r.IssuerKind, r.IssuerSubjectId, r.IssuerSessionId);
+    private static StationCoreResult ToCore(StationMutationResult r) => new((StationCoreOutcome)r.Outcome,
+        r.ActorSessionId, r.Generation, r.RetryAfterUtc, r.Management is not { } m ? null :
+            new(m.StationId, m.BrowserSessionId, m.PropertyId, m.StaffMemberId, m.SetupGrantId, m.Version,
+                (StationOperationKind)m.Kind, (StationSetupIssuerKind)m.IssuerKind, m.IssuerSubjectId, m.IssuerSessionId));
+    private Task<bool> RegisteredAsync(Guid propertyId, Guid staffId, CancellationToken ct) =>
+        db.StaffRegistrations.AsNoTracking().AnyAsync(x => x.PropertyId == propertyId && x.StaffMemberId == staffId && x.Active, ct);
 }

@@ -5,6 +5,7 @@ using BunkFy.Modules.Stations.Domain;
 using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
 using Microsoft.Extensions.DependencyInjection;
+using BunkFy.Modules.Staff.Contracts;
 
 /// <summary>
 /// Paired-device runtime only. No Auth principal, management permission, pairing issuance or HTTP activation.
@@ -31,6 +32,8 @@ public sealed class StationRuntimeService(IServiceScopeFactory scopes, IStationC
             {
                 return Invalid();
             }
+            if (!facts.Registered)
+            { return Changed(); }
             StationCredentialFacts? credential = facts.Credential;
             var binding = credential?.Enrollment ?? new StationEnrollmentBinding(StationActorKind.Unknown, null);
             bool denied = credential is null || credential.Revoked;
@@ -106,11 +109,15 @@ public sealed class StationRuntimeService(IServiceScopeFactory scopes, IStationC
         }, cancellationToken);
 
     /// <summary>
-    /// Internal seeded-grant seam. Issuance and the linked-primary/private-station setup lanes are NOT implemented here.
+    /// Private station-only setup. The old method name remains for source callers; unknown/legacy issuer is denied.
     /// An operation identifies one attempt; replay returns its outcome, never derives or replaces the PIN again.
     /// </summary>
     public Task<StationRuntimeResponse> RedeemSeededSetupAsync(string opaqueCredential, Guid operationId, Guid setupId,
         string pin, CancellationToken cancellationToken = default) =>
+        this.RedeemAsync(opaqueCredential, operationId, setupId, pin, cancellationToken);
+
+    private Task<StationRuntimeResponse> RedeemAsync(string opaqueCredential, Guid operationId, Guid setupId,
+        string pin, CancellationToken cancellationToken) =>
         this.WithDeviceAsync(opaqueCredential, async (services, device, store) =>
         {
             if (operationId == Guid.Empty || setupId == Guid.Empty)
@@ -118,10 +125,15 @@ public sealed class StationRuntimeService(IServiceScopeFactory scopes, IStationC
                 return Changed();
             }
             StationSetupFacts? setup = await store.ReadSetupAsync(device, setupId, clock.UtcNow, cancellationToken).ConfigureAwait(false);
-            if (setup is null || !setup.Enrollment.IsBound || setup.Intent != setup.Enrollment.Kind)
+            if (setup is null || !setup.Enrollment.IsBound || setup.Intent != setup.Enrollment.Kind ||
+                setup.Intent != StationActorKind.StationOnly || setup.IssuerKind != StationIssuerKind.Manager)
             {
                 return Changed();
             }
+            var primary = services.GetRequiredService<StationPrimaryAdmission>();
+            StationPrimaryObservation issuer = await primary.RevalidateIssuerAsync(setup, device.PropertyId, cancellationToken).ConfigureAwait(false);
+            if (issuer.State != StationAdmissionState.Current)
+            { return FromAdmission(new(issuer.State)); }
             StationAdmission admission = await services.GetRequiredService<StationAdmissionCoordinator>()
                 .ObserveAsync(device.PropertyId, setup.StaffMemberId, setup.Enrollment, cancellationToken).ConfigureAwait(false);
             if (admission.State != StationAdmissionState.Current)
@@ -147,6 +159,9 @@ public sealed class StationRuntimeService(IServiceScopeFactory scopes, IStationC
                 {
                     return FromAdmission(afterKdf);
                 }
+                StationPrimaryObservation issuerAfter = await primary.RevalidateIssuerAsync(setup, device.PropertyId, cancellationToken).ConfigureAwait(false);
+                if (issuerAfter.State != StationAdmissionState.Current)
+                { return FromAdmission(new(issuerAfter.State)); }
                 if (afterKdf.PropertyLocalDate != admission.PropertyLocalDate ||
                     setup != await store.ReadSetupAsync(device, setupId, clock.UtcNow, cancellationToken).ConfigureAwait(false))
                 {
@@ -157,6 +172,47 @@ public sealed class StationRuntimeService(IServiceScopeFactory scopes, IStationC
             }
             return await this.ResultAsync(services, device, store, opaqueCredential, result, cancellationToken).ConfigureAwait(false);
         }, cancellationToken);
+
+    public Task<StationRosterResponse> RosterAsync(string opaqueCredential, string? search = null, int page = 1,
+        int pageSize = 25, CancellationToken cancellationToken = default) =>
+        this.WithDeviceValueAsync<StationRosterResponse>(opaqueCredential, async (services, device, store) =>
+        {
+            if (page < 1 || page > 200 || pageSize is < 1 or > 50 || search?.Length > 100)
+            { return new(StationSessionState.StateChanged, []); }
+            var deviceBefore = await store.ReadAsync(device, opaqueCredential, null, clock.UtcNow, cancellationToken).ConfigureAwait(false);
+            if (deviceBefore is null)
+            { return new(StationSessionState.Invalid, []); }
+            var owner = services.GetRequiredService<StationAdmissionCoordinator>();
+            var property = await owner.ObservePropertyAsync(device.PropertyId, cancellationToken).ConfigureAwait(false);
+            if (property.State != StationAdmissionState.Current)
+            { return new(property.State == StationAdmissionState.Unavailable ? StationSessionState.Unavailable : StationSessionState.StateChanged, []); }
+            var management = services.GetRequiredService<IStationManagementStore>();
+            var registrations = await management.RegistrationsAsync(device.PropertyId, true, cancellationToken).ConfigureAwait(false);
+            if (registrations.Count > 200)
+            { return new(StationSessionState.Unavailable, []); }
+            Guid[] ids = registrations.Where(r => r.Credential is { Revoked: false, Enrollment.IsBound: true } c &&
+                (c.Enrollment.Kind == StationActorKind.LinkedStation || (r.GrantRevision > 0 && !r.GrantRevoked)))
+                .Select(r => r.StaffMemberId).ToArray();
+            var labels = services.GetRequiredService<IStaffStationLabelReader>();
+            var before = await labels.ResolveAsync(device.ScopeId, device.PropertyId, ids, property.PropertyLocalDate!.Value, cancellationToken).ConfigureAwait(false);
+            var after = await labels.ResolveAsync(device.ScopeId, device.PropertyId, ids, property.PropertyLocalDate.Value, cancellationToken).ConfigureAwait(false);
+            var propertyAfter = await owner.ObservePropertyAsync(device.PropertyId, cancellationToken).ConfigureAwait(false);
+            if (!before.SequenceEqual(after) || property != propertyAfter ||
+                !registrations.SequenceEqual(await management.RegistrationsAsync(device.PropertyId, true, cancellationToken).ConfigureAwait(false)))
+            { return new(StationSessionState.StateChanged, []); }
+            var references = registrations.ToDictionary(r => r.StaffMemberId, r => r.RosterReference);
+            StationRosterItem[] matches = before.Where(x => string.IsNullOrWhiteSpace(search) ||
+                    x.DisplayName.Contains(search.Trim(), StringComparison.OrdinalIgnoreCase))
+                .Select(x => new StationRosterItem(x.StaffMemberId, x.DisplayName, references[x.StaffMemberId]))
+                .OrderBy(x => x.DisplayName, StringComparer.OrdinalIgnoreCase).ThenBy(x => x.RosterReference).ToArray();
+            int offset = (page - 1) * pageSize;
+            var deviceAfter = await store.ReadAsync(device, opaqueCredential, null, clock.UtcNow, cancellationToken).ConfigureAwait(false);
+            if (deviceAfter is null)
+            { return new(StationSessionState.Invalid, []); }
+            if (deviceBefore != deviceAfter)
+            { return new(StationSessionState.StateChanged, []); }
+            return new(StationSessionState.Locked, matches.Skip(offset).Take(pageSize).ToArray(), page, pageSize, offset + pageSize < matches.Length);
+        }, () => new(StationSessionState.Invalid, []), () => new(StationSessionState.Unavailable, []), cancellationToken);
 
     private async Task<StationRuntimeResponse> ResultAsync(IServiceProvider services, StationDeviceReference device,
         IStationRuntimeStore store, string opaqueCredential, StationCoreResult result, CancellationToken ct)
@@ -209,13 +265,18 @@ public sealed class StationRuntimeService(IServiceScopeFactory scopes, IStationC
         return facts == after ? new(StationSessionState.Active, facts.Session) : Changed();
     }
 
-    private async Task<StationRuntimeResponse> WithDeviceAsync(string opaqueCredential,
-        Func<IServiceProvider, StationDeviceReference, IStationRuntimeStore, Task<StationRuntimeResponse>> action, CancellationToken ct)
+    private Task<StationRuntimeResponse> WithDeviceAsync(string opaqueCredential,
+        Func<IServiceProvider, StationDeviceReference, IStationRuntimeStore, Task<StationRuntimeResponse>> action, CancellationToken ct) =>
+        this.WithDeviceValueAsync(opaqueCredential, action, Invalid, () => new(StationSessionState.Unavailable), ct);
+
+    private async Task<T> WithDeviceValueAsync<T>(string opaqueCredential,
+        Func<IServiceProvider, StationDeviceReference, IStationRuntimeStore, Task<T>> action, Func<T> invalid,
+        Func<T> unavailable, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
         if (StationCredentialEncoding.Digest(opaqueCredential) is null)
         {
-            return Invalid();
+            return invalid();
         }
         try
         {
@@ -223,7 +284,7 @@ public sealed class StationRuntimeService(IServiceScopeFactory scopes, IStationC
             if (device is null || !Guid.TryParseExact(device.ScopeId, "D", out Guid tenant) || tenant == Guid.Empty ||
                 tenant.ToString("D") != device.ScopeId || device.BrowserSessionId == Guid.Empty || device.StationId == Guid.Empty || device.PropertyId == Guid.Empty)
             {
-                return Invalid();
+                return invalid();
             }
             await using AsyncServiceScope child = scopes.CreateAsyncScope();
             IServiceProvider services = child.ServiceProvider;
@@ -231,12 +292,12 @@ public sealed class StationRuntimeService(IServiceScopeFactory scopes, IStationC
             IStationRuntimeStore store = services.GetRequiredService<IStationRuntimeStore>();
             if (await store.ReadAsync(device, opaqueCredential, null, clock.UtcNow, ct).ConfigureAwait(false) is null)
             {
-                return Invalid();
+                return invalid();
             }
             return await action(services, device, store).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
-        catch (Exception) { return new(StationSessionState.Unavailable); }
+        catch (Exception) { return unavailable(); }
     }
     private static StationRuntimeResponse Invalid() => new(StationSessionState.Invalid);
     private static StationRuntimeResponse Changed() => new(StationSessionState.StateChanged);

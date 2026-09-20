@@ -23,6 +23,9 @@ public sealed class StationRuntimeServiceTests
         var bootstrap = new Bootstrap(null);
         var runtime = new StationRuntimeService(services.GetRequiredService<IServiceScopeFactory>(), bootstrap, new Clock());
         Assert.Equal(new(StationSessionState.Invalid), await runtime.ReadAsync(credential));
+        var roster = await runtime.RosterAsync(credential);
+        Assert.Equal(StationSessionState.Invalid, roster.State);
+        Assert.Empty(roster.Items);
         Assert.Equal(0, bootstrap.Reads);
     }
 

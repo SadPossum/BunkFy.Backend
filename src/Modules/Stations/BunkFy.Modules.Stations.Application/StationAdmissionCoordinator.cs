@@ -16,8 +16,77 @@ public sealed class StationAdmissionCoordinator(IScopeContext scope, IStaffStati
     IWorkspaceOperationalAdmissionPolicy workspace, IWorkspaceTerminationFenceReader fences,
     IOrganizationScopeLifecycle organizations, ISystemClock clock)
 {
-    public async Task<StationAdmission> ObserveAsync(Guid propertyId, Guid staffId, StationEnrollmentBinding binding,
-        CancellationToken cancellationToken = default)
+    /// <summary>Property registration facts only; no reservation/check-in permission or grant is observed.</summary>
+    public async Task<(StationAdmission Admission, StationEnrollmentBinding? Enrollment)> ObserveRegistrationEnrollmentAsync(
+        Guid propertyId, Guid staffId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (!scope.IsEnabled || scope.ScopeId is not { } tenantId)
+            { return (new(StationAdmissionState.Denied), null); }
+            var before = await staff.FindAsync(tenantId, propertyId, staffId, cancellationToken).ConfigureAwait(false);
+            StationEnrollmentBinding? binding = before?.AuthLinkState switch
+            {
+                StaffStationAuthLinkState.Linked when before.AuthSubjectId is not null => new(StationActorKind.LinkedStation, before.AuthSubjectId),
+                StaffStationAuthLinkState.Unlinked when before.AuthSubjectId is null => new(StationActorKind.StationOnly, null),
+                _ => null
+            };
+            if (binding is null)
+            { return (new(StationAdmissionState.Denied), null); }
+            StationAdmission result = await this.ObserveCoreAsync(propertyId, staffId, binding, false, cancellationToken).ConfigureAwait(false);
+            if (scope.ScopeId != tenantId || before != await staff.FindAsync(tenantId, propertyId, staffId, cancellationToken).ConfigureAwait(false))
+            { return (new(StationAdmissionState.StateChanged), null); }
+            return (result, binding);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (Exception) { return (new(StationAdmissionState.Unavailable), null); }
+    }
+
+    public async Task<StationAdmission> ObservePropertyAsync(Guid propertyId, CancellationToken cancellationToken = default)
+    {
+        if (!scope.IsEnabled || !Guid.TryParseExact(scope.ScopeId, "D", out Guid tenant) || tenant == Guid.Empty ||
+            tenant.ToString("D") != scope.ScopeId || propertyId == Guid.Empty)
+        { return new(StationAdmissionState.Denied); }
+        string tenantId = scope.ScopeId;
+        DateTimeOffset started = clock.UtcNow;
+        try
+        {
+            var before = await properties.FindAsync(tenantId, propertyId, cancellationToken).ConfigureAwait(false);
+            Common first = await Read().ConfigureAwait(false);
+            Common last = await Read().ConfigureAwait(false);
+            var after = await properties.FindAsync(tenantId, propertyId, cancellationToken).ConfigureAwait(false);
+            DateTimeOffset now = clock.UtcNow;
+            if (now < started || !scope.IsEnabled || scope.ScopeId != tenantId || first != last || before != after ||
+                LocalDate(before?.TimeZoneId, started) != LocalDate(after?.TimeZoneId, now))
+            { return new(StationAdmissionState.StateChanged); }
+            if (!ValidCommon(last))
+            { return new(StationAdmissionState.Unavailable); }
+            if (after is null || last.Organization.Status != OrganizationScopeStatus.Open || last.Fence is not null ||
+                last.Workspace.Outcome != WorkspaceOperationalAdmissionOutcome.Allowed || after.Status != PropertyStatus.Active)
+            { return new(StationAdmissionState.Denied); }
+            DateOnly? date = LocalDate(after.TimeZoneId, now);
+            if (after.ScopeId != tenantId || after.PropertyId != propertyId || after.Version < 1 || date is null ||
+                after.ConfiguredProcessingStatus is not (PropertyProcessingStatus.Enabled or PropertyProcessingStatus.Unconfigured or PropertyProcessingStatus.Suspended))
+            { return new(StationAdmissionState.Unavailable); }
+            return new(StationAdmissionState.Current, date);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (Exception) { return new(StationAdmissionState.Unavailable); }
+        async Task<Common> Read() => new(await organizations.GetSnapshotAsync(tenant, cancellationToken).ConfigureAwait(false),
+            await workspace.EvaluateAsync(tenantId, cancellationToken).ConfigureAwait(false),
+            await fences.GetCurrentAsync(cancellationToken).ConfigureAwait(false));
+    }
+
+    public Task<StationAdmission> ObserveAsync(Guid propertyId, Guid staffId, StationEnrollmentBinding binding,
+        CancellationToken cancellationToken = default) => this.ObserveCoreAsync(propertyId, staffId, binding, true, cancellationToken);
+
+    /// <summary>Own PIN enrollment facts only. Does not observe or grant reservation/check-in authority.</summary>
+    public Task<StationAdmission> ObserveOwnPinEnrollmentAsync(Guid propertyId, Guid staffId, string ownSubject,
+        CancellationToken cancellationToken = default) => this.ObserveCoreAsync(propertyId, staffId,
+            new(StationActorKind.LinkedStation, ownSubject), false, cancellationToken);
+
+    private async Task<StationAdmission> ObserveCoreAsync(Guid propertyId, Guid staffId, StationEnrollmentBinding binding,
+        bool checkIn, CancellationToken cancellationToken)
     {
         if (!scope.IsEnabled || !Guid.TryParseExact(scope.ScopeId, "D", out Guid tenant) || tenant == Guid.Empty ||
             tenant.ToString("D") != scope.ScopeId || propertyId == Guid.Empty || staffId == Guid.Empty || !binding.IsBound)
@@ -33,7 +102,7 @@ public sealed class StationAdmissionCoordinator(IScopeContext scope, IStaffStati
             DateOnly? date = LocalDate(before.Property?.TimeZoneId, started);
             StationAdmissionState state = Classify(before, tenantId, propertyId, staffId, binding, date);
             WorkspaceStaffStationObservation? observation = null;
-            if (state == StationAdmissionState.Current && binding.Kind == StationActorKind.LinkedStation)
+            if (checkIn && state == StationAdmissionState.Current && binding.Kind == StationActorKind.LinkedStation)
             {
                 observation = await linked.ObserveAsync(tenantId, propertyId, staffId,
                     WorkspaceStaffStationAction.ReservationCheckIn, cancellationToken).ConfigureAwait(false);

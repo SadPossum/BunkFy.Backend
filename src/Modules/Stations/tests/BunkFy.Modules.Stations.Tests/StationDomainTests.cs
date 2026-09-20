@@ -14,6 +14,38 @@ public sealed class StationDomainTests
     internal static StationBrowserSession Browser() => new(Guid.NewGuid(), Tenant, Guid.NewGuid(), Guid.NewGuid(), new string('a', 64), Now, Now.AddDays(30), 1);
 
     [Fact]
+    public void Registration_reference_survives_deactivation_without_changing_credentials_or_grants()
+    {
+        var registration = new StationStaffRegistration(Tenant, Guid.NewGuid(), Guid.NewGuid(), 7);
+        Assert.True(registration.Active);
+        registration.SetActive(false);
+        Assert.False(registration.Active);
+        registration.SetActive(true);
+        Assert.Equal(7, registration.RosterReference);
+        Assert.Equal(3, registration.Version);
+        Assert.Throws<ArgumentOutOfRangeException>(() => new StationStaffRegistration(Tenant, Guid.NewGuid(), Guid.NewGuid(), 0));
+    }
+
+    [Fact]
+    public void Own_PIN_receipt_requires_original_self_session_and_exact_resource_coordinates()
+    {
+        Guid property = Guid.NewGuid(), staff = Guid.NewGuid(), session = Guid.NewGuid();
+        string subject = Guid.NewGuid().ToString("D");
+        var coordinates = new StationManagementCoordinates(null, null, property, staff, null, 1);
+        Assert.Throws<ArgumentException>(() => Receipt(coordinates, null));
+        Assert.Throws<ArgumentException>(() => Receipt(coordinates with { StaffMemberId = null }, session));
+        Assert.Throws<ArgumentException>(() => Receipt(coordinates with { PropertyId = Guid.Empty }, session));
+        Assert.Throws<ArgumentException>(() => Receipt(coordinates with { Version = 0 }, session));
+        Assert.Throws<ArgumentException>(() => Receipt(coordinates, session, issuer: StationIssuerKind.Manager));
+        Assert.Equal(session, Receipt(coordinates, session).IssuerSessionId);
+        Assert.Equal(0, Receipt(coordinates with { Version = 0 }, session, StationMutationOutcome.Conflict).ResourceVersion);
+        StationOperationReceipt Receipt(StationManagementCoordinates values, Guid? originalSession,
+            StationMutationOutcome outcome = StationMutationOutcome.Applied, StationIssuerKind issuer = StationIssuerKind.Self) =>
+            new(Tenant, Guid.NewGuid(), StationMutationKind.OwnPin, new string('a', 64), new(outcome, Management: values), Now,
+                subject, issuer, originalSession);
+    }
+
+    [Fact]
     public void Enrollment_binding_is_exact_closed_and_reset_does_not_retain_identity()
     {
         Assert.Throws<ArgumentException>(() => new StationEnrollmentBinding(StationActorKind.LinkedStation, null));

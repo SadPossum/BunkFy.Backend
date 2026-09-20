@@ -52,10 +52,12 @@ internal static class StationsConfigurations
         {
             t.HasCheckConstraint("CK_setup_valid", "\"ExpiresAtUtc\" > \"CreatedAtUtc\" AND \"ExpectedCredentialRevision\" >= 0 AND \"AuthorityKind\" IN (1,2)");
             t.HasCheckConstraint("CK_setup_enrollment", "(\"ExpectedEnrollmentAuthorityKind\" = 0 AND \"ExpectedEnrollmentAuthSubjectId\" IS NULL) OR (\"ExpectedEnrollmentAuthorityKind\" = \"AuthorityKind\" AND ((\"ExpectedEnrollmentAuthorityKind\" = 2 AND \"ExpectedEnrollmentAuthSubjectId\" IS NULL) OR (\"ExpectedEnrollmentAuthorityKind\" = 1 AND \"ExpectedEnrollmentAuthSubjectId\" IS NOT NULL AND length(btrim(\"ExpectedEnrollmentAuthSubjectId\")) > 0 AND \"ExpectedEnrollmentAuthSubjectId\" = btrim(\"ExpectedEnrollmentAuthSubjectId\"))))");
+            t.HasCheckConstraint("CK_setup_issuer", "(\"IssuerKind\" = 0 AND \"IssuerSubjectId\" IS NULL AND \"AssuranceExpiresAtUtc\" IS NULL) OR (\"IssuerKind\" IN (1,2) AND \"IssuerSubjectId\" IS NOT NULL AND length(\"IssuerSubjectId\") = 36 AND \"AssuranceExpiresAtUtc\" IS NOT NULL AND \"AssuranceExpiresAtUtc\" >= \"ExpiresAtUtc\" AND (\"IssuerKind\" = 1 OR (\"ExpectedEnrollmentAuthorityKind\" = 1 AND \"IssuerSubjectId\" = \"ExpectedEnrollmentAuthSubjectId\")))");
         });
         setup.HasKey(x => new { x.ScopeId, x.Id });
         setup.Property(x => x.ScopeId).HasMaxLength(36);
         setup.Property(x => x.ExpectedEnrollmentAuthSubjectId).HasMaxLength(256);
+        setup.Property(x => x.IssuerSubjectId).HasMaxLength(36);
         setup.HasOne<StationBrowserSession>().WithMany().HasForeignKey(x => new { x.ScopeId, x.BrowserSessionId, x.StationId, x.PropertyId })
             .HasPrincipalKey(x => new { x.ScopeId, x.Id, x.StationId, x.PropertyId }).OnDelete(DeleteBehavior.Restrict);
 
@@ -66,10 +68,24 @@ internal static class StationsConfigurations
         grant.Property(x => x.Revision).IsConcurrencyToken();
 
         var receipt = model.Entity<StationOperationReceipt>();
-        receipt.ToTable("operation_receipts", t => t.HasCheckConstraint("CK_receipt_kind", "\"Kind\" BETWEEN 1 AND 8 AND \"Outcome\" BETWEEN 1 AND 5"));
+        receipt.ToTable("operation_receipts", t =>
+        {
+            t.HasCheckConstraint("CK_receipt_kind", "\"Kind\" BETWEEN 1 AND 15 AND \"Outcome\" BETWEEN 1 AND 5");
+            t.HasCheckConstraint("CK_receipt_issuer", "(\"IssuerKind\" = 0 AND \"IssuerSubjectId\" IS NULL) OR (\"IssuerKind\" IN (1,2) AND \"IssuerSubjectId\" IS NOT NULL AND length(\"IssuerSubjectId\") = 36)");
+            t.HasCheckConstraint("CK_receipt_session", "\"IssuerSessionId\" IS NULL OR (\"IssuerKind\" IN (1,2) AND \"Kind\" IN (1,9,15) AND \"IssuerSessionId\" <> '00000000-0000-0000-0000-000000000000'::uuid)");
+            t.HasCheckConstraint("CK_receipt_own_pin", "\"Kind\" <> 15 OR (\"IssuerKind\" = 2 AND \"IssuerSubjectId\" IS NOT NULL AND \"IssuerSessionId\" IS NOT NULL AND \"IssuerSessionId\" <> '00000000-0000-0000-0000-000000000000'::uuid AND \"PropertyId\" IS NOT NULL AND \"PropertyId\" <> '00000000-0000-0000-0000-000000000000'::uuid AND \"StaffMemberId\" IS NOT NULL AND \"StaffMemberId\" <> '00000000-0000-0000-0000-000000000000'::uuid AND \"ResourceVersion\" IS NOT NULL AND \"ResourceVersion\" >= 0 AND (\"Outcome\" <> 1 OR \"ResourceVersion\" > 0))");
+        });
         receipt.HasKey(x => new { x.ScopeId, x.Id });
         receipt.Property(x => x.ScopeId).HasMaxLength(36);
         receipt.Property(x => x.Fingerprint).HasMaxLength(64);
+        receipt.Property(x => x.IssuerSubjectId).HasMaxLength(36);
+
+        var registration = model.Entity<StationStaffRegistration>();
+        registration.ToTable("staff_registrations", t => t.HasCheckConstraint("CK_registration_version", "\"Version\" > 0 AND \"RosterReference\" > 0"));
+        registration.HasKey(x => new { x.ScopeId, x.PropertyId, x.StaffMemberId });
+        registration.HasIndex(x => new { x.ScopeId, x.PropertyId, x.RosterReference }).IsUnique();
+        registration.Property(x => x.ScopeId).HasMaxLength(36);
+        registration.Property(x => x.Version).IsConcurrencyToken();
 
         var lifecycle = model.Entity<StationsTenantLifecycleState>();
         lifecycle.ToTable("tenant_lifecycle");

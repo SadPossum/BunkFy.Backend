@@ -13,6 +13,8 @@ public sealed class StationOptions
     public int MaximumConcurrentKdf { get; set; } = 2;
     public long ExternalEpoch { get; set; }
     public string PepperVersion { get; set; } = "";
+    // Management is separately registered. No default Auth scope or permissive assurance policy.
+    public string? ManagementAuthScopeId { get; set; }
     public bool IsValid() => this.ActorIdleMinutes is >= 1 and <= 30 &&
         this.ActorAbsoluteHours is >= 1 and <= 12 && this.PairingDays is >= 1 and <= 30 &&
         this.SetupMinutes is >= 1 and <= 10 && this.CredentialFailures is >= 1 and <= 5 &&
@@ -21,4 +23,3 @@ public sealed class StationOptions
         this.ExternalEpoch > 0 && this.PepperVersion.Length is > 0 and <= 64 &&
         this.PepperVersion.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '.');
 }
-

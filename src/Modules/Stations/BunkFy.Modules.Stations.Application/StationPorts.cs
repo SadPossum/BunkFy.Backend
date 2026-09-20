@@ -47,9 +47,11 @@ public interface IStationCredentialBootstrap
 public sealed record StationDeviceReference(string ScopeId, Guid BrowserSessionId, Guid StationId, Guid PropertyId);
 public sealed record StationCredentialFacts(Guid StaffMemberId, long Revision, bool Revoked, StationEnrollmentBinding Enrollment);
 public sealed record StationRuntimeFacts(StationSessionSnapshot Session, bool ActorCurrent,
-    StationCredentialFacts? Credential, long? GrantRevision, bool GrantRevoked);
+    StationCredentialFacts? Credential, long? GrantRevision, bool GrantRevoked, bool Registered = true);
 public sealed record StationSetupFacts(Guid Id, Guid StaffMemberId, long CredentialRevision,
-    StationEnrollmentBinding Enrollment, StationActorKind Intent, DateTimeOffset ExpiresAtUtc);
+    StationEnrollmentBinding Enrollment, StationActorKind Intent, DateTimeOffset ExpiresAtUtc,
+    StationIssuerKind IssuerKind = StationIssuerKind.Unknown, string? IssuerSubjectId = null,
+    DateTimeOffset? AssuranceExpiresAtUtc = null);
 public interface IStationRuntimeStore
 {
     Task<StationRuntimeFacts?> ReadAsync(StationDeviceReference device, string opaqueCredential, Guid? selectedStaff,
@@ -65,6 +67,43 @@ public interface IStationRuntimeStore
 
 public enum StationAdmissionState { Current = 0, Denied = 1, StateChanged = 2, Unavailable = 3 }
 public sealed record StationAdmission(StationAdmissionState State, DateOnly? PropertyLocalDate = null);
+
+public sealed record StationIssuer(string SubjectId, StationIssuerKind Kind, DateTimeOffset? AssuranceExpiresAtUtc, Guid? SessionId = null);
+public sealed record StationPrimaryObservation(StationAdmissionState State, StationIssuer? Issuer = null);
+public sealed record StationManagementCommand(StationOperationKind Kind, Guid PropertyId,
+    Guid? StationId = null, Guid? BrowserSessionId = null, Guid? StaffMemberId = null, Guid? SetupGrantId = null,
+    long ExpectedVersion = 0, string? Label = null, StationEnrollmentBinding? Enrollment = null,
+    DateTimeOffset? SetupExpiresAtUtc = null);
+public sealed record StationManagementWrite(StationCoreResult Result, bool Executed);
+public sealed record StationRegistrationFacts(Guid StaffMemberId, long Version, long RosterReference, bool Active,
+    StationCredentialFacts? Credential = null, long? GrantRevision = null, bool GrantRevoked = true);
+public sealed record StationOwnPinFacts(long RegistrationVersion, StationCredentialFacts? Credential);
+public interface IStationManagementStore
+{
+    Task<StationOwnPinFacts?> OwnPinFactsAsync(Guid propertyId, Guid staffId, CancellationToken cancellationToken = default);
+    Task<StationCoreResult?> OwnPinOutcomeAsync(Guid operationId, StationIssuer issuer, Guid propertyId, Guid staffId,
+        long expectedRevision, StationEnrollmentBinding binding, CancellationToken cancellationToken = default);
+    Task<StationCoreResult> SetOwnPinAsync(Guid operationId, StationIssuer issuer, Guid propertyId, Guid staffId,
+        long expectedRevision, long registrationVersion, StationEnrollmentBinding binding, StationPinMaterial material,
+        DateTimeOffset now, CancellationToken cancellationToken = default);
+    Task<StationManagementWrite> ExecuteAsync(Guid operationId, StationIssuer issuer, StationManagementCommand command,
+        DateTimeOffset now, string? newCredentialDigest = null, CancellationToken cancellationToken = default);
+    Task<StationCoreResult?> ReadOutcomeAsync(Guid operationId, string issuerSubjectId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<StationListItem>> ListStationsAsync(Guid propertyId, int offset, int pageSize, CancellationToken cancellationToken = default);
+    Task<StationListItem?> FindStationAsync(Guid stationId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<StationRegistrationFacts>> RegistrationsAsync(Guid propertyId, bool activeOnly, CancellationToken cancellationToken = default);
+    Task<StationStaffManagementItem?> StaffStatusAsync(Guid propertyId, Guid staffId, DateTimeOffset now, CancellationToken cancellationToken = default);
+    Task<StationSetupFacts?> FindSetupAsync(Guid setupId, StationDeviceReference device, DateTimeOffset now, CancellationToken cancellationToken = default);
+}
+
+/// <summary>One-time internal handoff to a future cookie adapter. Never a normal JSON body or log value.</summary>
+public sealed class StationPairingHandoff(StationManagementResponse response, string? credential)
+{
+    public StationManagementResponse Response { get; } = response;
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string? Credential { get; } = credential;
+    public override string ToString() => nameof(StationPairingHandoff);
+}
 
 /// <summary>One canonical 32-byte opaque station credential; never diagnostics or a client-supplied scope.</summary>
 public static class StationCredentialEncoding

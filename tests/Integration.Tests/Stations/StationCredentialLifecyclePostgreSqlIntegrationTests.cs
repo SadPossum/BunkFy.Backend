@@ -1,6 +1,8 @@
 namespace Integration.Tests;
 
 using System.Security.Cryptography;
+using System.Security.Claims;
+using System.Globalization;
 using BunkFy.Extensions.Workspaces;
 using BunkFy.Modules.Properties.Application.Ports;
 using BunkFy.Modules.Properties.Contracts;
@@ -21,9 +23,12 @@ using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Persistence;
 using BunkFy.TimeZones;
 using Gma.Framework.AccessControl;
+using Gma.Framework.Modules;
+using Gma.Framework.Permissions;
 using Gma.Framework.Runtime.Infrastructure;
 using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
+using Gma.Framework.Security;
 using Gma.Modules.AccessControl.Application;
 using Gma.Modules.AccessControl.Contracts;
 using Gma.Modules.AccessControl.Persistence;
@@ -62,37 +67,9 @@ public sealed class StationCredentialLifecyclePostgreSqlIntegrationTests
             .WithName($"bunkfy-stations-p2-{Guid.NewGuid():N}").WithLabel("bunkfy.test.grant", "STAFF-PIN-FIRST-JOB-P2A")
             .WithDatabase("station_runtime").Build();
         await postgres.StartAsync();
-        var builder = Host.CreateApplicationBuilder();
-        builder.Configuration.Sources.Clear();
-        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
-        { ["Persistence:Provider"] = "PostgreSql", ["ConnectionStrings:PostgreSql"] = postgres.GetConnectionString() });
         var time = new TestClock();
-        builder.Services.AddSingleton<ISystemClock>(time);
-        builder.Services.AddSingleton<TimeProvider>(time);
-        builder.AddRuntimeInfrastructure();
-        builder.Services.AddScoped<TestScope>();
-        builder.Services.AddScoped<IScopeContext>(sp => sp.GetRequiredService<TestScope>());
-        builder.Services.AddScoped<IScopeContextAccessor>(sp => sp.GetRequiredService<TestScope>());
-        builder.AddPropertiesPersistence();
-        builder.AddStaffPersistence();
-        builder.AddWorkspacesPersistence();
-        builder.AddOrganizationsPersistence();
-        builder.AddAuthPersistence(AuthProfile.Global(AuthScope));
-        builder.AddAccessControlPersistence();
-        builder.Services.AddGmaAccessControl();
-        builder.Services.AddAccessControlApplication(builder.Configuration);
-        builder.Services.AddWorkspacesApplication(builder.Configuration, AuthScope);
-        builder.Services.AddBunkFyWorkspaces(o => o.GlobalAuthScopeId = AuthScope);
-        builder.Services.AddSingleton<IStationPepperProvider, TestPeppers>();
-        builder.Services.AddStationsCore(o => { o.ExternalEpoch = 1; o.PepperVersion = "fixture-v1"; });
-        builder.Services.AddStationsRuntime();
-        builder.AddStationsPersistence();
-        // Fault/timing injection wraps the real registered Staff reader, never replaces its successful facts.
         var reads = new ReadControl();
-        Type ownerType = builder.Services.Last(x => x.ServiceType == typeof(IStaffStationEligibilitySource)).ImplementationType!;
-        builder.Services.AddScoped<IStaffStationEligibilitySource>(sp => new ControlledStaff(
-            (IStaffStationEligibilitySource)ActivatorUtilities.CreateInstance(sp, ownerType), reads));
-        await using ServiceProvider services = builder.Services.BuildServiceProvider();
+        await using ServiceProvider services = BuildServices(postgres.GetConnectionString(), time, reads);
         using (var migration = Scope(services, TenantA))
         {
             var sp = migration.ServiceProvider;
@@ -104,7 +81,7 @@ public sealed class StationCredentialLifecyclePostgreSqlIntegrationTests
             await sp.GetRequiredService<AccessControlDbContext>().Database.MigrateAsync();
             var stations = sp.GetRequiredService<StationsDbContext>();
             await stations.Database.MigrateAsync();
-            Assert.Equal(2, (await stations.Database.GetAppliedMigrationsAsync()).Count());
+            Assert.Equal(3, (await stations.Database.GetAppliedMigrationsAsync()).Count());
             Assert.False(stations.Database.HasPendingModelChanges());
         }
         Guid accountA = Guid.NewGuid(), accountB = Guid.NewGuid();
@@ -207,18 +184,23 @@ public sealed class StationCredentialLifecyclePostgreSqlIntegrationTests
         await ChangeLink(services, a, accountB, time.UtcNow);
         await SetAccess(services, TenantA, a.Property, accountB, true);
         await AssertBindingMismatch(services, runtime, a, actor, pinnedSetup, time.UtcNow);
-        // A new pinned setup to B installs B's origin. This is a seeded-grant seam, not a management endpoint.
+        // Linked setup history stays unavailable; the own-primary path installs B's current origin.
         Guid currentSetup = await Setup(services, a, new(StationActorKind.LinkedStation, accountB.ToString("D")), 1, time.UtcNow);
         Guid redeem = Guid.NewGuid();
-        Assert.Equal(StationCoreOutcome.Applied, (await runtime.RedeemSeededSetupAsync(a.Secret, redeem, currentSetup, "000002")).Outcome);
-        Assert.Equal(StationCoreOutcome.Applied, (await runtime.RedeemSeededSetupAsync(a.Secret, redeem, currentSetup, "999999")).Outcome);
+        using (var self = Scope(services, TenantA))
+        {
+            var management = self.ServiceProvider.GetRequiredService<StationManagementService>();
+            Assert.Equal(StationManagementState.Applied, (await management.SetOwnPinAsync(Primary(accountB, time.UtcNow), a.Property, a.Staff, 1, redeem, "000002")).State);
+            Assert.Equal(StationManagementState.Applied, (await management.SetOwnPinAsync(Primary(accountB, time.UtcNow), a.Property, a.Staff, 1, redeem, "999999")).State);
+        }
         using (var read = Scope(services, TenantA))
         {
             var db = read.ServiceProvider.GetRequiredService<StationsDbContext>();
             var credential = await db.Credentials.SingleAsync();
             Assert.Equal(2, credential.Revision);
             Assert.Equal(accountB.ToString("D"), credential.EnrollmentAuthSubjectId);
-            Assert.Single(await db.OperationReceipts.Where(x => x.Kind == StationMutationKind.RedeemSetup).ToArrayAsync());
+            Assert.Single(await db.OperationReceipts.Where(x => x.Kind == StationMutationKind.OwnPin).ToArrayAsync());
+            Assert.True((await db.SetupGrants.SingleAsync(x => x.Id == currentSetup)).Revoked);
         }
         var locked = await runtime.ReadAsync(a.Secret);
         Assert.Equal(StationSessionState.Locked, locked.State);
@@ -358,7 +340,7 @@ public sealed class StationCredentialLifecyclePostgreSqlIntegrationTests
         await db.SaveChangesAsync();
         return id;
     }
-    private static async Task ChangeLink(ServiceProvider services, Device device, Guid? account, DateTimeOffset now)
+    internal static async Task ChangeLink(ServiceProvider services, Device device, Guid? account, DateTimeOffset now)
     {
         using var scope = Scope(services, device.Tenant);
         var db = scope.ServiceProvider.GetRequiredService<StaffDbContext>();
@@ -375,15 +357,56 @@ public sealed class StationCredentialLifecyclePostgreSqlIntegrationTests
         }
         await db.SaveChangesAsync();
     }
-    private static async Task SeedAccount(ServiceProvider services, Guid account)
+    internal static ServiceProvider BuildServices(string connectionString, TestClock time, ReadControl reads,
+        Action<IServiceCollection>? configure = null)
+    {
+        var builder = Host.CreateApplicationBuilder();
+        builder.Configuration.Sources.Clear();
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        { ["Persistence:Provider"] = "PostgreSql", ["ConnectionStrings:PostgreSql"] = connectionString });
+        builder.Services.AddSingleton<ISystemClock>(time);
+        builder.Services.AddSingleton<TimeProvider>(time);
+        builder.AddRuntimeInfrastructure();
+        builder.Services.AddScoped<TestScope>();
+        builder.Services.AddScoped<IScopeContext>(sp => sp.GetRequiredService<TestScope>());
+        builder.Services.AddScoped<IScopeContextAccessor>(sp => sp.GetRequiredService<TestScope>());
+        builder.AddPropertiesPersistence();
+        builder.AddStaffPersistence();
+        builder.AddWorkspacesPersistence();
+        builder.AddOrganizationsPersistence();
+        builder.AddAuthPersistence(AuthProfile.Global(AuthScope));
+        builder.AddAccessControlPersistence();
+        builder.Services.AddGmaAccessControl();
+        // Synthetic P2B policy composition only. Production descriptor/seeds/host activation remain P4.
+        builder.Services.AddGmaAccessControlPermissionPolicies(ModuleDescriptor.Create("stations-fixture")
+            .WithPermission(new ModulePermissionDescriptor(StationsPermissionCodes.Manage,
+                "Synthetic station management fixture", PermissionScopeRequirement.Scoped, PermissionScopeGrantPolicy.Descendants)).Build());
+        builder.Services.AddAccessControlApplication(builder.Configuration);
+        builder.Services.AddWorkspacesApplication(builder.Configuration, AuthScope);
+        builder.Services.AddBunkFyWorkspaces(o => o.GlobalAuthScopeId = AuthScope);
+        builder.Services.AddSingleton<IStationPepperProvider, TestPeppers>();
+        builder.Services.AddStationsCore(o => { o.ExternalEpoch = 1; o.PepperVersion = "fixture-v1"; });
+        builder.Services.AddStationsRuntime();
+        builder.Services.AddStationsManagement(new AuthenticationAssuranceRequirement(["urn:gma:acr:mfa", "urn:gma:acr:two-step"], TimeSpan.FromMinutes(10)), AuthScope);
+        builder.AddStationsPersistence();
+        // Fault/timing injection wraps the real registered Staff reader, never replaces its successful facts.
+        Type ownerType = builder.Services.Last(x => x.ServiceType == typeof(IStaffStationEligibilitySource)).ImplementationType!;
+        builder.Services.AddScoped<IStaffStationEligibilitySource>(sp => new ControlledStaff(
+            (IStaffStationEligibilitySource)ActivatorUtilities.CreateInstance(sp, ownerType), reads));
+        configure?.Invoke(builder.Services);
+        return builder.Services.BuildServiceProvider();
+    }
+    internal static async Task SeedAccount(ServiceProvider services, Guid account)
     {
         using var scope = Scope(services, TenantA);
         var db = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
-        db.Members.Add(Member.Create(new MemberId(account), AuthScope, $"station-{account:N}@example.test",
-            MemberUsernameType.Email, "synthetic-non-authenticating-hash", new MemberUsernameId(Guid.NewGuid()), Guid.NewGuid(), Now).Value);
+        var member = Member.Create(new MemberId(account), AuthScope, $"station-{account:N}@example.test",
+            MemberUsernameType.Email, "synthetic-non-authenticating-hash", new MemberUsernameId(Guid.NewGuid()), Guid.NewGuid(), Now).Value;
+        Assert.True(member.StartSession(new MemberSessionId(account), "synthetic-refresh-hash", Now.AddDays(2), Now).IsSuccess);
+        db.Members.Add(member);
         await db.SaveChangesAsync();
     }
-    private static async Task<Device> Seed(ServiceProvider services, string tenant, Guid account, bool linked)
+    internal static async Task<Device> Seed(ServiceProvider services, string tenant, Guid account, bool linked, bool stationData = true)
     {
         using var scope = Scope(services, tenant);
         var sp = scope.ServiceProvider;
@@ -407,9 +430,12 @@ public sealed class StationCredentialLifecyclePostgreSqlIntegrationTests
         await sp.GetRequiredService<IStaffMemberRepository>().AddAsync(staff, CancellationToken.None);
         await sp.GetRequiredService<StaffDbContext>().SaveChangesAsync();
         await SetAccess(services, tenant, propertyId, account, true);
+        if (!stationData)
+        { return new(tenant, propertyId, staffId, stationId, browserId, ""); }
         var stations = sp.GetRequiredService<StationsDbContext>();
         string secret = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)).TrimEnd('=').Replace('+', '-').Replace('/', '_');
         stations.Stations.Add(new(stationId, tenant, propertyId, "Synthetic desk"));
+        stations.StaffRegistrations.Add(new(tenant, propertyId, staffId, 1));
         stations.BrowserSessions.Add(new(browserId, tenant, stationId, propertyId, StationCredentialEncoding.Digest(secret)!, Now, Now.AddDays(1), 1));
         StationPinMaterial material = Assert.IsType<StationPinMaterial>(await sp.GetRequiredService<IStationPinVerifier>().CreateAsync("000001"));
         stations.Credentials.Add(new(tenant, staffId, material, Now, new(linked ? StationActorKind.LinkedStation : StationActorKind.StationOnly,
@@ -419,7 +445,7 @@ public sealed class StationCredentialLifecyclePostgreSqlIntegrationTests
         await stations.SaveChangesAsync();
         return new(tenant, propertyId, staffId, stationId, browserId, secret);
     }
-    private static async Task SetAccess(ServiceProvider services, string tenant, Guid property, Guid account, bool enabled)
+    internal static async Task SetAccess(ServiceProvider services, string tenant, Guid property, Guid account, bool enabled)
     {
         using var scope = Scope(services, tenant);
         var roles = scope.ServiceProvider.GetRequiredService<IAccessControlRoleProvisioner>();
@@ -433,13 +459,13 @@ public sealed class StationCredentialLifecyclePostgreSqlIntegrationTests
             await roles.RemoveAssignmentAsync(AccessSubject.User(account.ToString("D")), Role, WorkspaceAccessScopes.CreateProperty(tenant, property));
         }
     }
-    private static IServiceScope Scope(ServiceProvider services, string tenant)
+    internal static IServiceScope Scope(ServiceProvider services, string tenant)
     {
         var scope = services.CreateScope();
         scope.ServiceProvider.GetRequiredService<IScopeContextAccessor>().SetScope(tenant);
         return scope;
     }
-    private sealed class ReadControl
+    internal sealed class ReadControl
     {
         public int Calls { get; set; }
         public bool Unavailable { get; set; }
@@ -470,7 +496,10 @@ public sealed class StationCredentialLifecyclePostgreSqlIntegrationTests
             return facts;
         }
     }
-    private sealed record Device(string Tenant, Guid Property, Guid Staff, Guid Station, Guid Browser, string Secret);
+    internal sealed record Device(string Tenant, Guid Property, Guid Staff, Guid Station, Guid Browser, string Secret);
+    internal static ClaimsPrincipal Primary(Guid account, DateTimeOffset now, Guid? sessionId = null) => new(new ClaimsIdentity(
+        [new("sub", account.ToString("D")), new("sid", (sessionId ?? account).ToString("D")), new("acr", "urn:gma:acr:mfa"),
+            new("auth_time", now.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture))], "trusted-primary-fixture"));
     private sealed class TestScope : IScopeContextAccessor
     {
         public bool IsEnabled { get; private set; }
@@ -478,7 +507,7 @@ public sealed class StationCredentialLifecyclePostgreSqlIntegrationTests
         public void SetScope(string scopeId) { this.IsEnabled = true; this.ScopeId = scopeId; }
         public void ClearScope() { this.IsEnabled = false; this.ScopeId = null; }
     }
-    private sealed class TestClock : TimeProvider, ISystemClock
+    internal sealed class TestClock : TimeProvider, ISystemClock
     {
         public DateTimeOffset UtcNow { get; set; } = Now;
         public override DateTimeOffset GetUtcNow() => this.UtcNow;

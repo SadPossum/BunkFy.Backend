@@ -1,4 +1,4 @@
-# staff Personal-Data Inventory v19
+# staff Personal-Data Inventory v20
 
 Generated from `staff.personal-data` schema v1.
 Catalogue approval: `engineering-default`.
@@ -13,7 +13,7 @@ Engineering metadata is not legal or country-launch approval.
 | staff-audit | tenant-internal-audit | permission:staff.sensitive-profile.read<br>system:authorized-audit-consumer | system:staff-domain |
 | staff-data-holds | tenant-authorized-data-hold | permission:staff.data-holds.manage<br>permission:staff.sensitive-profile.read<br>system:staff.data-holds | permission:staff.data-holds.manage<br>system:staff.data-holds |
 | staff-data-rights-correction-receipts | tenant-approved-data-rights-operation | permission:data-rights.execute<br>system:staff.data-rights-correction | permission:data-rights.execute<br>system:staff.data-rights-correction |
-| staff-directory | tenant-property-authorized | permission:staff.read<br>system:staff-authorized-audience-reader | permission:staff.assign-properties<br>permission:staff.create<br>permission:staff.manage<br>permission:staff.manage-lifecycle<br>system:workspace-staff-onboarding |
+| staff-directory | tenant-property-authorized | permission:staff.read<br>system:staff-authorized-audience-reader<br>system:station-authorized-roster-reader | permission:staff.assign-properties<br>permission:staff.create<br>permission:staff.manage<br>permission:staff.manage-lifecycle<br>system:workspace-staff-onboarding |
 | staff-directory-request | tenant-property-authorized-request | permission:staff.read | permission:staff.read |
 | staff-employment-governance | tenant-sensitive-employment-governance | permission:staff.employment-governance.manage<br>permission:staff.sensitive-profile.read<br>system:staff.employment-governance | permission:staff.employment-governance.manage<br>system:staff.employment-governance |
 | staff-event-metadata | tenant-internal-messaging | system:authorized-module-consumer | system:staff-outbox |
@@ -143,7 +143,7 @@ Engineering metadata is not legal or country-launch approval.
 | staff.department | staff | linked-operational | standard | operational-directory | staff-entry | staff | customer-controller-bunk-fy-processor | staff-directory | staff.profile.job | staff-profile-lifecycle | staff-profile-editable | admin-input<br>admin-output<br>api-input<br>api-response<br>application-command<br>data-rights-export<br>integration-command<br>persistence | cross-module<br>customer-api<br>intra-module<br>support | engineering-default |
 | staff.departure-effective-on | staff | lifecycle | standard | employment-lifecycle | staff-workflow | staff | customer-controller-bunk-fy-processor | staff-sensitive-profile | staff.profile.lifecycle | staff-profile-lifecycle | staff-employment-history | admin-input<br>api-input<br>application-command<br>data-rights-export<br>persistence | cross-module<br>customer-api<br>intra-module<br>support | engineering-default |
 | staff.directory-items | staff | linked-operational | standard | staff-directory-presentation | system-derived | staff | customer-controller-bunk-fy-processor | staff-directory | staff.directory.collection | transient-response | staff-profile-editable | admin-output<br>api-response | customer-api<br>support | engineering-default |
-| staff.display-name | staff | direct-identifier | standard | staff-identification | staff-entry | staff | customer-controller-bunk-fy-processor | staff-directory | staff.profile.identity | staff-profile-lifecycle | staff-profile-editable | admin-input<br>admin-output<br>api-input<br>api-response<br>application-command<br>data-rights-export<br>integration-command<br>persistence<br>search-index | cross-module<br>customer-api<br>intra-module<br>support | engineering-default |
+| staff.display-name | staff | direct-identifier | standard | staff-identification | staff-entry | staff | customer-controller-bunk-fy-processor | staff-directory | staff.profile.identity | staff-profile-lifecycle | staff-profile-editable | admin-input<br>admin-output<br>api-input<br>api-response<br>application-command<br>data-rights-export<br>integration-command<br>persistence<br>projection-export<br>search-index | cross-module<br>customer-api<br>intra-module<br>support | engineering-default |
 | staff.effective-from | staff | lifecycle | standard | assignment-lifecycle | staff-workflow | staff | customer-controller-bunk-fy-processor | staff-directory | staff.assignment.lifecycle | staff-assignment-history | staff-employment-history | admin-input<br>admin-output<br>api-input<br>api-response<br>application-command<br>data-rights-export<br>persistence | cross-module<br>customer-api<br>intra-module<br>support | engineering-default |
 | staff.effective-to | staff | lifecycle | standard | assignment-lifecycle | staff-workflow | staff | customer-controller-bunk-fy-processor | staff-sensitive-profile | staff.assignment.lifecycle | staff-assignment-history | staff-employment-history | admin-input<br>admin-output<br>api-input<br>api-response<br>application-command<br>data-rights-export<br>persistence | cross-module<br>customer-api<br>intra-module<br>support | engineering-default |
 | staff.employee-number | staff | pseudonymous-identifier | elevated | employment-administration | staff-entry | staff | customer-controller-bunk-fy-processor | staff-sensitive-profile | staff.profile.employee-identifier | staff-profile-lifecycle | staff-profile-editable | admin-input<br>admin-output<br>api-input<br>api-response<br>application-command<br>data-rights-export<br>integration-command<br>persistence<br>search-index | cross-module<br>customer-api<br>intra-module<br>support | engineering-default |
@@ -614,6 +614,7 @@ Engineering metadata is not legal or country-launch approval.
 | staff.display-name | BunkFy.Modules.Staff.Contracts | BunkFy.Modules.Staff.Contracts.StaffOnboardingProvisioningRequest | DisplayName | integration-command | transient-request |
 | staff.display-name | BunkFy.Modules.Staff.Contracts | BunkFy.Modules.Staff.Contracts.StaffPropertyDirectoryListItemDto | DisplayName | api-response | transient-response |
 | staff.display-name | BunkFy.Modules.Staff.Contracts | BunkFy.Modules.Staff.Contracts.StaffPropertyDirectoryListItemDto | DisplayName | admin-output | transient-response |
+| staff.display-name | BunkFy.Modules.Staff.Contracts | BunkFy.Modules.Staff.Contracts.StaffStationLabel | DisplayName | projection-export | transient-response |
 | staff.display-name | BunkFy.Modules.Staff.Domain | BunkFy.Modules.Staff.Domain.Aggregates.StaffMember | DisplayName | persistence | staff-profile-lifecycle |
 | staff.display-name | BunkFy.Modules.Staff.Domain | BunkFy.Modules.Staff.Domain.Aggregates.StaffMember | DisplayNameSearch | persistence | staff-profile-lifecycle |
 | staff.display-name | BunkFy.Modules.Staff.Domain | BunkFy.Modules.Staff.Domain.Aggregates.StaffMember | DisplayNameSearch | search-index | staff-profile-lifecycle |
@@ -1055,6 +1056,7 @@ Engineering metadata is not legal or country-launch approval.
 | staff.record-version | BunkFy.Modules.Staff.Contracts | BunkFy.Modules.Staff.Contracts.StaffMemberMutationReceiptDto | Version | admin-output | transient-response |
 | staff.record-version | BunkFy.Modules.Staff.Contracts | BunkFy.Modules.Staff.Contracts.StaffPropertyDirectoryListItemDto | Version | api-response | transient-response |
 | staff.record-version | BunkFy.Modules.Staff.Contracts | BunkFy.Modules.Staff.Contracts.StaffPropertyDirectoryListItemDto | Version | admin-output | transient-response |
+| staff.record-version | BunkFy.Modules.Staff.Contracts | BunkFy.Modules.Staff.Contracts.StaffStationLabel | Version | projection-export | transient-response |
 | staff.record-version | BunkFy.Modules.Staff.Domain | BunkFy.Modules.Staff.Domain.Aggregates.StaffMember | Version | persistence | staff-profile-lifecycle |
 | staff.record-version | BunkFy.Modules.Staff.Domain | BunkFy.Modules.Staff.Domain.DataRights.StaffDataRightsCorrectionReceipt | CurrentRecordVersion | persistence | staff-data-rights-correction-receipt |
 | staff.record-version | BunkFy.Modules.Staff.Domain | BunkFy.Modules.Staff.Domain.DataRights.StaffDataRightsCorrectionReceipt | SelectedRecordVersion | persistence | staff-data-rights-correction-receipt |
@@ -1282,6 +1284,7 @@ Engineering metadata is not legal or country-launch approval.
 | staff.staff-member-id | BunkFy.Modules.Staff.Contracts | BunkFy.Modules.Staff.Contracts.StaffPropertyAssignmentProvisioningRequest | StaffMemberId | integration-command | transient-request |
 | staff.staff-member-id | BunkFy.Modules.Staff.Contracts | BunkFy.Modules.Staff.Contracts.StaffPropertyDirectoryListItemDto | StaffMemberId | api-response | transient-response |
 | staff.staff-member-id | BunkFy.Modules.Staff.Contracts | BunkFy.Modules.Staff.Contracts.StaffPropertyDirectoryListItemDto | StaffMemberId | admin-output | transient-response |
+| staff.staff-member-id | BunkFy.Modules.Staff.Contracts | BunkFy.Modules.Staff.Contracts.StaffStationLabel | StaffMemberId | projection-export | transient-response |
 | staff.staff-member-id | BunkFy.Modules.Staff.Domain | BunkFy.Modules.Staff.Domain.Aggregates.StaffMember | Id | persistence | staff-profile-lifecycle |
 | staff.staff-member-id | BunkFy.Modules.Staff.Domain | BunkFy.Modules.Staff.Domain.DataRights.StaffDataRightsCorrectionReceipt | StaffMemberId | persistence | staff-data-rights-correction-receipt |
 | staff.staff-member-id | BunkFy.Modules.Staff.Domain | BunkFy.Modules.Staff.Domain.Entities.StaffPropertyAssignment | Id | persistence | staff-profile-lifecycle |

@@ -27,6 +27,7 @@ public static class DependencyInjection
         builder.Services.TryAddScoped<IStationsStore>(s => s.GetRequiredService<StationsStore>());
         builder.Services.TryAddScoped<IStationCredentialBootstrap>(s => s.GetRequiredService<StationsStore>());
         builder.Services.TryAddScoped<IStationRuntimeStore>(s => s.GetRequiredService<StationsStore>());
+        builder.Services.TryAddScoped<IStationManagementStore>(s => s.GetRequiredService<StationsStore>());
         return builder;
     }
 }

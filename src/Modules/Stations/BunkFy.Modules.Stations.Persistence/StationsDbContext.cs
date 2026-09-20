@@ -14,6 +14,7 @@ public sealed class StationsDbContext(DbContextOptions<StationsDbContext> option
     public DbSet<StationSetupGrant> SetupGrants => this.Set<StationSetupGrant>();
     public DbSet<StationStaffCheckInGrant> CheckInGrants => this.Set<StationStaffCheckInGrant>();
     public DbSet<StationOperationReceipt> OperationReceipts => this.Set<StationOperationReceipt>();
+    public DbSet<StationStaffRegistration> StaffRegistrations => this.Set<StationStaffRegistration>();
     internal DbSet<StationsTenantLifecycleState> Lifecycle => this.Set<StationsTenantLifecycleState>();
     public void RequirePostgreSql()
     {
@@ -53,4 +54,3 @@ public sealed class StationsDbContext(DbContextOptions<StationsDbContext> option
         }
     }
 }
-

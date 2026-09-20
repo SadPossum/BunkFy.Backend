@@ -25,6 +25,12 @@ public sealed class Station : IScopedEntity
     public string Label { get; private set; } = "";
     public long Version { get; private set; } = 1;
     public bool Revoked { get; private set; }
+    public void RePair()
+    {
+        if (this.Revoked)
+        { throw new InvalidOperationException("Revoked station cannot be paired."); }
+        this.Version = checked(this.Version + 1);
+    }
     public void Revoke() { this.Revoked = true; this.Version = checked(this.Version + 1); }
 }
 

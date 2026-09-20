@@ -18,6 +18,6 @@ public sealed class StationStaffCheckInGrant : IScopedEntity
     public Guid StaffMemberId { get; private set; }
     public long Revision { get; private set; } = 1;
     public bool Revoked { get; private set; }
+    public void ReGrant() { this.Revoked = false; this.Revision = checked(this.Revision + 1); }
     public void Revoke() { this.Revoked = true; this.Revision = checked(this.Revision + 1); }
 }
-

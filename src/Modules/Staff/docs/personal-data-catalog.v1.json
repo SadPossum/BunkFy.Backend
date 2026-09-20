@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "staff.personal-data",
-  "catalogVersion": 19,
+  "catalogVersion": 20,
   "module": "staff",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -57,7 +57,8 @@
       "scope": "tenant-property-authorized",
       "readers": [
         "permission:staff.read",
-        "system:staff-authorized-audience-reader"
+        "system:staff-authorized-audience-reader",
+        "system:station-authorized-roster-reader"
       ],
       "writers": [
         "permission:staff.assign-properties",
@@ -4739,6 +4740,7 @@
         "data-rights-export",
         "integration-command",
         "persistence",
+        "projection-export",
         "search-index"
       ],
       "allowedBoundaries": [
@@ -4749,6 +4751,13 @@
       ],
       "approvalState": "engineering-default",
       "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffStationLabel",
+          "member": "DisplayName",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
         {
           "assembly": "BunkFy.Modules.Staff.AdminApi",
           "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffProfileUpdateRequest",
@@ -9172,6 +9181,13 @@
       "approvalState": "engineering-default",
       "bindings": [
         {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffStationLabel",
+          "member": "Version",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
           "assembly": "BunkFy.Modules.Staff.AdminApi",
           "type": "BunkFy.Modules.Staff.AdminApi.StaffAdminApiModule+StaffAssignmentRequest",
           "member": "ExpectedVersion",
@@ -11564,6 +11580,13 @@
       ],
       "approvalState": "engineering-default",
       "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Staff.Contracts",
+          "type": "BunkFy.Modules.Staff.Contracts.StaffStationLabel",
+          "member": "StaffMemberId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
         {
           "assembly": "BunkFy.Modules.Staff.Contracts",
           "type": "BunkFy.Modules.Staff.Contracts.StaffMemberMutationReceiptDto",

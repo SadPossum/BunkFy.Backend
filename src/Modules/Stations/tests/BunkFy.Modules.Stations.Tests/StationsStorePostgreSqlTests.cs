@@ -2,6 +2,7 @@ namespace BunkFy.Modules.Stations.Tests;
 
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using BunkFy.Modules.Stations.Application;
 using BunkFy.Modules.Stations.Contracts;
 using BunkFy.Modules.Stations.Domain;
@@ -67,17 +68,53 @@ public sealed class StationsStorePostgreSqlTests
             legacyDb.Stations.Add(new(legacyStation, legacyTenant, legacyProperty, "P1 upgrade fixture"));
             legacyDb.BrowserSessions.Add(paired);
             legacyDb.CheckInGrants.Add(new(legacyTenant, legacyProperty, legacyStaff));
-            legacyDb.OperationReceipts.Add(new(legacyTenant, legacyOperation, StationMutationKind.Unlock, Digest(),
-                new(StationMutationOutcome.Applied, legacyActor, paired.Generation), Now));
             await legacyDb.SaveChangesAsync();
+            await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO stations.operation_receipts (\"ScopeId\", \"Id\", \"Kind\", \"Fingerprint\", \"Outcome\", \"ActorSessionId\", \"Generation\", \"CreatedAtUtc\") VALUES ({legacyTenant}, {legacyOperation}, 3, {Digest()}, 1, {legacyActor}, {paired.Generation}, {Now})");
             // Actual pre-P2 table shape: no binding columns exist yet; upgrade may not infer current authority.
             await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO stations.staff_credentials (\"ScopeId\", \"StaffMemberId\", \"Revision\", \"AlgorithmVersion\", \"Iterations\", \"Salt\", \"Verifier\", \"PepperVersion\", \"Revoked\", \"LastObservedAtUtc\", \"FailureCount\", \"FailureWindowStartedAtUtc\") VALUES ({legacyTenant}, {legacyStaff}, 1, 1, 600000, {legacyMaterial.Salt}, {legacyMaterial.Verifier}, 'test-v1', false, {Now}, 2, {Now})");
             await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO stations.setup_grants (\"ScopeId\", \"Id\", \"StationId\", \"BrowserSessionId\", \"PropertyId\", \"StaffMemberId\", \"AuthorityKind\", \"ExpectedCredentialRevision\", \"CreatedAtUtc\", \"ExpiresAtUtc\", \"Revoked\") VALUES ({legacyTenant}, {legacySetup}, {legacyStation}, {legacyBrowserId}, {legacyProperty}, {legacyStaff}, 2, 1, {Now}, {Now.AddMinutes(10)}, false)");
             string beforeUpgrade = await LegacyFingerprint(legacyDb, legacyTenant);
+            await db.GetService<IMigrator>().MigrateAsync("20260920010000_AddStationRuntimeBindingsAndActivity");
+            string beforeManagementUpgrade = await LegacyFingerprint(legacyDb, legacyTenant, removeRuntimeColumns: false);
+            // Coherent bound P2 actor plus counters/setup/receipt, not merely an empty migration or unbound P1 row.
+            string boundTenant = "dd000000-0000-0000-0000-000000000004";
+            string boundSecret = StationRuntimeServiceTests.Encode(RandomNumberGenerator.GetBytes(32));
+            foreach (string table in new[] { "stations", "browser_sessions", "staff_credentials", "staff_check_in_grants", "setup_grants", "operation_receipts" })
+            {
+                var replacement = new Dictionary<string, object?> { ["ScopeId"] = boundTenant };
+                if (table == "browser_sessions")
+                { replacement["CredentialDigest"] = StationCredentialEncoding.Digest(boundSecret); }
+                if (table == "staff_credentials")
+                { replacement["EnrollmentAuthorityKind"] = 2; }
+                if (table == "setup_grants")
+                { replacement["ExpectedEnrollmentAuthorityKind"] = 2; }
+                // Only the six literal table identifiers above enter SQL; every row value remains a parameter.
+                string cloneSql = $"INSERT INTO stations.{table} SELECT (jsonb_populate_record(NULL::stations.{table}, to_jsonb(t) || @changes::jsonb)).* FROM stations.{table} t WHERE \"ScopeId\"=@tenant";
+                await db.Database.ExecuteSqlRawAsync(cloneSql,
+                    new NpgsqlParameter("changes", JsonSerializer.Serialize(replacement)), new NpgsqlParameter("tenant", legacyTenant));
+            }
+            string boundBefore = await LegacyFingerprint(db, boundTenant, removeRuntimeColumns: false);
             await db.Database.MigrateAsync();
-            Assert.Equal(2, (await db.Database.GetAppliedMigrationsAsync()).Count());
+            Assert.Equal(3, (await db.Database.GetAppliedMigrationsAsync()).Count());
             Assert.False(db.Database.HasPendingModelChanges());
             Assert.Equal(beforeUpgrade, await LegacyFingerprint(legacyDb, legacyTenant));
+            Assert.Equal(beforeManagementUpgrade, await LegacyFingerprint(legacyDb, legacyTenant, removeRuntimeColumns: false));
+            Assert.Equal(boundBefore, await LegacyFingerprint(db, boundTenant, removeRuntimeColumns: false));
+            Assert.Empty(await legacyDb.StaffRegistrations.ToArrayAsync());
+            using (var boundScope = Scope(services, boundTenant))
+            {
+                var boundDb = boundScope.ServiceProvider.GetRequiredService<StationsDbContext>();
+                Assert.Empty(await boundDb.StaffRegistrations.ToArrayAsync());
+                Assert.Equal(StationActorKind.StationOnly, (await boundDb.Credentials.SingleAsync()).EnrollmentAuthorityKind);
+                Assert.Equal(legacyActor, (await boundDb.BrowserSessions.SingleAsync()).ActorSessionId);
+                var management = boundScope.ServiceProvider.GetRequiredService<IStationManagementStore>();
+                Assert.Null(await management.OwnPinFactsAsync(legacyProperty, legacyStaff));
+                Assert.Null(await management.ReadOutcomeAsync(legacyOperation, Guid.NewGuid().ToString("D")));
+                Assert.Equal(new(StationSessionState.StateChanged), await boundScope.ServiceProvider.GetRequiredService<StationRuntimeService>().ReadAsync(boundSecret));
+                Assert.Equal(boundBefore, await LegacyFingerprint(boundDb, boundTenant, removeRuntimeColumns: false));
+            }
+            Assert.Null((await legacyDb.OperationReceipts.SingleAsync()).IssuerSessionId);
+            Assert.Equal(StationIssuerKind.Unknown, (await legacyDb.SetupGrants.SingleAsync()).IssuerKind);
             var unbound = await legacyDb.Credentials.SingleAsync();
             Assert.Equal(1, unbound.Revision);
             Assert.Equal(StationActorKind.Unknown, unbound.EnrollmentAuthorityKind);
@@ -97,6 +134,10 @@ public sealed class StationsStorePostgreSqlTests
                 $"UPDATE stations.staff_credentials SET \"EnrollmentAuthorityKind\" = 1 WHERE \"ScopeId\" = {legacyTenant} AND \"StaffMemberId\" = {legacyStaff}"));
             Assert.Equal(PostgresErrorCodes.CheckViolation, missingSubject.SqlState);
             Assert.Equal("CK_credential_enrollment", missingSubject.ConstraintName);
+            PostgresException missingIssuer = await Assert.ThrowsAsync<PostgresException>(() => db.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE stations.setup_grants SET \"IssuerKind\"=1 WHERE \"ScopeId\"={legacyTenant}"));
+            Assert.Equal(PostgresErrorCodes.CheckViolation, missingIssuer.SqlState);
+            Assert.Equal("CK_setup_issuer", missingIssuer.ConstraintName);
         }
         StationPinMaterial material = Assert.IsType<StationPinMaterial>(await services.GetRequiredService<IStationPinVerifier>().CreateAsync("000001"));
         Seed a = await SeedAsync(services, TenantA, material);
@@ -412,13 +453,17 @@ public sealed class StationsStorePostgreSqlTests
     }
     private static string Digest() => Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(32));
     private sealed record Seed(Guid Station, Guid Browser, Guid Property, Guid Staff);
-    private static async Task<string> LegacyFingerprint(StationsDbContext db, string tenant)
+    private static async Task<string> LegacyFingerprint(StationsDbContext db, string tenant, bool removeRuntimeColumns = true)
     {
         var content = new StringBuilder();
         foreach (string table in new[] { "stations", "browser_sessions", "staff_credentials", "staff_check_in_grants", "setup_grants", "operation_receipts" })
         {
-            // Fixed table allowlist, parameterized tenant; remove only the four additive P2 columns.
-            string sql = $"SELECT (to_jsonb(t) - 'EnrollmentAuthorityKind' - 'EnrollmentAuthSubjectId' - 'ExpectedEnrollmentAuthorityKind' - 'ExpectedEnrollmentAuthSubjectId')::text AS \"Value\" FROM stations.{table} t WHERE \"ScopeId\" = @tenant";
+            // Fixed tables and explicit additive columns only. Preexisting P1 and P2 bytes remain independently comparable.
+            string runtimeColumns = removeRuntimeColumns ? " - 'EnrollmentAuthorityKind' - 'EnrollmentAuthSubjectId' - 'ExpectedEnrollmentAuthorityKind' - 'ExpectedEnrollmentAuthSubjectId'" : "";
+            string managementColumns = " - 'IssuerKind' - 'IssuerSubjectId' - 'IssuerSessionId' - 'AssuranceExpiresAtUtc'";
+            if (table == "operation_receipts")
+            { managementColumns += " - 'StationId' - 'BrowserSessionId' - 'PropertyId' - 'StaffMemberId' - 'SetupGrantId' - 'ResourceVersion'"; }
+            string sql = $"SELECT (to_jsonb(t){runtimeColumns}{managementColumns})::text AS \"Value\" FROM stations.{table} t WHERE \"ScopeId\" = @tenant";
             content.Append(await db.Database.SqlQueryRaw<string>(sql, new NpgsqlParameter("tenant", tenant)).SingleAsync());
         }
         return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(content.ToString())));

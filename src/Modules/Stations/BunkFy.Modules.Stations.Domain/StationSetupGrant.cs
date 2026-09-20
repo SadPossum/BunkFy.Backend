@@ -7,7 +7,8 @@ public sealed class StationSetupGrant : IScopedEntity
     private StationSetupGrant() { }
     public StationSetupGrant(Guid id, string scopeId, Guid stationId, Guid browserSessionId, Guid propertyId,
         Guid staffId, StationActorKind kind, long expectedCredentialRevision, DateTimeOffset now, DateTimeOffset expires,
-        StationEnrollmentBinding? enrollment = null)
+        StationEnrollmentBinding? enrollment = null, StationIssuerKind issuerKind = StationIssuerKind.Unknown,
+        string? issuerSubjectId = null, DateTimeOffset? assuranceExpiresAtUtc = null)
     {
         StationRules.Coordinates(scopeId, id, stationId, browserSessionId, propertyId, staffId);
         StationRules.Utc(now);
@@ -31,6 +32,20 @@ public sealed class StationSetupGrant : IScopedEntity
         this.ExpectedCredentialRevision = expectedCredentialRevision;
         this.CreatedAtUtc = now;
         this.ExpiresAtUtc = expires;
+        if (issuerKind != StationIssuerKind.Unknown)
+        {
+            StationRules.Coordinates(issuerSubjectId ?? "");
+            if (issuerKind is not (StationIssuerKind.Manager or StationIssuerKind.Self) ||
+                assuranceExpiresAtUtc is null || assuranceExpiresAtUtc < expires ||
+                (issuerKind == StationIssuerKind.Self && (kind != StationActorKind.LinkedStation || enrollment?.AuthSubjectId != issuerSubjectId)))
+            { throw new ArgumentException("Invalid setup issuer."); }
+            StationRules.Utc(assuranceExpiresAtUtc.Value);
+        }
+        else if (issuerSubjectId is not null || assuranceExpiresAtUtc is not null)
+        { throw new ArgumentException("Unbound setup issuer."); }
+        this.IssuerKind = issuerKind;
+        this.IssuerSubjectId = issuerSubjectId;
+        this.AssuranceExpiresAtUtc = assuranceExpiresAtUtc;
     }
     public Guid Id { get; private set; }
     public string ScopeId { get; private set; } = "";
@@ -47,6 +62,9 @@ public sealed class StationSetupGrant : IScopedEntity
     public DateTimeOffset ExpiresAtUtc { get; private set; }
     public DateTimeOffset? ConsumedAtUtc { get; private set; }
     public bool Revoked { get; private set; }
+    public StationIssuerKind IssuerKind { get; private set; }
+    public string? IssuerSubjectId { get; private set; }
+    public DateTimeOffset? AssuranceExpiresAtUtc { get; private set; }
     public bool Consume(DateTimeOffset now)
     {
         StationRules.Utc(now);
@@ -60,3 +78,5 @@ public sealed class StationSetupGrant : IScopedEntity
     }
     public void Revoke() => this.Revoked = true;
 }
+
+public enum StationIssuerKind { Unknown = 0, Manager = 1, Self = 2 }
