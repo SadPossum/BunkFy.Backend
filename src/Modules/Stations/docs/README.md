@@ -1,0 +1,18 @@
+# Stations — P1 durable core only
+
+Default-off, not composed in API/Worker/Migrations hosts or the solution. No endpoint, authentication validator, manager service, roster, arrivals read, authorization or check-in adapter is provided by this checkpoint. Direct projects compile/test without modifying existing source. PostgreSQL is the only supported provider and registration/store access rejects other providers.
+
+The local store methods have a Core suffix deliberately: callers must perform current owner admission, primary AAL2/setup checks and exact subject/grant checks in later P2–P4. No return value here is a reusable permission. IStationSessionReader is a future contract with no registered implementation.
+
+One opaque browser credential digest preserves pairing across actor Lock; reset/revoke invalidate active actors. Runtime transport, cookie/CSRF, actor-bound responses and HTTP setup are not implemented. A successful unlock receipt replay cannot revive a session whose actor generation or expiry changed. An operation ID names one PIN attempt: its replay returns that original attempt, not another verification. PIN digits are deliberately not stored in its fingerprint.
+
+Counters and rejected-attempt receipts commit together. Credential and independent device budgets are persisted. P1 serializes local Stations mutation transactions per tenant, using the existing shared tenant-termination lock plus a Stations-specific exclusive lock. KDF concurrency is bounded with no local KDF queue. This coarse serialization prioritizes correctness; measured local timing is not multi-instance throughput evidence.
+
+Native PBKDF2-HMAC-SHA256 600,000 iterations, 16-byte random salt, 32-byte output, followed by versioned HMAC pepper from an injected non-database owner. There is no fallback pepper, plaintext PIN export, logging of credentials, or FIPS claim. Domain JSON hides verifier material. Deployment key custody/rotation, workload admission, online transport and external restore epoch enforcement are later admission gates.
+
+Governed retention, Staff-subject rights, tenant export/destroy owner registration and migrations-host composition are P5. The P1 tenant lifecycle row/lock is a persisted prerequisite, not a functioning termination owner. No security/audit retention duration is invented. Restoring a database can restore revoked data; external epoch and credential invalidation must be proven during later operational admission.
+
+Tests use uniquely owned disposable PostgreSQL with actual migrations. No existing database/preview data is touched; no SQL Server history is invented.
+
+
+Actor idle renewal is an explicit exact actor/generation foreground-activity domain primitive capped by absolute/pairing expiry. It has no persisted store operation or runtime caller in P1; P2 must supply that boundary and never invoke it for background polling. LastObservedAtUtc is a monotonic state-change/attempt high-water mark, not an activity timestamp: only activation and explicit foreground activity set idle expiry. The transaction lock reserves exclusive access to the device budget before KDF work; only a failed authentication increments its counter. Success/stale/Busy/Unavailable do not increment it or erase earlier device failures. Repeated valid switching therefore does not exhaust the device budget. PIN-attempt replay returns the original recorded outcome, not proof of a freshly entered PIN; lock/reset/expiry/generation change makes an old successful unlock replay conflict. Uniform HTTP copy/status, bounded dummy verification and minimized roster timing are P2 gates, not a completed no-oracle claim from this core.
