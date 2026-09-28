@@ -1,5 +1,7 @@
 namespace BunkFy.Modules.Reservations.Application.Ports;
 
+using BunkFy.Modules.Reservations.Contracts.Stations;
+
 public interface IReservationManagementOperationRepository
 {
     Task<ReservationManagementOperationRecord?> GetAsync(
@@ -10,7 +12,16 @@ public interface IReservationManagementOperationRepository
     Task AddAsync(
         ReservationManagementOperationRecord operation,
         CancellationToken cancellationToken);
+
+    Task<ReservationStationAttributionRead> GetStationAttributionAsync(Guid reservationId, Guid operationId,
+        CancellationToken cancellationToken) => Task.FromResult(new ReservationStationAttributionRead(false));
+
+    Task AddStationAsync(ReservationManagementOperationRecord operation, StationCheckInProvenance provenance,
+        long resultingVersion, CancellationToken cancellationToken) =>
+        throw new NotSupportedException("Station attribution is unavailable.");
 }
+
+public sealed record ReservationStationAttributionRead(bool Supported, StationCheckInProvenance? Provenance = null);
 
 public sealed record ReservationManagementOperationRecord(
     Guid OperationId,

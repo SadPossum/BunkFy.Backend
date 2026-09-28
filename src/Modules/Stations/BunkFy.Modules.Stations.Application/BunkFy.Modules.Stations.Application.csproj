@@ -4,6 +4,8 @@
     <ProjectReference Include="../BunkFy.Modules.Stations.Domain/BunkFy.Modules.Stations.Domain.csproj" />
     <ProjectReference Include="../../Staff/BunkFy.Modules.Staff.Contracts/BunkFy.Modules.Staff.Contracts.csproj" />
     <ProjectReference Include="../../Properties/BunkFy.Modules.Properties.Contracts/BunkFy.Modules.Properties.Contracts.csproj" />
+    <ProjectReference Include="../../Reservations/BunkFy.Modules.Reservations.Contracts/BunkFy.Modules.Reservations.Contracts.csproj" />
+    <ProjectReference Include="../../Inventory/BunkFy.Modules.Inventory.Contracts/BunkFy.Modules.Inventory.Contracts.csproj" />
     <ProjectReference Include="../../Workspaces/BunkFy.Modules.Workspaces.Contracts/BunkFy.Modules.Workspaces.Contracts.csproj" />
     <ProjectReference Include="../../../Shared/BunkFy.TimeZones/BunkFy.TimeZones.csproj" />
     <ProjectReference Include="$(GmaModuleOrganizationsRoot)Gma.Modules.Organizations.Contracts/Gma.Modules.Organizations.Contracts.csproj" />

@@ -126,7 +126,8 @@ public sealed class ReservationsTenantTerminationContributorTests
                 managementReservationId,
                 managementOperationId.ToString("N")),
             managementOperation.RecordId);
-        Assert.Equal(3, managementOperation.RecordVersion);
+        Assert.Equal(4, managementOperation.RecordVersion);
+        Assert.Equal(JsonValueKind.Null, Field(managementOperation, "reservations.staff-attribution").ValueKind);
         Assert.Equal(
             Digest,
             Field(managementOperation, "reservations.management-operation")
@@ -174,9 +175,9 @@ public sealed class ReservationsTenantTerminationContributorTests
             ReservationsTenantTerminationMetadata.ExportSchemaId,
             contributor.ExportDescriptor.ExportSchemaId);
         Assert.Equal(7, contributor.ExportDescriptor.CatalogVersion);
-        Assert.Equal(8, contributor.ExportDescriptor.ExportSchemaVersion);
+        Assert.Equal(9, contributor.ExportDescriptor.ExportSchemaVersion);
         Assert.Equal(
-            20,
+            21,
             ReservationsTenantTerminationMetadata.PersonalDataCatalogVersion);
         Assert.Equal(
             ReservationsTenantTerminationMetadata.ExportFieldIds

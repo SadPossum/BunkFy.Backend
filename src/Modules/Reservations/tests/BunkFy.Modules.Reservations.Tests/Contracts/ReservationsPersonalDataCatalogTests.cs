@@ -11,6 +11,7 @@ using BunkFy.Modules.Reservations.Application.Policies;
 using BunkFy.Modules.Reservations.Application.Ports;
 using BunkFy.Modules.Reservations.Application.Queries;
 using BunkFy.Modules.Reservations.Contracts;
+using BunkFy.Modules.Reservations.Contracts.Stations;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
 using BunkFy.Modules.Reservations.Domain.DataRights;
 using BunkFy.Modules.Reservations.Domain.Entities;
@@ -333,6 +334,11 @@ public sealed class ReservationsPersonalDataCatalogTests
 
     private static IEnumerable<(PersonalDataSurface Surface, Type Type)> ContractTypes()
     {
+        foreach (Type type in new[] { typeof(StationCheckInProvenance), typeof(StationArrivalCursor), typeof(StationAllocationUnit),
+            typeof(StationDueArrival), typeof(StationDueArrivalPage), typeof(StationCheckInPreparation), typeof(StationCheckInResult) })
+        { yield return (PersonalDataSurface.ProjectionExport, type); }
+        yield return (PersonalDataSurface.ApplicationCommand, typeof(ReservationStationAttributionRead));
+        yield return (PersonalDataSurface.DataRightsExport, typeof(BunkFy.Modules.Reservations.Persistence.Repositories.ReservationManagementStaffTenantExport));
         Assembly application = typeof(CreateReservationCommand).Assembly;
         foreach (Type type in application.GetTypes()
                      .Where(type => type.IsPublic && !type.IsAbstract)
@@ -477,6 +483,7 @@ public sealed class ReservationsPersonalDataCatalogTests
         typeof(ReservationDetailsHistoryEntry),
         typeof(ReservationExternalOperation),
         typeof(ReservationManagementOperation),
+        typeof(ReservationStationAttribution),
         typeof(ReservationStayAmendmentOperation),
         typeof(ReservationGuestProfileProjection),
         typeof(ReservationGuestProcessingRestrictionProjection),

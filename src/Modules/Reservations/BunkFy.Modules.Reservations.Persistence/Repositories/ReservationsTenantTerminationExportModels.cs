@@ -283,7 +283,13 @@ internal sealed record ReservationManagementOperationTenantExport(
     Guid OperationId,
     [property: ReservationsTenantExportField(
         "reservations.management-operation")]
-    ReservationManagementOperationStateTenantExport ManagementOperation);
+    ReservationManagementOperationStateTenantExport ManagementOperation,
+    [property: ReservationsTenantExportField("reservations.staff-attribution")]
+    ReservationManagementStaffTenantExport? StaffAttribution = null);
+
+internal sealed record ReservationManagementStaffTenantExport(Guid StationId, Guid BrowserSessionId, Guid StaffMemberId,
+    Guid ActorSessionId, long Generation,
+    BunkFy.Modules.Reservations.Contracts.Stations.StationReservationAuthority Authority, long ResultingVersion);
 
 internal sealed record ReservationManagementOperationStateTenantExport(
     ReservationManagementOperationKind Kind,

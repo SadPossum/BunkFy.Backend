@@ -4,6 +4,7 @@ using System.Text.Json;
 using BunkFy.Modules.DataRights.Contracts;
 using BunkFy.Modules.Reservations.Application.Ports;
 using BunkFy.Modules.Reservations.Contracts;
+using BunkFy.Modules.Reservations.Contracts.Stations;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
 using BunkFy.Modules.Reservations.Domain.DataRights;
 using BunkFy.Modules.Reservations.Domain.Models;
@@ -483,6 +484,40 @@ public sealed class ReservationDataRightsExportContributorTests
     }
 
     [Fact]
+    public async Task Guest_export_excludes_seeded_station_staff_attribution()
+    {
+        await using ReservationsDbContext db = CreateDbContext("tenant-a");
+        Guid property = AddKnownProperty(db);
+        Reservation reservation = CreateReservation(property, "Synthetic Station Guest");
+        Guid operationId = Guid.NewGuid();
+        var provenance = new StationCheckInProvenance(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+            Guid.NewGuid(), 3, StationReservationAuthority.StationOnly);
+        db.Reservations.Add(reservation);
+        db.ManagementOperations.Add(new ReservationManagementOperation(new ReservationManagementOperationRecord(
+            operationId, "tenant-a", property, reservation.Id, ReservationManagementOperationKind.CheckIn,
+            reservation.Version, null, reservation.Arrival, Now)));
+        db.StationAttributions.Add(new ReservationStationAttribution("tenant-a", reservation.Id, operationId,
+            provenance, reservation.Version + 1));
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        Assert.Single(await db.StationAttributions.ToArrayAsync());
+        var contributor = new ReservationDataRightsExportContributor(db, new TestScopeContext("tenant-a"));
+        var sink = new CollectingSink();
+        var result = await contributor.ExportAsync(CreateRequest(property, reservation), sink, CancellationToken.None);
+        Assert.Equal(DataRightsSubjectExportStatus.Succeeded, result.Status);
+        var management = Assert.Single(sink.Records, row => row.RecordType == ReservationDataRightsExportContributor.ManagementOperationRecordType);
+        Assert.Equal(3, management.RecordVersion);
+        Assert.DoesNotContain(sink.Records.SelectMany(row => row.Fields), field =>
+            field.FieldId.Contains("station", StringComparison.OrdinalIgnoreCase) ||
+            field.FieldId.Contains("staff-attribution", StringComparison.OrdinalIgnoreCase));
+        string json = JsonSerializer.Serialize(sink.Records);
+        foreach (Guid employeeCoordinate in new[] { provenance.StationId, provenance.BrowserSessionId, provenance.StaffMemberId, provenance.ActorSessionId })
+        {
+            Assert.DoesNotContain(employeeCoordinate.ToString("D"), json, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    [Fact]
     public async Task Export_preserves_truthful_unknown_legacy_stay_amendment_evidence()
     {
         await using ReservationsDbContext dbContext = CreateDbContext("tenant-a");
@@ -805,7 +840,7 @@ public sealed class ReservationDataRightsExportContributorTests
             ReservationDataRightsExportSchema.Descriptor;
         Assert.Equal(ReservationDataRightsDiscoveryContributor.Owner, descriptor.OwnerKey);
         Assert.Equal("reservations.personal-data", descriptor.CatalogId);
-        Assert.Equal(20, descriptor.CatalogVersion);
+        Assert.Equal(21, descriptor.CatalogVersion);
         Assert.Equal("reservations.subject-export", descriptor.ExportSchemaId);
         Assert.Equal(9, descriptor.ExportSchemaVersion);
         Assert.NotEmpty(descriptor.FieldIds);

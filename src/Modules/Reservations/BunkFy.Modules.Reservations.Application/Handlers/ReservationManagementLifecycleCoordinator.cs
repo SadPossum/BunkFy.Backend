@@ -2,6 +2,7 @@ namespace BunkFy.Modules.Reservations.Application.Handlers;
 
 using BunkFy.Modules.Reservations.Application.Ports;
 using BunkFy.Modules.Reservations.Contracts;
+using BunkFy.Modules.Reservations.Contracts.Stations;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
 using Gma.Framework.Results;
 using Gma.Framework.Runtime.Time;
@@ -20,10 +21,12 @@ internal sealed class ReservationManagementLifecycleCoordinator(
         DateOnly? businessDate,
         string? actorId,
         Func<Reservation, DateTimeOffset, Result> apply,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        StationCheckInProvenance? station = null)
     {
         ArgumentNullException.ThrowIfNull(apply);
-        if (!IsValidRequest(operationId, kind, businessDate, actorId))
+        if (!IsValidRequest(operationId, kind, businessDate, actorId) ||
+            (station is not null && (!station.IsValid || kind != ReservationManagementOperationKind.CheckIn)))
         {
             return Result.Failure<ReservationMutationReceiptDto>(
                 ReservationsApplicationErrors.ManagementOperationInvalid);
@@ -33,7 +36,7 @@ internal sealed class ReservationManagementLifecycleCoordinator(
             propertyId,
             reservationId,
             cancellationToken).ConfigureAwait(false);
-        if (reservation is null)
+        if (reservation is null || reservation.PropertyId != propertyId)
         {
             return Result.Failure<ReservationMutationReceiptDto>(
                 ReservationsApplicationErrors.ReservationNotFound);
@@ -42,9 +45,14 @@ internal sealed class ReservationManagementLifecycleCoordinator(
         ReservationManagementOperationRecord? existing = await operations
             .GetAsync(reservationId, operationId, cancellationToken)
             .ConfigureAwait(false);
+        ReservationStationAttributionRead attribution = await operations.GetStationAttributionAsync(
+            reservationId, operationId, cancellationToken).ConfigureAwait(false);
+        if (station is not null && !attribution.Supported)
+        { return Result.Failure<ReservationMutationReceiptDto>(ReservationsApplicationErrors.ManagementOperationInvalid); }
         if (existing is not null)
         {
-            return existing.MatchesLifecycle(kind, expectedVersion, businessDate)
+            return existing.PropertyId == reservation.PropertyId &&
+                existing.MatchesLifecycle(kind, expectedVersion, businessDate) && attribution.Provenance == station
                 ? Result.Success(reservation.ToMutationReceipt())
                 : Result.Failure<ReservationMutationReceiptDto>(
                     ReservationsApplicationErrors.ManagementOperationConflict);
@@ -57,8 +65,7 @@ internal sealed class ReservationManagementLifecycleCoordinator(
             return Result.Failure<ReservationMutationReceiptDto>(applied.Error);
         }
 
-        await operations.AddAsync(
-            new ReservationManagementOperationRecord(
+        var operation = new ReservationManagementOperationRecord(
                 operationId,
                 reservation.ScopeId,
                 propertyId,
@@ -67,8 +74,11 @@ internal sealed class ReservationManagementLifecycleCoordinator(
                 expectedVersion,
                 ExpectedDetailsRevision: null,
                 businessDate,
-                nowUtc),
-            cancellationToken).ConfigureAwait(false);
+                nowUtc);
+        if (station is null)
+        { await operations.AddAsync(operation, cancellationToken).ConfigureAwait(false); }
+        else
+        { await operations.AddStationAsync(operation, station, reservation.Version, cancellationToken).ConfigureAwait(false); }
         return Result.Success(reservation.ToMutationReceipt());
     }
 

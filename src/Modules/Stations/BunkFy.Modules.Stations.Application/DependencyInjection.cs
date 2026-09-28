@@ -21,6 +21,7 @@ public static class DependencyInjection
     {
         services.TryAddScoped<StationAdmissionCoordinator>();
         services.TryAddScoped<StationRuntimeService>();
+        services.TryAddScoped<StationFirstJobService>();
         services.TryAddScoped<IStationSessionReader>(s => s.GetRequiredService<StationRuntimeService>());
         return services;
     }

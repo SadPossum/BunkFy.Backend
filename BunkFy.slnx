@@ -987,4 +987,12 @@
     <Project Path="tests/BunkFy.Host.ServiceDefaults.Tests/BunkFy.Host.ServiceDefaults.Tests.csproj" />
     <Project Path="tests/Integration.Tests/Integration.Tests.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/Stations/">
+    <Project Path="src/Modules/Stations/BunkFy.Modules.Stations.Application/BunkFy.Modules.Stations.Application.csproj" />
+    <Project Path="src/Modules/Stations/BunkFy.Modules.Stations.Contracts/BunkFy.Modules.Stations.Contracts.csproj" />
+    <Project Path="src/Modules/Stations/BunkFy.Modules.Stations.Domain/BunkFy.Modules.Stations.Domain.csproj" />
+    <Project Path="src/Modules/Stations/BunkFy.Modules.Stations.Persistence/BunkFy.Modules.Stations.Persistence.csproj" />
+    <Project Path="src/Modules/Stations/BunkFy.Modules.Stations.Persistence.PostgreSqlMigrations/BunkFy.Modules.Stations.Persistence.PostgreSqlMigrations.csproj" />
+    <Project Path="src/Modules/Stations/tests/BunkFy.Modules.Stations.Tests/BunkFy.Modules.Stations.Tests.csproj" />
+  </Folder>
 </Solution>

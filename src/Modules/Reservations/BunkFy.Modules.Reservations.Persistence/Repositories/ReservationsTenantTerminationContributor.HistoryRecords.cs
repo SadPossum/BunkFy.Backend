@@ -140,16 +140,13 @@ internal sealed partial class ReservationsTenantTerminationContributor
         long count,
         CancellationToken cancellationToken)
     {
-        await foreach (ReservationManagementOperation operation in
-            dbContext.ManagementOperations
-                .AsNoTracking()
-                .Where(item => item.ScopeId == tenantId)
-                .OrderBy(item => item.ReservationId)
-                .ThenBy(item => item.Id)
+        await foreach (ManagementExportRow row in this.ManagementExportQuery(tenantId)
                 .AsAsyncEnumerable()
                 .WithCancellation(cancellationToken)
                 .ConfigureAwait(false))
         {
+            var operation = row.Operation;
+            var attribution = row.Attribution;
             ReservationManagementOperationTenantExport record = new(
                 operation.ScopeId,
                 operation.PropertyId,
@@ -161,14 +158,16 @@ internal sealed partial class ReservationsTenantTerminationContributor
                     operation.ExpectedDetailsRevision,
                     operation.BusinessDate,
                     operation.RequestFingerprint,
-                    operation.CreatedAtUtc));
+                    operation.CreatedAtUtc),
+                attribution is null ? null : new(attribution.StationId, attribution.BrowserSessionId, attribution.StaffMemberId,
+                    attribution.ActorSessionId, attribution.Generation, attribution.Authority, attribution.ResultingVersion));
             await WriteAsync(
                 ReservationsTenantTerminationMetadata
                     .ManagementOperationRecordType,
                 DataRightsExportRecordIds.CreateDeterministicChild(
                     operation.ReservationId,
                     operation.Id.ToString("N")),
-                recordVersion: 3,
+                recordVersion: 4,
                 record,
                 sink,
                 cancellationToken).ConfigureAwait(false);
@@ -177,6 +176,23 @@ internal sealed partial class ReservationsTenantTerminationContributor
 
         return count;
     }
+
+    internal IQueryable<ManagementExportRow> ManagementExportQuery(string tenantId)
+    {
+        var parents = dbContext.ManagementOperations.AsNoTracking().Where(item => item.ScopeId == tenantId);
+        // Order entity columns before constructing the export row so every provider can translate it.
+        // Keep one streaming query; unsupported providers never reference the PostgreSQL-only child.
+        return dbContext.Database.IsNpgsql()
+            ? from operation in parents
+              from attribution in dbContext.StationAttributions.AsNoTracking().Where(x =>
+                  x.ScopeId == operation.ScopeId && x.ReservationId == operation.ReservationId && x.OperationId == operation.Id).DefaultIfEmpty()
+              orderby operation.ReservationId, operation.Id
+              select new ManagementExportRow(operation, attribution)
+            : parents.OrderBy(operation => operation.ReservationId).ThenBy(operation => operation.Id)
+                .Select(operation => new ManagementExportRow(operation, null));
+    }
+
+    internal sealed record ManagementExportRow(ReservationManagementOperation Operation, ReservationStationAttribution? Attribution);
 
     private async Task<long> ExportStayAmendmentOperationsAsync(
         string tenantId,

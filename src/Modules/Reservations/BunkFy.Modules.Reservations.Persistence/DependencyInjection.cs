@@ -34,6 +34,7 @@ public static class DependencyInjection
                 ReservationsMigrations.HistoryTable));
 
         builder.Services.TryAddScoped<IReservationRepository, ReservationRepository>();
+        builder.Services.TryAddScoped<IStationDueArrivalRepository, StationDueArrivalRepository>();
         builder.Services.TryAddScoped<
             IReservationOperationsSnapshotReader,
             ReservationOperationsSnapshotReader>();
