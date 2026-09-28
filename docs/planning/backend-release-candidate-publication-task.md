@@ -92,3 +92,18 @@ edit-by-edit development loop.
 - production migration plan/apply, edge, object-store, key continuity, backup,
   restore, alert routing, and rollback evidence; and
 - market-specific legal and retention policy approval.
+
+## 2026-09-28 staff PIN successor (separate evidence denominator)
+
+First-job source checkpoint `746c75fe60d4600cf9f1e5fff173da9730514081` was
+committed/pushed on `codex/staff-pin-first-job-20260928`. Later P4 HTTP/UI
+composition remains a local candidate; its 17 focused host/HTTP/PostgreSQL tests
+are not exact-commit CI, a published web/root pointer, deployed migrations or
+operator acceptance. Preserve failed/superseded receipts. Record backend, web,
+root/gitlinks and generated contract fingerprints separately before publication.
+Require exact CI and immutable image/SBOM/scan evidence before promotion;
+follow disabled deployment -> migration admission -> isolated HTTPS/operator
+checks -> canary -> bounded rollout. Roll back entry points while retaining
+schemas and attribution. [Station admission](../operations/stations-production-admission.md)
+defines outstanding operational/privacy/support/restore gates; no older release
+status is changed by this local amendment.

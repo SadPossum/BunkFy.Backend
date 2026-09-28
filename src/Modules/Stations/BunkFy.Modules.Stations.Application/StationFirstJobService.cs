@@ -68,6 +68,61 @@ public sealed class StationFirstJobService(IServiceScopeFactory scopes, IStation
             return state == StationReservationState.Ready ? result : new(state);
         }, state => new StationCheckInResult(state), cancellationToken);
 
+    /// <summary>Confirms only the original persisted outcome, including after staff switch/lock. Never replays its mutation.</summary>
+    public async Task<StationCheckInOutcome> ResolveCheckInOutcomeAsync(string credential, Guid browserSessionId,
+        Guid actorSessionId, long generation, Guid operationId, Guid reservationId, long expectedVersion,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (StationCredentialEncoding.Digest(credential) is null || browserSessionId == Guid.Empty ||
+            actorSessionId == Guid.Empty || generation < 1 || operationId == Guid.Empty || reservationId == Guid.Empty || expectedVersion < 1)
+        { return new(StationCheckInOutcomeState.Conflict); }
+        try
+        {
+            var device = await bootstrap.FindAsync(credential, cancellationToken).ConfigureAwait(false);
+            if (device is null || !Guid.TryParseExact(device.ScopeId, "D", out Guid tenant) || tenant == Guid.Empty ||
+                tenant.ToString("D") != device.ScopeId || device.StationId == Guid.Empty || device.PropertyId == Guid.Empty ||
+                device.BrowserSessionId != browserSessionId)
+            { return new(StationCheckInOutcomeState.Conflict); }
+            await using var child = scopes.CreateAsyncScope();
+            var services = child.ServiceProvider;
+            services.GetRequiredService<IScopeContextAccessor>().SetScope(device.ScopeId);
+            var store = services.GetRequiredService<IStationRuntimeStore>();
+            var handoff = services.GetRequiredService<StationHandoffAdmission>();
+            var admission = services.GetRequiredService<StationAdmissionCoordinator>();
+            DateTimeOffset started = clock.UtcNow;
+            var before = await PairingAsync().ConfigureAwait(false);
+            if (before is not null)
+            { return new(before.Value); }
+            var result = await services.GetRequiredService<IStationCheckInOutcomeReader>().ResolveAsync(device.PropertyId,
+                device.StationId, device.BrowserSessionId, actorSessionId, generation, reservationId, operationId,
+                expectedVersion, cancellationToken).ConfigureAwait(false);
+            var after = await PairingAsync().ConfigureAwait(false);
+            return after is not null ? new(after.Value) : Enum.IsDefined(result.State) ? result : new(StationCheckInOutcomeState.Unavailable);
+
+            async Task<StationCheckInOutcomeState?> PairingAsync()
+            {
+                var facts = await store.ReadAsync(device, credential, null, clock.UtcNow, cancellationToken).ConfigureAwait(false);
+                if (!CurrentPairing(facts))
+                { return StationCheckInOutcomeState.Conflict; }
+                var handoffState = await handoff.ObserveAsync(device, cancellationToken).ConfigureAwait(false);
+                if (handoffState is not null)
+                { return handoffState == StationSessionState.Unavailable ? StationCheckInOutcomeState.Unavailable : StationCheckInOutcomeState.Conflict; }
+                var property = await admission.ObservePropertyAsync(device.PropertyId, cancellationToken).ConfigureAwait(false);
+                if (property.State != StationAdmissionState.Current)
+                { return property.State == StationAdmissionState.Unavailable ? StationCheckInOutcomeState.Unavailable : StationCheckInOutcomeState.Conflict; }
+                var repeated = await store.ReadAsync(device, credential, null, clock.UtcNow, cancellationToken).ConfigureAwait(false);
+                return CurrentPairing(repeated) ? null : StationCheckInOutcomeState.Conflict;
+            }
+            bool CurrentPairing(StationRuntimeFacts? facts) => clock.UtcNow >= started && facts is not null &&
+                facts.Session.StationId == device.StationId && facts.Session.PropertyId == device.PropertyId &&
+                facts.Session.BrowserSessionId == device.BrowserSessionId && facts.Session.Generation >= generation &&
+                facts.Session.PairingExpiresAtUtc > clock.UtcNow;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (Exception) { return new(StationCheckInOutcomeState.Unavailable); }
+    }
+
     private async Task<T> WithActorAsync<T>(string credential, StationActorCoordinate actor, Func<Context, Task<T>> action,
         Func<StationReservationState, T> failure, CancellationToken ct)
     {
@@ -89,6 +144,9 @@ public sealed class StationFirstJobService(IServiceScopeFactory scopes, IStation
             var facts = await store.ReadAsync(device, credential, null, clock.UtcNow, ct).ConfigureAwait(false);
             if (facts is null || !Current(device, facts, actor))
             { return failure(StationReservationState.Denied); }
+            var handoff = await services.GetRequiredService<StationHandoffAdmission>().ObserveAsync(device, ct).ConfigureAwait(false);
+            if (handoff is not null)
+            { return failure(handoff == StationSessionState.Unavailable ? StationReservationState.Unavailable : StationReservationState.Denied); }
             var admission = await services.GetRequiredService<StationAdmissionCoordinator>()
                 .ObserveAsync(device.PropertyId, actor.StaffMemberId, facts.Credential!.Enrollment, ct).ConfigureAwait(false);
             if (admission.State != StationAdmissionState.Current || admission.PropertyLocalDate is not { } date)

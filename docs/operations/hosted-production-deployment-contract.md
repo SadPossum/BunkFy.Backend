@@ -234,6 +234,20 @@ listed below.
 
 ## Evidence Still Required
 
+### Shared stations (28 September 2026 candidate amendment)
+
+Stations remains default-off. Activation additionally binds the exact HTTPS
+origin/cookie/CSRF behavior, primary authentication and assurance, PostgreSQL
+migration catalogue, deployment-owned pepper/version/external epoch, persistent
+protected Data Protection keys and distributed `station-read`/`station-write`
+policy behavior. Legacy and current station implementations must not coexist.
+Verify negative configuration and deployed edge/provider-outage cases; do not
+treat configuration validation as proof of key durability or hosted controls.
+The bounded first job is due-arrival check-in, not the entire primary workspace.
+See [Shared-station PIN admission](stations-production-admission.md) for canary,
+support, rights/retention, monitoring, restore non-resurrection and rollback
+requirements. No production activation is granted by this amendment.
+
 Before a hosted launch, private operations must retain:
 
 - reviewed infrastructure configuration and exact ingress networks;

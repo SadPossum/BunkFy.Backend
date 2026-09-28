@@ -2,7 +2,8 @@ param(
     [Parameter(Mandatory = $true)]
     [string] $OutputPath,
     [switch] $Check,
-    [switch] $NoBuild
+    [switch] $NoBuild,
+    [switch] $IncludeStationContracts
 )
 
 . (Join-Path $PSScriptRoot 'common.ps1')
@@ -40,6 +41,13 @@ $exportEnvironmentNames = @(
     'NatsJetStream__Enabled',
     'NatsConsumers__Enabled'
 )
+if ($IncludeStationContracts) {
+    $exportEnvironmentNames += @(
+        'Stations__Http__Enabled', 'Stations__Http__AllowedOrigins__0',
+        'Stations__Core__ExternalEpoch', 'Stations__Core__PepperVersion',
+        'Stations__PepperKeys__openapi-export', 'DataProtection__KeyRingPath'
+    )
+}
 $processEnvironment = [System.Environment]::GetEnvironmentVariables('Process')
 $exportEnvironment = @{}
 foreach ($name in $exportEnvironmentNames) {
@@ -50,6 +58,7 @@ foreach ($name in $exportEnvironmentNames) {
     }
 }
 $process = $null
+$stationExportKeys = $null
 
 try {
     $env:ASPNETCORE_ENVIRONMENT = 'Development'
@@ -62,6 +71,17 @@ try {
     $env:MessageJournalCleanup__Enabled = 'false'
     $env:NatsJetStream__Enabled = 'false'
     $env:NatsConsumers__Enabled = 'false'
+    if ($IncludeStationContracts) {
+        # Schema-only host: loopback listener, ephemeral keys, no deployed feature flag change.
+        $stationExportKeys = [System.IO.Directory]::CreateTempSubdirectory('bunkfy-schema-keys-')
+        $env:Stations__Http__Enabled = 'true'
+        $env:Stations__Http__AllowedOrigins__0 = 'https://station.example.test'
+        $env:Stations__Core__ExternalEpoch = '1'
+        $env:Stations__Core__PepperVersion = 'openapi-export'
+        [System.Environment]::SetEnvironmentVariable('Stations__PepperKeys__openapi-export',
+            [Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32)), 'Process')
+        $env:DataProtection__KeyRingPath = $stationExportKeys.FullName
+    }
     $startProcess = @{
         FilePath = $dotnet
         ArgumentList = @($assembly, '--urls', $url)
@@ -121,6 +141,9 @@ finally {
             $entry.Key,
             $entry.Value.Value,
             'Process')
+    }
+    if ($null -ne $stationExportKeys) {
+        [System.IO.Directory]::Delete($stationExportKeys.FullName, $true)
     }
 }
 

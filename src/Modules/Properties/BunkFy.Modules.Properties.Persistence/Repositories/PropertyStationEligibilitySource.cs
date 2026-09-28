@@ -29,6 +29,7 @@ internal sealed class PropertyStationEligibilitySource(PropertiesDbContext dbCon
                 property.Id,
                 property.Status,
                 property.Version,
+                property.Name,
                 property.ProcessingState,
                 TimeZoneId = property.TimeZoneId.Value
             }).SingleOrDefaultAsync(cancellationToken).ConfigureAwait(false);
@@ -43,6 +44,6 @@ internal sealed class PropertyStationEligibilitySource(PropertiesDbContext dbCon
             PropertyProcessingState.Enabled => PropertyProcessingStatus.Enabled,
             PropertyProcessingState.Suspended => PropertyProcessingStatus.Suspended,
             _ => PropertyProcessingStatus.Unknown
-        }, row.TimeZoneId);
+        }, row.TimeZoneId, row.Name.Value);
     }
 }

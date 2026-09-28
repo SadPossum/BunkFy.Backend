@@ -8,12 +8,15 @@ public sealed record StationCoreResult(StationCoreOutcome Outcome, Guid? ActorSe
 public sealed record StationActorCoordinate(Guid StaffMemberId, Guid ActorSessionId, long Generation, StationAuthorityKind AuthorityKind);
 public sealed record StationSessionSnapshot(Guid StationId, Guid PropertyId, Guid BrowserSessionId,
     long Generation, StationActorCoordinate? Actor, DateTimeOffset PairingExpiresAtUtc,
-    DateTimeOffset? ActorIdleExpiresAtUtc = null, DateTimeOffset? ActorAbsoluteExpiresAtUtc = null);
+    DateTimeOffset? ActorIdleExpiresAtUtc = null, DateTimeOffset? ActorAbsoluteExpiresAtUtc = null,
+    string? StationLabel = null);
 
-public enum StationSessionState { Invalid = 0, Locked = 1, Active = 2, Unavailable = 3, StateChanged = 4 }
+public enum StationSessionState { Invalid = 0, Locked = 1, Active = 2, Unavailable = 3, StateChanged = 4, HandoffPending = 5 }
 /// <summary>No actor/scope details on invalid, unavailable or changed authority. Not an Auth principal.</summary>
 public sealed record StationRuntimeResponse(StationSessionState State, StationSessionSnapshot? Session = null,
     StationCoreOutcome? Outcome = null, DateTimeOffset? RetryAfterUtc = null);
+/// <summary>Display context only, never authority. Suppressed unless all current owner reads agree.</summary>
+public sealed record StationCurrentView(StationRuntimeResponse Runtime, string? PropertyName = null, string? StaffDisplayName = null);
 
 public enum StationSetupIssuerKind { Unknown = 0, Manager = 1, Self = 2 }
 public sealed record StationManagementReceipt(Guid? StationId = null, Guid? BrowserSessionId = null,
@@ -31,7 +34,8 @@ public sealed record StationOwnPinStatusResponse(StationManagementState State, S
 public enum StationSetupState { None = 0, Pending = 1, Expired = 2, Consumed = 3, Cancelled = 4 }
 public sealed record StationStaffManagementItem(Guid StaffMemberId, long RosterReference, bool Registered,
     long RegistrationVersion, StationPinState Pin, bool LocalGrantPresent, bool LocalGrantRevoked,
-    long? LocalGrantRevision, StationSetupState Setup, Guid? SetupGrantId);
+    long? LocalGrantRevision, StationSetupState Setup, Guid? SetupGrantId, long PinRevision = 0,
+    bool CanIssueStationOnlySetup = false);
 public sealed record StationRosterItem(Guid StaffMemberId, string DisplayName, long RosterReference);
 public sealed record StationRosterResponse(StationSessionState State, IReadOnlyList<StationRosterItem> Items,
     int Page = 1, int PageSize = 25, bool HasMore = false);

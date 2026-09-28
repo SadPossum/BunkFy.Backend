@@ -6,6 +6,7 @@ using Gma.Framework.Runtime.Time;
 using Gma.Framework.Scoping;
 using Microsoft.Extensions.DependencyInjection;
 using BunkFy.Modules.Staff.Contracts;
+using BunkFy.Modules.Properties.Contracts;
 
 /// <summary>
 /// Paired-device runtime only. No Auth principal, management permission, pairing issuance or HTTP activation.
@@ -17,6 +18,45 @@ public sealed class StationRuntimeService(IServiceScopeFactory scopes, IStationC
     public Task<StationRuntimeResponse> ReadAsync(string opaqueCredential, CancellationToken cancellationToken = default) =>
         this.WithDeviceAsync(opaqueCredential, async (services, device, store) =>
             await this.CurrentAsync(services, device, store, opaqueCredential, cancellationToken).ConfigureAwait(false), cancellationToken);
+
+    public Task<StationCurrentView> ReadViewAsync(string opaqueCredential, CancellationToken cancellationToken = default) =>
+        this.WithDeviceValueAsync<StationCurrentView>(opaqueCredential, async (services, device, store) =>
+        {
+            StationRuntimeResponse current = await this.CurrentAsync(services, device, store, opaqueCredential, cancellationToken).ConfigureAwait(false);
+            if (current.State is not (StationSessionState.Locked or StationSessionState.Active) || current.Session is not { } session)
+            { return new(new(current.State)); }
+            var admission = services.GetRequiredService<StationAdmissionCoordinator>();
+            var propertyAdmission = await admission.ObservePropertyAsync(device.PropertyId, cancellationToken).ConfigureAwait(false);
+            if (propertyAdmission.State != StationAdmissionState.Current)
+            { return new(FromAdmission(propertyAdmission)); }
+            var properties = services.GetRequiredService<IPropertyStationEligibilitySource>();
+            var property = await properties.FindAsync(device.ScopeId, device.PropertyId, cancellationToken).ConfigureAwait(false);
+            if (property is null || property.ScopeId != device.ScopeId || property.PropertyId != device.PropertyId ||
+                !DisplayLabel(property.Name, 256) || !DisplayLabel(session.StationLabel, 100))
+            { return new(Changed()); }
+            StaffStationLabel? label = null;
+            if (session.Actor is { } actor)
+            {
+                var labels = services.GetRequiredService<IStaffStationLabelReader>();
+                Guid[] ids = [actor.StaffMemberId];
+                var first = await labels.ResolveAsync(device.ScopeId, device.PropertyId, ids,
+                    propertyAdmission.PropertyLocalDate!.Value, cancellationToken).ConfigureAwait(false);
+                var second = await labels.ResolveAsync(device.ScopeId, device.PropertyId, ids,
+                    propertyAdmission.PropertyLocalDate.Value, cancellationToken).ConfigureAwait(false);
+                if (first.Count != 1 || !first.SequenceEqual(second) || first[0].StaffMemberId != actor.StaffMemberId ||
+                    first[0].Version < 1 || !DisplayLabel(first[0].DisplayName, 300))
+                { return new(Changed()); }
+                label = first[0];
+            }
+            if (property != await properties.FindAsync(device.ScopeId, device.PropertyId, cancellationToken).ConfigureAwait(false) ||
+                propertyAdmission != await admission.ObservePropertyAsync(device.PropertyId, cancellationToken).ConfigureAwait(false) ||
+                current != await this.CurrentAsync(services, device, store, opaqueCredential, cancellationToken).ConfigureAwait(false))
+            { return new(Changed()); }
+            return new(current, property.Name, label?.DisplayName);
+        }, () => new(Invalid()), () => new(new(StationSessionState.Unavailable)), state => new(new(state)), cancellationToken);
+
+    private static bool DisplayLabel(string? value, int maximum) => !string.IsNullOrWhiteSpace(value) &&
+        value.Length <= maximum && !value.Any(char.IsControl);
 
     /// <summary>One deliberate PIN attempt. Reusing its operation ID resolves that attempt, not a corrected PIN.</summary>
     public Task<StationRuntimeResponse> UnlockAsync(string opaqueCredential, Guid operationId, Guid staffId,
@@ -212,7 +252,7 @@ public sealed class StationRuntimeService(IServiceScopeFactory scopes, IStationC
             if (deviceBefore != deviceAfter)
             { return new(StationSessionState.StateChanged, []); }
             return new(StationSessionState.Locked, matches.Skip(offset).Take(pageSize).ToArray(), page, pageSize, offset + pageSize < matches.Length);
-        }, () => new(StationSessionState.Invalid, []), () => new(StationSessionState.Unavailable, []), cancellationToken);
+        }, () => new(StationSessionState.Invalid, []), () => new(StationSessionState.Unavailable, []), state => new(state, []), cancellationToken);
 
     private async Task<StationRuntimeResponse> ResultAsync(IServiceProvider services, StationDeviceReference device,
         IStationRuntimeStore store, string opaqueCredential, StationCoreResult result, CancellationToken ct)
@@ -267,11 +307,11 @@ public sealed class StationRuntimeService(IServiceScopeFactory scopes, IStationC
 
     private Task<StationRuntimeResponse> WithDeviceAsync(string opaqueCredential,
         Func<IServiceProvider, StationDeviceReference, IStationRuntimeStore, Task<StationRuntimeResponse>> action, CancellationToken ct) =>
-        this.WithDeviceValueAsync(opaqueCredential, action, Invalid, () => new(StationSessionState.Unavailable), ct);
+        this.WithDeviceValueAsync(opaqueCredential, action, Invalid, () => new(StationSessionState.Unavailable), state => new(state), ct);
 
     private async Task<T> WithDeviceValueAsync<T>(string opaqueCredential,
         Func<IServiceProvider, StationDeviceReference, IStationRuntimeStore, Task<T>> action, Func<T> invalid,
-        Func<T> unavailable, CancellationToken ct)
+        Func<T> unavailable, Func<StationSessionState, T> halted, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
         if (StationCredentialEncoding.Digest(opaqueCredential) is null)
@@ -294,6 +334,10 @@ public sealed class StationRuntimeService(IServiceScopeFactory scopes, IStationC
             {
                 return invalid();
             }
+            StationSessionState? handoff = await services.GetRequiredService<StationHandoffAdmission>()
+                .ObserveAsync(device, ct).ConfigureAwait(false);
+            if (handoff is { } state)
+            { return halted(state); }
             return await action(services, device, store).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }

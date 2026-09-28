@@ -8,6 +8,7 @@ using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Retention.Contracts;
 using BunkFy.Modules.Staff.Contracts;
+using BunkFy.Modules.Stations.Contracts;
 using Gma.Modules.AccessControl.Contracts;
 
 public static class WorkspaceAccessRoles
@@ -44,6 +45,7 @@ public static class WorkspaceAccessRoles
 
     public static IReadOnlyList<string> DelegablePermissions { get; } =
     [
+        StationsPermissionCodes.Manage,
         AccessControlProfilePermissionCodes.Read,
         AccessControlProfilePermissionCodes.Manage,
         AccessControlProfilePermissionCodes.Assign,
@@ -120,6 +122,7 @@ public static class WorkspaceAccessRoles
         DelegablePermissions
             .Except(
             [
+                StationsPermissionCodes.Manage,
                 AccessControlProfilePermissionCodes.Manage,
                 AccessControlProfilePermissionCodes.Assign,
                 WorkspacesPermissionCodes.StaffOnboardingManage,

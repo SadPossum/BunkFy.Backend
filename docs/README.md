@@ -29,6 +29,7 @@ Useful entry points:
 - [Hosted Production Deployment Contract](operations/hosted-production-deployment-contract.md)
 - [Operations Notifications Production Admission](operations/operations-notifications-production-admission.md)
 - [Tenant Termination Production Admission](operations/tenant-termination-production-admission.md)
+- [Shared-Station PIN Production Admission](operations/stations-production-admission.md)
 - [Hosted Production Foundation Task](planning/hosted-production-foundation-task.md)
 - [Security Signals And Incident Correlation Task](planning/security-signals-and-incident-correlation-task.md)
 - [Scoped Support Administration Access Task](planning/support-admin-access-task.md)

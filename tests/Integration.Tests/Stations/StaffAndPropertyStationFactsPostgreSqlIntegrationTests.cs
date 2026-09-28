@@ -84,7 +84,8 @@ public sealed class StaffAndPropertyStationFactsPostgreSqlIntegrationTests
         sql.Commands.Clear();
         var property = Assert.IsType<PropertyStationEligibilitySnapshot>(await propertyReader.FindAsync(TenantA, propertyA));
         Assert.Single(sql.Commands);
-        Assert.DoesNotContain("\"Name\"", sql.Commands[0], StringComparison.Ordinal);
+        Assert.Contains("\"Name\"", sql.Commands[0], StringComparison.Ordinal);
+        Assert.Equal("Synthetic station property", property.Name);
         Assert.Equal(PropertyStatus.Active, property.Status);
         Assert.Equal("Etc/UTC", property.TimeZoneId);
         Assert.Equal(PropertyProcessingStatus.Unconfigured, property.ConfiguredProcessingStatus);

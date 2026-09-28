@@ -659,7 +659,7 @@ public sealed class HostCompositionGuardTests
                 policy => policy.GetProperty("Name").GetString()!,
                 StringComparer.Ordinal);
         Assert.Equal(
-            ["authentication-write", "workspace-join-write"],
+            ["authentication-write", "station-read", "station-write", "workspace-join-write"],
             policies.Keys.Order(StringComparer.Ordinal));
 
         AssertRateLimitPolicy(
@@ -675,6 +675,14 @@ public sealed class HostCompositionGuardTests
                 "/api/auth/external",
                 "/api/auth/email-verification"
             ]);
+        string[] stationPaths =
+        [
+            "/api/station-management",
+            "/api/station-setup",
+            "/api/station-runtime"
+        ];
+        AssertRateLimitPolicy(policies["station-write"], 30, stationPaths);
+        AssertRateLimitPolicy(policies["station-read"], 120, stationPaths, ["GET", "HEAD"]);
         AssertRateLimitPolicy(
             policies["workspace-join-write"],
             60,
@@ -688,20 +696,21 @@ public sealed class HostCompositionGuardTests
     private static void AssertRateLimitPolicy(
         JsonElement policy,
         int permitLimit,
-        string[] expectedPaths)
+        string[] expectedPaths,
+        string[]? expectedMethods = null)
     {
         Assert.Equal(permitLimit, policy.GetProperty("PermitLimit").GetInt32());
         Assert.Equal(
             expectedPaths,
             policy.GetProperty("PathPrefixes")
                 .EnumerateArray()
-                .Select(value => value.GetString()!)
+                .Select(value => value.GetString())
                 .ToArray());
         Assert.Equal(
-            ["POST", "PUT", "PATCH", "DELETE"],
+            expectedMethods ?? ["POST", "PUT", "PATCH", "DELETE"],
             policy.GetProperty("Methods")
                 .EnumerateArray()
-                .Select(value => value.GetString()!)
+                .Select(value => value.GetString())
                 .ToArray());
     }
 

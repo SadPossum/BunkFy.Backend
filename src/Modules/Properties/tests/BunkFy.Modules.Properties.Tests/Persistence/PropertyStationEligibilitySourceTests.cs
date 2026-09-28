@@ -15,7 +15,7 @@ public sealed class PropertyStationEligibilitySourceTests
 {
     private static readonly DateTimeOffset Now = new(2026, 9, 20, 0, 0, 0, TimeSpan.Zero);
     private static readonly string[] SnapshotProperties =
-        ["ConfiguredProcessingStatus", "PropertyId", "ScopeId", "Status", "TimeZoneId", "Version"];
+        ["ConfiguredProcessingStatus", "Name", "PropertyId", "ScopeId", "Status", "TimeZoneId", "Version"];
 
     [Fact]
     public async Task Current_owner_facts_are_untracked_minimal_and_follow_retirement()
@@ -27,7 +27,7 @@ public sealed class PropertyStationEligibilitySourceTests
         db.ChangeTracker.Clear();
         var reader = new PropertyStationEligibilitySource(db);
         var facts = Assert.IsType<PropertyStationEligibilitySnapshot>(await reader.FindAsync("tenant-a", property.Id));
-        Assert.Equal(new("tenant-a", property.Id, PropertyStatus.Active, property.Version, PropertyProcessingStatus.Unconfigured, "Etc/UTC"), facts);
+        Assert.Equal(new("tenant-a", property.Id, PropertyStatus.Active, property.Version, PropertyProcessingStatus.Unconfigured, "Etc/UTC", "Synthetic property"), facts);
         Assert.Empty(db.ChangeTracker.Entries());
         db.Properties.Attach(property);
         Assert.True(property.Retire(property.Version, Guid.NewGuid(), Now).IsSuccess);

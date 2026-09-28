@@ -28,6 +28,28 @@ public sealed class StationFirstJobServiceTests
     private static readonly Guid Operation = Id(3);
     private static readonly DateTimeOffset Now = new(2026, 9, 27, 23, 30, 0, TimeSpan.Zero);
     private static readonly DateOnly LocalDate = new(2026, 9, 28);
+    private static readonly string[] HandoffOnlyEvents = ["bootstrap", "runtime"];
+
+    [Theory]
+    [InlineData("active", StationReservationState.Denied)]
+    [InlineData("missing", StationReservationState.Denied)]
+    [InlineData("unavailable", StationReservationState.Unavailable)]
+    public async Task Handoff_failure_prevents_all_guest_job_reads_and_mutations(string condition, StationReservationState expected)
+    {
+        using var fixture = new Fixture();
+        fixture.Handoff.Active = condition == "active";
+        fixture.Handoff.SessionUnavailable = condition == "unavailable";
+        if (condition == "missing")
+        {
+            fixture.Handoff.Receipt = null;
+        }
+        var page = await fixture.ListAsync();
+        Assert.Equal(expected, page.State);
+        Assert.Empty(page.Items);
+        Assert.Null(page.PropertyId);
+        Assert.Equal(expected, (await fixture.CheckInAsync()).State);
+        Assert.All(fixture.Events, name => Assert.Contains(name, HandoffOnlyEvents));
+    }
     private static readonly string[] ReservationFieldNames = ["AllocationId", "AllocationVersion", "Arrival", "Departure",
         "ExpectedVersion", "PrimaryGuestName", "ReservationId", "Units"];
     private static readonly string[] ArrivalFieldNames = ["Places", "Reservation"];
@@ -659,27 +681,110 @@ public sealed class StationFirstJobServiceTests
         Assert.Empty(fixture.Inventory.Batches);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Current_display_uses_stable_owner_names_and_only_names_active_staff(bool active)
+    {
+        using var f = new Fixture();
+        if (!active)
+        { f.Facts = f.Facts! with { ActorCurrent = false, Session = f.Facts.Session with { Actor = null } }; }
+        StationCurrentView view = await f.ViewAsync();
+        Assert.Equal(active ? StationSessionState.Active : StationSessionState.Locked, view.Runtime.State);
+        Assert.Equal("Harbour Hostel", view.PropertyName);
+        Assert.Equal("Reception", view.Runtime.Session!.StationLabel);
+        Assert.Equal(active ? "Alex Reception" : null, view.StaffDisplayName);
+        Assert.Equal(active ? 2 : 0, f.Events.Count(e => e == "staff-label"));
+    }
+
+    [Theory]
+    [InlineData("property-name")]
+    [InlineData("station-name")]
+    [InlineData("actor")]
+    [InlineData("staff-name")]
+    [InlineData("staff-removed")]
+    [InlineData("duplicate")]
+    [InlineData("blank")]
+    [InlineData("wrong-staff")]
+    [InlineData("zero-version")]
+    [InlineData("revoked")]
+    [InlineData("exception")]
+    public async Task Current_display_suppresses_all_context_when_sources_change_or_fail(string fault)
+    {
+        using var f = new Fixture();
+        int labels = 0;
+        f.OnEvent = name =>
+        {
+            if (name != "staff-label" || ++labels != 2)
+            { return; }
+            switch (fault)
+            {
+                case "property-name":
+                    f.PropertyFacts = f.PropertyFacts with { Name = "Renamed hostel" };
+                    break;
+                case "station-name":
+                    f.Facts = f.Facts! with { Session = f.Facts.Session with { StationLabel = "Other desk" } };
+                    break;
+                case "actor":
+                    f.Facts = f.Facts! with { Session = f.Facts.Session with { Actor = f.Actor with { ActorSessionId = Id(909), Generation = 8 } } };
+                    break;
+                case "staff-name":
+                    f.StaffLabels = [new(Staff, "Renamed staff", 5)];
+                    break;
+                case "staff-removed":
+                    f.StaffLabels = [];
+                    break;
+                case "duplicate":
+                    f.StaffLabels = [f.StaffLabels[0], f.StaffLabels[0]];
+                    break;
+                case "blank":
+                    f.StaffLabels = [new(Staff, " ", 4)];
+                    break;
+                case "wrong-staff":
+                    f.StaffLabels = [new(Id(909), "Other staff", 4)];
+                    break;
+                case "zero-version":
+                    f.StaffLabels = [new(Staff, "Alex Reception", 0)];
+                    break;
+                case "revoked":
+                    f.Facts = null;
+                    break;
+                case "exception":
+                    throw new InvalidOperationException("Synthetic owner outage");
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(fault));
+            }
+        };
+        StationCurrentView view = await f.ViewAsync();
+        Assert.Equal(fault == "exception" ? StationSessionState.Unavailable : StationSessionState.StateChanged, view.Runtime.State);
+        Assert.Null(view.Runtime.Session);
+        Assert.Null(view.PropertyName);
+        Assert.Null(view.StaffDisplayName);
+    }
+
     private sealed record OperationCall(Guid PropertyId, Guid ReservationId, Guid OperationId, long Version,
         DateOnly Date, StationCheckInProvenance Provenance);
 
     private sealed class Fixture : IDisposable, IStationCredentialBootstrap, ISystemClock, IStaffStationEligibilitySource,
         IPropertyStationEligibilitySource, IWorkspaceStaffStationAdmissionObserver, IWorkspaceOperationalAdmissionPolicy,
-        IWorkspaceTerminationFenceReader, IOrganizationScopeLifecycle
+        IWorkspaceTerminationFenceReader, IOrganizationScopeLifecycle, IStaffStationLabelReader
     {
         public Fixture(StationAuthorityKind kind = StationAuthorityKind.LinkedStation)
         {
             this.Actor = new(Staff, Id(4), 7, kind);
             this.Device = new(Tenant, Id(5), Id(6), Property);
+            this.Handoff = new(this.Device);
             var binding = kind == StationAuthorityKind.LinkedStation
                 ? new StationEnrollmentBinding(StationActorKind.LinkedStation, Subject)
                 : new StationEnrollmentBinding(StationActorKind.StationOnly, null);
             this.AuthSubject = binding.AuthSubjectId;
             this.Facts = new(new(this.Device.StationId, Property, this.Device.BrowserSessionId, this.Actor.Generation,
-                this.Actor, Now.AddDays(2), Now.AddMinutes(10), Now.AddHours(8)), true, new(Staff, 2, false, binding), 3, false);
+                this.Actor, Now.AddDays(2), Now.AddMinutes(10), Now.AddHours(8), "Reception"), true, new(Staff, 2, false, binding), 3, false);
             this.Operations = new(this);
             this.Inventory = new(this);
             this.SetArrivals(Arrival(100, [Unit(1)]));
             var services = new ServiceCollection();
+            this.Handoff.Register(services);
             services.AddScoped<TestScope>();
             services.AddScoped<IScopeContextAccessor>(sp => sp.GetRequiredService<TestScope>());
             services.AddScoped<IScopeContext>(sp => sp.GetRequiredService<TestScope>());
@@ -688,11 +793,14 @@ public sealed class StationFirstJobServiceTests
                 this, this, this, this, this, this));
             services.AddSingleton<IStationReservationOperations>(this.Operations);
             services.AddSingleton<IStationInventoryLabelReader>(this.Inventory);
+            services.AddSingleton<IPropertyStationEligibilitySource>(this);
+            services.AddSingleton<IStaffStationLabelReader>(this);
             this.Provider = services.BuildServiceProvider();
             this.Service = new(this.Provider.GetRequiredService<IServiceScopeFactory>(), this, this);
         }
 
         public StationActorCoordinate Actor { get; }
+        public HandoffOwners Handoff { get; }
         public StationDeviceReference? Device { get; set; }
         public StationRuntimeFacts? Facts { get; set; }
         public ServiceProvider Provider { get; }
@@ -701,7 +809,8 @@ public sealed class StationFirstJobServiceTests
         public InventoryOwner Inventory { get; }
         public DateTimeOffset UtcNow { get; private set; } = Now;
         public PropertyStationEligibilitySnapshot PropertyFacts { get; set; } = new(Tenant, Property,
-            PropertyStatus.Active, 2, PropertyProcessingStatus.Enabled, "Europe/Helsinki");
+            PropertyStatus.Active, 2, PropertyProcessingStatus.Enabled, "Europe/Helsinki", "Harbour Hostel");
+        public IReadOnlyList<StaffStationLabel> StaffLabels { get; set; } = [new(Staff, "Alex Reception", 4)];
         public StaffStatus StaffStatus { get; set; } = StaffStatus.Active;
         public string? AuthSubject { get; set; }
         public WorkspaceOperationalAdmissionDecision Workspace { get; set; } = WorkspaceOperationalAdmissionDecision.Allowed;
@@ -715,6 +824,18 @@ public sealed class StationFirstJobServiceTests
         public void Dispose() => this.Provider.Dispose();
         public void Record(string name) { this.Events.Add(name); this.OnEvent?.Invoke(name); }
         public Task<StationFirstJobPage> ListAsync() => this.Service.ListAsync(Credential, this.Actor);
+        public Task<StationCurrentView> ViewAsync() => new StationRuntimeService(
+            this.Provider.GetRequiredService<IServiceScopeFactory>(), this, this).ReadViewAsync(Credential);
+        public Task<IReadOnlyList<StaffStationLabel>> ResolveAsync(string scopeId, Guid propertyId,
+            IReadOnlyCollection<Guid> staffMemberIds, DateOnly localDate, CancellationToken cancellationToken = default)
+        {
+            this.Record("staff-label");
+            Assert.Equal(Tenant, scopeId);
+            Assert.Equal(Property, propertyId);
+            Assert.Equal(Staff, Assert.Single(staffMemberIds));
+            Assert.Equal(LocalDate, localDate);
+            return Task.FromResult(this.StaffLabels);
+        }
         public Task<StationCheckInResult> CheckInAsync(string credential = Credential, StationActorCoordinate? actor = null,
             Guid? reservationId = null, long expectedVersion = 12) => this.Service.CheckInAsync(credential,
                 actor ?? this.Actor, Operation, reservationId ?? Id(100), expectedVersion);

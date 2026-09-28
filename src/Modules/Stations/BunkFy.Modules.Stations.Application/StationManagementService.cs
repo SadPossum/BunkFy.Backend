@@ -154,7 +154,17 @@ public sealed class StationManagementService(StationPrimaryAdmission primary,
         StationAdmission property = await admission.ObservePropertyAsync(propertyId, cancellationToken).ConfigureAwait(false);
         if (property.State != StationAdmissionState.Current)
         { return (Map(property.State), null); }
-        return (StationManagementState.Applied, await store.StaffStatusAsync(propertyId, staffId, clock.UtcNow, cancellationToken).ConfigureAwait(false));
+        StationStaffManagementItem? item = await store.StaffStatusAsync(propertyId, staffId, clock.UtcNow, cancellationToken).ConfigureAwait(false);
+        if (item is not null)
+        {
+            var target = await admission.ObserveRegistrationEnrollmentAsync(propertyId, staffId, cancellationToken).ConfigureAwait(false);
+            item = item with
+            {
+                CanIssueStationOnlySetup = item.Registered &&
+                    target.Admission.State == StationAdmissionState.Current && target.Enrollment?.Kind == StationActorKind.StationOnly,
+            };
+        }
+        return (StationManagementState.Applied, item);
     }
 
     public async Task<StationManagementResponse> OutcomeAsync(ClaimsPrincipal principal, Guid operationId,

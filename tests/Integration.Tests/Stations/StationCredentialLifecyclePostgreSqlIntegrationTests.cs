@@ -437,6 +437,17 @@ public sealed class StationCredentialLifecyclePostgreSqlIntegrationTests
         stations.Stations.Add(new(stationId, tenant, propertyId, "Synthetic desk"));
         stations.StaffRegistrations.Add(new(tenant, propertyId, staffId, 1));
         stations.BrowserSessions.Add(new(browserId, tenant, stationId, propertyId, StationCredentialEncoding.Digest(secret)!, Now, Now.AddDays(1), 1));
+        // This pre-paired runtime fixture has a real, already signed-out original pairing session.
+        // The separate account session remains available for the existing owner-recovery tests.
+        var auth = sp.GetRequiredService<AuthDbContext>();
+        var pairingMember = await auth.Members.Include(x => x.Sessions).SingleAsync(x => x.Id == new MemberId(account));
+        Guid pairingSession = Guid.NewGuid();
+        Assert.True(pairingMember.StartSession(new MemberSessionId(pairingSession), "synthetic-old-pairing", Now.AddDays(1), Now).IsSuccess);
+        Assert.True(pairingMember.SignOutSession(new MemberSessionId(pairingSession), Now).IsSuccess);
+        await auth.SaveChangesAsync();
+        stations.OperationReceipts.Add(new(tenant, Guid.NewGuid(), StationMutationKind.Register, new string('a', 64),
+            new(StationMutationOutcome.Applied, Management: new(stationId, browserId, propertyId, null, null, 1)),
+            Now, account.ToString("D"), StationIssuerKind.Manager, pairingSession));
         StationPinMaterial material = Assert.IsType<StationPinMaterial>(await sp.GetRequiredService<IStationPinVerifier>().CreateAsync("000001"));
         stations.Credentials.Add(new(tenant, staffId, material, Now, new(linked ? StationActorKind.LinkedStation : StationActorKind.StationOnly,
             linked ? account.ToString("D") : null)));

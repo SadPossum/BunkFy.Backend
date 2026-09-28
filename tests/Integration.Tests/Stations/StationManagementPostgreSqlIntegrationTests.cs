@@ -44,6 +44,79 @@ public sealed class StationManagementPostgreSqlIntegrationTests
     [Fact]
     [Trait("Category", "Docker")]
     [Trait("Category", "Integration")]
+    public async Task Persisted_original_pairing_session_gates_reload_recovery_and_repair_without_a_client_readiness_flag()
+    {
+        Assert.Equal("true", Environment.GetEnvironmentVariable("GMA_REQUIRE_DOCKER_TESTS"));
+        await using var postgres = Container();
+        await postgres.StartAsync();
+        await using var services = Services(postgres.GetConnectionString(), new TestClock(), new KdfControl());
+        await Migrate(services);
+        Guid account = Guid.NewGuid();
+        await SeedAccount(services, account);
+        Device device = await Seed(services, TenantA, account, false, stationData: false);
+        await Manager(services, device, account, root: true, enabled: true);
+        var paired = await Manage(services, device, Primary(account, Now), Guid.NewGuid(),
+            new(StationOperationKind.Register, device.Property, Label: "Handoff desk"));
+        device = Paired(device, paired);
+        var runtime = services.GetRequiredService<StationRuntimeService>();
+        string unchanged = await Fingerprint(services, TenantA);
+        Assert.Equal(new(StationSessionState.HandoffPending), await runtime.ReadAsync(device.Secret));
+        Assert.Equal(new(StationSessionState.HandoffPending), await runtime.UnlockAsync(device.Secret, Guid.NewGuid(), device.Staff, 1, "000001"));
+        var pending = await runtime.RosterAsync(device.Secret);
+        Assert.Equal(StationSessionState.HandoffPending, pending.State);
+        Assert.Empty(pending.Items);
+        Assert.Equal(unchanged, await Fingerprint(services, TenantA));
+
+        Guid recovery = await AddSession(services, account);
+        // A new primary session does not replace immutable original pairing provenance.
+        Assert.Equal(new(StationSessionState.HandoffPending), await runtime.ReadAsync(device.Secret));
+        await SignOut(services, account, account);
+        Assert.Equal(StationSessionState.Locked, (await runtime.ReadAsync(device.Secret)).State);
+        var coordinate = new StationDeviceReference(TenantA, device.Browser, device.Station, device.Property);
+        using (var fresh = Scope(services, TenantA))
+        {
+            var reader = fresh.ServiceProvider.GetRequiredService<IStationPairingHandoffReader>();
+            Assert.Equal(new(coordinate, account.ToString("D"), account), await reader.ReadHandoffAsync(coordinate));
+            Assert.Null(await reader.ReadHandoffAsync(coordinate with { PropertyId = Guid.NewGuid() }));
+            Assert.Null(await reader.ReadHandoffAsync(coordinate with { BrowserSessionId = Guid.NewGuid() }));
+            Assert.Null(await reader.ReadHandoffAsync(coordinate with { ScopeId = TenantB }));
+        }
+
+        // Corrupt/duplicate successful receipts cannot be resolved by selecting an arbitrary first row.
+        Guid duplicate = Guid.NewGuid();
+        using (var corrupt = Scope(services, TenantA))
+        {
+            var db = corrupt.ServiceProvider.GetRequiredService<StationsDbContext>();
+            db.OperationReceipts.Add(new(TenantA, duplicate, StationMutationKind.Register, new string('b', 64),
+                new(StationMutationOutcome.Applied, Management: new(device.Station, device.Browser, device.Property, null, null, 1)),
+                Now, account.ToString("D"), StationIssuerKind.Manager, account));
+            await db.SaveChangesAsync();
+        }
+        Assert.Equal(new(StationSessionState.StateChanged), await runtime.ReadAsync(device.Secret));
+        using (var repairFixture = Scope(services, TenantA))
+        {
+            var db = repairFixture.ServiceProvider.GetRequiredService<StationsDbContext>();
+            // Exact synthetic row only, inside this test's isolated PostgreSQL container.
+            await db.Database.ExecuteSqlInterpolatedAsync($"DELETE FROM stations.operation_receipts WHERE \"ScopeId\"={TenantA} AND \"Id\"={duplicate}");
+            PostgresException rejected = await Assert.ThrowsAsync<PostgresException>(() => db.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE stations.operation_receipts SET \"IssuerSubjectId\"='malformed' WHERE \"ScopeId\"={TenantA} AND \"BrowserSessionId\"={device.Browser}"));
+            Assert.Equal(PostgresErrorCodes.CheckViolation, rejected.SqlState);
+            Assert.Equal("CK_receipt_issuer", rejected.ConstraintName);
+        }
+        // PostgreSQL rejects malformed provenance before persistence; the original receipt remains valid.
+        Assert.Equal(StationSessionState.Locked, (await runtime.ReadAsync(device.Secret)).State);
+        var replacement = await Manage(services, device, Primary(account, Now, recovery), Guid.NewGuid(),
+            new(StationOperationKind.Pair, device.Property, StationId: device.Station, ExpectedVersion: 1));
+        Assert.Equal(StationSessionState.Invalid, (await runtime.ReadAsync(device.Secret)).State);
+        device = Paired(device, replacement);
+        Assert.Equal(new(StationSessionState.HandoffPending), await runtime.ReadAsync(device.Secret));
+        await SignOut(services, account, recovery);
+        Assert.Equal(StationSessionState.Locked, (await runtime.ReadAsync(device.Secret)).State);
+    }
+
+    [Fact]
+    [Trait("Category", "Docker")]
+    [Trait("Category", "Integration")]
     public async Task Real_owner_pairing_own_PIN_and_private_setup_preserve_scope_recovery_and_non_authority_boundaries()
     {
         Assert.Equal("true", Environment.GetEnvironmentVariable("GMA_REQUIRE_DOCKER_TESTS"));
@@ -74,6 +147,11 @@ public sealed class StationManagementPostgreSqlIntegrationTests
         b = Paired(b, bPair);
         Assert.DoesNotContain(a.Secret, JsonSerializer.Serialize(delivered), StringComparison.Ordinal);
         Assert.Equal(accountA, delivered.Response.Receipt!.IssuerSessionId);
+        var pendingRuntime = services.GetRequiredService<StationRuntimeService>();
+        Assert.Equal(new(StationSessionState.HandoffPending), await pendingRuntime.ReadAsync(a.Secret));
+        var pendingRoster = await pendingRuntime.RosterAsync(a.Secret);
+        Assert.Equal(StationSessionState.HandoffPending, pendingRoster.State);
+        Assert.Empty(pendingRoster.Items);
         await SetAccess(services, TenantA, a.Property, accountA, false);
         foreach (var target in new[] { (Device: a, Account: accountA), (Device: b, Account: accountB) })
         {
@@ -201,6 +279,10 @@ public sealed class StationManagementPostgreSqlIntegrationTests
         Assert.Equal(currentSession, rePair.Response.Receipt!.IssuerSessionId);
         Assert.Equal(StationSessionState.Invalid, (await runtime.ReadAsync(a.Secret)).State);
         a = Paired(a, rePair);
+        Assert.Equal(new(StationSessionState.HandoffPending), await runtime.ReadAsync(a.Secret));
+        await SignOut(services, accountA, currentSession);
+        Assert.Equal(StationSessionState.Locked, (await runtime.ReadAsync(a.Secret)).State);
+        Guid rollbackSession = await AddSession(services, accountA);
         // Local management may never install even an INITIAL global PIN.
         await Manager(services, b, accountB, root: true, enabled: false);
         await Manager(services, b, accountB, root: false, enabled: true);
@@ -213,7 +295,7 @@ public sealed class StationManagementPostgreSqlIntegrationTests
         Guid redeem = Guid.NewGuid();
         int createsBeforePrivate = kdf.Creates;
         var privateResult = await runtime.RedeemSeededSetupAsync(b.Secret, redeem, setup.Response.Receipt!.SetupGrantId!.Value, "000004");
-        Assert.Equal(StationCoreOutcome.Applied, privateResult.Outcome); // Signed-out issuing session is deliberately NOT required here.
+        Assert.Equal(StationCoreOutcome.Applied, privateResult.Outcome); // Setup issuer authority remains valid after primary sign-out.
         Assert.Equal(StationCoreOutcome.Applied, (await runtime.RedeemSeededSetupAsync(b.Secret, redeem, setup.Response.Receipt.SetupGrantId.Value, "111111")).Outcome);
         Assert.Equal(createsBeforePrivate + 1, kdf.Creates);
         var roster = await runtime.RosterAsync(b.Secret);
@@ -223,7 +305,7 @@ public sealed class StationManagementPostgreSqlIntegrationTests
         var bActive = await runtime.UnlockAsync(b.Secret, Guid.NewGuid(), b.Staff, 1, "000004");
         Assert.Equal(StationAuthorityKind.StationOnly, bActive.Session!.Actor!.AuthorityKind);
         // Controlled transaction failure must roll back own credential, actor invalidation, setup cancellation and receipt.
-        await RollbackProof(services, a, accountA, currentSession);
+        await RollbackProof(services, a, accountA, rollbackSession);
     }
 
     private static async Task<(Device Second, Device Other, Guid Pending)> AdditionalPropertyActors(ServiceProvider services, Device original, Guid account)
@@ -261,6 +343,9 @@ public sealed class StationManagementPostgreSqlIntegrationTests
             string secret = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)).TrimEnd('=').Replace('+', '-').Replace('/', '_');
             db.Stations.Add(new(station, original.Tenant, propertyId, "Synthetic additional desk"));
             db.BrowserSessions.Add(new(browser, original.Tenant, station, propertyId, StationCredentialEncoding.Digest(secret)!, Now, Now.AddDays(1), 1));
+            db.OperationReceipts.Add(new(original.Tenant, Guid.NewGuid(), StationMutationKind.Register, new string('a', 64),
+                new(StationMutationOutcome.Applied, Management: new(station, browser, propertyId, null, null, 1)),
+                Now, account.ToString("D"), StationIssuerKind.Manager, account));
             db.StaffRegistrations.Add(new(original.Tenant, propertyId, staffId, reference));
             return new(original.Tenant, propertyId, staffId, station, browser, secret);
         }
@@ -333,8 +418,10 @@ public sealed class StationManagementPostgreSqlIntegrationTests
         await SeedAccount(services, account);
         Device device = await Seed(services, TenantA, account, false, stationData: false);
         await Manager(services, device, account, root: true, enabled: true);
-        device = Paired(device, await Manage(services, device, Primary(account, Now), Guid.NewGuid(),
+        Guid pairingSession = await AddSession(services, account);
+        device = Paired(device, await Manage(services, device, Primary(account, Now, pairingSession), Guid.NewGuid(),
             new(StationOperationKind.Register, device.Property, Label: "Capacity desk")));
+        await SignOut(services, account, pairingSession);
         var runtime = services.GetRequiredService<StationRuntimeService>();
         Assert.Empty((await runtime.RosterAsync(device.Secret)).Items);
         Guid[] ids = Enumerable.Range(0, 201).Select(_ => Guid.NewGuid()).ToArray();
@@ -428,12 +515,15 @@ public sealed class StationManagementPostgreSqlIntegrationTests
         Assert.Equal(3, registrations.Single(x => x.StaffMemberId == ids[0]).Version);
         // A previously valid cookie cannot receive names after owner work overlaps re-pair/revocation.
         StationPairingHandoff? replacement = null;
-        labels.AfterRead = async () => replacement = await Manage(services, device, Primary(account, Now), Guid.NewGuid(),
+        Guid replacementSession = await AddSession(services, account);
+        labels.AfterRead = async () => replacement = await Manage(services, device, Primary(account, Now, replacementSession), Guid.NewGuid(),
             new(StationOperationKind.Pair, device.Property, StationId: device.Station, ExpectedVersion: 1));
         var staleRoster = await runtime.RosterAsync(device.Secret);
         Assert.Equal(StationSessionState.Invalid, staleRoster.State);
         Assert.Empty(staleRoster.Items);
         device = Paired(device, Assert.IsType<StationPairingHandoff>(replacement));
+        Assert.Equal(new(StationSessionState.HandoffPending), await runtime.ReadAsync(device.Secret));
+        await SignOut(services, account, replacementSession);
         Assert.Equal(25, (await runtime.RosterAsync(device.Secret)).Items.Count);
         labels.AfterRead = () => throw new InvalidOperationException("Synthetic label owner unavailable");
         var unavailable = await runtime.RosterAsync(device.Secret);

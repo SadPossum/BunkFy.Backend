@@ -7,6 +7,22 @@ using Microsoft.EntityFrameworkCore;
 
 internal sealed partial class StationsStore
 {
+    public async Task<StationPairingHandoffFacts?> ReadHandoffAsync(StationDeviceReference device, CancellationToken cancellationToken = default)
+    {
+        if (device.ScopeId != db.CurrentScopeId || !await this.ManagementReadable(cancellationToken).ConfigureAwait(false))
+        { return null; }
+        var receipts = await db.OperationReceipts.AsNoTracking().Where(x => x.ScopeId == device.ScopeId &&
+            x.StationId == device.StationId && x.BrowserSessionId == device.BrowserSessionId && x.PropertyId == device.PropertyId &&
+            x.Outcome == StationMutationOutcome.Applied && (x.Kind == StationMutationKind.Register || x.Kind == StationMutationKind.Pair))
+            .Take(2).ToArrayAsync(cancellationToken).ConfigureAwait(false);
+        if (receipts.Length != 1 || receipts[0].IssuerKind != StationIssuerKind.Manager ||
+            receipts[0].IssuerSessionId is not { } session || session == Guid.Empty ||
+            !Guid.TryParseExact(receipts[0].IssuerSubjectId, "D", out Guid issuer) || issuer == Guid.Empty ||
+            receipts[0].IssuerSubjectId != issuer.ToString("D"))
+        { return null; }
+        return new(device, issuer.ToString("D"), session);
+    }
+
     public async Task<StationOwnPinFacts?> OwnPinFactsAsync(Guid propertyId, Guid staffId, CancellationToken cancellationToken = default)
     {
         if (!await this.ManagementReadable(cancellationToken).ConfigureAwait(false))
@@ -318,7 +334,8 @@ internal sealed partial class StationsStore
         return new(staffId, registration.RosterReference, registration.Active, registration.Version,
             credential is null ? StationPinState.NotSet : credential.Revoked ? StationPinState.Revoked : !credential.Enrollment().IsBound ? StationPinState.ReEnrollmentNeeded : StationPinState.Set,
             grant is not null, grant?.Revoked ?? false, grant?.Revision,
-            setup is null ? StationSetupState.None : setup.ConsumedAtUtc is not null ? StationSetupState.Consumed : setup.Revoked ? StationSetupState.Cancelled : now >= setup.ExpiresAtUtc ? StationSetupState.Expired : StationSetupState.Pending, setup?.Id);
+            setup is null ? StationSetupState.None : setup.ConsumedAtUtc is not null ? StationSetupState.Consumed : setup.Revoked ? StationSetupState.Cancelled : now >= setup.ExpiresAtUtc ? StationSetupState.Expired : StationSetupState.Pending, setup?.Id,
+            credential?.Revision ?? 0);
     }
     public Task<StationSetupFacts?> FindSetupAsync(Guid setupId, StationDeviceReference device, DateTimeOffset now, CancellationToken cancellationToken = default) =>
         this.ReadSetupAsync(device, setupId, now, cancellationToken);

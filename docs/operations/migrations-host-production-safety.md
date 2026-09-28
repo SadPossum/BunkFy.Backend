@@ -72,6 +72,19 @@ The release identity and database identity required for `Plan` remain required
 for `Apply`. Evidence references are identifiers, never credentials or evidence
 payloads.
 
+## Shared-station PIN qualification (28 September 2026)
+
+Select `Stations:Http:Enabled=true` explicitly in the migration executable to
+compose Stations and its PostgreSQL assembly, while leaving serving APIs
+disabled during expansion. Plan must include the Stations catalogue and the
+Reservations attribution migration. Verify exact hashes, backup/restore,
+constraints, indexes and applied history before enabling runtime HTTP.
+After use, roll back feature entry points, not durable credentials or audit
+schemas. Restored device authority must fail closed under an advanced external
+epoch. Pepper-version and Data Protection continuity are separate required
+proofs. See [Shared-station PIN admission](stations-production-admission.md).
+Local migration tests are not target-specific Apply admission.
+
 ## Concurrency And Recovery
 
 One session-scoped PostgreSQL advisory lock covers inspection and all module

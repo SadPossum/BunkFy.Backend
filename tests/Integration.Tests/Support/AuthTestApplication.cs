@@ -50,7 +50,9 @@ internal sealed class AuthTestApplication(
     DbCommandInterceptor? inventoryCommandInterceptor = null,
     bool enableWorkspaceSelfService = false,
     string? adapterIngressRedisConnectionString = null,
-    ISystemClock? systemClock = null)
+    ISystemClock? systemClock = null,
+    IReadOnlyDictionary<string, string?>? configurationOverrides = null,
+    Action<IServiceCollection>? configureServices = null)
     : WebApplicationFactory<ApiAssemblyReference>
 {
     private const string JwtIssuer = "BunkFy";
@@ -89,6 +91,17 @@ internal sealed class AuthTestApplication(
         builder.UseSetting("Auth:RefreshTokens:Pepper", AuthTestConfiguration.RefreshTokenPepper);
         builder.UseSetting("Auth:SelfRegistration:PasswordEnabled", "true");
         builder.UseSetting("Auth:SelfRegistration:ExternalEnabled", "true");
+        if (configurationOverrides is not null)
+        {
+            foreach ((string key, string? value) in configurationOverrides)
+            {
+                if (value is not null)
+                {
+                    builder.UseSetting(key, value);
+                }
+            }
+        }
+
         if (!string.IsNullOrWhiteSpace(adapterIngressRedisConnectionString))
         {
             builder.UseSetting("Ingestion:AdapterIngress:Enabled", "true");
@@ -155,6 +168,14 @@ internal sealed class AuthTestApplication(
                 values["Http:RateLimiting:SensitivePermitLimit"] = "1000";
             }
 
+            if (configurationOverrides is not null)
+            {
+                foreach ((string key, string? value) in configurationOverrides)
+                {
+                    values[key] = value;
+                }
+            }
+
             configuration.AddInMemoryCollection(values);
         });
 
@@ -193,6 +214,8 @@ internal sealed class AuthTestApplication(
                 services.AddDbContext<InventoryDbContext>(options =>
                     options.AddInterceptors(inventoryCommandInterceptor));
             }
+
+            configureServices?.Invoke(services);
         });
     }
 
@@ -406,7 +429,9 @@ internal sealed class AuthTestApplication(
             inventoryCommandInterceptor: inventoryCommandInterceptor,
             enableWorkspaceSelfService: enableWorkspaceSelfService,
             adapterIngressRedisConnectionString: adapterIngressRedisConnectionString,
-            systemClock: systemClock);
+            systemClock: systemClock,
+            configurationOverrides: configurationOverrides,
+            configureServices: configureServices);
         await migration(migrationApplication).ConfigureAwait(false);
     }
 

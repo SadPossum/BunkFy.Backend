@@ -104,3 +104,16 @@ uncertain:
 Disabling execution prevents new destructive work from being admitted. It does
 not reverse owner work already protected by the replay journal; recovery must
 converge that recorded operation before another termination may proceed.
+
+## Shared-station ownership amendment (28 September 2026)
+
+A Stations-enabled candidate must add its actual owner/catalogue entries and
+prove export/classification followed by dependency-safe destruction or approved
+irreversible severance of registrations, station/browser/actor sessions, staff
+credentials/grants, setup grants, operation/activity receipts and lifecycle
+state. Include the Reservations station-attribution child. Prove retry and
+absence after completion; do not assume cascade or ordinary reservation export
+provides this coverage. Staff provenance must stay out of guest exports.
+This is an unresolved activation gate, not a claim that owner implementation
+or hosted termination proof exists. See
+[Shared-station PIN admission](stations-production-admission.md).

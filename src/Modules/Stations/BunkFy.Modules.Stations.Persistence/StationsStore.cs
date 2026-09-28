@@ -11,7 +11,7 @@ using Microsoft.Extensions.Options;
 
 /// <summary>Serialized local state only. External Staff/Auth/Access/property admission is a later mandatory caller.</summary>
 internal sealed partial class StationsStore(StationsDbContext db, IStationPinVerifier verifier, IOptions<StationOptions> configured)
-    : IStationsStore, IStationRuntimeStore, IStationCredentialBootstrap, IStationManagementStore
+    : IStationsStore, IStationRuntimeStore, IStationCredentialBootstrap, IStationManagementStore, IStationPairingHandoffReader
 {
     private readonly StationOptions options = configured.Value;
     public Task<StationCoreResult> TryUnlockCoreAsync(Guid operationId, Guid stationId, Guid browserId, Guid staffId,
@@ -313,8 +313,9 @@ internal sealed partial class StationsStore(StationsDbContext db, IStationPinVer
         StationBrowserSession? browser = await db.BrowserSessions.AsNoTracking().SingleOrDefaultAsync(x =>
             x.Id == device.BrowserSessionId && x.StationId == device.StationId && x.PropertyId == device.PropertyId &&
             x.CredentialDigest == digest, cancellationToken).ConfigureAwait(false);
-        if (browser is null || !browser.PairingCurrent(now, this.options.ExternalEpoch) ||
-            !await db.Stations.AsNoTracking().AnyAsync(x => x.Id == device.StationId && x.PropertyId == device.PropertyId && !x.Revoked, cancellationToken).ConfigureAwait(false))
+        string? stationLabel = await db.Stations.AsNoTracking().Where(x => x.Id == device.StationId &&
+            x.PropertyId == device.PropertyId && !x.Revoked).Select(x => x.Label).SingleOrDefaultAsync(cancellationToken).ConfigureAwait(false);
+        if (browser is null || !browser.PairingCurrent(now, this.options.ExternalEpoch) || stationLabel is null)
         {
             return null;
         }
@@ -325,7 +326,7 @@ internal sealed partial class StationsStore(StationsDbContext db, IStationPinVer
         StationActorCoordinate? actor = browser.ActorSessionId is { } actorId && browser.StaffMemberId is { } actorStaff
             ? new(actorStaff, actorId, browser.Generation, (StationAuthorityKind)browser.AuthorityKind) : null;
         var snapshot = new StationSessionSnapshot(browser.StationId, browser.PropertyId, browser.Id, browser.Generation,
-            actor, browser.PairingExpiresAtUtc, browser.ActorIdleExpiresAtUtc, browser.ActorAbsoluteExpiresAtUtc);
+            actor, browser.PairingExpiresAtUtc, browser.ActorIdleExpiresAtUtc, browser.ActorAbsoluteExpiresAtUtc, stationLabel);
         bool active = registered && browser.ActorCurrent(now, this.options.ExternalEpoch) && credential is not null &&
             !credential.Revoked && browser.CredentialRevision == credential.Revision &&
             browser.AuthorityKind == credential.EnrollmentAuthorityKind &&

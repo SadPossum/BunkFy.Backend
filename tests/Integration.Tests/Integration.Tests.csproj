@@ -1,4 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../../src/Modules/Stations/BunkFy.Modules.Stations.Api/BunkFy.Modules.Stations.Api.csproj" />
+  </ItemGroup>
   <PropertyGroup>
     <IsTestProject>true</IsTestProject>
     <IsPackable>false</IsPackable>

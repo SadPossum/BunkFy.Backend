@@ -29,6 +29,8 @@ using BunkFy.Modules.Retention.Api;
 using BunkFy.Modules.Retention.Persistence;
 using BunkFy.Modules.Staff.Api;
 using BunkFy.Modules.Staff.Persistence;
+using BunkFy.Modules.Stations.Api;
+using BunkFy.Modules.Stations.Application;
 using BunkFy.Modules.Workspaces.Api;
 using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Persistence;
@@ -84,6 +86,7 @@ AuthenticationAssuranceRequirement privilegedOperationAssurance =
     BunkFyAuthenticationAssurance.CreatePrivilegedOperationRequirement(builder.Configuration);
 AuthenticationAssuranceRequirement destructiveOperationAssurance =
     BunkFyAuthenticationAssurance.CreateDestructiveOperationRequirement(builder.Configuration);
+bool stationHttpEnabled = builder.Configuration.GetValue<bool>("Stations:Http:Enabled");
 
 builder.Host.UseConfiguredSerilog();
 builder.AddBunkFyProductionDeployment(BunkFyDeploymentSurface.PublicApi);
@@ -214,6 +217,13 @@ builder.AddModule<IngestionModule>();
 builder.Services.AddBunkFyOperationsIngestionNotifications();
 builder.AddModule<DataRightsModule>();
 builder.AddModule<RetentionModule>();
+builder.AddModule<StationsModule>();
+if (stationHttpEnabled)
+{
+    StationHttpHostAdmission.Validate(builder.Configuration);
+    builder.Services.AddStationsManagement(destructiveOperationAssurance, authScopeId);
+    builder.Services.AddSingleton<IStationPepperProvider, ConfiguredStationPepperProvider>();
+}
 // module-scaffold:public-api-modules
 
 builder.AddServiceDefaults();
@@ -232,6 +242,7 @@ builder.Services.AddGmaEntityFrameworkReadinessCheck<IngestionDbContext>("ingest
 builder.Services.AddGmaEntityFrameworkReadinessCheck<DataRightsDbContext>("data-rights-database");
 builder.Services.AddGmaEntityFrameworkReadinessCheck<RetentionDbContext>("retention-database");
 builder.AddGmaOpenApi();
+builder.Services.AddSwaggerGen(options => options.SchemaFilter<StationPinSchemaFilter>());
 builder.ValidateModuleComposition();
 
 WebApplication app = builder.Build();
@@ -239,6 +250,7 @@ WebApplication app = builder.Build();
 app.UseGmaOpenApi();
 app.UseGmaProductionHttp();
 app.UseGmaSerilogRequestLogging();
+app.UseStationHttpSecurity();
 app.UseAuthentication();
 app.UseAuthorization();
 

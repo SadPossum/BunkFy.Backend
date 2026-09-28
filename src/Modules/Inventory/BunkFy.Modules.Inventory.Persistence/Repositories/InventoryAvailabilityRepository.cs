@@ -4,9 +4,17 @@ using BunkFy.Modules.Inventory.Application.Ports;
 using BunkFy.Modules.Inventory.Contracts;
 using BunkFy.Modules.Inventory.Domain.Aggregates;
 using Microsoft.EntityFrameworkCore;
+using Gma.Framework.Messaging;
+using Gma.Framework.Runtime.Identity;
+using Gma.Framework.Runtime.Time;
 using BunkFy.Modules.Properties.Contracts;
 
-internal sealed class InventoryAvailabilityRepository(InventoryDbContext dbContext)
+internal sealed class InventoryAvailabilityRepository(
+    InventoryDbContext dbContext,
+    IInventoryTopologyRepository topology,
+    IOutboxWriterRegistry outboxWriters,
+    ISystemClock clock,
+    IIdGenerator idGenerator)
     : IInventoryAvailabilityRepository
 {
     public async Task<InventoryAvailabilityContextSnapshot> GetContextAsync(
@@ -358,6 +366,41 @@ internal sealed class InventoryAvailabilityRepository(InventoryDbContext dbConte
         foreach (RoomInventoryConfiguration room in rooms)
         {
             room.TouchAvailability();
+        }
+
+        // Availability changes advance the same version used by definition projections.
+        // Queue the already-touched owner snapshot in this DbContext's transaction; do not
+        // call the topology publisher, whose touchVersions:true would increment it again.
+        IOutboxWriter writer = outboxWriters.GetRequired(InventoryModuleMetadata.Name);
+        foreach (InventoryUnit unit in units)
+        {
+            IReadOnlyCollection<InventoryUnitDefinitionSnapshot> definitions = await topology
+                .GetUnitDefinitionsAsync(propertyId, unit.RoomId, unit.Id, touchVersions: false, cancellationToken)
+                .ConfigureAwait(false);
+            InventoryUnitDefinitionSnapshot definition = definitions.Single();
+            if (definition.ScopeId != dbContext.CurrentScopeId || definition.PropertyId != propertyId ||
+                definition.InventoryUnitId != unit.Id || definition.RoomId != unit.RoomId ||
+                definition.UnitVersion != unit.AvailabilityMutationVersion)
+            {
+                throw new InvalidOperationException("The touched inventory definition could not be observed.");
+            }
+
+            await writer.EnqueueAsync(
+                new InventoryUnitDefinitionChangedIntegrationEvent(
+                    idGenerator.NewId(),
+                    definition.ScopeId,
+                    clock.UtcNow,
+                    definition.InventoryUnitId,
+                    definition.PropertyId,
+                    definition.RoomId,
+                    definition.BedId,
+                    definition.Kind,
+                    definition.Label,
+                    definition.IsTopologyActive,
+                    definition.IsSellable,
+                    definition.ConfigurationVersion,
+                    definition.UnitVersion),
+                cancellationToken).ConfigureAwait(false);
         }
     }
 

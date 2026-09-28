@@ -10,6 +10,7 @@ using BunkFy.Modules.Stations.Persistence;
 using Gma.Framework.Persistence.EntityFrameworkCore;
 using Gma.Framework.Scoping;
 using Gma.Framework.Runtime.Time;
+using Gma.Modules.Auth.Contracts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -22,6 +23,11 @@ using Xunit;
 
 public sealed class StationsStorePostgreSqlTests
 {
+    private sealed class NoSessionLookup : IAuthSessionAdmissionReader
+    {
+        public ValueTask<bool> IsActiveAsync(string scopeId, Guid memberId, Guid sessionId, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("Pre-management fixture has no pairing receipt, so Auth must not be queried.");
+    }
     private const string TenantA = StationDomainTests.Tenant;
     private const string TenantB = "bb000000-0000-0000-0000-000000000002";
     private static readonly DateTimeOffset Now = StationDomainTests.Now;
@@ -44,7 +50,8 @@ public sealed class StationsStorePostgreSqlTests
         builder.Services.AddScoped<IScopeContextAccessor>(sp => sp.GetRequiredService<TestScope>());
         builder.Services.AddSingleton<ISystemClock, TestClock>();
         builder.Services.AddSingleton<IStationPepperProvider, StationPinVerifierTests.TestPeppers>();
-        builder.Services.AddStationsCore(o => { o.ExternalEpoch = 1; o.PepperVersion = "test-v1"; });
+        builder.Services.AddStationsCore(o => { o.ExternalEpoch = 1; o.PepperVersion = "test-v1"; o.ManagementAuthScopeId = "fixture-auth"; });
+        builder.Services.AddSingleton<IAuthSessionAdmissionReader, NoSessionLookup>();
         builder.AddStationsPersistence();
         builder.Services.AddStationsRuntime();
         await using ServiceProvider services = builder.Services.BuildServiceProvider();

@@ -21,6 +21,18 @@ public sealed record StationCheckInPreparation(StationReservationState State, Da
     StationDueArrival? Arrival = null, bool Replay = false);
 public sealed record StationCheckInResult(StationReservationState State, ReservationMutationReceiptDto? Receipt = null);
 
+/// <summary>Guest-free historical confirmation only. Pending never proves that a delayed write cannot commit.</summary>
+public enum StationCheckInOutcomeState { Pending = 0, Applied = 1, Conflict = 2, Unavailable = 3 }
+public sealed record StationCheckInOutcome(StationCheckInOutcomeState State);
+
+/// <summary>Reads only persisted operation/provenance facts; cannot dispatch or retry a mutation.</summary>
+public interface IStationCheckInOutcomeReader
+{
+    Task<StationCheckInOutcome> ResolveAsync(Guid propertyId, Guid stationId, Guid browserSessionId,
+        Guid actorSessionId, long generation, Guid reservationId, Guid operationId, long expectedVersion,
+        CancellationToken cancellationToken = default);
+}
+
 /// <summary>Internal owner boundary. All coordinates/date/provenance are established by Stations on the server.</summary>
 public interface IStationReservationOperations
 {

@@ -45,6 +45,12 @@ public interface IStationCredentialBootstrap
     Task<StationDeviceReference?> FindAsync(string opaqueCredential, CancellationToken cancellationToken = default);
 }
 public sealed record StationDeviceReference(string ScopeId, Guid BrowserSessionId, Guid StationId, Guid PropertyId);
+/// <summary>Immutable original pairing issuer. Never replaced by a recovery login or client claim.</summary>
+public sealed record StationPairingHandoffFacts(StationDeviceReference Device, string IssuerSubjectId, Guid IssuerSessionId);
+public interface IStationPairingHandoffReader
+{
+    Task<StationPairingHandoffFacts?> ReadHandoffAsync(StationDeviceReference device, CancellationToken cancellationToken = default);
+}
 public sealed record StationCredentialFacts(Guid StaffMemberId, long Revision, bool Revoked, StationEnrollmentBinding Enrollment);
 public sealed record StationRuntimeFacts(StationSessionSnapshot Session, bool ActorCurrent,
     StationCredentialFacts? Credential, long? GrantRevision, bool GrantRevoked, bool Registered = true);

@@ -1,6 +1,7 @@
 namespace BunkFy.Host.Api;
 
 using BunkFy.Adapters.SmtpEmail;
+using BunkFy.Modules.Stations.Api;
 using Gma.Modules.Notifications.Adapters.Email;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Extensions.Options;
@@ -25,10 +26,13 @@ public static class ProductCapabilitiesEndpoints
 
     private static Ok<BunkFyProductCapabilitiesResponse> GetProductCapabilities(
         IOptions<SmtpEmailOptions> smtp,
-        IOptions<NotificationEmailAdapterOptions> notificationEmail) =>
+        IOptions<NotificationEmailAdapterOptions> notificationEmail,
+        IOptions<StationApiOptions> stations) =>
         TypedResults.Ok(new BunkFyProductCapabilitiesResponse(
-            smtp.Value.Enabled && notificationEmail.Value.Enabled));
+            smtp.Value.Enabled && notificationEmail.Value.Enabled,
+            stations.Value.Enabled));
 }
 
 public sealed record BunkFyProductCapabilitiesResponse(
-    bool EmailVerificationEnabled);
+    bool EmailVerificationEnabled,
+    bool StaffPinEnabled = false);

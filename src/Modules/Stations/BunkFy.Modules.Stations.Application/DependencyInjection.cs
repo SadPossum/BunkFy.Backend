@@ -4,6 +4,7 @@ using BunkFy.Modules.Stations.Contracts;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Gma.Framework.Security;
+using Gma.Framework.AccessControl;
 
 public static class DependencyInjection
 {
@@ -20,6 +21,7 @@ public static class DependencyInjection
     public static IServiceCollection AddStationsRuntime(this IServiceCollection services)
     {
         services.TryAddScoped<StationAdmissionCoordinator>();
+        services.TryAddScoped<StationHandoffAdmission>();
         services.TryAddScoped<StationRuntimeService>();
         services.TryAddScoped<StationFirstJobService>();
         services.TryAddScoped<IStationSessionReader>(s => s.GetRequiredService<StationRuntimeService>());
@@ -36,6 +38,7 @@ public static class DependencyInjection
         services.Configure<StationOptions>(o => o.ManagementAuthScopeId = globalAuthScopeId);
         services.TryAddScoped<StationPrimaryAdmission>();
         services.TryAddScoped<StationManagementService>();
+        services.AddGmaAccessControlPermissionPolicies(StationsModuleMetadata.Descriptor);
         return services;
     }
 }
