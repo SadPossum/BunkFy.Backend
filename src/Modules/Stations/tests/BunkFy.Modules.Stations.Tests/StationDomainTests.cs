@@ -80,7 +80,7 @@ public sealed class StationDomainTests
     public void Lock_retains_device_binding_and_invalidates_the_previous_generation()
     {
         StationBrowserSession browser = Browser();
-        browser.Activate(Guid.NewGuid(), Guid.NewGuid(), StationActorKind.LinkedStation, 1, null, Now, TimeSpan.FromMinutes(5), TimeSpan.FromHours(12));
+        browser.Activate(Guid.NewGuid(), Guid.NewGuid(), StationActorKind.LinkedStation, 1, 1, Now, TimeSpan.FromMinutes(5), TimeSpan.FromHours(12));
         long previous = browser.Generation;
         Assert.True(browser.ActorCurrent(Now.AddMinutes(1), 1));
         Assert.False(browser.ActorCurrent(Now.AddMinutes(5), 1));
@@ -98,7 +98,7 @@ public sealed class StationDomainTests
     {
         var browser = Browser();
         Guid actor = Guid.NewGuid();
-        browser.Activate(Guid.NewGuid(), actor, StationActorKind.LinkedStation, 1, null, Now, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(10));
+        browser.Activate(Guid.NewGuid(), actor, StationActorKind.LinkedStation, 1, 1, Now, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(10));
         Assert.True(browser.RecordForegroundActivity(actor, browser.Generation, Now.AddMinutes(4), TimeSpan.FromMinutes(5)));
         Assert.Equal(Now.AddMinutes(9), browser.ActorIdleExpiresAtUtc);
         Assert.True(browser.RecordForegroundActivity(actor, browser.Generation, Now.AddMinutes(8), TimeSpan.FromMinutes(5)));

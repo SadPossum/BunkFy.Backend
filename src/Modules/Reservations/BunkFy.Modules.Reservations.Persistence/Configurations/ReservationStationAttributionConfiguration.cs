@@ -16,6 +16,7 @@ internal sealed class ReservationStationAttributionConfiguration : IEntityTypeCo
             table.HasCheckConstraint("CK_station_attribution_versions", "\"Generation\" > 0 AND \"ResultingVersion\" > 0");
             table.HasCheckConstraint("CK_station_attribution_authority", "\"Authority\" IN (1, 2)");
             table.HasCheckConstraint("CK_station_attribution_identity", IdentityConstraint);
+            table.HasCheckConstraint("CK_station_attribution_job_grant", "\"JobGrantRevision\" IS NULL OR (\"Authority\" = 2 AND \"JobGrantRevision\" > 0)");
         });
         builder.HasKey(x => new { x.ScopeId, x.ReservationId, x.OperationId });
         builder.Property(x => x.ScopeId).HasMaxLength(128).IsRequired();

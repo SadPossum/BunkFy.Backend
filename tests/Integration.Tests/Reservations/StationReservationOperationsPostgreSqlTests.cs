@@ -41,7 +41,7 @@ using Xunit.Abstractions;
 /// Reservations-owned PostgreSQL persistence proof, not station admission, HTTP or transport proof.
 /// Clock, tenant scope, open termination fence and Inventory release outcomes are explicit fixtures.
 /// </summary>
-public sealed class StationReservationOperationsPostgreSqlTests(ITestOutputHelper output)
+public sealed partial class StationReservationOperationsPostgreSqlTests(ITestOutputHelper output)
 {
     private const string TenantA = "aa000000-0000-0000-0000-000000000001";
     private const string TenantB = "bb000000-0000-0000-0000-000000000002";
@@ -97,7 +97,7 @@ public sealed class StationReservationOperationsPostgreSqlTests(ITestOutputHelpe
             {
                 constraints.Add(reader.GetString(0), reader.GetString(1));
             }
-            Assert.Equal(5, constraints.Count);
+            Assert.Equal(6, constraints.Count);
             Assert.Contains("PRIMARY KEY (\"ScopeId\", \"ReservationId\", \"OperationId\")",
                 constraints["PK_station_attributions"], StringComparison.Ordinal);
             Assert.Contains("REFERENCES reservations.management_operations(\"ScopeId\", \"ReservationId\", \"Id\") ON DELETE CASCADE",
@@ -228,7 +228,7 @@ public sealed class StationReservationOperationsPostgreSqlTests(ITestOutputHelpe
         {
             provenance with { StationId = Guid.NewGuid() }, provenance with { BrowserSessionId = Guid.NewGuid() },
             provenance with { StaffMemberId = Guid.NewGuid() }, provenance with { ActorSessionId = Guid.NewGuid() },
-            provenance with { Generation = provenance.Generation + 1 }, provenance with { Authority = StationReservationAuthority.StationOnly }
+            provenance with { Generation = provenance.Generation + 1 }, provenance with { Authority = StationReservationAuthority.StationOnly, JobGrantRevision = 1 }
         })
         {
             AssertConflict(await SendAsync(fixture.Services, station with { Provenance = changed }));
@@ -515,7 +515,7 @@ public sealed class StationReservationOperationsPostgreSqlTests(ITestOutputHelpe
         DataRightsExportRecord[] operations = first.Records
             .Where(x => x.RecordType == ReservationsTenantTerminationMetadata.ManagementOperationRecordType).ToArray();
         Assert.Equal(2, operations.Length);
-        Assert.All(operations, row => Assert.Equal(4, row.RecordVersion));
+        Assert.All(operations, row => Assert.Equal(5, row.RecordVersion));
         DataRightsExportRecord stationRecord = Assert.Single(operations, row =>
             ExportField(row, "reservations.record-id").GetGuid() == station.OperationId);
         JsonElement staff = ExportField(stationRecord, "reservations.staff-attribution");
@@ -525,6 +525,7 @@ public sealed class StationReservationOperationsPostgreSqlTests(ITestOutputHelpe
         Assert.Equal(station.Provenance.ActorSessionId, staff.GetProperty("actorSessionId").GetGuid());
         Assert.Equal(station.Provenance.Generation, staff.GetProperty("generation").GetInt64());
         Assert.Equal("station-only", staff.GetProperty("authority").GetString());
+        Assert.Equal(station.Provenance.JobGrantRevision, staff.GetProperty("jobGrantRevision").GetInt64());
         Assert.Equal(station.ExpectedVersion + 1, staff.GetProperty("resultingVersion").GetInt64());
         Assert.DoesNotContain("staffMemberId", ExportField(stationRecord, "reservations.management-operation").GetRawText(), StringComparison.Ordinal);
         DataRightsExportRecord primaryRecord = Assert.Single(operations, row =>
@@ -559,7 +560,7 @@ public sealed class StationReservationOperationsPostgreSqlTests(ITestOutputHelpe
         StationReservationAuthority authority = StationReservationAuthority.LinkedStation) =>
         new(Guid.NewGuid(), seed.PropertyId, seed.Reservation.Id, BusinessDate, seed.InitialVersion,
             seed.Reservation.AllocationId, seed.Reservation.AllocationVersion,
-            new(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), 3, authority));
+            new(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), 3, authority, authority == StationReservationAuthority.StationOnly ? 1 : null));
 
     private static CheckInReservationCommand PrimaryCommand(SeededReservation seed) =>
         new(Guid.NewGuid(), seed.PropertyId, seed.Reservation.Id, BusinessDate, seed.InitialVersion, "user:synthetic-primary");
@@ -775,6 +776,8 @@ public sealed class StationReservationOperationsPostgreSqlTests(ITestOutputHelpe
         builder.AddCqrsInfrastructure();
         builder.AddMessagingInfrastructure();
         builder.Services.AddReservationsApplication();
+        // Explicit allow decision for owner-adapter tests; this does not replace station or Auth admission.
+        builder.Services.AddSingleton<IReservationCountryPolicyAdmission, StationCountryAdmission>();
         builder.AddReservationsPersistence();
         return builder.Services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
     }

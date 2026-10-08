@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.Reservations.Application.Handlers;
 
 using BunkFy.Modules.Reservations.Application.Ports;
+using BunkFy.Modules.Reservations.Application.Stations;
 using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Reservations.Contracts.Stations;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
@@ -26,7 +27,7 @@ internal sealed class ReservationManagementLifecycleCoordinator(
     {
         ArgumentNullException.ThrowIfNull(apply);
         if (!IsValidRequest(operationId, kind, businessDate, actorId) ||
-            (station is not null && (!station.IsValid || kind != ReservationManagementOperationKind.CheckIn)))
+            (station is not null && (!StationOperationProvenance.ValidNew(station) || kind is not (ReservationManagementOperationKind.CheckIn or ReservationManagementOperationKind.CheckOut))))
         {
             return Result.Failure<ReservationMutationReceiptDto>(
                 ReservationsApplicationErrors.ManagementOperationInvalid);
@@ -52,7 +53,7 @@ internal sealed class ReservationManagementLifecycleCoordinator(
         if (existing is not null)
         {
             return existing.PropertyId == reservation.PropertyId &&
-                existing.MatchesLifecycle(kind, expectedVersion, businessDate) && attribution.Provenance == station
+                existing.MatchesLifecycle(kind, expectedVersion, businessDate) && StationOperationProvenance.Matches(kind, attribution.Provenance, station)
                 ? Result.Success(reservation.ToMutationReceipt())
                 : Result.Failure<ReservationMutationReceiptDto>(
                     ReservationsApplicationErrors.ManagementOperationConflict);

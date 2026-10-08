@@ -13,6 +13,7 @@ public sealed class StationsDbContext(DbContextOptions<StationsDbContext> option
     public DbSet<StationStaffCredential> Credentials => this.Set<StationStaffCredential>();
     public DbSet<StationSetupGrant> SetupGrants => this.Set<StationSetupGrant>();
     public DbSet<StationStaffCheckInGrant> CheckInGrants => this.Set<StationStaffCheckInGrant>();
+    public DbSet<StationStaffCheckOutGrant> CheckOutGrants => this.Set<StationStaffCheckOutGrant>();
     public DbSet<StationOperationReceipt> OperationReceipts => this.Set<StationOperationReceipt>();
     public DbSet<StationStaffRegistration> StaffRegistrations => this.Set<StationStaffRegistration>();
     internal DbSet<StationsTenantLifecycleState> Lifecycle => this.Set<StationsTenantLifecycleState>();

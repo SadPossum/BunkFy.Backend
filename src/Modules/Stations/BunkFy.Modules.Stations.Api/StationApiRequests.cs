@@ -51,9 +51,16 @@ public sealed record StationManagementHttpResponse(StationManagementState State,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] StationManagementHttpReceipt? Receipt = null);
 public sealed record StationStaffStatusResponse(StationManagementState State, StationStaffManagementItem? Item = null);
 public sealed record StationCurrentResponse(StationRuntimeResponse Runtime, string? CsrfToken = null,
-    DateTimeOffset? CsrfExpiresAtUtc = null, string? PropertyName = null, string? StaffDisplayName = null)
+    DateTimeOffset? CsrfExpiresAtUtc = null, string? PropertyName = null, string? StaffDisplayName = null, StationJobAvailability? Jobs = null)
 {
     public override string ToString() => nameof(StationCurrentResponse);
 }
 public sealed record StationArrivalsResponse(StationReservationState State, IReadOnlyList<StationFirstJobArrival> Items,
     string? Continuation = null, Guid? PropertyId = null, DateOnly? PropertyLocalDate = null);
+
+public sealed record StationDeparturesResponse(StationReservationState State, IReadOnlyList<StationFirstJobDeparture> Items,
+    string? Continuation = null, Guid? PropertyId = null, DateOnly? PropertyLocalDate = null);
+public sealed record StationCheckOutRequest(Guid OperationId, Guid ReservationId, long ExpectedVersion,
+    Guid ActorSessionId, long ExpectedGeneration);
+public sealed record StationCheckOutOutcomeRequest(Guid OperationId, Guid ReservationId, long ExpectedVersion,
+    Guid BrowserSessionId, Guid ActorSessionId, long ExpectedGeneration);

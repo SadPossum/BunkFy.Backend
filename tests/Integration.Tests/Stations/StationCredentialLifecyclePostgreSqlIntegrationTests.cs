@@ -81,7 +81,7 @@ public sealed class StationCredentialLifecyclePostgreSqlIntegrationTests
             await sp.GetRequiredService<AccessControlDbContext>().Database.MigrateAsync();
             var stations = sp.GetRequiredService<StationsDbContext>();
             await stations.Database.MigrateAsync();
-            Assert.Equal(3, (await stations.Database.GetAppliedMigrationsAsync()).Count());
+            Assert.Equal(4, (await stations.Database.GetAppliedMigrationsAsync()).Count());
             Assert.False(stations.Database.HasPendingModelChanges());
         }
         Guid accountA = Guid.NewGuid(), accountB = Guid.NewGuid();
@@ -171,12 +171,13 @@ public sealed class StationCredentialLifecyclePostgreSqlIntegrationTests
             var db = read.ServiceProvider.GetRequiredService<StationsDbContext>();
             Assert.Single(await db.OperationReceipts.Where(x => x.Kind == StationMutationKind.ForegroundActivity).ToArrayAsync());
         }
-        // Real Access revocation is observed by the same runtime instance; no positive admission cache.
+        // Removing one job permission does not revoke neutral identity or deliberate activity.
         await SetAccess(services, TenantA, a.Property, accountA, false);
-        Assert.Equal(StationSessionState.StateChanged, (await runtime.ReadAsync(a.Secret)).State);
-        Assert.Null((await runtime.ForegroundActivityAsync(a.Secret, Guid.NewGuid(), actor)).Session);
+        Assert.Equal(StationSessionState.Active, (await runtime.ReadAsync(a.Secret)).State);
+        var neutralTouch = await runtime.ForegroundActivityAsync(a.Secret, Guid.NewGuid(), actor);
+        Assert.Equal(StationCoreOutcome.Applied, neutralTouch.Outcome);
         await SetAccess(services, TenantA, a.Property, accountA, true);
-        Assert.Equal(touched.Session.ActorIdleExpiresAtUtc, (await runtime.ReadAsync(a.Secret)).Session!.ActorIdleExpiresAtUtc);
+        Assert.Equal(neutralTouch.Session!.ActorIdleExpiresAtUtc, (await runtime.ReadAsync(a.Secret)).Session!.ActorIdleExpiresAtUtc);
         // Old linked enrollment cannot follow Staff from A through the legitimate unlink/link transition to B.
         Guid pinnedSetup = await Setup(services, a, new(StationActorKind.LinkedStation, accountA.ToString("D")), 1, time.UtcNow);
         await ChangeLink(services, a, null, time.UtcNow);
@@ -222,7 +223,7 @@ public sealed class StationCredentialLifecyclePostgreSqlIntegrationTests
         Assert.Equal(newerActor.Session, (await runtime.ReadAsync(a.Secret)).Session);
         Assert.Equal(StationSessionState.Locked, (await runtime.LockAsync(a.Secret, Guid.NewGuid(), newerActor.Session!.Generation)).State);
 
-        // Station-only admission uses current common facts + exact local grant, never linked fallback.
+        // Station-only identity uses current registration/common facts; each job observes its own grant.
         StationRuntimeResponse local = await runtime.UnlockAsync(b.Secret, Guid.NewGuid(), b.Staff, 1, "000001");
         Assert.Equal(StationSessionState.Active, local.State);
         Assert.Equal(StationAuthorityKind.StationOnly, local.Session!.Actor!.AuthorityKind);
@@ -243,8 +244,9 @@ public sealed class StationCredentialLifecyclePostgreSqlIntegrationTests
                 .RevokeGrantCoreAsync(Guid.NewGuid(), b.Property, b.Staff, 1, time.UtcNow)).Outcome);
         }
         var localLocked = await runtime.ReadAsync(b.Secret);
-        Assert.Equal(StationSessionState.Locked, localLocked.State);
-        Assert.Equal(StationCoreOutcome.Rejected, (await runtime.UnlockAsync(b.Secret, Guid.NewGuid(), b.Staff, localLocked.Session!.Generation, "000001")).Outcome);
+        Assert.Equal(StationSessionState.Active, localLocked.State);
+        Assert.Equal(local.Session!.Actor, localLocked.Session!.Actor);
+        Assert.Equal(StationCoreOutcome.Applied, (await runtime.UnlockAsync(b.Secret, Guid.NewGuid(), b.Staff, localLocked.Session.Generation, "000001")).Outcome);
 
         // Unknown/unbound historical credentials cannot gain authority from today's Staff facts.
         using (var change = Scope(services, TenantA))

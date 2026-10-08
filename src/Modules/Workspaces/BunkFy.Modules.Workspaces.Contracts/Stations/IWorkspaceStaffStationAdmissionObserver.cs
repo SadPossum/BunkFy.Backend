@@ -10,7 +10,9 @@ public interface IWorkspaceStaffStationAdmissionObserver
 public enum WorkspaceStaffStationAction
 {
     Unknown = 0,
-    ReservationCheckIn = 1
+    ReservationCheckIn = 1,
+    ReservationCheckOut = 2,
+    StationIdentity = 3
 }
 
 public enum WorkspaceStaffStationObservationStatus

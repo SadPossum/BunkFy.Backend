@@ -1,7 +1,7 @@
 namespace BunkFy.Modules.Stations.Contracts;
 
 public enum StationAuthorityKind { Unknown = 0, LinkedStation = 1, StationOnly = 2 }
-public enum StationOperationKind { Unknown = 0, Register = 1, RedeemSetup = 2, Unlock = 3, Lock = 4, Reset = 5, RevokeGrant = 6, RevokeStation = 7, ForegroundActivity = 8, Pair = 9, RegisterStaff = 10, UnregisterStaff = 11, GrantCheckIn = 12, IssueSetup = 13, CancelSetup = 14, OwnPin = 15 }
+public enum StationOperationKind { Unknown = 0, Register = 1, RedeemSetup = 2, Unlock = 3, Lock = 4, Reset = 5, RevokeGrant = 6, RevokeStation = 7, ForegroundActivity = 8, Pair = 9, RegisterStaff = 10, UnregisterStaff = 11, GrantCheckIn = 12, IssueSetup = 13, CancelSetup = 14, OwnPin = 15, GrantCheckOut = 16, RevokeCheckOutGrant = 17 }
 public enum StationCoreOutcome { Unknown = 0, Applied = 1, Rejected = 2, Throttled = 3, Conflict = 4, Unavailable = 5 }
 public sealed record StationCoreResult(StationCoreOutcome Outcome, Guid? ActorSessionId = null, long? Generation = null, DateTimeOffset? RetryAfterUtc = null, StationManagementReceipt? Management = null);
 /// <summary>Non-secret concurrency coordinates. Not proof of authorization.</summary>
@@ -35,7 +35,8 @@ public enum StationSetupState { None = 0, Pending = 1, Expired = 2, Consumed = 3
 public sealed record StationStaffManagementItem(Guid StaffMemberId, long RosterReference, bool Registered,
     long RegistrationVersion, StationPinState Pin, bool LocalGrantPresent, bool LocalGrantRevoked,
     long? LocalGrantRevision, StationSetupState Setup, Guid? SetupGrantId, long PinRevision = 0,
-    bool CanIssueStationOnlySetup = false);
+    bool CanIssueStationOnlySetup = false, bool CheckOutGrantPresent = false,
+    bool CheckOutGrantRevoked = false, long? CheckOutGrantRevision = null);
 public sealed record StationRosterItem(Guid StaffMemberId, string DisplayName, long RosterReference);
 public sealed record StationRosterResponse(StationSessionState State, IReadOnlyList<StationRosterItem> Items,
     int Page = 1, int PageSize = 25, bool HasMore = false);

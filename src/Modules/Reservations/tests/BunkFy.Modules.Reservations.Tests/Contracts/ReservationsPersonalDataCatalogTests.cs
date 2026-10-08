@@ -335,7 +335,9 @@ public sealed class ReservationsPersonalDataCatalogTests
     private static IEnumerable<(PersonalDataSurface Surface, Type Type)> ContractTypes()
     {
         foreach (Type type in new[] { typeof(StationCheckInProvenance), typeof(StationArrivalCursor), typeof(StationAllocationUnit),
-            typeof(StationDueArrival), typeof(StationDueArrivalPage), typeof(StationCheckInPreparation), typeof(StationCheckInResult) })
+            typeof(StationDueArrival), typeof(StationDueArrivalPage), typeof(StationCheckInPreparation), typeof(StationCheckInResult),
+            typeof(StationDepartureCursor), typeof(StationDueDeparture), typeof(StationDueDeparturePage),
+            typeof(StationCheckOutPreparation), typeof(StationCheckOutResult), typeof(StationCheckInOutcome), typeof(StationCheckOutOutcome) })
         { yield return (PersonalDataSurface.ProjectionExport, type); }
         yield return (PersonalDataSurface.ApplicationCommand, typeof(ReservationStationAttributionRead));
         yield return (PersonalDataSurface.DataRightsExport, typeof(BunkFy.Modules.Reservations.Persistence.Repositories.ReservationManagementStaffTenantExport));

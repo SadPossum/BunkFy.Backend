@@ -2115,6 +2115,9 @@ namespace BunkFy.Modules.Reservations.Persistence.PostgreSqlMigrations.Migration
                     b.Property<long>("Generation")
                         .HasColumnType("bigint");
 
+                    b.Property<long?>("JobGrantRevision")
+                        .HasColumnType("bigint");
+
                     b.Property<long>("ResultingVersion")
                         .HasColumnType("bigint");
 
@@ -2131,6 +2134,8 @@ namespace BunkFy.Modules.Reservations.Persistence.PostgreSqlMigrations.Migration
                             t.HasCheckConstraint("CK_station_attribution_authority", "\"Authority\" IN (1, 2)");
 
                             t.HasCheckConstraint("CK_station_attribution_identity", "\"ReservationId\" <> '00000000-0000-0000-0000-000000000000' AND \"OperationId\" <> '00000000-0000-0000-0000-000000000000' AND \"StationId\" <> '00000000-0000-0000-0000-000000000000' AND \"BrowserSessionId\" <> '00000000-0000-0000-0000-000000000000' AND \"StaffMemberId\" <> '00000000-0000-0000-0000-000000000000' AND \"ActorSessionId\" <> '00000000-0000-0000-0000-000000000000'");
+
+                            t.HasCheckConstraint("CK_station_attribution_job_grant", "\"JobGrantRevision\" IS NULL OR (\"Authority\" = 2 AND \"JobGrantRevision\" > 0)");
 
                             t.HasCheckConstraint("CK_station_attribution_versions", "\"Generation\" > 0 AND \"ResultingVersion\" > 0");
                         });

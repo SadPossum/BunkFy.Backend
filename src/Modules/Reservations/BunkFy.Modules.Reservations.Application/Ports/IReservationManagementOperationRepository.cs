@@ -16,12 +16,15 @@ public interface IReservationManagementOperationRepository
     Task<ReservationStationAttributionRead> GetStationAttributionAsync(Guid reservationId, Guid operationId,
         CancellationToken cancellationToken) => Task.FromResult(new ReservationStationAttributionRead(false));
 
+    Task<StationCheckOutOutcomeState> ReadCheckOutStateAsync(Guid propertyId, Guid reservationId, long resultingVersion,
+        CancellationToken cancellationToken) => Task.FromResult(StationCheckOutOutcomeState.Unavailable);
+
     Task AddStationAsync(ReservationManagementOperationRecord operation, StationCheckInProvenance provenance,
         long resultingVersion, CancellationToken cancellationToken) =>
         throw new NotSupportedException("Station attribution is unavailable.");
 }
 
-public sealed record ReservationStationAttributionRead(bool Supported, StationCheckInProvenance? Provenance = null);
+public sealed record ReservationStationAttributionRead(bool Supported, StationCheckInProvenance? Provenance = null, long ResultingVersion = 0);
 
 public sealed record ReservationManagementOperationRecord(
     Guid OperationId,

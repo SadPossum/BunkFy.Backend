@@ -19,7 +19,7 @@ internal static class StationsConfigurations
         browser.ToTable("browser_sessions", t =>
         {
             t.HasCheckConstraint("CK_browser_lifetime", "\"PairingExpiresAtUtc\" > \"IssuedAtUtc\" AND \"ExternalEpoch\" > 0 AND \"Generation\" > 0");
-            t.HasCheckConstraint("CK_browser_actor", "(\"StaffMemberId\" IS NULL AND \"ActorSessionId\" IS NULL AND \"AuthorityKind\" = 0 AND \"CredentialRevision\" IS NULL AND \"GrantRevision\" IS NULL AND \"ActorIdleExpiresAtUtc\" IS NULL AND \"ActorAbsoluteExpiresAtUtc\" IS NULL) OR (\"StaffMemberId\" IS NOT NULL AND \"ActorSessionId\" IS NOT NULL AND \"CredentialRevision\" IS NOT NULL AND \"CredentialRevision\" > 0 AND \"ActorIdleExpiresAtUtc\" IS NOT NULL AND \"ActorAbsoluteExpiresAtUtc\" IS NOT NULL AND ((\"AuthorityKind\" = 1 AND \"GrantRevision\" IS NULL) OR (\"AuthorityKind\" = 2 AND \"GrantRevision\" IS NOT NULL AND \"GrantRevision\" > 0)))");
+            t.HasCheckConstraint("CK_browser_actor", "(\"StaffMemberId\" IS NULL AND \"ActorSessionId\" IS NULL AND \"AuthorityKind\" = 0 AND \"CredentialRevision\" IS NULL AND \"GrantRevision\" IS NULL AND \"RegistrationRevision\" IS NULL AND \"ActorIdleExpiresAtUtc\" IS NULL AND \"ActorAbsoluteExpiresAtUtc\" IS NULL) OR (\"StaffMemberId\" IS NOT NULL AND \"ActorSessionId\" IS NOT NULL AND \"AuthorityKind\" IN (1,2) AND \"CredentialRevision\" IS NOT NULL AND \"CredentialRevision\" > 0 AND \"RegistrationRevision\" IS NOT NULL AND \"RegistrationRevision\" > 0 AND \"GrantRevision\" IS NULL AND \"ActorIdleExpiresAtUtc\" IS NOT NULL AND \"ActorAbsoluteExpiresAtUtc\" IS NOT NULL)");
             t.HasCheckConstraint("CK_browser_attempts", "\"AttemptCount\" >= 0");
         });
         browser.HasKey(x => new { x.ScopeId, x.Id });
@@ -67,10 +67,16 @@ internal static class StationsConfigurations
         grant.Property(x => x.ScopeId).HasMaxLength(36);
         grant.Property(x => x.Revision).IsConcurrencyToken();
 
+        var checkoutGrant = model.Entity<StationStaffCheckOutGrant>();
+        checkoutGrant.ToTable("staff_check_out_grants", t => t.HasCheckConstraint("CK_check_out_grant_revision", "\"Revision\" > 0"));
+        checkoutGrant.HasKey(x => new { x.ScopeId, x.PropertyId, x.StaffMemberId });
+        checkoutGrant.Property(x => x.ScopeId).HasMaxLength(36);
+        checkoutGrant.Property(x => x.Revision).IsConcurrencyToken();
+
         var receipt = model.Entity<StationOperationReceipt>();
         receipt.ToTable("operation_receipts", t =>
         {
-            t.HasCheckConstraint("CK_receipt_kind", "\"Kind\" BETWEEN 1 AND 15 AND \"Outcome\" BETWEEN 1 AND 5");
+            t.HasCheckConstraint("CK_receipt_kind", "\"Kind\" BETWEEN 1 AND 17 AND \"Outcome\" BETWEEN 1 AND 5");
             t.HasCheckConstraint("CK_receipt_issuer", "(\"IssuerKind\" = 0 AND \"IssuerSubjectId\" IS NULL) OR (\"IssuerKind\" IN (1,2) AND \"IssuerSubjectId\" IS NOT NULL AND length(\"IssuerSubjectId\") = 36)");
             t.HasCheckConstraint("CK_receipt_session", "\"IssuerSessionId\" IS NULL OR (\"IssuerKind\" IN (1,2) AND \"Kind\" IN (1,9,15) AND \"IssuerSessionId\" <> '00000000-0000-0000-0000-000000000000'::uuid)");
             t.HasCheckConstraint("CK_receipt_own_pin", "\"Kind\" <> 15 OR (\"IssuerKind\" = 2 AND \"IssuerSubjectId\" IS NOT NULL AND \"IssuerSessionId\" IS NOT NULL AND \"IssuerSessionId\" <> '00000000-0000-0000-0000-000000000000'::uuid AND \"PropertyId\" IS NOT NULL AND \"PropertyId\" <> '00000000-0000-0000-0000-000000000000'::uuid AND \"StaffMemberId\" IS NOT NULL AND \"StaffMemberId\" <> '00000000-0000-0000-0000-000000000000'::uuid AND \"ResourceVersion\" IS NOT NULL AND \"ResourceVersion\" >= 0 AND (\"Outcome\" <> 1 OR \"ResourceVersion\" > 0))");

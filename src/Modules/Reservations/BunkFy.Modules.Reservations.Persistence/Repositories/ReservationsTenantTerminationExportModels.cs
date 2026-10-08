@@ -289,7 +289,7 @@ internal sealed record ReservationManagementOperationTenantExport(
 
 internal sealed record ReservationManagementStaffTenantExport(Guid StationId, Guid BrowserSessionId, Guid StaffMemberId,
     Guid ActorSessionId, long Generation,
-    BunkFy.Modules.Reservations.Contracts.Stations.StationReservationAuthority Authority, long ResultingVersion);
+    BunkFy.Modules.Reservations.Contracts.Stations.StationReservationAuthority Authority, long ResultingVersion, long? JobGrantRevision);
 
 internal sealed record ReservationManagementOperationStateTenantExport(
     ReservationManagementOperationKind Kind,

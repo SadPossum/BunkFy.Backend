@@ -304,6 +304,60 @@ public sealed class StationManagementPostgreSqlIntegrationTests
         Assert.DoesNotContain(accountB.ToString("D"), JsonSerializer.Serialize(roster), StringComparison.Ordinal);
         var bActive = await runtime.UnlockAsync(b.Secret, Guid.NewGuid(), b.Staff, 1, "000004");
         Assert.Equal(StationAuthorityKind.StationOnly, bActive.Session!.Actor!.AuthorityKind);
+        // Job revocation does not revoke identity, and only the final job grant cancels pending setup.
+        Guid jobsSession = await AddSession(services, accountB);
+        var jobsPrimary = Primary(accountB, Now, jobsSession);
+        Assert.Equal(StationManagementState.Applied, (await Manage(services, b, jobsPrimary, Guid.NewGuid(),
+            new(StationOperationKind.GrantCheckOut, b.Property, StaffMemberId: b.Staff))).Response.State);
+        long checkInRevision = 1, checkOutRevision = 1;
+        foreach (bool checkOutFirst in new[] { false, true })
+        {
+            var pending = await Manage(services, b, jobsPrimary, Guid.NewGuid(), setupCommand with { ExpectedVersion = 1 });
+            Assert.Equal(StationManagementState.Applied, pending.Response.State);
+            var first = new StationManagementCommand(checkOutFirst ? StationOperationKind.RevokeCheckOutGrant : StationOperationKind.RevokeGrant,
+                b.Property, StaffMemberId: b.Staff, ExpectedVersion: checkOutFirst ? checkOutRevision : checkInRevision);
+            var last = new StationManagementCommand(checkOutFirst ? StationOperationKind.RevokeGrant : StationOperationKind.RevokeCheckOutGrant,
+                b.Property, StaffMemberId: b.Staff, ExpectedVersion: checkOutFirst ? checkInRevision : checkOutRevision);
+            Assert.Equal(StationManagementState.Applied, (await Manage(services, b, jobsPrimary, Guid.NewGuid(), first)).Response.State);
+            using (var inspect = Scope(services, b.Tenant))
+            {
+                var db = inspect.ServiceProvider.GetRequiredService<StationsDbContext>();
+                Assert.False((await db.SetupGrants.SingleAsync(x => x.Id == pending.Response.Receipt!.SetupGrantId)).Revoked);
+            }
+            Assert.Equal(StationManagementState.Applied, (await Manage(services, b, jobsPrimary, Guid.NewGuid(), last)).Response.State);
+            using (var inspect = Scope(services, b.Tenant))
+            {
+                var db = inspect.ServiceProvider.GetRequiredService<StationsDbContext>();
+                Assert.True((await db.SetupGrants.SingleAsync(x => x.Id == pending.Response.Receipt!.SetupGrantId)).Revoked);
+            }
+            Assert.Equal(bActive.Session.Actor, (await runtime.ReadAsync(b.Secret)).Session!.Actor);
+            checkInRevision++;
+            checkOutRevision++;
+            if (!checkOutFirst)
+            {
+                Assert.Equal(StationManagementState.Applied, (await Manage(services, b, jobsPrimary, Guid.NewGuid(),
+                    new(StationOperationKind.GrantCheckIn, b.Property, StaffMemberId: b.Staff, ExpectedVersion: checkInRevision))).Response.State);
+                Assert.Equal(StationManagementState.Applied, (await Manage(services, b, jobsPrimary, Guid.NewGuid(),
+                    new(StationOperationKind.GrantCheckOut, b.Property, StaffMemberId: b.Staff, ExpectedVersion: checkOutRevision))).Response.State);
+                checkInRevision++;
+                checkOutRevision++;
+            }
+        }
+        Assert.Equal(StationManagementState.Applied, (await Manage(services, b, jobsPrimary, Guid.NewGuid(),
+            new(StationOperationKind.GrantCheckOut, b.Property, StaffMemberId: b.Staff, ExpectedVersion: checkOutRevision))).Response.State);
+        var race = await Task.WhenAll(
+            Manage(services, b, jobsPrimary, Guid.NewGuid(), setupCommand with { ExpectedVersion = 1 }),
+            Manage(services, b, jobsPrimary, Guid.NewGuid(), new(StationOperationKind.RevokeCheckOutGrant,
+                b.Property, StaffMemberId: b.Staff, ExpectedVersion: checkOutRevision + 1)));
+        Assert.Equal(StationManagementState.Applied, race[1].Response.State);
+        using (var inspect = Scope(services, b.Tenant))
+        {
+            var db = inspect.ServiceProvider.GetRequiredService<StationsDbContext>();
+            Assert.Empty(await db.SetupGrants.Where(x => x.StaffMemberId == b.Staff && !x.Revoked && x.ConsumedAtUtc == null).ToArrayAsync());
+        }
+        Assert.Equal(bActive.Session.Actor, (await runtime.ReadAsync(b.Secret)).Session!.Actor);
+        await SignOut(services, accountB, jobsSession);
+
         // Controlled transaction failure must roll back own credential, actor invalidation, setup cancellation and receipt.
         await RollbackProof(services, a, accountA, rollbackSession);
     }
@@ -672,7 +726,7 @@ public sealed class StationManagementPostgreSqlIntegrationTests
         await sp.GetRequiredService<AccessControlDbContext>().Database.MigrateAsync();
         var stations = sp.GetRequiredService<StationsDbContext>();
         await stations.Database.MigrateAsync();
-        Assert.Equal(3, (await stations.Database.GetAppliedMigrationsAsync()).Count());
+        Assert.Equal(4, (await stations.Database.GetAppliedMigrationsAsync()).Count());
         Assert.False(stations.Database.HasPendingModelChanges());
         Assert.Empty(await stations.Stations.ToArrayAsync());
     }

@@ -22,6 +22,7 @@ internal sealed class ReservationStationAttribution : IScopedEntity
         this.Generation = provenance.Generation;
         this.Authority = provenance.Authority;
         this.ResultingVersion = resultingVersion;
+        this.JobGrantRevision = provenance.JobGrantRevision;
     }
     public string ScopeId { get; private set; } = string.Empty;
     public Guid ReservationId { get; private set; }
@@ -32,7 +33,8 @@ internal sealed class ReservationStationAttribution : IScopedEntity
     public Guid ActorSessionId { get; private set; }
     public long Generation { get; private set; }
     public StationReservationAuthority Authority { get; private set; }
+    public long? JobGrantRevision { get; private set; }
     public long ResultingVersion { get; private set; }
     internal StationCheckInProvenance ToProvenance() => new(this.StationId, this.BrowserSessionId,
-        this.StaffMemberId, this.ActorSessionId, this.Generation, this.Authority);
+        this.StaffMemberId, this.ActorSessionId, this.Generation, this.Authority, this.JobGrantRevision);
 }

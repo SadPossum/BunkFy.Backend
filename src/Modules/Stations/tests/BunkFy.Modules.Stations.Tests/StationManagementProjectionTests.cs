@@ -30,6 +30,8 @@ public sealed class StationManagementProjectionTests
         { StationOperationKind.RegisterStaff, "kind,propertyId,staffMemberId,version" },
         { StationOperationKind.UnregisterStaff, "kind,propertyId,staffMemberId,version" },
         { StationOperationKind.GrantCheckIn, "kind,propertyId,staffMemberId,version" },
+        { StationOperationKind.GrantCheckOut, "kind,propertyId,staffMemberId,version" },
+        { StationOperationKind.RevokeCheckOutGrant, "kind,propertyId,staffMemberId,version" },
         { StationOperationKind.RevokeGrant, "kind,propertyId,staffMemberId,version" },
         { StationOperationKind.Reset, "kind,staffMemberId,version" },
         { StationOperationKind.OwnPin, "kind,staffMemberId,version" },
@@ -48,6 +50,8 @@ public sealed class StationManagementProjectionTests
             (StationOperationKind.RegisterStaff, ["property", "staff"]),
             (StationOperationKind.UnregisterStaff, ["property", "staff"]),
             (StationOperationKind.GrantCheckIn, ["property", "staff"]),
+            (StationOperationKind.GrantCheckOut, ["property", "staff"]),
+            (StationOperationKind.RevokeCheckOutGrant, ["property", "staff"]),
             (StationOperationKind.RevokeGrant, ["property", "staff"]),
             (StationOperationKind.Reset, ["staff"]),
             (StationOperationKind.OwnPin, ["staff"]),
@@ -284,7 +288,7 @@ public sealed class StationManagementProjectionTests
                 new(StationId: Station, BrowserSessionId: Browser, PropertyId: Property, Version: 7),
             StationOperationKind.RevokeStation => new(StationId: Station, PropertyId: Property, Version: 7),
             StationOperationKind.RegisterStaff or StationOperationKind.UnregisterStaff or
-                StationOperationKind.GrantCheckIn or StationOperationKind.RevokeGrant =>
+                StationOperationKind.GrantCheckIn or StationOperationKind.RevokeGrant or StationOperationKind.GrantCheckOut or StationOperationKind.RevokeCheckOutGrant =>
                 new(PropertyId: Property, StaffMemberId: Staff, Version: 7),
             StationOperationKind.Reset or StationOperationKind.OwnPin => new(PropertyId: Property, StaffMemberId: Staff, Version: 7),
             StationOperationKind.IssueSetup => new(Station, Browser, Property, Staff, Setup, 0),

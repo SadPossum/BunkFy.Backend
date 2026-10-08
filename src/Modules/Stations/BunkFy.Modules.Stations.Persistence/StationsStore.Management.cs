@@ -227,13 +227,33 @@ internal sealed partial class StationsStore
                 {
                     if (grant is null)
                     { return Rejected(); }
-                    var actors = await db.BrowserSessions.Where(x => x.PropertyId == property && x.StaffMemberId == staff && x.AuthorityKind == StationActorKind.StationOnly).ToArrayAsync(cancellationToken).ConfigureAwait(false);
-                    if (actors.Any(x => now < x.LastObservedAtUtc))
-                    { return Conflict(); }
                     grant.Revoke();
-                    foreach (var actor in actors)
-                    { actor.Lock(now); }
-                    await CancelPending(property, staff, null).ConfigureAwait(false);
+                    if (!await db.CheckOutGrants.AnyAsync(x => x.PropertyId == property && x.StaffMemberId == staff && !x.Revoked, cancellationToken).ConfigureAwait(false))
+                    { await CancelPending(property, staff, null).ConfigureAwait(false); }
+                }
+                return Applied(staffId: staff, version: grant.Revision);
+            }
+            if (command.Kind is StationOperationKind.GrantCheckOut or StationOperationKind.RevokeCheckOutGrant)
+            {
+                var grant = await db.CheckOutGrants.SingleOrDefaultAsync(x => x.PropertyId == property && x.StaffMemberId == staff, cancellationToken).ConfigureAwait(false);
+                if ((grant?.Revision ?? 0) != command.ExpectedVersion)
+                { return Conflict(); }
+                if (command.Kind == StationOperationKind.GrantCheckOut)
+                {
+                    if (!await this.RegisteredAsync(property, staff, cancellationToken).ConfigureAwait(false) || command.Enrollment?.Kind != StationActorKind.StationOnly)
+                    { return Rejected(); }
+                    if (grant is null)
+                    { grant = new(db.CurrentScopeId, property, staff); db.CheckOutGrants.Add(grant); }
+                    else
+                    { grant.ReGrant(); }
+                }
+                else
+                {
+                    if (grant is null)
+                    { return Rejected(); }
+                    grant.Revoke();
+                    if (!await db.CheckInGrants.AnyAsync(x => x.PropertyId == property && x.StaffMemberId == staff && !x.Revoked, cancellationToken).ConfigureAwait(false))
+                    { await CancelPending(property, staff, null).ConfigureAwait(false); }
                 }
                 return Applied(staffId: staff, version: grant.Revision);
             }
@@ -249,7 +269,8 @@ internal sealed partial class StationsStore
                 { return Conflict(); }
                 if (command.Enrollment is not { Kind: StationActorKind.StationOnly } binding || command.SetupExpiresAtUtc is not { } expires || expires <= now ||
                     expires > issuer.AssuranceExpiresAtUtc || (binding.Kind == StationActorKind.StationOnly &&
-                        !await db.CheckInGrants.AnyAsync(x => x.PropertyId == property && x.StaffMemberId == staff && !x.Revoked, cancellationToken).ConfigureAwait(false)))
+                        !await db.CheckInGrants.AnyAsync(x => x.PropertyId == property && x.StaffMemberId == staff && !x.Revoked, cancellationToken).ConfigureAwait(false) &&
+                        !await db.CheckOutGrants.AnyAsync(x => x.PropertyId == property && x.StaffMemberId == staff && !x.Revoked, cancellationToken).ConfigureAwait(false)))
                 { return Rejected(); }
                 await CancelPending(null, staff, null).ConfigureAwait(false);
                 var setup = new StationSetupGrant(Guid.NewGuid(), db.CurrentScopeId, browser.StationId, browser.Id, property,
@@ -329,13 +350,15 @@ internal sealed partial class StationsStore
         { return null; }
         var credential = await db.Credentials.AsNoTracking().SingleOrDefaultAsync(x => x.StaffMemberId == staffId, cancellationToken).ConfigureAwait(false);
         var grant = await db.CheckInGrants.AsNoTracking().SingleOrDefaultAsync(x => x.PropertyId == propertyId && x.StaffMemberId == staffId, cancellationToken).ConfigureAwait(false);
+        var checkOutGrant = await db.CheckOutGrants.AsNoTracking().SingleOrDefaultAsync(x => x.PropertyId == propertyId && x.StaffMemberId == staffId, cancellationToken).ConfigureAwait(false);
         var setup = await db.SetupGrants.AsNoTracking().Where(x => x.PropertyId == propertyId && x.StaffMemberId == staffId)
             .OrderByDescending(x => x.CreatedAtUtc).ThenByDescending(x => x.Id).FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
         return new(staffId, registration.RosterReference, registration.Active, registration.Version,
             credential is null ? StationPinState.NotSet : credential.Revoked ? StationPinState.Revoked : !credential.Enrollment().IsBound ? StationPinState.ReEnrollmentNeeded : StationPinState.Set,
             grant is not null, grant?.Revoked ?? false, grant?.Revision,
             setup is null ? StationSetupState.None : setup.ConsumedAtUtc is not null ? StationSetupState.Consumed : setup.Revoked ? StationSetupState.Cancelled : now >= setup.ExpiresAtUtc ? StationSetupState.Expired : StationSetupState.Pending, setup?.Id,
-            credential?.Revision ?? 0);
+            credential?.Revision ?? 0, CheckOutGrantPresent: checkOutGrant is not null,
+            CheckOutGrantRevoked: checkOutGrant?.Revoked ?? false, CheckOutGrantRevision: checkOutGrant?.Revision);
     }
     public Task<StationSetupFacts?> FindSetupAsync(Guid setupId, StationDeviceReference device, DateTimeOffset now, CancellationToken cancellationToken = default) =>
         this.ReadSetupAsync(device, setupId, now, cancellationToken);

@@ -24,6 +24,7 @@ public sealed class StationHttpSecurity(IDataProtectionProvider protection, IOpt
     private const int MaximumBodyBytes = 8192;
     private static readonly ConditionalWeakTable<JsonSerializerOptions, JsonSerializerOptions> RequestJsonOptions = [];
     private readonly IDataProtector csrf = protection.CreateProtector("BunkFy.Stations.Api.Csrf.v1");
+    private readonly IDataProtector departureCursors = protection.CreateProtector("BunkFy.Stations.Api.DeparturesCursor.v1");
     private readonly IDataProtector cursors = protection.CreateProtector("BunkFy.Stations.Api.ArrivalsCursor.v1");
 
     internal static bool IsStationPath(PathString path) => path.StartsWithSegments(StationApiOptions.RuntimePath) ||
@@ -211,6 +212,28 @@ public sealed class StationHttpSecurity(IDataProtectionProvider protection, IOpt
         return true;
     }
 
+    internal string ProtectDepartureCursor(StationDepartureCursor cursor, StationSessionSnapshot session)
+    {
+        var value = new DepartureCursorBinding(session.StationId, session.BrowserSessionId, session.Generation,
+            clock.UtcNow.AddMinutes(5), cursor);
+        return this.departureCursors.Protect(JsonSerializer.Serialize(value));
+    }
+
+    internal bool TryDepartureCursor(string? encoded, StationSessionSnapshot session, out StationDepartureCursor? cursor)
+    {
+        cursor = null;
+        if (encoded is null)
+        { return true; }
+        if (encoded.Length is < 1 or > 4096 || Unprotect<DepartureCursorBinding>(this.departureCursors, encoded) is not { } token ||
+            token.ExpiresAtUtc <= clock.UtcNow || token.ExpiresAtUtc > clock.UtcNow.AddMinutes(5) ||
+            token.StationId != session.StationId || token.BrowserSessionId != session.BrowserSessionId ||
+            token.Generation != session.Generation || token.Cursor is not { } found || found.Departure == default ||
+            found.ReservationId == Guid.Empty || found.NormalizedGuestName is not { Length: > 0 and <= 300 })
+        { return false; }
+        cursor = found;
+        return true;
+    }
+
     private static T? Unprotect<T>(IDataProtector protector, string value) where T : class
     {
         try
@@ -308,7 +331,8 @@ public sealed class StationHttpSecurity(IDataProtectionProvider protection, IOpt
             StationOperationKind.RevokeStation when Present(receipt.StationId) && Present(receipt.PropertyId) && receipt.Version > 0 =>
                 new(receipt.Kind, StationId: receipt.StationId, PropertyId: receipt.PropertyId, Version: receipt.Version),
             StationOperationKind.RegisterStaff or StationOperationKind.UnregisterStaff or
-                StationOperationKind.GrantCheckIn or StationOperationKind.RevokeGrant when
+                StationOperationKind.GrantCheckIn or StationOperationKind.RevokeGrant or
+                StationOperationKind.GrantCheckOut or StationOperationKind.RevokeCheckOutGrant when
                     Present(receipt.PropertyId) && Present(receipt.StaffMemberId) && receipt.Version > 0 =>
                 new(receipt.Kind, PropertyId: receipt.PropertyId, StaffMemberId: receipt.StaffMemberId, Version: receipt.Version),
             StationOperationKind.Reset or StationOperationKind.OwnPin when Present(receipt.StaffMemberId) && receipt.Version > 0 =>
@@ -379,6 +403,8 @@ public sealed class StationHttpSecurity(IDataProtectionProvider protection, IOpt
         public override string ToString() => nameof(RuntimeAdmission);
     }
     private sealed record CsrfBinding(Guid StationId, Guid BrowserSessionId, long Generation, DateTimeOffset ExpiresAtUtc);
+    private sealed record DepartureCursorBinding(Guid StationId, Guid BrowserSessionId, long Generation,
+        DateTimeOffset ExpiresAtUtc, StationDepartureCursor Cursor);
     private sealed record CursorBinding(Guid StationId, Guid BrowserSessionId, long Generation,
         DateTimeOffset ExpiresAtUtc, StationArrivalCursor Cursor);
 }

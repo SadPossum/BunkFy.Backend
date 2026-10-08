@@ -27,6 +27,49 @@ public sealed class WorkspaceStaffStationAdmissionObserverTests
     private static readonly string[] OutputProperties =
         ["CanonicalTimeZoneId", "CatalogVersion", "ObservedAtUtc", "PropertyLocalDate", "Reason", "Status", "TzdbVersion"];
 
+    [Fact]
+    public async Task Neutral_identity_rechecks_account_membership_and_owners_without_any_job_authority_read()
+    {
+        var f = new Fixture { Decision = AccessDecision.Denied("fixture.no-jobs"), ThrowAt = "access" };
+        var result = await f.Create().ObserveAsync(f.ScopeId, Property, Member, WorkspaceStaffStationAction.StationIdentity);
+        Assert.Equal(Status.LinkedAccountPrerequisitesObserved, result.Status);
+        Assert.Equal(2, f.AccountReads);
+        Assert.Equal(2, f.StaffReads);
+        Assert.Equal(2, f.Calls.Count(x => x == "membership"));
+        Assert.DoesNotContain("access", f.Calls);
+        Assert.DoesNotContain("permission", f.Calls);
+        Assert.Null(f.Requirement);
+    }
+
+    [Theory]
+    [InlineData("account")]
+    [InlineData("membership")]
+    [InlineData("workspace")]
+    public async Task Neutral_identity_still_rejects_inactive_prerequisites(string missing)
+    {
+        var f = new Fixture();
+        if (missing == "account")
+        { f.ActiveAccount = false; }
+        else if (missing == "membership")
+        { f.Membership = null; }
+        else
+        { f.Workspace = WorkspaceOperationalAdmissionDecision.Restricted; }
+        Assert.Equal(Status.PrerequisitesNotObserved,
+            (await f.Create().ObserveAsync(f.ScopeId, Property, Member, WorkspaceStaffStationAction.StationIdentity)).Status);
+        Assert.DoesNotContain("permission", f.Calls);
+    }
+
+    [Fact]
+    public async Task Checkout_requests_only_exact_checkout_permission()
+    {
+        var f = new Fixture();
+        Assert.Equal(Status.LinkedAccountPrerequisitesObserved,
+            (await f.Create().ObserveAsync(f.ScopeId, Property, Member, WorkspaceStaffStationAction.ReservationCheckOut)).Status);
+        Assert.Equal(ReservationsAdminPermissionCodes.CheckOut, f.Requirement!.Permission.Value);
+        Assert.Equal(WorkspaceAccessScopes.CreateProperty(Tenant.ToString("D"), Property), f.Requirement.Scope);
+        Assert.Equal(2, f.Calls.Count(x => x == "permission"));
+    }
+
     [Theory]
     [InlineData(OrganizationMembershipRole.Owner)]
     [InlineData(OrganizationMembershipRole.Member)]

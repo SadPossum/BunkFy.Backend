@@ -44,6 +44,7 @@ public sealed class StationBrowserSession : IScopedEntity
     public StationActorKind AuthorityKind { get; private set; }
     public long? CredentialRevision { get; private set; }
     public long? GrantRevision { get; private set; }
+    public long? RegistrationRevision { get; private set; }
     public DateTimeOffset? ActorIdleExpiresAtUtc { get; private set; }
     public DateTimeOffset? ActorAbsoluteExpiresAtUtc { get; private set; }
     public DateTimeOffset? AttemptWindowStartedAtUtc { get; private set; }
@@ -92,13 +93,12 @@ public sealed class StationBrowserSession : IScopedEntity
         return true;
     }
     public void Activate(Guid staffId, Guid actorId, StationActorKind kind, long credentialRevision,
-        long? grantRevision, DateTimeOffset now, TimeSpan idle, TimeSpan absolute)
+        long? registrationRevision, DateTimeOffset now, TimeSpan idle, TimeSpan absolute)
     {
         StationRules.Coordinates(this.ScopeId, staffId, actorId);
         if (!this.PairingCurrent(now, this.ExternalEpoch) || credentialRevision < 1 ||
             kind is not (StationActorKind.LinkedStation or StationActorKind.StationOnly) ||
-            (kind == StationActorKind.StationOnly && grantRevision is not > 0) ||
-            (kind == StationActorKind.LinkedStation && grantRevision is not null) ||
+            registrationRevision is not > 0 ||
             idle <= TimeSpan.Zero || absolute < idle)
         {
             throw new InvalidOperationException("Invalid actor activation.");
@@ -109,7 +109,8 @@ public sealed class StationBrowserSession : IScopedEntity
         this.ActorSessionId = actorId;
         this.AuthorityKind = kind;
         this.CredentialRevision = credentialRevision;
-        this.GrantRevision = grantRevision;
+        this.GrantRevision = null;
+        this.RegistrationRevision = registrationRevision;
         this.LastObservedAtUtc = now;
         this.ActorAbsoluteExpiresAtUtc = now + absolute < this.PairingExpiresAtUtc ? now + absolute : this.PairingExpiresAtUtc;
         this.ActorIdleExpiresAtUtc = now + idle < this.ActorAbsoluteExpiresAtUtc ? now + idle : this.ActorAbsoluteExpiresAtUtc;
@@ -128,6 +129,7 @@ public sealed class StationBrowserSession : IScopedEntity
         this.AuthorityKind = StationActorKind.Unknown;
         this.CredentialRevision = null;
         this.GrantRevision = null;
+        this.RegistrationRevision = null;
         this.ActorIdleExpiresAtUtc = null;
         this.ActorAbsoluteExpiresAtUtc = null;
         this.LastObservedAtUtc = now;

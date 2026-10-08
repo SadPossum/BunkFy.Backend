@@ -24,6 +24,37 @@ public sealed class StationReservationOperationsTests
         Id(10), Id(11), Id(12), Id(13), 7, StationReservationAuthority.LinkedStation);
 
     [Theory]
+    [InlineData("prepare")]
+    [InlineData("check-in")]
+    public async Task New_station_only_calls_without_job_revision_conflict_before_owner_reads(string operation)
+    {
+        var h = new Harness();
+        var provenance = Provenance with { Authority = StationReservationAuthority.StationOnly };
+        Assert.Equal(StationReservationState.Conflict, await InvokeAsync(h, operation, PropertyId, provenance: provenance));
+        Assert.Empty(h.Calls);
+        Assert.Empty(h.Dispatcher.Commands);
+    }
+
+    [Fact]
+    public async Task Only_original_legacy_station_only_checkin_coordinates_can_replay_with_live_job_revision()
+    {
+        var legacy = Provenance with { Authority = StationReservationAuthority.StationOnly };
+        var current = legacy with { JobGrantRevision = 3 };
+        var h = new Harness { Prior = Prior(), Attribution = new(true, legacy), Target = null };
+        var result = await h.Service.PrepareAsync(PropertyId, ReservationId, OperationId, 9, Today, current);
+        Assert.Equal(StationReservationState.Ready, result.State);
+        Assert.True(result.Replay);
+        Assert.False(StationOperationProvenance.ValidNew(legacy));
+        Assert.True(StationOperationProvenance.Matches(ReservationManagementOperationKind.CheckIn, legacy, current));
+        Assert.False(StationOperationProvenance.Matches(ReservationManagementOperationKind.CheckOut, legacy, current));
+        Assert.False(StationOperationProvenance.Matches(ReservationManagementOperationKind.CheckIn, current, legacy));
+        Assert.False(StationOperationProvenance.Matches(ReservationManagementOperationKind.CheckIn, legacy,
+            current with { ActorSessionId = Id(99) }));
+        Assert.False(StationOperationProvenance.Matches(ReservationManagementOperationKind.CheckIn, legacy,
+            current with { Authority = StationReservationAuthority.LinkedStation, JobGrantRevision = null }));
+    }
+
+    [Theory]
     [InlineData("list", false)]
     [InlineData("prepare", false)]
     [InlineData("check-in", false)]
@@ -316,7 +347,7 @@ public sealed class StationReservationOperationsTests
     public async Task Exact_replay_uses_original_server_business_date_without_fetching_current_due_arrival(
         StationReservationAuthority authority)
     {
-        var provenance = Provenance with { Authority = authority };
+        var provenance = Provenance with { Authority = authority, JobGrantRevision = authority == StationReservationAuthority.StationOnly ? 3 : null };
         var h = new Harness { Prior = Prior(), Attribution = new(true, provenance), Target = null };
         using var cancellation = new CancellationTokenSource();
 
@@ -421,7 +452,7 @@ public sealed class StationReservationOperationsTests
     {
         var h = new Harness();
         using var cancellation = new CancellationTokenSource();
-        var provenance = Provenance with { Authority = authority };
+        var provenance = Provenance with { Authority = authority, JobGrantRevision = authority == StationReservationAuthority.StationOnly ? 3 : null };
         var date = replay ? Today.AddDays(-1) : Today;
         var preparation = new StationCheckInPreparation(StationReservationState.Ready, date, replay ? null : Arrival(), replay);
 

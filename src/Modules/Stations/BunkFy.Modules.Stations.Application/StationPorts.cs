@@ -24,7 +24,7 @@ public interface IStationPinVerifier
 public interface IStationsStore
 {
     Task<StationCoreResult> TryUnlockCoreAsync(Guid operationId, Guid stationId, Guid browserId, Guid staffId,
-        long expectedGeneration, long expectedCredentialRevision, StationAuthorityKind kind, long? expectedGrantRevision,
+        long expectedGeneration, long expectedCredentialRevision, StationAuthorityKind kind, long? expectedRegistrationRevision,
         string pin, DateTimeOffset now, StationEnrollmentBinding? enrollment = null, bool ownerRejected = false, string? opaqueCredential = null,
         CancellationToken cancellationToken = default);
     Task<StationCoreResult> LockCoreAsync(Guid operationId, Guid stationId, Guid browserId, long expectedGeneration,
@@ -53,7 +53,7 @@ public interface IStationPairingHandoffReader
 }
 public sealed record StationCredentialFacts(Guid StaffMemberId, long Revision, bool Revoked, StationEnrollmentBinding Enrollment);
 public sealed record StationRuntimeFacts(StationSessionSnapshot Session, bool ActorCurrent,
-    StationCredentialFacts? Credential, long? GrantRevision, bool GrantRevoked, bool Registered = true);
+    StationCredentialFacts? Credential, long? GrantRevision, bool GrantRevoked, bool Registered = true, long RegistrationRevision = 0);
 public sealed record StationSetupFacts(Guid Id, Guid StaffMemberId, long CredentialRevision,
     StationEnrollmentBinding Enrollment, StationActorKind Intent, DateTimeOffset ExpiresAtUtc,
     StationIssuerKind IssuerKind = StationIssuerKind.Unknown, string? IssuerSubjectId = null,
@@ -67,8 +67,14 @@ public interface IStationRuntimeStore
     Task<StationCoreResult?> ReadSetupOutcomeAsync(Guid operationId, StationSetupFacts setup, StationDeviceReference device,
         CancellationToken cancellationToken = default);
     Task<StationCoreResult> ForegroundActivityAsync(Guid operationId, StationDeviceReference device, string opaqueCredential,
-        StationActorCoordinate actor, StationCredentialFacts credential, long? grantRevision, DateTimeOffset now,
+        StationActorCoordinate actor, StationCredentialFacts credential, long? registrationRevision, DateTimeOffset now,
         CancellationToken cancellationToken = default);
+}
+
+public sealed record StationJobGrant(long Revision, bool Revoked);
+public interface IStationJobGrantReader
+{
+    Task<StationJobGrant?> ReadJobGrantAsync(Guid propertyId, Guid staffId, bool checkOut, CancellationToken cancellationToken = default);
 }
 
 public enum StationAdmissionState { Current = 0, Denied = 1, StateChanged = 2, Unavailable = 3 }

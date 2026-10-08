@@ -270,6 +270,100 @@ public sealed class StationHttpFirstJobIntegrationTests
 
         await VerifyHistoricalCheckInOutcomeAsync(api, client, device, clock.UtcNow, cookie, primaryToken,
             afterRead, reservations);
+        await VerifyCheckoutOnlyHttpAsync(api, owners, client, device, account, clock, cookie, primaryToken);
+    }
+
+    private static async Task VerifyCheckoutOnlyHttpAsync(AuthTestApplication api, ServiceProvider owners,
+        HttpClient client, Device device, Guid account, TestClock clock, string cookie, string primaryToken)
+    {
+        await SetAccess(owners, Tenant, device.Property, account, enabled: false);
+        using (IServiceScope scope = Scope(owners, Tenant))
+        {
+            var roles = scope.ServiceProvider.GetRequiredService<IAccessControlRoleProvisioner>();
+            await roles.EnsureRoleAsync(new("stations-http-checkout-only", [ReservationsAdminPermissionCodes.CheckOut]));
+            await roles.EnsureAssignmentAsync(AccessSubject.User(account.ToString("D")), "stations-http-checkout-only",
+                WorkspaceAccessScopes.CreateProperty(Tenant, device.Property));
+        }
+        Guid reservationId;
+        using (IServiceScope scope = api.Services.CreateScope())
+        {
+            scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(Tenant);
+            reservationId = await scope.ServiceProvider.GetRequiredService<ReservationsDbContext>().Reservations
+                .Where(x => x.PropertyId == device.Property && x.Status == ReservationState.CheckedIn).Select(x => x.Id).SingleAsync();
+        }
+        // The property's local date is now the due departure date; idle actor expiry must not remove its PIN identity.
+        clock.UtcNow = clock.UtcNow.AddDays(3);
+        StationCurrentResponse locked = await CurrentAsync(client, cookie);
+        Assert.Equal(StationSessionState.Locked, locked.Runtime.State);
+        using (HttpResponseMessage unlocked = await SendAsync(client, HttpMethod.Post, "/api/station-runtime/unlock",
+            new StationUnlockRequest(Guid.NewGuid(), device.Staff, locked.Runtime.Session!.Generation, Pin),
+            cookie: cookie, csrf: locked.CsrfToken))
+        { Assert.Equal(StationSessionState.Active, (await ReadAsync<StationRuntimeResponse>(unlocked)).State); }
+        StationCurrentResponse current = await CurrentAsync(client, cookie);
+        Assert.Equal(StationReservationState.Denied, current.Jobs!.CheckIn);
+        Assert.Equal(StationReservationState.Ready, current.Jobs.CheckOut);
+        StationActorCoordinate actor = current.Runtime.Session!.Actor!;
+        using (HttpResponseMessage denied = await SendAsync(client, HttpMethod.Get, "/api/station-runtime/arrivals",
+            cookie: cookie, actor: actor.ActorSessionId, generation: actor.Generation))
+        {
+            Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
+            var body = await denied.Content.ReadFromJsonAsync<StationArrivalsResponse>();
+            Assert.Equal(StationReservationState.Denied, body!.State);
+            Assert.Empty(body.Items);
+        }
+        using (HttpResponseMessage stale = await SendAsync(client, HttpMethod.Get, "/api/station-runtime/departures",
+            cookie: cookie, actor: Guid.NewGuid(), generation: actor.Generation))
+        { Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode); }
+        StationDueDeparture departure;
+        using (HttpResponseMessage listed = await SendAsync(client, HttpMethod.Get, "/api/station-runtime/departures",
+            cookie: cookie, actor: actor.ActorSessionId, generation: actor.Generation))
+        {
+            StationDeparturesResponse body = await ReadAsync<StationDeparturesResponse>(listed);
+            Assert.Equal(StationReservationState.Ready, body.State);
+            Assert.Equal(new DateOnly(2026, 9, 23), body.PropertyLocalDate);
+            var item = Assert.Single(body.Items);
+            Assert.Single(item.Places);
+            departure = item.Reservation;
+            Assert.Equal(reservationId, departure.ReservationId);
+            Assert.Equal(StationDepartureState.Due, departure.State);
+        }
+        var attempt = new StationCheckOutRequest(Guid.NewGuid(), reservationId, departure.ExpectedVersion,
+            actor.ActorSessionId, actor.Generation);
+        var outcome = new StationCheckOutOutcomeRequest(attempt.OperationId, reservationId, attempt.ExpectedVersion,
+            current.Runtime.Session.BrowserSessionId, actor.ActorSessionId, actor.Generation);
+        const string writePath = "/api/station-runtime/check-out";
+        const string outcomePath = "/api/station-runtime/check-out/outcome";
+        using (HttpResponseMessage noCsrf = await SendAsync(client, HttpMethod.Post, writePath, attempt, cookie: cookie))
+        { Assert.Equal(HttpStatusCode.Forbidden, noCsrf.StatusCode); }
+        using (HttpResponseMessage mixed = await SendAsync(client, HttpMethod.Post, writePath, attempt,
+            bearer: primaryToken, cookie: cookie, csrf: current.CsrfToken))
+        { Assert.Equal(HttpStatusCode.Unauthorized, mixed.StatusCode); }
+        for (int retry = 0; retry < 2; retry++)
+        {
+            using HttpResponseMessage requested = await SendAsync(client, HttpMethod.Post, writePath, attempt,
+                cookie: cookie, csrf: current.CsrfToken);
+            var result = await ReadAsync<StationCheckOutResult>(requested);
+            Assert.Equal(StationReservationState.Applied, result.State);
+            Assert.Equal(StationCheckOutOutcomeState.ReleasePending, result.Checkout);
+            Assert.Equal(ReservationStatus.CheckoutPending, result.Receipt!.Status);
+        }
+        using (HttpResponseMessage lockResponse = await SendAsync(client, HttpMethod.Post, "/api/station-runtime/lock",
+            new StationLockRequest(Guid.NewGuid(), actor.Generation), cookie: cookie, csrf: current.CsrfToken))
+        { Assert.Equal(StationSessionState.Locked, (await ReadAsync<StationRuntimeResponse>(lockResponse)).State); }
+        StationCurrentResponse afterLock = await CurrentAsync(client, cookie);
+        using (HttpResponseMessage noCsrf = await SendAsync(client, HttpMethod.Post, outcomePath, outcome, cookie: cookie))
+        { Assert.Equal(HttpStatusCode.Forbidden, noCsrf.StatusCode); }
+        using (HttpResponseMessage mixed = await SendAsync(client, HttpMethod.Post, outcomePath, outcome,
+            bearer: primaryToken, cookie: cookie, csrf: afterLock.CsrfToken))
+        { Assert.Equal(HttpStatusCode.Unauthorized, mixed.StatusCode); }
+        using (HttpResponseMessage recovered = await SendAsync(client, HttpMethod.Post, outcomePath, outcome,
+            cookie: cookie, csrf: afterLock.CsrfToken))
+        {
+            Assert.Equal(StationCheckOutOutcomeState.ReleasePending, (await ReadAsync<StationCheckOutOutcome>(recovered)).State);
+            using JsonDocument json = JsonDocument.Parse(await recovered.Content.ReadAsStringAsync());
+            Assert.Equal("state", Assert.Single(json.RootElement.EnumerateObject()).Name);
+        }
+        Assert.Equal(afterLock.Runtime.Session, (await CurrentAsync(client, cookie)).Runtime.Session);
     }
 
     private static async Task VerifyHistoricalCheckInOutcomeAsync(AuthTestApplication api, HttpClient client,

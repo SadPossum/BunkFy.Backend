@@ -28,12 +28,12 @@ public sealed class StationManagementService(StationPrimaryAdmission primary,
         { return Handoff(Map(property.State)); }
         // Ignore caller-supplied binding/expiry. They are owner-observed and server-clock-derived only.
         request = request with { Enrollment = null, SetupExpiresAtUtc = null };
-        if (request.Kind is StationOperationKind.RegisterStaff or StationOperationKind.GrantCheckIn or StationOperationKind.IssueSetup)
+        if (request.Kind is StationOperationKind.RegisterStaff or StationOperationKind.GrantCheckIn or StationOperationKind.GrantCheckOut or StationOperationKind.IssueSetup)
         {
             var target = await admission.ObserveRegistrationEnrollmentAsync(request.PropertyId, request.StaffMemberId!.Value, cancellationToken).ConfigureAwait(false);
             if (target.Admission.State != StationAdmissionState.Current)
             { return Handoff(Map(target.Admission.State)); }
-            if (request.Kind is StationOperationKind.GrantCheckIn or StationOperationKind.IssueSetup && target.Enrollment?.Kind != StationActorKind.StationOnly)
+            if (request.Kind is StationOperationKind.GrantCheckIn or StationOperationKind.GrantCheckOut or StationOperationKind.IssueSetup && target.Enrollment?.Kind != StationActorKind.StationOnly)
             { return Handoff(StationManagementState.Denied); }
             request = request with { Enrollment = target.Enrollment };
         }
@@ -222,7 +222,7 @@ public sealed class StationManagementService(StationPrimaryAdmission primary,
             StationOperationKind.Register => r.Label is { Length: > 0 and <= 100 } && !string.IsNullOrWhiteSpace(r.Label),
             StationOperationKind.Pair or StationOperationKind.RevokeStation => r.StationId is { } s && s != Guid.Empty,
             StationOperationKind.RegisterStaff or StationOperationKind.UnregisterStaff or StationOperationKind.GrantCheckIn or
-                StationOperationKind.RevokeGrant or StationOperationKind.Reset => r.StaffMemberId is { } m && m != Guid.Empty,
+                StationOperationKind.RevokeGrant or StationOperationKind.GrantCheckOut or StationOperationKind.RevokeCheckOutGrant or StationOperationKind.Reset => r.StaffMemberId is { } m && m != Guid.Empty,
             StationOperationKind.IssueSetup => r.StaffMemberId is { } m && m != Guid.Empty && r.StationId is { } s && s != Guid.Empty && r.BrowserSessionId is { } b && b != Guid.Empty,
             StationOperationKind.CancelSetup => r.SetupGrantId is { } g && g != Guid.Empty,
             _ => false

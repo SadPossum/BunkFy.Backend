@@ -33,7 +33,7 @@ public sealed class StationAdmissionCoordinator(IScopeContext scope, IStaffStati
             };
             if (binding is null)
             { return (new(StationAdmissionState.Denied), null); }
-            StationAdmission result = await this.ObserveCoreAsync(propertyId, staffId, binding, false, cancellationToken).ConfigureAwait(false);
+            StationAdmission result = await this.ObserveCoreAsync(propertyId, staffId, binding, null, cancellationToken).ConfigureAwait(false);
             if (scope.ScopeId != tenantId || before != await staff.FindAsync(tenantId, propertyId, staffId, cancellationToken).ConfigureAwait(false))
             { return (new(StationAdmissionState.StateChanged), null); }
             return (result, binding);
@@ -78,15 +78,25 @@ public sealed class StationAdmissionCoordinator(IScopeContext scope, IStaffStati
     }
 
     public Task<StationAdmission> ObserveAsync(Guid propertyId, Guid staffId, StationEnrollmentBinding binding,
-        CancellationToken cancellationToken = default) => this.ObserveCoreAsync(propertyId, staffId, binding, true, cancellationToken);
+        CancellationToken cancellationToken = default) => this.ObserveCoreAsync(propertyId, staffId, binding, WorkspaceStaffStationAction.ReservationCheckIn, cancellationToken);
+
+    public Task<StationAdmission> ObserveIdentityAsync(Guid propertyId, Guid staffId, StationEnrollmentBinding binding,
+        CancellationToken cancellationToken = default) => this.ObserveCoreAsync(propertyId, staffId, binding,
+            WorkspaceStaffStationAction.StationIdentity, cancellationToken);
+
+    public Task<StationAdmission> ObserveJobAsync(Guid propertyId, Guid staffId, StationEnrollmentBinding binding,
+        WorkspaceStaffStationAction action, CancellationToken cancellationToken = default) =>
+        action is WorkspaceStaffStationAction.ReservationCheckIn or WorkspaceStaffStationAction.ReservationCheckOut
+            ? this.ObserveCoreAsync(propertyId, staffId, binding, action, cancellationToken)
+            : Task.FromResult(new StationAdmission(StationAdmissionState.Denied));
 
     /// <summary>Own PIN enrollment facts only. Does not observe or grant reservation/check-in authority.</summary>
     public Task<StationAdmission> ObserveOwnPinEnrollmentAsync(Guid propertyId, Guid staffId, string ownSubject,
         CancellationToken cancellationToken = default) => this.ObserveCoreAsync(propertyId, staffId,
-            new(StationActorKind.LinkedStation, ownSubject), false, cancellationToken);
+            new(StationActorKind.LinkedStation, ownSubject), null, cancellationToken);
 
     private async Task<StationAdmission> ObserveCoreAsync(Guid propertyId, Guid staffId, StationEnrollmentBinding binding,
-        bool checkIn, CancellationToken cancellationToken)
+        WorkspaceStaffStationAction? action, CancellationToken cancellationToken)
     {
         if (!scope.IsEnabled || !Guid.TryParseExact(scope.ScopeId, "D", out Guid tenant) || tenant == Guid.Empty ||
             tenant.ToString("D") != scope.ScopeId || propertyId == Guid.Empty || staffId == Guid.Empty || !binding.IsBound)
@@ -102,10 +112,10 @@ public sealed class StationAdmissionCoordinator(IScopeContext scope, IStaffStati
             DateOnly? date = LocalDate(before.Property?.TimeZoneId, started);
             StationAdmissionState state = Classify(before, tenantId, propertyId, staffId, binding, date);
             WorkspaceStaffStationObservation? observation = null;
-            if (checkIn && state == StationAdmissionState.Current && binding.Kind == StationActorKind.LinkedStation)
+            if (action is not null && state == StationAdmissionState.Current && binding.Kind == StationActorKind.LinkedStation)
             {
                 observation = await linked.ObserveAsync(tenantId, propertyId, staffId,
-                    WorkspaceStaffStationAction.ReservationCheckIn, cancellationToken).ConfigureAwait(false);
+                    action.Value, cancellationToken).ConfigureAwait(false);
                 state = observation.Status switch
                 {
                     WorkspaceStaffStationObservationStatus.LinkedAccountPrerequisitesObserved => StationAdmissionState.Current,

@@ -72,7 +72,7 @@ public sealed class StationRuntimeService(IServiceScopeFactory scopes, IStationC
             {
                 return Invalid();
             }
-            if (!facts.Registered)
+            if (!facts.Registered || facts.RegistrationRevision < 1)
             { return Changed(); }
             StationCredentialFacts? credential = facts.Credential;
             var binding = credential?.Enrollment ?? new StationEnrollmentBinding(StationActorKind.Unknown, null);
@@ -84,7 +84,7 @@ public sealed class StationRuntimeService(IServiceScopeFactory scopes, IStationC
                     return Changed();
                 }
                 StationAdmission admission = await services.GetRequiredService<StationAdmissionCoordinator>()
-                    .ObserveAsync(device.PropertyId, staffId, binding, cancellationToken).ConfigureAwait(false);
+                    .ObserveIdentityAsync(device.PropertyId, staffId, binding, cancellationToken).ConfigureAwait(false);
                 if (admission.State is StationAdmissionState.StateChanged or StationAdmissionState.Unavailable)
                 {
                     return FromAdmission(admission);
@@ -97,7 +97,7 @@ public sealed class StationRuntimeService(IServiceScopeFactory scopes, IStationC
             }
             StationCoreResult result = await services.GetRequiredService<IStationsStore>().TryUnlockCoreAsync(operationId,
                 device.StationId, device.BrowserSessionId, staffId, expectedGeneration, credential?.Revision ?? 0,
-                (StationAuthorityKind)binding.Kind, binding.Kind == StationActorKind.StationOnly ? facts.GrantRevision : null,
+                (StationAuthorityKind)binding.Kind, facts.RegistrationRevision,
                 pin, clock.UtcNow, binding, denied, opaqueCredential, cancellationToken).ConfigureAwait(false);
             return await this.ResultAsync(services, device, store, opaqueCredential, result, cancellationToken).ConfigureAwait(false);
         }, cancellationToken);
@@ -129,12 +129,12 @@ public sealed class StationRuntimeService(IServiceScopeFactory scopes, IStationC
             {
                 return Invalid();
             }
-            if (!facts.ActorCurrent || facts.Session.Actor != actor || facts.Credential is not { Enrollment.IsBound: true } credential)
+            if (!facts.ActorCurrent || !facts.Registered || facts.RegistrationRevision < 1 || facts.Session.Actor != actor || facts.Credential is not { Enrollment.IsBound: true } credential)
             {
                 return Changed();
             }
             StationAdmission admission = await services.GetRequiredService<StationAdmissionCoordinator>()
-                .ObserveAsync(device.PropertyId, actor.StaffMemberId, credential.Enrollment, cancellationToken).ConfigureAwait(false);
+                .ObserveIdentityAsync(device.PropertyId, actor.StaffMemberId, credential.Enrollment, cancellationToken).ConfigureAwait(false);
             if (admission.State != StationAdmissionState.Current)
             {
                 return FromAdmission(admission);
@@ -144,7 +144,7 @@ public sealed class StationRuntimeService(IServiceScopeFactory scopes, IStationC
                 return Changed();
             }
             StationCoreResult result = await store.ForegroundActivityAsync(operationId, device, opaqueCredential, actor,
-                credential, facts.GrantRevision, clock.UtcNow, cancellationToken).ConfigureAwait(false);
+                credential, facts.RegistrationRevision, clock.UtcNow, cancellationToken).ConfigureAwait(false);
             return await this.ResultAsync(services, device, store, opaqueCredential, result, cancellationToken).ConfigureAwait(false);
         }, cancellationToken);
 
@@ -175,7 +175,7 @@ public sealed class StationRuntimeService(IServiceScopeFactory scopes, IStationC
             if (issuer.State != StationAdmissionState.Current)
             { return FromAdmission(new(issuer.State)); }
             StationAdmission admission = await services.GetRequiredService<StationAdmissionCoordinator>()
-                .ObserveAsync(device.PropertyId, setup.StaffMemberId, setup.Enrollment, cancellationToken).ConfigureAwait(false);
+                .ObserveIdentityAsync(device.PropertyId, setup.StaffMemberId, setup.Enrollment, cancellationToken).ConfigureAwait(false);
             if (admission.State != StationAdmissionState.Current)
             {
                 return FromAdmission(admission);
@@ -194,7 +194,7 @@ public sealed class StationRuntimeService(IServiceScopeFactory scopes, IStationC
                 }
                 // KDF work is intentionally outside the mutation; re-observe pinned owners after that delay.
                 StationAdmission afterKdf = await services.GetRequiredService<StationAdmissionCoordinator>()
-                    .ObserveAsync(device.PropertyId, setup.StaffMemberId, setup.Enrollment, cancellationToken).ConfigureAwait(false);
+                    .ObserveIdentityAsync(device.PropertyId, setup.StaffMemberId, setup.Enrollment, cancellationToken).ConfigureAwait(false);
                 if (afterKdf.State != StationAdmissionState.Current)
                 {
                     return FromAdmission(afterKdf);
@@ -231,7 +231,7 @@ public sealed class StationRuntimeService(IServiceScopeFactory scopes, IStationC
             if (registrations.Count > 200)
             { return new(StationSessionState.Unavailable, []); }
             Guid[] ids = registrations.Where(r => r.Credential is { Revoked: false, Enrollment.IsBound: true } c &&
-                (c.Enrollment.Kind == StationActorKind.LinkedStation || (r.GrantRevision > 0 && !r.GrantRevoked)))
+                c.Enrollment.IsBound)
                 .Select(r => r.StaffMemberId).ToArray();
             var labels = services.GetRequiredService<IStaffStationLabelReader>();
             var before = await labels.ResolveAsync(device.ScopeId, device.PropertyId, ids, property.PropertyLocalDate!.Value, cancellationToken).ConfigureAwait(false);
@@ -291,12 +291,12 @@ public sealed class StationRuntimeService(IServiceScopeFactory scopes, IStationC
             return new(StationSessionState.Locked, facts.Session with
             { Actor = null, ActorIdleExpiresAtUtc = null, ActorAbsoluteExpiresAtUtc = null });
         }
-        if (!facts.ActorCurrent || facts.Credential is not { Enrollment.IsBound: true } credential)
+        if (!facts.ActorCurrent || !facts.Registered || facts.RegistrationRevision < 1 || facts.Credential is not { Enrollment.IsBound: true } credential)
         {
             return Changed();
         }
         StationAdmission admission = await services.GetRequiredService<StationAdmissionCoordinator>()
-            .ObserveAsync(device.PropertyId, facts.Session.Actor.StaffMemberId, credential.Enrollment, ct).ConfigureAwait(false);
+            .ObserveIdentityAsync(device.PropertyId, facts.Session.Actor.StaffMemberId, credential.Enrollment, ct).ConfigureAwait(false);
         if (admission.State != StationAdmissionState.Current)
         {
             return FromAdmission(admission);

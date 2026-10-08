@@ -840,7 +840,7 @@ public sealed class ReservationDataRightsExportContributorTests
             ReservationDataRightsExportSchema.Descriptor;
         Assert.Equal(ReservationDataRightsDiscoveryContributor.Owner, descriptor.OwnerKey);
         Assert.Equal("reservations.personal-data", descriptor.CatalogId);
-        Assert.Equal(21, descriptor.CatalogVersion);
+        Assert.Equal(22, descriptor.CatalogVersion);
         Assert.Equal("reservations.subject-export", descriptor.ExportSchemaId);
         Assert.Equal(9, descriptor.ExportSchemaVersion);
         Assert.NotEmpty(descriptor.FieldIds);

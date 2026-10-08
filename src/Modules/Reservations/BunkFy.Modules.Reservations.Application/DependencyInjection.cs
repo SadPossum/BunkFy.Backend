@@ -47,6 +47,10 @@ public static class DependencyInjection
         services.TryAddScoped<IReservationCountryPolicyAdmission, ReservationCountryPolicyAdmission>();
         services.TryAddScoped<BunkFy.Modules.Reservations.Contracts.Stations.IStationReservationOperations,
             BunkFy.Modules.Reservations.Application.Stations.StationReservationOperations>();
+        services.TryAddScoped<BunkFy.Modules.Reservations.Contracts.Stations.IStationDepartureOperations,
+            BunkFy.Modules.Reservations.Application.Stations.StationDepartureOperations>();
+        services.TryAddScoped<BunkFy.Modules.Reservations.Contracts.Stations.IStationCheckOutOutcomeReader,
+            BunkFy.Modules.Reservations.Application.Stations.StationCheckOutOutcomeReader>();
         services.TryAddScoped<BunkFy.Modules.Reservations.Contracts.Stations.IStationCheckInOutcomeReader,
             BunkFy.Modules.Reservations.Application.Stations.StationCheckInOutcomeReader>();
         services.TryAddScoped<

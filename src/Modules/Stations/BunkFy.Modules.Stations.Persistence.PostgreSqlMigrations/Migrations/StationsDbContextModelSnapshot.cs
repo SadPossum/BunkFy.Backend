@@ -115,6 +115,9 @@ namespace BunkFy.Modules.Stations.Persistence.PostgreSqlMigrations.Migrations
                     b.Property<Guid>("PropertyId")
                         .HasColumnType("uuid");
 
+                    b.Property<long?>("RegistrationRevision")
+                        .HasColumnType("bigint");
+
                     b.Property<bool>("Revoked")
                         .HasColumnType("boolean");
 
@@ -135,7 +138,7 @@ namespace BunkFy.Modules.Stations.Persistence.PostgreSqlMigrations.Migrations
 
                     b.ToTable("browser_sessions", "stations", t =>
                         {
-                            t.HasCheckConstraint("CK_browser_actor", "(\"StaffMemberId\" IS NULL AND \"ActorSessionId\" IS NULL AND \"AuthorityKind\" = 0 AND \"CredentialRevision\" IS NULL AND \"GrantRevision\" IS NULL AND \"ActorIdleExpiresAtUtc\" IS NULL AND \"ActorAbsoluteExpiresAtUtc\" IS NULL) OR (\"StaffMemberId\" IS NOT NULL AND \"ActorSessionId\" IS NOT NULL AND \"CredentialRevision\" IS NOT NULL AND \"CredentialRevision\" > 0 AND \"ActorIdleExpiresAtUtc\" IS NOT NULL AND \"ActorAbsoluteExpiresAtUtc\" IS NOT NULL AND ((\"AuthorityKind\" = 1 AND \"GrantRevision\" IS NULL) OR (\"AuthorityKind\" = 2 AND \"GrantRevision\" IS NOT NULL AND \"GrantRevision\" > 0)))");
+                            t.HasCheckConstraint("CK_browser_actor", "(\"StaffMemberId\" IS NULL AND \"ActorSessionId\" IS NULL AND \"AuthorityKind\" = 0 AND \"CredentialRevision\" IS NULL AND \"GrantRevision\" IS NULL AND \"RegistrationRevision\" IS NULL AND \"ActorIdleExpiresAtUtc\" IS NULL AND \"ActorAbsoluteExpiresAtUtc\" IS NULL) OR (\"StaffMemberId\" IS NOT NULL AND \"ActorSessionId\" IS NOT NULL AND \"AuthorityKind\" IN (1,2) AND \"CredentialRevision\" IS NOT NULL AND \"CredentialRevision\" > 0 AND \"RegistrationRevision\" IS NOT NULL AND \"RegistrationRevision\" > 0 AND \"GrantRevision\" IS NULL AND \"ActorIdleExpiresAtUtc\" IS NOT NULL AND \"ActorAbsoluteExpiresAtUtc\" IS NOT NULL)");
 
                             t.HasCheckConstraint("CK_browser_attempts", "\"AttemptCount\" >= 0");
 
@@ -209,10 +212,11 @@ namespace BunkFy.Modules.Stations.Persistence.PostgreSqlMigrations.Migrations
                         {
                             t.HasCheckConstraint("CK_receipt_issuer", "(\"IssuerKind\" = 0 AND \"IssuerSubjectId\" IS NULL) OR (\"IssuerKind\" IN (1,2) AND \"IssuerSubjectId\" IS NOT NULL AND length(\"IssuerSubjectId\") = 36)");
 
-                            t.HasCheckConstraint("CK_receipt_kind", "\"Kind\" BETWEEN 1 AND 15 AND \"Outcome\" BETWEEN 1 AND 5");
+                            t.HasCheckConstraint("CK_receipt_kind", "\"Kind\" BETWEEN 1 AND 17 AND \"Outcome\" BETWEEN 1 AND 5");
+
+                            t.HasCheckConstraint("CK_receipt_own_pin", "\"Kind\" <> 15 OR (\"IssuerKind\" = 2 AND \"IssuerSubjectId\" IS NOT NULL AND \"IssuerSessionId\" IS NOT NULL AND \"IssuerSessionId\" <> '00000000-0000-0000-0000-000000000000'::uuid AND \"PropertyId\" IS NOT NULL AND \"PropertyId\" <> '00000000-0000-0000-0000-000000000000'::uuid AND \"StaffMemberId\" IS NOT NULL AND \"StaffMemberId\" <> '00000000-0000-0000-0000-000000000000'::uuid AND \"ResourceVersion\" IS NOT NULL AND \"ResourceVersion\" >= 0 AND (\"Outcome\" <> 1 OR \"ResourceVersion\" > 0))");
 
                             t.HasCheckConstraint("CK_receipt_session", "\"IssuerSessionId\" IS NULL OR (\"IssuerKind\" IN (1,2) AND \"Kind\" IN (1,9,15) AND \"IssuerSessionId\" <> '00000000-0000-0000-0000-000000000000'::uuid)");
-                            t.HasCheckConstraint("CK_receipt_own_pin", "\"Kind\" <> 15 OR (\"IssuerKind\" = 2 AND \"IssuerSubjectId\" IS NOT NULL AND \"IssuerSessionId\" IS NOT NULL AND \"IssuerSessionId\" <> '00000000-0000-0000-0000-000000000000'::uuid AND \"PropertyId\" IS NOT NULL AND \"PropertyId\" <> '00000000-0000-0000-0000-000000000000'::uuid AND \"StaffMemberId\" IS NOT NULL AND \"StaffMemberId\" <> '00000000-0000-0000-0000-000000000000'::uuid AND \"ResourceVersion\" IS NOT NULL AND \"ResourceVersion\" >= 0 AND (\"Outcome\" <> 1 OR \"ResourceVersion\" > 0))");
                         });
                 });
 
@@ -310,6 +314,33 @@ namespace BunkFy.Modules.Stations.Persistence.PostgreSqlMigrations.Migrations
                     b.ToTable("staff_check_in_grants", "stations", t =>
                         {
                             t.HasCheckConstraint("CK_grant_revision", "\"Revision\" > 0");
+                        });
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Stations.Domain.StationStaffCheckOutGrant", b =>
+                {
+                    b.Property<string>("ScopeId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("StaffMemberId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("Revoked")
+                        .HasColumnType("boolean");
+
+                    b.HasKey("ScopeId", "PropertyId", "StaffMemberId");
+
+                    b.ToTable("staff_check_out_grants", "stations", t =>
+                        {
+                            t.HasCheckConstraint("CK_check_out_grant_revision", "\"Revision\" > 0");
                         });
                 });
 

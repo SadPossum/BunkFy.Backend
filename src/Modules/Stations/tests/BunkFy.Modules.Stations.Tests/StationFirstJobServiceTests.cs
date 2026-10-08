@@ -18,7 +18,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 /// <summary>Real first-job orchestration and admission with explicit owner-boundary fakes; no persistence or HTTP proof.</summary>
-public sealed class StationFirstJobServiceTests
+public sealed partial class StationFirstJobServiceTests
 {
     private const string Tenant = "aa000000-0000-0000-0000-000000000001";
     private const string Subject = "bb000000-0000-0000-0000-000000000002";
@@ -180,7 +180,7 @@ public sealed class StationFirstJobServiceTests
     public async Task Station_only_actor_needs_a_current_scoped_grant(long? revision, bool revoked)
     {
         using var f = new Fixture(StationAuthorityKind.StationOnly);
-        f.Facts = f.Facts! with { GrantRevision = revision, GrantRevoked = revoked };
+        f.CheckInGrant = revision is { } value ? new(value, revoked) : null;
         AssertPageFailure(await f.ListAsync(), StationReservationState.Denied);
         Assert.Equal(StationReservationState.Denied, (await f.CheckInAsync()).State);
         AssertNoProtectedCalls(f);
@@ -329,10 +329,10 @@ public sealed class StationFirstJobServiceTests
         {
             if (name == "list")
             {
-                f.Facts = f.Facts! with { GrantRevoked = true };
+                f.CheckInGrant = f.CheckInGrant! with { Revoked = true };
             }
         };
-        AssertPageFailure(await f.ListAsync(), StationReservationState.Conflict);
+        AssertPageFailure(await f.ListAsync(), StationReservationState.Denied);
         Assert.Empty(f.Inventory.Batches);
         Assert.Equal(0, f.LinkedReads);
     }
@@ -577,7 +577,8 @@ public sealed class StationFirstJobServiceTests
         Assert.Equal(Operation, prepared.OperationId);
         Assert.Equal(selected.ExpectedVersion, prepared.Version);
         var provenance = new StationCheckInProvenance(f.Device!.StationId, f.Device.BrowserSessionId,
-            Staff, f.Actor.ActorSessionId, f.Actor.Generation, reservationKind);
+            Staff, f.Actor.ActorSessionId, f.Actor.Generation, reservationKind,
+            kind == StationAuthorityKind.StationOnly ? f.CheckInGrant!.Revision : null);
         Assert.Equal(provenance, prepared.Provenance);
         var dispatched = Assert.Single(f.Operations.Dispatched);
         Assert.Equal(prepared with { Date = f.Operations.Preparation.BusinessDate }, dispatched);
@@ -767,7 +768,7 @@ public sealed class StationFirstJobServiceTests
 
     private sealed class Fixture : IDisposable, IStationCredentialBootstrap, ISystemClock, IStaffStationEligibilitySource,
         IPropertyStationEligibilitySource, IWorkspaceStaffStationAdmissionObserver, IWorkspaceOperationalAdmissionPolicy,
-        IWorkspaceTerminationFenceReader, IOrganizationScopeLifecycle, IStaffStationLabelReader
+        IWorkspaceTerminationFenceReader, IOrganizationScopeLifecycle, IStaffStationLabelReader, IStationJobGrantReader
     {
         public Fixture(StationAuthorityKind kind = StationAuthorityKind.LinkedStation)
         {
@@ -779,9 +780,10 @@ public sealed class StationFirstJobServiceTests
                 : new StationEnrollmentBinding(StationActorKind.StationOnly, null);
             this.AuthSubject = binding.AuthSubjectId;
             this.Facts = new(new(this.Device.StationId, Property, this.Device.BrowserSessionId, this.Actor.Generation,
-                this.Actor, Now.AddDays(2), Now.AddMinutes(10), Now.AddHours(8), "Reception"), true, new(Staff, 2, false, binding), 3, false);
+                this.Actor, Now.AddDays(2), Now.AddMinutes(10), Now.AddHours(8), "Reception"), true, new(Staff, 2, false, binding), null, true, RegistrationRevision: 1);
             this.Operations = new(this);
             this.Inventory = new(this);
+            this.Departures = new(this);
             this.SetArrivals(Arrival(100, [Unit(1)]));
             var services = new ServiceCollection();
             this.Handoff.Register(services);
@@ -792,6 +794,8 @@ public sealed class StationFirstJobServiceTests
             services.AddScoped(sp => new StationAdmissionCoordinator(sp.GetRequiredService<IScopeContext>(), this,
                 this, this, this, this, this, this));
             services.AddSingleton<IStationReservationOperations>(this.Operations);
+            services.AddSingleton<IStationDepartureOperations>(this.Departures);
+            services.AddSingleton<IStationJobGrantReader>(this);
             services.AddSingleton<IStationInventoryLabelReader>(this.Inventory);
             services.AddSingleton<IPropertyStationEligibilitySource>(this);
             services.AddSingleton<IStaffStationLabelReader>(this);
@@ -807,6 +811,11 @@ public sealed class StationFirstJobServiceTests
         public StationFirstJobService Service { get; }
         public ReservationOwner Operations { get; }
         public InventoryOwner Inventory { get; }
+        public DepartureOwner Departures { get; }
+        public StationJobGrant? CheckInGrant { get; set; } = new(3, false);
+        public StationJobGrant? CheckOutGrant { get; set; }
+        public Dictionary<WorkspaceStaffStationAction, WorkspaceStaffStationObservationStatus> JobStatus { get; } = [];
+        public List<WorkspaceStaffStationAction> Actions { get; } = [];
         public DateTimeOffset UtcNow { get; private set; } = Now;
         public PropertyStationEligibilitySnapshot PropertyFacts { get; set; } = new(Tenant, Property,
             PropertyStatus.Active, 2, PropertyProcessingStatus.Enabled, "Europe/Helsinki", "Harbour Hostel");
@@ -862,6 +871,13 @@ public sealed class StationFirstJobServiceTests
                     throw new ArgumentOutOfRangeException(nameof(change));
             }
         }
+        public Task<StationJobGrant?> ReadJobGrantAsync(Guid propertyId, Guid staffId, bool checkOut, CancellationToken cancellationToken = default)
+        {
+            Assert.Equal(Property, propertyId);
+            Assert.Equal(Staff, staffId);
+            this.Record(checkOut ? "checkout-grant" : "checkin-grant");
+            return Task.FromResult(checkOut ? this.CheckOutGrant : this.CheckInGrant);
+        }
         public Task<StationDeviceReference?> FindAsync(string opaqueCredential, CancellationToken cancellationToken = default)
         {
             this.BootstrapReads++;
@@ -896,8 +912,8 @@ public sealed class StationFirstJobServiceTests
             Assert.Equal(Tenant, scopeId);
             Assert.Equal(Property, propertyId);
             Assert.Equal(Staff, staffMemberId);
-            Assert.Equal(WorkspaceStaffStationAction.ReservationCheckIn, action);
-            return Task.FromResult(new WorkspaceStaffStationObservation(this.LinkedStatus,
+            this.Actions.Add(action);
+            return Task.FromResult(new WorkspaceStaffStationObservation(this.JobStatus.GetValueOrDefault(action, this.LinkedStatus),
                 WorkspaceStaffStationObservationReason.LinkedAccountPrerequisites, this.UtcNow,
                 DateOnly.FromDateTime(this.UtcNow.UtcDateTime.AddHours(3)), "Europe/Helsinki",
                 TimeZoneCatalog.Default.CatalogVersion, TimeZoneCatalog.Default.TzdbVersion));

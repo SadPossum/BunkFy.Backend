@@ -40,7 +40,7 @@ internal sealed class WorkspaceStaffStationAdmissionObserver(
         string? zoneId = null;
         WorkspaceStaffStationObservation Result(Status status, Reason reason) => new(status, reason,
             observedAt, localDate, zoneId, TimeZoneCatalog.Default.CatalogVersion, TimeZoneCatalog.Default.TzdbVersion);
-        if (!scope.IsEnabled || action != WorkspaceStaffStationAction.ReservationCheckIn ||
+        if (!scope.IsEnabled || action is not (WorkspaceStaffStationAction.ReservationCheckIn or WorkspaceStaffStationAction.ReservationCheckOut or WorkspaceStaffStationAction.StationIdentity) ||
             propertyId == Guid.Empty || staffMemberId == Guid.Empty ||
             !Guid.TryParseExact(scopeId, "D", out Guid tenantId) || tenantId == Guid.Empty ||
             tenantId.ToString("D") != scopeId || scope.ScopeId != scopeId || observedAt == default)
@@ -76,29 +76,30 @@ internal sealed class WorkspaceStaffStationAdmissionObserver(
                 return Result(Status.Unavailable, Reason.OwnerEvidenceUnavailable);
             }
             AccessScope propertyScope = WorkspaceAccessScopes.CreateProperty(scopeId, propertyId);
-            AccessRequirement requirement = new(AccessSubject.User(subjectId),
-                PermissionCode.Create(ReservationsAdminPermissionCodes.CheckIn), propertyScope);
+            AccessRequirement? requirement = action == WorkspaceStaffStationAction.StationIdentity ? null : new(AccessSubject.User(subjectId),
+                PermissionCode.Create(action == WorkspaceStaffStationAction.ReservationCheckIn
+                    ? ReservationsAdminPermissionCodes.CheckIn : ReservationsAdminPermissionCodes.CheckOut), propertyScope);
 
             // Two account-existence reads bracket the other owners, but are not a session check or revision fence.
             bool accountBefore = await accounts.FindActiveAsync(authScope, accountId, cancellationToken).ConfigureAwait(false) is not null;
-            External beforeExternal = await this.ReadExternal(scopeId, tenantId, subjectId, propertyScope, false, cancellationToken).ConfigureAwait(false);
-            AccessDecision decisionBefore = await authorization.AuthorizeAsync(requirement, cancellationToken).ConfigureAwait(false);
+            External beforeExternal = await this.ReadExternal(scopeId, tenantId, subjectId, propertyScope, false, requirement is not null, cancellationToken).ConfigureAwait(false);
+            AccessDecision? decisionBefore = requirement is null ? null : await authorization.AuthorizeAsync(requirement, cancellationToken).ConfigureAwait(false);
             Facts after = await this.ReadFacts(scopeId, propertyId, staffMemberId, cancellationToken).ConfigureAwait(false);
-            AccessDecision decisionAfter = await authorization.AuthorizeAsync(requirement, cancellationToken).ConfigureAwait(false);
-            External afterExternal = await this.ReadExternal(scopeId, tenantId, subjectId, propertyScope, true, cancellationToken).ConfigureAwait(false);
+            AccessDecision? decisionAfter = requirement is null ? null : await authorization.AuthorizeAsync(requirement, cancellationToken).ConfigureAwait(false);
+            External afterExternal = await this.ReadExternal(scopeId, tenantId, subjectId, propertyScope, true, requirement is not null, cancellationToken).ConfigureAwait(false);
             bool accountAfter = await accounts.FindActiveAsync(authScope, accountId, cancellationToken).ConfigureAwait(false) is not null;
             DateTimeOffset completedAt = clock.UtcNow;
 
             if (before != after || accountBefore != accountAfter || decisionBefore != decisionAfter ||
                 !Equivalent(beforeExternal, afterExternal) || !StillSameDate(after, completedAt) ||
-                beforeExternal.Authority.Status == AccessControlAuthoritySnapshotStatus.Stale ||
-                afterExternal.Authority.Status == AccessControlAuthoritySnapshotStatus.Stale ||
-                (beforeExternal.Authority.EarliestExpiryAtUtc is { } expiry && expiry > observedAt && expiry <= completedAt))
+                beforeExternal.Authority?.Status == AccessControlAuthoritySnapshotStatus.Stale ||
+                afterExternal.Authority?.Status == AccessControlAuthoritySnapshotStatus.Stale ||
+                (beforeExternal.Authority?.EarliestExpiryAtUtc is { } expiry && expiry > observedAt && expiry <= completedAt))
             {
                 return Result(Status.ObservationStale, Reason.ChangedDuringObservation);
             }
-            if (!ValidExternal(beforeExternal, tenantId, subjectId, propertyScope, observedAt, completedAt) ||
-                !ValidExternal(afterExternal, tenantId, subjectId, propertyScope, observedAt, completedAt))
+            if (!ValidExternal(beforeExternal, tenantId, subjectId, propertyScope, observedAt, completedAt, requirement is not null) ||
+                !ValidExternal(afterExternal, tenantId, subjectId, propertyScope, observedAt, completedAt, requirement is not null))
             {
                 return Result(Status.Unavailable, Reason.OwnerEvidenceUnavailable);
             }
@@ -108,7 +109,7 @@ internal sealed class WorkspaceStaffStationAdmissionObserver(
             }
             if (afterExternal.Workspace.Outcome == WorkspaceOperationalAdmissionOutcome.Restricted ||
                 afterExternal.Fence is not null || afterExternal.OrganizationScope.Status != OrganizationScopeStatus.Open ||
-                afterExternal.Authority.Status == AccessControlAuthoritySnapshotStatus.Closed)
+                afterExternal.Authority?.Status == AccessControlAuthoritySnapshotStatus.Closed)
             {
                 return Result(Status.PrerequisitesNotObserved, Reason.WorkspaceClosed);
             }
@@ -124,7 +125,7 @@ internal sealed class WorkspaceStaffStationAdmissionObserver(
             {
                 return Result(Status.PrerequisitesNotObserved, Reason.MembershipNotActive);
             }
-            if (!decisionAfter.IsAllowed || afterExternal.Authority.EarliestExpiryAtUtc <= completedAt)
+            if (requirement is not null && (decisionAfter?.IsAllowed != true || afterExternal.Authority?.EarliestExpiryAtUtc <= completedAt))
             {
                 return Result(Status.PrerequisitesNotObserved, Reason.PermissionNotObserved);
             }
@@ -151,15 +152,15 @@ internal sealed class WorkspaceStaffStationAdmissionObserver(
         await properties.FindAsync(tenant, property, ct).ConfigureAwait(false));
 
     private async Task<External> ReadExternal(string tenant, Guid organization, string subject,
-        AccessScope propertyScope, bool closing, CancellationToken ct)
+        AccessScope propertyScope, bool closing, bool includeAuthority, CancellationToken ct)
     {
         OrganizationScopeSnapshot? organizationScope = closing ? null :
             await organizations.GetSnapshotAsync(organization, ct).ConfigureAwait(false);
         WorkspaceOperationalAdmissionDecision operational = await workspace.EvaluateAsync(tenant, ct).ConfigureAwait(false);
         WorkspaceTerminationFenceSnapshot? fence = await fences.GetCurrentAsync(ct).ConfigureAwait(false);
         OrganizationMembershipSnapshotDto? membership = await memberships.FindAsync(organization, subject, ct).ConfigureAwait(false);
-        AccessControlSubjectAuthoritySnapshot access = await authority.ReadAsync(
-            new(AccessSubjectKind.User, subject, propertyScope, [propertyScope]), ct).ConfigureAwait(false);
+        AccessControlSubjectAuthoritySnapshot? access = includeAuthority ? await authority.ReadAsync(
+            new(AccessSubjectKind.User, subject, propertyScope, [propertyScope]), ct).ConfigureAwait(false) : null;
         organizationScope ??= await organizations.GetSnapshotAsync(organization, ct).ConfigureAwait(false);
         return new(operational, fence, organizationScope, membership, access);
     }
@@ -232,9 +233,9 @@ internal sealed class WorkspaceStaffStationAdmissionObserver(
     }
 
     private static bool ValidExternal(External e, Guid organization, string subject, AccessScope target,
-        DateTimeOffset startedAt, DateTimeOffset completedAt)
+        DateTimeOffset startedAt, DateTimeOffset completedAt, bool requireAuthority)
     {
-        AccessControlSubjectAuthoritySnapshot a = e.Authority;
+        AccessControlSubjectAuthoritySnapshot? a = e.Authority;
         OrganizationMembershipDto? m = e.Membership?.Membership;
         return e.Workspace.Outcome is WorkspaceOperationalAdmissionOutcome.Allowed or WorkspaceOperationalAdmissionOutcome.Restricted &&
             (e.Fence is null || (e.Fence.ProcessId != Guid.Empty && e.Fence.TerminationEpoch != Guid.Empty && e.Fence.Version > 0 &&
@@ -245,18 +246,18 @@ internal sealed class WorkspaceStaffStationAdmissionObserver(
                 (m is null || (m.OrganizationId == organization && m.SubjectId == subject && m.MembershipId != Guid.Empty && m.Version > 0 &&
                     m.Role is OrganizationMembershipRole.Owner or OrganizationMembershipRole.Member &&
                     m.Status is OrganizationMembershipStatus.Active or OrganizationMembershipStatus.Suspended or OrganizationMembershipStatus.Removed)))) &&
-            a.ContractVersion == 2 && a.Status is AccessControlAuthoritySnapshotStatus.Stable or AccessControlAuthoritySnapshotStatus.Closed &&
+            (!requireAuthority ? a is null : a is not null && a.ContractVersion == 2 && a.Status is AccessControlAuthoritySnapshotStatus.Stable or AccessControlAuthoritySnapshotStatus.Closed &&
             a.SubjectKind == AccessSubjectKind.User && a.SubjectId == subject && target.Equals(a.RootScope) &&
             a.ExpectedTargetScopes.Count == 1 && target.Equals(a.ExpectedTargetScopes[0]) && a.ManagementRevision is >= 0 &&
             a.ObservedAtUtc >= startedAt && a.ObservedAtUtc <= completedAt &&
-            a.FactsSha256 is { Length: 64 } digest && digest.All(Uri.IsHexDigit);
+            a.FactsSha256 is { Length: 64 } digest && digest.All(Uri.IsHexDigit));
     }
 
     private static bool Equivalent(External x, External y) => x.Workspace == y.Workspace && x.Fence == y.Fence &&
         x.OrganizationScope == y.OrganizationScope && x.Membership == y.Membership && AccessEquivalent(x.Authority, y.Authority);
 
-    private static bool AccessEquivalent(AccessControlSubjectAuthoritySnapshot x, AccessControlSubjectAuthoritySnapshot y) =>
-        x.Status == y.Status && x.ContractVersion == y.ContractVersion && x.SubjectKind == y.SubjectKind && x.SubjectId == y.SubjectId &&
+    private static bool AccessEquivalent(AccessControlSubjectAuthoritySnapshot? x, AccessControlSubjectAuthoritySnapshot? y) =>
+        x is null || y is null ? x == y : x.Status == y.Status && x.ContractVersion == y.ContractVersion && x.SubjectKind == y.SubjectKind && x.SubjectId == y.SubjectId &&
         Equals(x.RootScope, y.RootScope) && x.ExpectedTargetScopes.SequenceEqual(y.ExpectedTargetScopes) &&
         x.ManagementRevision == y.ManagementRevision && x.FactsSha256 == y.FactsSha256 && x.EarliestExpiryAtUtc == y.EarliestExpiryAtUtc &&
         x.RoleGrants.Count == y.RoleGrants.Count && x.RoleGrants.Zip(y.RoleGrants).All(pair =>
@@ -272,5 +273,5 @@ internal sealed class WorkspaceStaffStationAdmissionObserver(
     private sealed record Facts(StaffStationEligibilitySnapshot? Staff, PropertyStationEligibilitySnapshot? Property);
     private sealed record External(WorkspaceOperationalAdmissionDecision Workspace, WorkspaceTerminationFenceSnapshot? Fence,
         OrganizationScopeSnapshot OrganizationScope, OrganizationMembershipSnapshotDto? Membership,
-        AccessControlSubjectAuthoritySnapshot Authority);
+        AccessControlSubjectAuthoritySnapshot? Authority);
 }

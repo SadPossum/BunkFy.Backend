@@ -160,14 +160,14 @@ internal sealed partial class ReservationsTenantTerminationContributor
                     operation.RequestFingerprint,
                     operation.CreatedAtUtc),
                 attribution is null ? null : new(attribution.StationId, attribution.BrowserSessionId, attribution.StaffMemberId,
-                    attribution.ActorSessionId, attribution.Generation, attribution.Authority, attribution.ResultingVersion));
+                    attribution.ActorSessionId, attribution.Generation, attribution.Authority, attribution.ResultingVersion, attribution.JobGrantRevision));
             await WriteAsync(
                 ReservationsTenantTerminationMetadata
                     .ManagementOperationRecordType,
                 DataRightsExportRecordIds.CreateDeterministicChild(
                     operation.ReservationId,
                     operation.Id.ToString("N")),
-                recordVersion: 4,
+                recordVersion: 5,
                 record,
                 sink,
                 cancellationToken).ConfigureAwait(false);

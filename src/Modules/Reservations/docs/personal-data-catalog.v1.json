@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "reservations.personal-data",
-  "catalogVersion": 21,
+  "catalogVersion": 22,
   "module": "reservations",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -19994,6 +19994,20 @@
           "member": "PrimaryGuestName",
           "surface": "projection-export",
           "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDepartureCursor",
+          "member": "NormalizedGuestName",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDueDeparture",
+          "member": "PrimaryGuestName",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
         }
       ]
     },
@@ -20068,6 +20082,34 @@
           "member": "OperationId",
           "surface": "persistence",
           "retentionPolicy": "reservation-record-lifecycle"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDepartureCursor",
+          "member": "ReservationId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDueDeparture",
+          "member": "ReservationId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.StationCheckOutReservationCommand",
+          "member": "OperationId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.StationCheckOutReservationCommand",
+          "member": "ReservationId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
         }
       ]
     },
@@ -20102,6 +20144,13 @@
         {
           "assembly": "BunkFy.Modules.Reservations.Application",
           "type": "BunkFy.Modules.Reservations.Application.Commands.StationCheckInReservationCommand",
+          "member": "PropertyId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.StationCheckOutReservationCommand",
           "member": "PropertyId",
           "surface": "application-command",
           "retentionPolicy": "transient-request"
@@ -20215,6 +20264,34 @@
           "member": "AllocationVersion",
           "surface": "application-command",
           "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDueDeparture",
+          "member": "ExpectedVersion",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDueDeparture",
+          "member": "AllocationVersion",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.StationCheckOutReservationCommand",
+          "member": "ExpectedVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.StationCheckOutReservationCommand",
+          "member": "AllocationVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
         }
       ]
     },
@@ -20260,6 +20337,13 @@
           "member": "Arrival",
           "surface": "projection-export",
           "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDueDeparture",
+          "member": "Arrival",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
         }
       ]
     },
@@ -20295,6 +20379,20 @@
         {
           "assembly": "BunkFy.Modules.Reservations.Contracts",
           "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDueArrival",
+          "member": "Departure",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDepartureCursor",
+          "member": "Departure",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDueDeparture",
           "member": "Departure",
           "surface": "projection-export",
           "retentionPolicy": "transient-response"
@@ -20344,6 +20442,27 @@
           "member": "BusinessDate",
           "surface": "application-command",
           "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationCheckOutPreparation",
+          "member": "BusinessDate",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.StationCheckOutReservationCommand",
+          "member": "BusinessDate",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDueDeparture",
+          "member": "CheckedInBusinessDate",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
         }
       ]
     },
@@ -20386,6 +20505,20 @@
         {
           "assembly": "BunkFy.Modules.Reservations.Application",
           "type": "BunkFy.Modules.Reservations.Application.Commands.StationCheckInReservationCommand",
+          "member": "AllocationId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDueDeparture",
+          "member": "AllocationId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.StationCheckOutReservationCommand",
           "member": "AllocationId",
           "surface": "application-command",
           "retentionPolicy": "transient-request"
@@ -20640,6 +20773,41 @@
           "member": "ResultingVersion",
           "surface": "data-rights-export",
           "retentionPolicy": "reservations-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.StationCheckOutReservationCommand",
+          "member": "Provenance",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationCheckInProvenance",
+          "member": "JobGrantRevision",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.ReservationStationAttribution",
+          "member": "JobGrantRevision",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-record-lifecycle"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationManagementStaffTenantExport",
+          "member": "JobGrantRevision",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservations-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Ports.ReservationStationAttributionRead",
+          "member": "ResultingVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
         }
       ]
     },
@@ -20702,6 +20870,41 @@
         {
           "assembly": "BunkFy.Modules.Reservations.Contracts",
           "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationCheckInResult",
+          "member": "Receipt",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDueDeparture",
+          "member": "Units",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDueDeparturePage",
+          "member": "Items",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDueDeparturePage",
+          "member": "Continuation",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationCheckOutPreparation",
+          "member": "Departure",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationCheckOutResult",
           "member": "Receipt",
           "surface": "projection-export",
           "retentionPolicy": "transient-response"
@@ -20771,6 +20974,62 @@
           "member": "Supported",
           "surface": "application-command",
           "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDueDeparturePage",
+          "member": "State",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationCheckOutPreparation",
+          "member": "State",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationCheckOutPreparation",
+          "member": "Replay",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationCheckOutResult",
+          "member": "State",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDueDeparture",
+          "member": "State",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationCheckOutResult",
+          "member": "Checkout",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationCheckOutOutcome",
+          "member": "State",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationCheckInOutcome",
+          "member": "State",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
         }
       ]
     }

@@ -28,7 +28,7 @@ internal sealed class StationReservationOperations(IStationDueArrivalRepository 
     public async Task<StationCheckInPreparation> PrepareAsync(Guid propertyId, Guid reservationId, Guid operationId,
         long expectedVersion, DateOnly localDate, StationCheckInProvenance provenance, CancellationToken cancellationToken = default)
     {
-        if (operationId == Guid.Empty || reservationId == Guid.Empty || expectedVersion < 1 || localDate == default || !provenance.IsValid)
+        if (operationId == Guid.Empty || reservationId == Guid.Empty || expectedVersion < 1 || localDate == default || !StationOperationProvenance.ValidNew(provenance))
         { return new(StationReservationState.Conflict, localDate); }
         try
         {
@@ -43,7 +43,7 @@ internal sealed class StationReservationOperations(IStationDueArrivalRepository 
                 var attribution = await operations.GetStationAttributionAsync(reservationId, operationId, cancellationToken).ConfigureAwait(false);
                 if (prior.PropertyId != propertyId || prior.BusinessDate is not { } originalDate ||
                     !prior.MatchesLifecycle(ReservationManagementOperationKind.CheckIn, expectedVersion, originalDate) ||
-                    !attribution.Supported || attribution.Provenance != provenance)
+                    !attribution.Supported || !StationOperationProvenance.Matches(ReservationManagementOperationKind.CheckIn, attribution.Provenance, provenance))
                 { return new(StationReservationState.Conflict, localDate); }
                 // Outcome recovery uses the original server-owned operation date, never a caller's historical date.
                 // The dispatcher still locks/reloads and checks the parent/provenance again.
@@ -61,7 +61,7 @@ internal sealed class StationReservationOperations(IStationDueArrivalRepository 
     public async Task<StationCheckInResult> CheckInAsync(Guid propertyId, Guid reservationId, Guid operationId, long expectedVersion,
         StationCheckInPreparation preparation, StationCheckInProvenance provenance, CancellationToken cancellationToken = default)
     {
-        if (operationId == Guid.Empty || reservationId == Guid.Empty || expectedVersion < 1 || !provenance.IsValid ||
+        if (operationId == Guid.Empty || reservationId == Guid.Empty || expectedVersion < 1 || !StationOperationProvenance.ValidNew(provenance) ||
             preparation.State != StationReservationState.Ready || preparation.BusinessDate == default ||
             (!preparation.Replay && (preparation.Arrival?.ReservationId != reservationId || preparation.Arrival.ExpectedVersion != expectedVersion)))
         { return new(StationReservationState.Conflict); }
