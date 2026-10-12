@@ -88,6 +88,7 @@ public static class DataRightsExportLimits
     public const int SchemaIdentifierMaxLength = 200;
     public const int RecordTypeMaxLength = 100;
     public const int FieldIdMaxLength = 200;
+    public const int MaxFieldsPerSchema = 512;
     public const int MaxFieldsPerRecord = 64;
     public const int MaxFieldValueBytes = 16 * 1024;
 }

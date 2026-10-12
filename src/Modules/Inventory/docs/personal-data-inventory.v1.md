@@ -1,4 +1,4 @@
-# inventory Personal-Data Inventory v6
+# inventory Personal-Data Inventory v8
 
 Generated from `inventory.personal-data` schema v1.
 Catalogue approval: `engineering-default`.
@@ -132,6 +132,7 @@ Engineering metadata is not legal or country-launch approval.
 | inventory.allocation-anonymisation-proof | BunkFy.Modules.Inventory.Persistence | BunkFy.Modules.Inventory.Persistence.Repositories.InventoryAnonymisationTombstoneTenantExport | Proof | data-rights-export | inventory-tenant-termination-export-fragment |
 | inventory.canceled-at | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.BedRetirementDto | CanceledAtUtc | api-response | transient-response |
 | inventory.canceled-at | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.BedRetirementDto | CanceledAtUtc | admin-output | transient-response |
+| inventory.canceled-at | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.InventoryRetirementProcessSummaryDto | CanceledAtUtc | api-response | inventory-change-history |
 | inventory.canceled-at | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.RoomRetirementDto | CanceledAtUtc | api-response | transient-response |
 | inventory.canceled-at | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.RoomRetirementDto | CanceledAtUtc | admin-output | transient-response |
 | inventory.canceled-at | BunkFy.Modules.Inventory.Domain | BunkFy.Modules.Inventory.Domain.Aggregates.BedRetirementProcess | CanceledAtUtc | persistence | inventory-change-history |
@@ -142,6 +143,7 @@ Engineering metadata is not legal or country-launch approval.
 | inventory.cancellation-actor-reference | BunkFy.Modules.Inventory.Application | BunkFy.Modules.Inventory.Application.Commands.CancelRoomRetirementCommand | CanceledBy | application-command | transient-request |
 | inventory.cancellation-actor-reference | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.BedRetirementDto | CanceledBy | api-response | transient-response |
 | inventory.cancellation-actor-reference | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.BedRetirementDto | CanceledBy | admin-output | transient-response |
+| inventory.cancellation-actor-reference | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.InventoryRetirementProcessSummaryDto | CanceledBy | api-response | inventory-change-history |
 | inventory.cancellation-actor-reference | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.RoomRetirementDto | CanceledBy | api-response | transient-response |
 | inventory.cancellation-actor-reference | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.RoomRetirementDto | CanceledBy | admin-output | transient-response |
 | inventory.cancellation-actor-reference | BunkFy.Modules.Inventory.Domain | BunkFy.Modules.Inventory.Domain.Aggregates.BedRetirementProcess | CanceledBy | persistence | inventory-change-history |
@@ -153,6 +155,7 @@ Engineering metadata is not legal or country-launch approval.
 | inventory.cancellation-reason | BunkFy.Modules.Inventory.Application | BunkFy.Modules.Inventory.Application.Commands.CancelRoomRetirementCommand | Reason | application-command | transient-request |
 | inventory.cancellation-reason | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.BedRetirementDto | CancellationReason | api-response | transient-response |
 | inventory.cancellation-reason | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.BedRetirementDto | CancellationReason | admin-output | transient-response |
+| inventory.cancellation-reason | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.InventoryRetirementProcessSummaryDto | CancellationReason | api-response | inventory-change-history |
 | inventory.cancellation-reason | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.RoomRetirementDto | CancellationReason | api-response | transient-response |
 | inventory.cancellation-reason | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.RoomRetirementDto | CancellationReason | admin-output | transient-response |
 | inventory.cancellation-reason | BunkFy.Modules.Inventory.Domain | BunkFy.Modules.Inventory.Domain.Aggregates.BedRetirementProcess | CancellationReason | persistence | inventory-change-history |
@@ -371,6 +374,8 @@ Engineering metadata is not legal or country-launch approval.
 | inventory.guest-reservation-reference | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.InventoryAllocationReleaseRequestedIntegrationEvent | ReservationId | integration-event | integration-message-journal |
 | inventory.guest-reservation-reference | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.InventoryAllocationReleasedIntegrationEvent | ReservationId | integration-event | integration-message-journal |
 | inventory.guest-reservation-reference | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.InventoryAllocationRequestedIntegrationEvent | ReservationId | integration-event | integration-message-journal |
+| inventory.guest-reservation-reference | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.InventoryRetirementImpactDto | AffectedReservationIds | api-response | inventory-allocation-lifecycle |
+| inventory.guest-reservation-reference | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.InventoryRetirementImpactDto | AffectedReservationIdsTruncated | api-response | inventory-allocation-lifecycle |
 | inventory.guest-reservation-reference | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.RoomInventoryChangeImpactDto | AffectedReservationIds | api-response | transient-response |
 | inventory.guest-reservation-reference | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.RoomInventoryChangeImpactDto | AffectedReservationIdsTruncated | api-response | transient-response |
 | inventory.guest-reservation-reference | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.RoomRetirementDto | AffectedReservationIds | api-response | transient-response |
@@ -396,6 +401,7 @@ Engineering metadata is not legal or country-launch approval.
 | inventory.operational-reason | BunkFy.Modules.Inventory.Application | BunkFy.Modules.Inventory.Application.Commands.RequestRoomRetirementCommand | Reason | application-command | transient-request |
 | inventory.operational-reason | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.BedRetirementDto | Reason | api-response | transient-response |
 | inventory.operational-reason | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.BedRetirementDto | Reason | admin-output | transient-response |
+| inventory.operational-reason | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.InventoryRetirementProcessSummaryDto | Reason | api-response | inventory-change-history |
 | inventory.operational-reason | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockDto | Reason | api-response | transient-response |
 | inventory.operational-reason | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.RoomRetirementDto | Reason | api-response | transient-response |
 | inventory.operational-reason | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.RoomRetirementDto | Reason | admin-output | transient-response |
@@ -416,6 +422,7 @@ Engineering metadata is not legal or country-launch approval.
 | inventory.staff-actor-reference | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.BedRetirementDto | RequestedBy | api-response | transient-response |
 | inventory.staff-actor-reference | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.BedRetirementDto | RequestedBy | admin-output | transient-response |
 | inventory.staff-actor-reference | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.InventoryAllocationAnonymisationReceiptDto | ActorId | data-rights-export | inventory-anonymisation-owner-proof |
+| inventory.staff-actor-reference | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.InventoryRetirementProcessSummaryDto | RequestedBy | api-response | inventory-change-history |
 | inventory.staff-actor-reference | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockCreatedIntegrationEvent | ActorId | integration-event | integration-message-journal |
 | inventory.staff-actor-reference | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockReleasedIntegrationEvent | ActorId | integration-event | integration-message-journal |
 | inventory.staff-actor-reference | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.RoomRetirementDto | RequestedBy | api-response | transient-response |
@@ -466,12 +473,20 @@ Engineering metadata is not legal or country-launch approval.
 | inventory.staff-change-operations | BunkFy.Modules.Inventory.Application | BunkFy.Modules.Inventory.Application.Commands.RetryBedRetirementCommand | TopologyChangeId | application-command | transient-request |
 | inventory.staff-change-operations | BunkFy.Modules.Inventory.Application | BunkFy.Modules.Inventory.Application.Commands.RetryRoomRetirementCommand | PropertyId | application-command | transient-request |
 | inventory.staff-change-operations | BunkFy.Modules.Inventory.Application | BunkFy.Modules.Inventory.Application.Commands.RetryRoomRetirementCommand | TopologyChangeId | application-command | transient-request |
+| inventory.staff-change-operations | BunkFy.Modules.Inventory.Application | BunkFy.Modules.Inventory.Application.Ports.InventoryRetirementTargetSnapshot | IsTopologyActive | application-query | inventory-change-history |
+| inventory.staff-change-operations | BunkFy.Modules.Inventory.Application | BunkFy.Modules.Inventory.Application.Ports.InventoryRetirementTargetSnapshot | ParentRoomRetirementActive | application-query | inventory-change-history |
+| inventory.staff-change-operations | BunkFy.Modules.Inventory.Application | BunkFy.Modules.Inventory.Application.Ports.InventoryRetirementTargetSnapshot | Process | application-query | inventory-change-history |
 | inventory.staff-change-operations | BunkFy.Modules.Inventory.Application | BunkFy.Modules.Inventory.Application.Queries.GetBedRetirementQuery | PropertyId | application-query | transient-request |
 | inventory.staff-change-operations | BunkFy.Modules.Inventory.Application | BunkFy.Modules.Inventory.Application.Queries.GetBedRetirementQuery | TopologyChangeId | application-query | transient-request |
+| inventory.staff-change-operations | BunkFy.Modules.Inventory.Application | BunkFy.Modules.Inventory.Application.Queries.GetInventoryRetirementContextQuery | BedId | application-query | inventory-change-history |
+| inventory.staff-change-operations | BunkFy.Modules.Inventory.Application | BunkFy.Modules.Inventory.Application.Queries.GetInventoryRetirementContextQuery | PropertyId | application-query | inventory-change-history |
+| inventory.staff-change-operations | BunkFy.Modules.Inventory.Application | BunkFy.Modules.Inventory.Application.Queries.GetInventoryRetirementContextQuery | RoomId | application-query | inventory-change-history |
 | inventory.staff-change-operations | BunkFy.Modules.Inventory.Application | BunkFy.Modules.Inventory.Application.Queries.GetRoomRetirementQuery | PropertyId | application-query | transient-request |
 | inventory.staff-change-operations | BunkFy.Modules.Inventory.Application | BunkFy.Modules.Inventory.Application.Queries.GetRoomRetirementQuery | TopologyChangeId | application-query | transient-request |
 | inventory.staff-change-operations | BunkFy.Modules.Inventory.Application | BunkFy.Modules.Inventory.Application.Queries.ListManualInventoryBlocksQuery | IncludeReleased | application-query | transient-request |
 | inventory.staff-change-operations | BunkFy.Modules.Inventory.Application | BunkFy.Modules.Inventory.Application.Queries.ListManualInventoryBlocksQuery | InventoryUnitId | application-query | transient-request |
+| inventory.staff-change-operations | BunkFy.Modules.Inventory.Application | BunkFy.Modules.Inventory.Application.Queries.ListManualInventoryBlocksQuery | OverlapsFrom | application-query | transient-request |
+| inventory.staff-change-operations | BunkFy.Modules.Inventory.Application | BunkFy.Modules.Inventory.Application.Queries.ListManualInventoryBlocksQuery | OverlapsTo | application-query | transient-request |
 | inventory.staff-change-operations | BunkFy.Modules.Inventory.Application | BunkFy.Modules.Inventory.Application.Queries.ListManualInventoryBlocksQuery | Page | application-query | transient-request |
 | inventory.staff-change-operations | BunkFy.Modules.Inventory.Application | BunkFy.Modules.Inventory.Application.Queries.ListManualInventoryBlocksQuery | PageSize | application-query | transient-request |
 | inventory.staff-change-operations | BunkFy.Modules.Inventory.Application | BunkFy.Modules.Inventory.Application.Queries.ListManualInventoryBlocksQuery | PropertyId | application-query | transient-request |
@@ -499,6 +514,27 @@ Engineering metadata is not legal or country-launch approval.
 | inventory.staff-change-operations | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.BedRetirementDto | UpdatedAtUtc | admin-output | transient-response |
 | inventory.staff-change-operations | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.BedRetirementDto | Version | api-response | transient-response |
 | inventory.staff-change-operations | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.BedRetirementDto | Version | admin-output | transient-response |
+| inventory.staff-change-operations | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.InventoryRetirementContextDto | BedId | api-response | inventory-change-history |
+| inventory.staff-change-operations | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.InventoryRetirementContextDto | CanCancel | api-response | inventory-change-history |
+| inventory.staff-change-operations | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.InventoryRetirementContextDto | CanRequest | api-response | inventory-change-history |
+| inventory.staff-change-operations | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.InventoryRetirementContextDto | CanRetry | api-response | inventory-change-history |
+| inventory.staff-change-operations | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.InventoryRetirementContextDto | Impact | api-response | inventory-change-history |
+| inventory.staff-change-operations | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.InventoryRetirementContextDto | ImpactStatus | api-response | inventory-change-history |
+| inventory.staff-change-operations | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.InventoryRetirementContextDto | IsTopologyActive | api-response | inventory-change-history |
+| inventory.staff-change-operations | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.InventoryRetirementContextDto | Process | api-response | inventory-change-history |
+| inventory.staff-change-operations | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.InventoryRetirementContextDto | PropertyId | api-response | inventory-change-history |
+| inventory.staff-change-operations | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.InventoryRetirementContextDto | RoomId | api-response | inventory-change-history |
+| inventory.staff-change-operations | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.InventoryRetirementImpactDto | ActiveAllocationCount | api-response | inventory-change-history |
+| inventory.staff-change-operations | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.InventoryRetirementImpactDto | ActiveBedRetirementCount | api-response | inventory-change-history |
+| inventory.staff-change-operations | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.InventoryRetirementImpactDto | ActiveManualBlockCount | api-response | inventory-change-history |
+| inventory.staff-change-operations | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.InventoryRetirementImpactDto | ParentRoomRetirementActive | api-response | inventory-change-history |
+| inventory.staff-change-operations | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.InventoryRetirementProcessSummaryDto | CompletedAtUtc | api-response | inventory-change-history |
+| inventory.staff-change-operations | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.InventoryRetirementProcessSummaryDto | CreatedAtUtc | api-response | inventory-change-history |
+| inventory.staff-change-operations | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.InventoryRetirementProcessSummaryDto | RejectionReasonCode | api-response | inventory-change-history |
+| inventory.staff-change-operations | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.InventoryRetirementProcessSummaryDto | Status | api-response | inventory-change-history |
+| inventory.staff-change-operations | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.InventoryRetirementProcessSummaryDto | TopologyChangeId | api-response | inventory-change-history |
+| inventory.staff-change-operations | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.InventoryRetirementProcessSummaryDto | UpdatedAtUtc | api-response | inventory-change-history |
+| inventory.staff-change-operations | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.InventoryRetirementProcessSummaryDto | Version | api-response | inventory-change-history |
 | inventory.staff-change-operations | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockCreatedIntegrationEvent | Arrival | integration-event | integration-message-journal |
 | inventory.staff-change-operations | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockCreatedIntegrationEvent | BlockGroupId | integration-event | integration-message-journal |
 | inventory.staff-change-operations | BunkFy.Modules.Inventory.Contracts | BunkFy.Modules.Inventory.Contracts.ManualInventoryBlockCreatedIntegrationEvent | BlockId | integration-event | integration-message-journal |

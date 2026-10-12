@@ -27,7 +27,7 @@ internal sealed class GuestDataRightsCorrectionReceiptConfiguration
                 "\"CompletedAtUtc\" > TIMESTAMPTZ '0001-01-01 00:00:00+00'");
             table.HasCheckConstraint(
                 "CK_guest_data_rights_correction_receipts_contract",
-                $"\"ContractVersion\" = {GuestDataRightsCorrectionReceipt.CurrentContractVersion}");
+                "\"ContractVersion\" IN (1, 2)");
             table.HasCheckConstraint(
                 "CK_guest_data_rights_correction_receipts_approval_revision",
                 "\"ApprovalRevision\" >= 1");
@@ -37,7 +37,8 @@ internal sealed class GuestDataRightsCorrectionReceiptConfiguration
                 "\"CurrentRecordVersion\" = \"SelectedRecordVersion\" + 1");
             table.HasCheckConstraint(
                 "CK_guest_data_rights_correction_receipts_changed_fields",
-                $"\"ChangedFieldsMask\" BETWEEN 1 AND {GuestDataRightsCorrectionReceipt.AllChangedFieldsMask}");
+                $"(\"ContractVersion\" = 1 AND \"ChangedFieldsMask\" BETWEEN 1 AND {GuestDataRightsCorrectionReceipt.LegacyChangedFieldsMask}) OR " +
+                $"(\"ContractVersion\" = 2 AND \"ChangedFieldsMask\" BETWEEN 1 AND {GuestDataRightsCorrectionReceipt.AllChangedFieldsMask})");
         });
         builder.HasKey(receipt => receipt.Id);
         builder.Property(receipt => receipt.ScopeId).HasMaxLength(128).IsRequired();

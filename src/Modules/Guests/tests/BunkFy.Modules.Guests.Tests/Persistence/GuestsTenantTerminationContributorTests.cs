@@ -112,6 +112,13 @@ public sealed class GuestsTenantTerminationContributorTests
             .Where(record => record.RecordType ==
                 GuestsTenantTerminationMetadata.ManagementOperationRecordType)
             .ToArray();
+        DataRightsExportRecord multilingualProfile = Assert.Single(first.Records,
+            record => record.RecordType == GuestsTenantTerminationMetadata.GuestProfileRecordType &&
+                Field(record, "guests.profile-state").GetProperty("creationConfirmationId").GetString() ==
+                    CreationConfirmationId.ToString());
+        Assert.Equal(["en-GB", "fr", "unknown-١"],
+            Field(multilingualProfile, "guests.profile-state").GetProperty("languageTags")
+                .EnumerateArray().Select(value => Assert.IsType<string>(value.GetString())).ToArray());
         Assert.Equal(2, managementOperations.Length);
         Assert.Equal(
             managementOperations.Length,
@@ -142,25 +149,25 @@ public sealed class GuestsTenantTerminationContributorTests
         Assert.Equal(
             GuestsTenantTerminationMetadata.ExportSchemaVersion,
             contributor.ExportDescriptor.ExportSchemaVersion);
-        Assert.Equal(5, contributor.Descriptor.CatalogVersion);
+        Assert.Equal(6, contributor.Descriptor.CatalogVersion);
         Assert.Equal(
             GuestsTenantTerminationMetadata.CatalogSha256,
             contributor.Descriptor.CatalogSha256);
-        Assert.Equal(4, contributor.ExportDescriptor.ExportSchemaVersion);
+        Assert.Equal(5, contributor.ExportDescriptor.ExportSchemaVersion);
         Assert.Contains(
+            "catalog=6",
+            GuestsTenantTerminationMetadata.CatalogManifest,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
             "catalog=5",
             GuestsTenantTerminationMetadata.CatalogManifest,
             StringComparison.Ordinal);
-        Assert.DoesNotContain(
-            "catalog=4",
-            GuestsTenantTerminationMetadata.CatalogManifest,
-            StringComparison.Ordinal);
         Assert.Contains(
-            "export-schema=guests.tenant-termination-export:4",
+            "export-schema=guests.tenant-termination-export:5",
             GuestsTenantTerminationMetadata.CatalogManifest,
             StringComparison.Ordinal);
         Assert.DoesNotContain(
-            "export-schema=guests.tenant-termination-export:3",
+            "export-schema=guests.tenant-termination-export:4",
             GuestsTenantTerminationMetadata.CatalogManifest,
             StringComparison.Ordinal);
         Assert.Equal(
@@ -197,7 +204,7 @@ public sealed class GuestsTenantTerminationContributorTests
                 CancellationToken.None);
 
         Assert.Equal(result.AffectedCount, replayResult.AffectedCount);
-        Assert.Equal(5, result.CatalogVersion);
+        Assert.Equal(6, result.CatalogVersion);
         Assert.Equal(
             GuestsTenantTerminationMetadata.CatalogSha256,
             result.CatalogSha256);
@@ -399,7 +406,7 @@ public sealed class GuestsTenantTerminationContributorTests
 
         TenantTerminationContributionResult replay =
             await contributor.ExecuteAsync(request, CancellationToken.None);
-        Assert.Equal(5, result.CatalogVersion);
+        Assert.Equal(6, result.CatalogVersion);
         Assert.Equal(
             GuestsTenantTerminationMetadata.CatalogSha256,
             result.CatalogSha256);
@@ -597,7 +604,8 @@ public sealed class GuestsTenantTerminationContributorTests
             managementExpectedVersion,
             "user:owner",
             Guid.NewGuid(),
-            Now).IsSuccess);
+            Now,
+            [profile.PreferredLanguageTag!, "fr", "unknown-١"]).IsSuccess);
         context.GuestProfiles.Add(profile);
         context.ManagementOperations.Add(new GuestManagementOperation(
             new GuestManagementOperationRecord(

@@ -11,6 +11,7 @@ using BunkFy.Modules.Reservations.Application.Policies;
 using BunkFy.Modules.Reservations.Application.Ports;
 using BunkFy.Modules.Reservations.Application.Queries;
 using BunkFy.Modules.Reservations.Contracts;
+using BunkFy.Modules.Reservations.Contracts.Stations;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
 using BunkFy.Modules.Reservations.Domain.DataRights;
 using BunkFy.Modules.Reservations.Domain.Entities;
@@ -29,7 +30,21 @@ public sealed class ReservationsPersonalDataCatalogTests
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly PersonalDataCatalogDocument Catalogue = LoadCatalogue();
+    private static readonly PersonalDataCatalogDocument GuestsCatalogue = LoadGuestsCatalogue();
     private static readonly Dictionary<string, Assembly> Assemblies = CreateAssemblyIndex();
+
+    private static readonly Dictionary<string, PersonalDataClassification> GuestOwnedRequestMembers = new(StringComparer.Ordinal)
+    {
+        [nameof(ReservationGuestRecordWriteRequest.DisplayName)] = PersonalDataClassification.DirectIdentifier,
+        [nameof(ReservationGuestRecordWriteRequest.LegalName)] = PersonalDataClassification.DirectIdentifier,
+        [nameof(ReservationGuestRecordWriteRequest.Email)] = PersonalDataClassification.Contact,
+        [nameof(ReservationGuestRecordWriteRequest.Phone)] = PersonalDataClassification.Contact,
+        [nameof(ReservationGuestRecordWriteRequest.DateOfBirth)] = PersonalDataClassification.Demographic,
+        [nameof(ReservationGuestRecordWriteRequest.NationalityCountryCode)] = PersonalDataClassification.Demographic,
+        [nameof(ReservationGuestRecordWriteRequest.PreferredLanguageTag)] = PersonalDataClassification.Preference,
+        [nameof(ReservationGuestRecordWriteRequest.LanguageTags)] = PersonalDataClassification.Preference,
+        [nameof(ReservationGuestRecordWriteRequest.Notes)] = PersonalDataClassification.FreeText
+    };
 
     private static readonly Dictionary<Type, HashSet<string>> NonPersonalMembers = new()
     {
@@ -38,7 +53,11 @@ public sealed class ReservationsPersonalDataCatalogTests
                 nameof(ListReservationsQuery.Statuses),
                 nameof(ListReservationsQuery.Order),
                 nameof(ListReservationsQuery.Page),
-                nameof(ListReservationsQuery.PageSize)
+                nameof(ListReservationsQuery.PageSize),
+                nameof(ListReservationsQuery.OverlapsFrom),
+                nameof(ListReservationsQuery.OverlapsTo),
+                nameof(ListReservationsQuery.View),
+                nameof(ListReservationsQuery.OperatingDate)
             ],
             StringComparer.Ordinal),
         [typeof(GetReservationOperationsSnapshotQuery)] = new(
@@ -91,18 +110,6 @@ public sealed class ReservationsPersonalDataCatalogTests
                 nameof(ReservationDataHoldListResponse.PageSize)
             ],
             StringComparer.Ordinal),
-        [typeof(ReservationGuestRecordWriteRequest)] = new(
-            [
-                nameof(ReservationGuestRecordWriteRequest.DisplayName),
-                nameof(ReservationGuestRecordWriteRequest.LegalName),
-                nameof(ReservationGuestRecordWriteRequest.Email),
-                nameof(ReservationGuestRecordWriteRequest.Phone),
-                nameof(ReservationGuestRecordWriteRequest.DateOfBirth),
-                nameof(ReservationGuestRecordWriteRequest.NationalityCountryCode),
-                nameof(ReservationGuestRecordWriteRequest.PreferredLanguageTag),
-                nameof(ReservationGuestRecordWriteRequest.Notes)
-            ],
-            StringComparer.Ordinal),
         [typeof(ListReservationStayAmendmentRecoveryQuery)] = new(
             [nameof(ListReservationStayAmendmentRecoveryQuery.PageSize)],
             StringComparer.Ordinal)
@@ -142,6 +149,17 @@ public sealed class ReservationsPersonalDataCatalogTests
         foreach ((PersonalDataSurface surface, Type type) in ContractTypes())
         {
             AssertType(type, surface);
+        }
+    }
+
+    [Fact]
+    public void Delegated_guest_inputs_have_positive_owner_classification_and_api_binding_evidence()
+    {
+        Assert.False(NonPersonalMembers.ContainsKey(typeof(ReservationGuestRecordWriteRequest)));
+        foreach ((string member, PersonalDataClassification classification) in GuestOwnedRequestMembers)
+        {
+            Assert.NotNull(typeof(ReservationGuestRecordWriteRequest).GetProperty(member));
+            AssertGuestOwnedBinding(member, classification);
         }
     }
 
@@ -314,8 +332,36 @@ public sealed class ReservationsPersonalDataCatalogTests
                 continue;
             }
 
+            if (type == typeof(ReservationGuestRecordWriteRequest) &&
+                GuestOwnedRequestMembers.TryGetValue(property.Name, out PersonalDataClassification classification))
+            {
+                Assert.Equal(PersonalDataSurface.ApiInput, surface);
+                AssertGuestOwnedBinding(property.Name, classification);
+                continue;
+            }
+
             AssertBinding(type, property.Name, surface);
         }
+    }
+
+    private static void AssertGuestOwnedBinding(string member, PersonalDataClassification classification)
+    {
+        Type type = typeof(ReservationGuestRecordWriteRequest);
+        bool Matches(PersonalDataMemberBinding binding) =>
+            string.Equals(binding.Assembly, type.Assembly.GetName().Name, StringComparison.Ordinal) &&
+            string.Equals(binding.Type, type.FullName, StringComparison.Ordinal) &&
+            string.Equals(binding.Member, member, StringComparison.Ordinal) &&
+            binding.Surface == PersonalDataSurface.ApiInput;
+
+        Assert.Equal("guests", GuestsCatalogue.Module);
+        PersonalDataFieldDefinition field = Assert.Single(
+            GuestsCatalogue.Fields, field => field.Bindings.Any(Matches));
+        Assert.Equal("guests", field.AuthoritativeOwner);
+        Assert.Equal(PersonalDataSubjectKind.Guest, field.DataSubject);
+        Assert.Equal(classification, field.Classification);
+        Assert.Contains(PersonalDataSurface.ApiInput, field.AllowedSurfaces);
+        PersonalDataMemberBinding binding = Assert.Single(field.Bindings, Matches);
+        Assert.Equal("transient-request", binding.RetentionPolicy);
     }
 
     private static void AssertBinding(Type type, string member, PersonalDataSurface surface)
@@ -333,6 +379,13 @@ public sealed class ReservationsPersonalDataCatalogTests
 
     private static IEnumerable<(PersonalDataSurface Surface, Type Type)> ContractTypes()
     {
+        foreach (Type type in new[] { typeof(StationCheckInProvenance), typeof(StationArrivalCursor), typeof(StationAllocationUnit),
+            typeof(StationDueArrival), typeof(StationDueArrivalPage), typeof(StationCheckInPreparation), typeof(StationCheckInResult),
+            typeof(StationDepartureCursor), typeof(StationDueDeparture), typeof(StationDueDeparturePage),
+            typeof(StationCheckOutPreparation), typeof(StationCheckOutResult), typeof(StationCheckInOutcome), typeof(StationCheckOutOutcome) })
+        { yield return (PersonalDataSurface.ProjectionExport, type); }
+        yield return (PersonalDataSurface.ApplicationCommand, typeof(ReservationStationAttributionRead));
+        yield return (PersonalDataSurface.DataRightsExport, typeof(BunkFy.Modules.Reservations.Persistence.Repositories.ReservationManagementStaffTenantExport));
         Assembly application = typeof(CreateReservationCommand).Assembly;
         foreach (Type type in application.GetTypes()
                      .Where(type => type.IsPublic && !type.IsAbstract)
@@ -477,6 +530,7 @@ public sealed class ReservationsPersonalDataCatalogTests
         typeof(ReservationDetailsHistoryEntry),
         typeof(ReservationExternalOperation),
         typeof(ReservationManagementOperation),
+        typeof(ReservationStationAttribution),
         typeof(ReservationStayAmendmentOperation),
         typeof(ReservationGuestProfileProjection),
         typeof(ReservationGuestProcessingRestrictionProjection),
@@ -502,6 +556,25 @@ public sealed class ReservationsPersonalDataCatalogTests
             AppContext.BaseDirectory,
             "DataGovernance",
             "personal-data-catalog.v1.json")));
+
+    private static PersonalDataCatalogDocument LoadGuestsCatalogue()
+    {
+        // Follow the repository-root convention used by Architecture.Tests;
+        // validate the owner catalogue itself, without duplicating it into Reservations.
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
+        while (directory is not null)
+        {
+            if (File.Exists(Path.Combine(directory.FullName, "BunkFy.slnx")))
+            {
+                return PersonalDataCatalogJson.Parse(File.ReadAllBytes(Path.Combine(
+                    directory.FullName, "src", "Modules", "Guests", "docs", "personal-data-catalog.v1.json")));
+            }
+
+            directory = directory.Parent;
+        }
+
+        throw new InvalidOperationException("Could not find the BunkFy backend repository root for the Guests owner catalogue.");
+    }
 
     private static ReservationsDbContext CreateDbContext()
     {

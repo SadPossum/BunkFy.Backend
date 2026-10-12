@@ -7,6 +7,7 @@ using BunkFy.Modules.Inventory.Contracts;
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Retention.Contracts;
 using BunkFy.Modules.Staff.Contracts;
+using BunkFy.Modules.Stations.Contracts;
 using BunkFy.Modules.Workspaces.Contracts;
 using Gma.Framework.Permissions;
 using Gma.Modules.AccessControl.Contracts;
@@ -15,6 +16,23 @@ using Xunit;
 [Trait("Category", "Unit")]
 public sealed class WorkspaceAccessProfileSeedTests
 {
+    [Fact]
+    public void Station_management_is_sensitive_delegable_and_manager_only()
+    {
+        Assert.Equal(6, WorkspaceAccessProfileSeeds.Version);
+        WorkspaceAccessPermissionDto permission = Assert.Single(
+            WorkspaceAccessPermissionCatalogue.All, item => item.Code == StationsPermissionCodes.Manage);
+        Assert.True(permission.IsSensitive);
+        Assert.Empty(permission.RequiredPermissions);
+        Assert.Equal(permission.Code, Assert.Single(StationsModuleMetadata.Descriptor.GetPermissions()).Code);
+        Assert.Contains(permission.Code, WorkspaceAccessRoles.DelegablePermissions);
+        Assert.Contains(permission.Code, WorkspaceAccessProfileSeeds.Manager.Permissions);
+        Assert.DoesNotContain(permission.Code, WorkspaceAccessRoles.CompanySupportPermissionCeiling);
+        Assert.DoesNotContain(permission.Code, WorkspaceAccessRoles.LegacyMemberPermissions);
+        Assert.All(WorkspaceAccessProfileSeeds.All.Where(profile => profile.Key != WorkspaceAccessProfileSeeds.ManagerKey),
+            profile => Assert.DoesNotContain(permission.Code, profile.Permissions));
+    }
+
     [Fact]
     public void Membership_marker_grants_no_permissions()
     {
@@ -146,7 +164,7 @@ public sealed class WorkspaceAccessProfileSeedTests
     [Fact]
     public void Staff_onboarding_management_is_sensitive_delegable_and_manager_only()
     {
-        Assert.Equal(5, WorkspaceAccessProfileSeeds.Version);
+        Assert.Equal(6, WorkspaceAccessProfileSeeds.Version);
         WorkspaceAccessPermissionDto permission = Assert.Single(
             WorkspaceAccessPermissionCatalogue.All,
             item => item.Code ==
@@ -179,7 +197,7 @@ public sealed class WorkspaceAccessProfileSeedTests
     [Fact]
     public void Property_time_zone_management_is_sensitive_delegable_and_manager_only()
     {
-        Assert.Equal(5, WorkspaceAccessProfileSeeds.Version);
+        Assert.Equal(6, WorkspaceAccessProfileSeeds.Version);
         WorkspaceAccessPermissionDto permission = Assert.Single(
             WorkspaceAccessPermissionCatalogue.All,
             item => item.Code == PropertiesAdminPermissionCodes.TimeZonesManage);

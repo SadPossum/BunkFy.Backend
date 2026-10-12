@@ -26,6 +26,9 @@ public sealed class WorkspacesDbContext(
     public DbSet<WorkspaceStaffOnboardingCorrectionReceipt>
         StaffOnboardingCorrectionReceipts =>
         this.Set<WorkspaceStaffOnboardingCorrectionReceipt>();
+    public DbSet<WorkspaceStaffOnboardingRecoveryReceipt>
+        StaffOnboardingRecoveryReceipts =>
+        this.Set<WorkspaceStaffOnboardingRecoveryReceipt>();
     public DbSet<WorkspaceStaffOnboardingProcessingRestriction>
         StaffOnboardingProcessingRestrictions =>
         this.Set<WorkspaceStaffOnboardingProcessingRestriction>();
@@ -110,6 +113,9 @@ public sealed class WorkspacesDbContext(
             .Any(entry =>
                 entry.State is
                     EntityState.Modified or EntityState.Deleted);
+        bool recoveryMutationRequested = this.ChangeTracker
+            .Entries<WorkspaceStaffOnboardingRecoveryReceipt>()
+            .Any(entry => entry.State is EntityState.Modified or EntityState.Deleted);
         bool restrictionMutationRequested = this.ChangeTracker
             .Entries<
                 WorkspaceStaffOnboardingProcessingRestrictionReceipt>()
@@ -142,6 +148,7 @@ public sealed class WorkspacesDbContext(
                 entry.State is EntityState.Modified or EntityState.Deleted);
         if (retentionMutationRequested ||
             correctionMutationRequested ||
+            recoveryMutationRequested ||
             restrictionMutationRequested ||
             anonymisationMutationRequested ||
             restoreMutationRequested ||

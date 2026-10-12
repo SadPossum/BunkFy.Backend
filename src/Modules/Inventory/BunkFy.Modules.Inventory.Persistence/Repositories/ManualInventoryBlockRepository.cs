@@ -59,6 +59,8 @@ internal sealed class ManualInventoryBlockRepository(InventoryDbContext dbContex
         Guid propertyId,
         Guid? inventoryUnitId,
         bool includeReleased,
+        DateOnly? overlapsFrom,
+        DateOnly? overlapsTo,
         PageRequest pageRequest,
         CancellationToken cancellationToken)
     {
@@ -73,6 +75,13 @@ internal sealed class ManualInventoryBlockRepository(InventoryDbContext dbContex
         if (!includeReleased)
         {
             query = query.Where(block => block.Status == ManualInventoryBlockState.Active);
+        }
+
+        if (overlapsFrom.HasValue && overlapsTo.HasValue)
+        {
+            DateOnly from = overlapsFrom.Value;
+            DateOnly to = overlapsTo.Value;
+            query = query.Where(block => block.Arrival < to && block.Departure > from);
         }
 
         ManualInventoryBlockDto[] page = await query

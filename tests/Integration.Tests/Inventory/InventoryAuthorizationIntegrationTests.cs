@@ -360,6 +360,117 @@ public sealed class InventoryAuthorizationIntegrationTests
         Assert.All(unitExport.Blocks, exportedBlock => Assert.Equal(ManualInventoryBlockStatus.Released, exportedBlock.Status));
     }
 
+    [DockerFact]
+    [Trait("Category", "Docker")]
+    [Trait("Category", "Integration")]
+    public async Task Retirement_context_gets_use_retire_only_and_preserve_exact_target_history_without_writes()
+    {
+        await using IContainer nats = AuthTestContainers.CreateNatsContainer();
+        await nats.StartAsync();
+        await using PostgreSqlContainer postgres = new PostgreSqlBuilder("postgres:16-alpine")
+            .WithDatabase("bunkfy_retirement_context_tests").Build();
+        await postgres.StartAsync();
+        await using AuthTestApplication api = new("PostgreSql", postgres.GetConnectionString(),
+            AuthTestContainers.GetNatsConnectionString(nats));
+        await api.MigrateInventoryAuthorizationDatabaseAsync();
+        await SeedInventoryAsync(api);
+        await using AdminCliTestApplication admin = new("PostgreSql", postgres.GetConnectionString());
+        await admin.MigrateAsync();
+        using HttpClient client = api.CreateClient();
+        AuthTokensResponse tokens = await AuthApiClient.RegisterAsync(client, TenantA, "retirement-context@inventory.test");
+        Guid subjectId = GetSubjectId(tokens.AccessToken);
+        await api.SeedOrganizationMembershipAsync(TenantA, subjectId);
+        string roomPath = $"/api/inventory/properties/{PropertyA:D}/rooms/{RoomA:D}/retirement";
+        string bedPath = $"/api/inventory/properties/{PropertyB:D}/rooms/{RoomB:D}/beds/{BedB:D}/retirement";
+        using (HttpResponseMessage denied = await SendAsync(client, HttpMethod.Get, roomPath, tokens.AccessToken))
+        {
+            await AssertStatusAsync(HttpStatusCode.Forbidden, denied);
+        }
+        await AssertAdminSuccessAsync(admin.ExecuteAsync("admin", "bootstrap", "--actor", "owner", "--yes"));
+        await AssertAdminSuccessAsync(admin.ExecuteAsync("admin", "roles", "create", "--actor", "owner", "--name", "retirement-reader"));
+        await AssertAdminSuccessAsync(admin.ExecuteAsync("admin", "roles", "grant", "--actor", "owner", "--role", "retirement-reader",
+            "--permission", InventoryAdminPermissionCodes.Retire));
+        foreach (Guid propertyId in new[] { PropertyA, PropertyB, PropertyC })
+        {
+            await AssertAdminSuccessAsync(admin.ExecuteAsync("admin", "roles", "assign", "--actor", "owner",
+                "--target-kind", "user", "--target-id", subjectId.ToString("D"), "--role", "retirement-reader",
+                "--scope", $"tenant:{TenantA}/property:{propertyId:D}"));
+        }
+        foreach (string path in new[] { roomPath, bedPath })
+        {
+            using HttpResponseMessage response = await SendAsync(client, HttpMethod.Get, path, tokens.AccessToken);
+            InventoryRetirementContextDto context = await ReadSuccessAsync<InventoryRetirementContextDto>(response);
+            Assert.Null(context.Process);
+            Assert.True(context.CanRequest);
+            Assert.NotNull(context.Impact);
+            Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
+        }
+        using (HttpResponseMessage configureDenied = await SendAsync(client, HttpMethod.Get,
+                   $"/api/inventory/properties/{PropertyA:D}/rooms/{RoomA:D}/change-impact", tokens.AccessToken))
+        {
+            await AssertStatusAsync(HttpStatusCode.Forbidden, configureDenied);
+        }
+        Guid activeRoomId = Guid.NewGuid();
+        Guid latestBedId = Guid.Parse("ffffffff-ffff-ffff-ffff-ffffffffffff");
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        long beforeOutbox;
+        long beforeUnitVersions;
+        using (IServiceScope scope = api.Services.CreateScope())
+        {
+            scope.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantA);
+            InventoryDbContext db = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
+            foreach (Guid processId in new[] { Guid.Parse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"), latestBedId })
+            {
+                BedRetirementProcess process = BedRetirementProcess.Create(processId, TenantA, PropertyB, RoomB, BedB,
+                    "Dedicated context fixture", "qa-reader", now).Value;
+                Assert.True(process.Cancel(1, "Keep the physical bed", "qa-reader", now).IsSuccess);
+                db.Add(process);
+            }
+            RoomRetirementProcess historical = RoomRetirementProcess.Create(Guid.NewGuid(), TenantA, PropertyA, RoomA,
+                "Earlier attempt", "qa-reader", now).Value;
+            Assert.True(historical.Cancel(1, "Stop earlier attempt", "qa-reader", now).IsSuccess);
+            db.Add(historical);
+            db.Add(RoomRetirementProcess.Create(activeRoomId, TenantA, PropertyA, RoomA,
+                "Active attempt wins timestamp skew", "qa-reader", now.AddDays(-1)).Value);
+            await db.SaveChangesAsync();
+            beforeOutbox = await db.OutboxMessages.LongCountAsync();
+            beforeUnitVersions = await db.InventoryUnits.SumAsync(unit => unit.AvailabilityMutationVersion);
+        }
+        using (HttpResponseMessage response = await SendAsync(client, HttpMethod.Get, roomPath, tokens.AccessToken))
+        {
+            InventoryRetirementContextDto context = await ReadSuccessAsync<InventoryRetirementContextDto>(response);
+            Assert.Equal(activeRoomId, context.Process?.TopologyChangeId);
+            Assert.Equal(InventoryRetirementStatus.Draining, context.Process?.Status);
+            Assert.True(context.CanCancel);
+            Assert.False(context.CanRequest);
+        }
+        using (HttpResponseMessage response = await SendAsync(client, HttpMethod.Get, bedPath, tokens.AccessToken))
+        {
+            InventoryRetirementContextDto context = await ReadSuccessAsync<InventoryRetirementContextDto>(response);
+            Assert.Equal(latestBedId, context.Process?.TopologyChangeId);
+            Assert.Equal(InventoryRetirementStatus.Canceled, context.Process?.Status);
+            Assert.True(context.CanRequest);
+        }
+        foreach (string path in new[]
+                 {
+                     $"/api/inventory/properties/{PropertyA:D}/rooms/{RoomB:D}/retirement",
+                     $"/api/inventory/properties/{PropertyB:D}/rooms/{RoomA:D}/beds/{BedB:D}/retirement",
+                     $"/api/inventory/properties/{PropertyB:D}/rooms/{RoomB:D}/beds/{Guid.NewGuid():D}/retirement"
+                 })
+        {
+            using HttpResponseMessage response = await SendAsync(client, HttpMethod.Get, path, tokens.AccessToken);
+            await AssertStatusAsync(HttpStatusCode.NotFound, response);
+        }
+        using IServiceScope verify = api.Services.CreateScope();
+        verify.ServiceProvider.GetRequiredService<ITenantContextAccessor>().SetTenant(TenantA);
+        InventoryDbContext verifiedDb = verify.ServiceProvider.GetRequiredService<InventoryDbContext>();
+        Assert.Equal(beforeOutbox, await verifiedDb.OutboxMessages.LongCountAsync());
+        Assert.Equal(beforeUnitVersions, await verifiedDb.InventoryUnits.SumAsync(unit => unit.AvailabilityMutationVersion));
+        Assert.Equal(2, await verifiedDb.RoomRetirements.CountAsync());
+        Assert.Equal(2, await verifiedDb.BedRetirements.CountAsync());
+        Assert.Equal(1, await verifiedDb.RoomRetirements.Where(process => process.Id == activeRoomId).Select(process => process.Version).SingleAsync());
+    }
+
     private static async Task SeedInventoryAsync(AuthTestApplication api)
     {
         using IServiceScope scope = api.Services.CreateScope();

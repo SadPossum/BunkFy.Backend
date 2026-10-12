@@ -11,6 +11,7 @@ public sealed class InventoryOperationalSurfaceContractTests
     {
         AssertProperties<RoomInventoryListResponse>("HasMore", "Page", "PageSize", "Rooms");
         AssertProperties<ManualInventoryBlockListResponse>("Blocks", "HasMore", "Page", "PageSize");
+        Assert.Equal(42, InventoryContractLimits.MaximumScheduleWindowDays);
     }
 
     [Fact]

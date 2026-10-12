@@ -39,7 +39,7 @@ Grouped blocks resolve against Inventory's local topology projection at creation
 
 ## Operational Surfaces
 
-Room and manual-block directories use deterministic, bounded pages with `HasMore`; repositories determine continuation with `pageSize + 1` lookahead and do not execute exact count queries. Callers should continue only while `HasMore` is true. Availability intentionally remains one complete property and date-range decision snapshot because partial availability would be unsafe for assignment decisions.
+Room and manual-block directories use deterministic, bounded pages with `HasMore`; repositories determine continuation with `pageSize + 1` lookahead and do not execute exact count queries. Callers should continue only while `HasMore` is true. Manual-block reads may also use an optional bounded half-open overlap window for schedule composition; both boundaries are required together and the window cannot exceed 42 days. Availability intentionally remains one complete property and date-range decision snapshot because partial availability would be unsafe for assignment decisions.
 
 Ordinary sales-mode and manual-block writes return identity, status, version, and affected-count receipts instead of nested read models. API and web callers invalidate and refetch the authoritative room, block, or availability read after a successful write. Retirement operations keep their bounded process DTOs because their impact and retry state are part of the immediate operator decision.
 
@@ -93,7 +93,7 @@ and removes all 18 tenant-owned record families in foreign-key-safe stages.
 One invocation removes at most one non-empty batch of 500 physical rows;
 allocation units are explicitly removed before allocations. Completion retains
 only a closed lifecycle row and one immutable, PII-free destruction receipt
-with a versioned SHA-256 proof chain. Personal-data catalogue version 6 binds
+with a versioned SHA-256 proof chain. Personal-data catalogue version 7 binds
 the retained proof to its dedicated tenant-destruction policy.
 
 Relational writes and export selection share the tenant mutation transaction

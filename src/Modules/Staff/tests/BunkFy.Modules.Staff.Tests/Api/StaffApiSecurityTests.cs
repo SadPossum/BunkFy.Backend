@@ -334,6 +334,11 @@ public sealed class StaffApiSecurityTests
         AssertPermissions(
             endpoints,
             HttpMethods.Post,
+            "/api/staff/members/account-directory/resolve",
+            StaffAdminPermissionCodes.SensitiveProfileRead);
+        AssertPermissions(
+            endpoints,
+            HttpMethods.Post,
             "/api/staff/members",
             StaffAdminPermissionCodes.Create);
         AssertPermissions(
@@ -360,6 +365,10 @@ public sealed class StaffApiSecurityTests
             true);
 
         AssertResponse<StaffDirectoryListResponse>(endpoints, HttpMethods.Get, "/api/staff/members");
+        AssertResponse<StaffAccountDirectoryResponse>(
+            endpoints,
+            HttpMethods.Post,
+            "/api/staff/members/account-directory/resolve");
         AssertResponse<StaffDirectoryMemberDto>(endpoints, HttpMethods.Get, member);
         AssertResponse<StaffMemberDto>(endpoints, HttpMethods.Get, $"{member}/profile");
         AssertResponse<StaffDirectoryMemberDto>(endpoints, HttpMethods.Post, "/api/staff/members");

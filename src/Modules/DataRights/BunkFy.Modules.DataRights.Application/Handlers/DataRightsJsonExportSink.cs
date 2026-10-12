@@ -106,7 +106,7 @@ internal static class DataRightsExportSchemaValidator
             descriptor.ExportSchemaVersion <= 0 ||
             descriptor.FieldIds is null ||
             descriptor.FieldIds.Count is <= 0 or >
-                DataRightsExportLimits.MaxFieldsPerRecord ||
+                DataRightsExportLimits.MaxFieldsPerSchema ||
             descriptor.FieldIds.Any(field =>
                 string.IsNullOrWhiteSpace(field) ||
                 field.Trim().Length >

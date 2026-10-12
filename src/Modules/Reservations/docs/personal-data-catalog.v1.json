@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "reservations.personal-data",
-  "catalogVersion": 20,
+  "catalogVersion": 24,
   "module": "reservations",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -9566,6 +9566,7 @@
       "rightsPolicy": "guest-reservation-data",
       "allowedSurfaces": [
         "adapter-ingress",
+        "admin-output",
         "api-input",
         "api-response",
         "application-command",
@@ -9577,7 +9578,8 @@
         "adapter",
         "cross-module",
         "customer-api",
-        "intra-module"
+        "intra-module",
+        "support"
       ],
       "approvalState": "engineering-default",
       "bindings": [
@@ -9629,6 +9631,20 @@
           "member": "InventoryUnitIds",
           "surface": "adapter-ingress",
           "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationListItemDto",
+          "member": "InventoryUnitIds",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationListItemDto",
+          "member": "InventoryUnitIds",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
         },
         {
           "assembly": "BunkFy.Modules.Reservations.Contracts",
@@ -11809,8 +11825,22 @@
         },
         {
           "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationDto",
+          "member": "HoldsInventory",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
           "type": "BunkFy.Modules.Reservations.Contracts.ReservationListItemDto",
           "member": "Status",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationListItemDto",
+          "member": "HoldsInventory",
           "surface": "api-response",
           "retentionPolicy": "transient-response"
         },
@@ -11838,6 +11868,13 @@
           "assembly": "BunkFy.Modules.Reservations.Contracts",
           "type": "BunkFy.Modules.Reservations.Contracts.ReservationListItemDto",
           "member": "Status",
+          "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.ReservationListItemDto",
+          "member": "HoldsInventory",
           "surface": "admin-output",
           "retentionPolicy": "transient-response"
         }
@@ -17106,6 +17143,13 @@
           "member": "StaffAttribution",
           "surface": "data-rights-export",
           "retentionPolicy": "reservations-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationManagementOperationTenantExport",
+          "member": "StaffAttribution",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservations-tenant-termination-export-fragment"
         }
       ]
     },
@@ -19941,6 +19985,1087 @@
           "type": "BunkFy.Modules.Reservations.Contracts.ReservationOperationsAttentionCountsDto",
           "member": "Total",
           "surface": "admin-output",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "reservation.station.guest-name",
+      "dataSubject": "guest",
+      "classification": "direct-identifier",
+      "sensitivity": "elevated",
+      "purposes": [
+        "guest-stay-fulfillment",
+        "reservation-management"
+      ],
+      "sources": [
+        "adapter-observation",
+        "staff-entry",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.guest.identity",
+      "retentionPolicy": "reservation-record-lifecycle",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "projection-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationArrivalCursor",
+          "member": "NormalizedGuestName",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDueArrival",
+          "member": "PrimaryGuestName",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDepartureCursor",
+          "member": "NormalizedGuestName",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDueDeparture",
+          "member": "PrimaryGuestName",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "reservation.station.record-coordinate",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "reservation-management",
+        "record-consistency"
+      ],
+      "sources": [
+        "system-generated",
+        "staff-action"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.record.metadata",
+      "retentionPolicy": "reservation-record-lifecycle",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "projection-export",
+        "application-command",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationArrivalCursor",
+          "member": "ReservationId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDueArrival",
+          "member": "ReservationId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.StationCheckInReservationCommand",
+          "member": "OperationId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.StationCheckInReservationCommand",
+          "member": "ReservationId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.ReservationStationAttribution",
+          "member": "ReservationId",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-record-lifecycle"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.ReservationStationAttribution",
+          "member": "OperationId",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-record-lifecycle"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDepartureCursor",
+          "member": "ReservationId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDueDeparture",
+          "member": "ReservationId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.StationCheckOutReservationCommand",
+          "member": "OperationId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.StationCheckOutReservationCommand",
+          "member": "ReservationId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "reservation.station.property-coordinate",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "scope-enforcement",
+        "tenant-isolation"
+      ],
+      "sources": [
+        "system-generated",
+        "staff-action"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.record.metadata",
+      "retentionPolicy": "reservation-record-lifecycle",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "application-command"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.StationCheckInReservationCommand",
+          "member": "PropertyId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.StationCheckOutReservationCommand",
+          "member": "PropertyId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "reservation.station.tenant-coordinate",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "scope-enforcement",
+        "tenant-isolation"
+      ],
+      "sources": [
+        "system-generated",
+        "staff-action"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.record.metadata",
+      "retentionPolicy": "reservation-record-lifecycle",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.ReservationStationAttribution",
+          "member": "ScopeId",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-record-lifecycle"
+        }
+      ]
+    },
+    {
+      "id": "reservation.station.version",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "reservation-management",
+        "record-consistency"
+      ],
+      "sources": [
+        "system-generated",
+        "staff-action"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.record.metadata",
+      "retentionPolicy": "reservation-record-lifecycle",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "projection-export",
+        "application-command"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationAllocationUnit",
+          "member": "ConfigurationVersion",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationAllocationUnit",
+          "member": "UnitVersion",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDueArrival",
+          "member": "ExpectedVersion",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDueArrival",
+          "member": "AllocationVersion",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.StationCheckInReservationCommand",
+          "member": "ExpectedVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.StationCheckInReservationCommand",
+          "member": "AllocationVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDueDeparture",
+          "member": "ExpectedVersion",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDueDeparture",
+          "member": "AllocationVersion",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.StationCheckOutReservationCommand",
+          "member": "ExpectedVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.StationCheckOutReservationCommand",
+          "member": "AllocationVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "reservation.station.arrival-date",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "front-desk-operations",
+        "stay-lifecycle-management"
+      ],
+      "sources": [
+        "adapter-observation",
+        "staff-entry",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.stay",
+      "retentionPolicy": "reservation-record-lifecycle",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "projection-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationArrivalCursor",
+          "member": "Arrival",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDueArrival",
+          "member": "Arrival",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDueDeparture",
+          "member": "Arrival",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "reservation.station.departure-date",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "front-desk-operations",
+        "stay-lifecycle-management"
+      ],
+      "sources": [
+        "adapter-observation",
+        "staff-entry",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.stay",
+      "retentionPolicy": "reservation-record-lifecycle",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "projection-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDueArrival",
+          "member": "Departure",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDepartureCursor",
+          "member": "Departure",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDueDeparture",
+          "member": "Departure",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "reservation.station.business-date",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "front-desk-operations",
+        "stay-lifecycle-management"
+      ],
+      "sources": [
+        "adapter-observation",
+        "staff-entry",
+        "system-generated"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.stay",
+      "retentionPolicy": "reservation-record-lifecycle",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "projection-export",
+        "application-command"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationCheckInPreparation",
+          "member": "BusinessDate",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.StationCheckInReservationCommand",
+          "member": "BusinessDate",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationCheckOutPreparation",
+          "member": "BusinessDate",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.StationCheckOutReservationCommand",
+          "member": "BusinessDate",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDueDeparture",
+          "member": "CheckedInBusinessDate",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "reservation.station.allocation-coordinate",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "inventory-allocation-consistency",
+        "no-overbooking"
+      ],
+      "sources": [
+        "system-generated",
+        "staff-action"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.allocation",
+      "retentionPolicy": "reservation-record-lifecycle",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "projection-export",
+        "application-command"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDueArrival",
+          "member": "AllocationId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.StationCheckInReservationCommand",
+          "member": "AllocationId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDueDeparture",
+          "member": "AllocationId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.StationCheckOutReservationCommand",
+          "member": "AllocationId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "reservation.station.place-coordinate",
+      "dataSubject": "guest",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "inventory-allocation-consistency",
+        "no-overbooking"
+      ],
+      "sources": [
+        "system-generated",
+        "staff-action"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.allocation",
+      "retentionPolicy": "reservation-record-lifecycle",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "projection-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationAllocationUnit",
+          "member": "InventoryUnitId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationAllocationUnit",
+          "member": "RoomId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationAllocationUnit",
+          "member": "BedId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationAllocationUnit",
+          "member": "Kind",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "reservation.station.actor-provenance",
+      "dataSubject": "staff",
+      "classification": "audit-attribution",
+      "sensitivity": "standard",
+      "purposes": [
+        "accountability",
+        "authorized-change-traceability"
+      ],
+      "sources": [
+        "station-actor"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "staff.audit-attribution",
+      "retentionPolicy": "reservation-record-lifecycle",
+      "rightsPolicy": "staff-audit-attribution",
+      "allowedSurfaces": [
+        "projection-export",
+        "application-command",
+        "persistence",
+        "data-rights-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationCheckInProvenance",
+          "member": "StationId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationCheckInProvenance",
+          "member": "BrowserSessionId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationCheckInProvenance",
+          "member": "StaffMemberId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationCheckInProvenance",
+          "member": "ActorSessionId",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationCheckInProvenance",
+          "member": "Generation",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationCheckInProvenance",
+          "member": "Authority",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationCheckInProvenance",
+          "member": "IsValid",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.StationCheckInReservationCommand",
+          "member": "Provenance",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Ports.ReservationStationAttributionRead",
+          "member": "Provenance",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.ReservationStationAttribution",
+          "member": "StationId",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-record-lifecycle"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.ReservationStationAttribution",
+          "member": "BrowserSessionId",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-record-lifecycle"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.ReservationStationAttribution",
+          "member": "StaffMemberId",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-record-lifecycle"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.ReservationStationAttribution",
+          "member": "ActorSessionId",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-record-lifecycle"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.ReservationStationAttribution",
+          "member": "Generation",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-record-lifecycle"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.ReservationStationAttribution",
+          "member": "Authority",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-record-lifecycle"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.ReservationStationAttribution",
+          "member": "ResultingVersion",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-record-lifecycle"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationManagementStaffTenantExport",
+          "member": "StationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservations-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationManagementStaffTenantExport",
+          "member": "BrowserSessionId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservations-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationManagementStaffTenantExport",
+          "member": "StaffMemberId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservations-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationManagementStaffTenantExport",
+          "member": "ActorSessionId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservations-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationManagementStaffTenantExport",
+          "member": "Generation",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservations-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationManagementStaffTenantExport",
+          "member": "Authority",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservations-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationManagementStaffTenantExport",
+          "member": "ResultingVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservations-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Commands.StationCheckOutReservationCommand",
+          "member": "Provenance",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationCheckInProvenance",
+          "member": "JobGrantRevision",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.ReservationStationAttribution",
+          "member": "JobGrantRevision",
+          "surface": "persistence",
+          "retentionPolicy": "reservation-record-lifecycle"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Persistence",
+          "type": "BunkFy.Modules.Reservations.Persistence.Repositories.ReservationManagementStaffTenantExport",
+          "member": "JobGrantRevision",
+          "surface": "data-rights-export",
+          "retentionPolicy": "reservations-tenant-termination-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Ports.ReservationStationAttributionRead",
+          "member": "ResultingVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "reservation.station.minimized-payload",
+      "dataSubject": "guest",
+      "classification": "structured-payload",
+      "sensitivity": "unstructured",
+      "purposes": [
+        "reservation-management",
+        "record-consistency"
+      ],
+      "sources": [
+        "system-generated",
+        "staff-action"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.record.metadata",
+      "retentionPolicy": "reservation-record-lifecycle",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "projection-export"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDueArrival",
+          "member": "Units",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDueArrivalPage",
+          "member": "Items",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDueArrivalPage",
+          "member": "Continuation",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationCheckInPreparation",
+          "member": "Arrival",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationCheckInResult",
+          "member": "Receipt",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDueDeparture",
+          "member": "Units",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDueDeparturePage",
+          "member": "Items",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDueDeparturePage",
+          "member": "Continuation",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationCheckOutPreparation",
+          "member": "Departure",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationCheckOutResult",
+          "member": "Receipt",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "reservation.station.result-state",
+      "dataSubject": "guest",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "reservation-management",
+        "record-consistency"
+      ],
+      "sources": [
+        "system-generated",
+        "staff-action"
+      ],
+      "authoritativeOwner": "reservations",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "reservation-records",
+      "countryPolicyKey": "reservation.record.metadata",
+      "retentionPolicy": "reservation-record-lifecycle",
+      "rightsPolicy": "guest-reservation-data",
+      "allowedSurfaces": [
+        "projection-export",
+        "application-command"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDueArrivalPage",
+          "member": "State",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationCheckInPreparation",
+          "member": "State",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationCheckInPreparation",
+          "member": "Replay",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationCheckInResult",
+          "member": "State",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Application",
+          "type": "BunkFy.Modules.Reservations.Application.Ports.ReservationStationAttributionRead",
+          "member": "Supported",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDueDeparturePage",
+          "member": "State",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationCheckOutPreparation",
+          "member": "State",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationCheckOutPreparation",
+          "member": "Replay",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationCheckOutResult",
+          "member": "State",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationDueDeparture",
+          "member": "State",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationCheckOutResult",
+          "member": "Checkout",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationCheckOutOutcome",
+          "member": "State",
+          "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Reservations.Contracts",
+          "type": "BunkFy.Modules.Reservations.Contracts.Stations.StationCheckInOutcome",
+          "member": "State",
+          "surface": "projection-export",
           "retentionPolicy": "transient-response"
         }
       ]

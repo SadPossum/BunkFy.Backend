@@ -20,6 +20,10 @@ retention, and rights policies receive production approval.
 - distinct scoped permissions for read, create, manage, cancel, check-in, no-show, and check-out;
 - directly projected, bounded operational directory pages with look-ahead
   pagination and no aggregate hydration or count query;
+- optional bounded half-open stay-overlap filtering for schedule consumers,
+  with requested Inventory unit ids projected directly on each list item so
+  callers can compose a truthful room and bed timeline without hydrating
+  aggregates or crossing module persistence boundaries;
 - one authoritative property-local operations snapshot with exact Reservation
   and guest counts, a disjoint seven-category attention breakdown, and a
   deterministic bounded upcoming-arrivals list;

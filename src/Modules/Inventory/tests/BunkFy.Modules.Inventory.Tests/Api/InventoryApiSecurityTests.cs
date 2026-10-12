@@ -202,6 +202,13 @@ public sealed class InventoryApiSecurityTests
         AssertPermission(roomStatus, InventoryAdminPermissionCodes.Retire);
         AssertPermission(roomRetry, InventoryAdminPermissionCodes.Retire);
         AssertPermission(roomCancel, InventoryAdminPermissionCodes.Retire);
+        foreach (string path in new[] { $"{room}/retirement", $"{room}/beds/{{bedId:guid}}/retirement" })
+        {
+            RouteEndpoint context = FindEndpoint(endpoints, HttpMethods.Get, path);
+            AssertPermission(context, InventoryAdminPermissionCodes.Retire);
+            AssertAssurance(context, expected: false);
+            AssertResponse<InventoryRetirementContextDto>(endpoints, HttpMethods.Get, path);
+        }
         AssertAssurance(
             FindEndpoint(endpoints, HttpMethods.Put, $"{room}/sales-mode"),
             expected: false);

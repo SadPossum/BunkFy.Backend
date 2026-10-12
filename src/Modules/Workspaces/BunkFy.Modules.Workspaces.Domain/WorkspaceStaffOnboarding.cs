@@ -24,6 +24,8 @@ public sealed partial class WorkspaceStaffOnboarding : ScopedAggregateRoot<Guid>
     public string? Department { get; private set; }
     public WorkspaceStaffOnboardingState Status { get; private set; }
     public Guid? StaffMemberId { get; private set; }
+    public Guid? AcceptedMembershipId { get; private set; }
+    public long? AcceptedMembershipVersion { get; private set; }
     public string? FailureCode { get; private set; }
     public long Version { get; private set; } = 1;
     public DateTimeOffset CreatedAtUtc { get; private set; }

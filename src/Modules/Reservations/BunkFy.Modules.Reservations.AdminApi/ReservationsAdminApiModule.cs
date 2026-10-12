@@ -71,6 +71,8 @@ public sealed class ReservationsAdminApiModule : IAdminApiModule
         group.MapGet("", async (
             Guid propertyId,
             ReservationStatus? status,
+            DateOnly? overlapsFrom,
+            DateOnly? overlapsTo,
             int? page,
             int? pageSize,
             HttpContext httpContext,
@@ -90,7 +92,9 @@ public sealed class ReservationsAdminApiModule : IAdminApiModule
                         null,
                         ReservationListOrder.CreatedDescending,
                         page ?? PageRequest.DefaultPage,
-                        pageSize ?? PageRequest.DefaultPageSize),
+                        pageSize ?? PageRequest.DefaultPageSize,
+                        overlapsFrom,
+                        overlapsTo),
                     token),
                 cancellationToken,
                 errorStatusCodes: ErrorStatusCodes).ConfigureAwait(false);

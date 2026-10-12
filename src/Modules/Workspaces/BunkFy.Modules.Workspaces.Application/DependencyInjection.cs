@@ -46,6 +46,7 @@ public static class DependencyInjection
             WorkspaceStaffOnboardingRetentionOptionsValidator>());
         AddDelegatedPermissionPolicies(services);
         services.AddApplicationServicesFromAssembly(typeof(DependencyInjection).Assembly);
+        services.TryAddScoped<WorkspaceOrganizationMembershipObserver>();
         services.TryAddScoped<IWorkspaceAuthoritativeScope, WorkspaceAuthoritativeScope>();
         services.TryAddScoped<WorkspaceOperationalAdmissionEvaluator>();
         services.TryAddScoped<
@@ -211,6 +212,7 @@ public static class DependencyInjection
 
     private static void AddDelegatedPermissionPolicies(IServiceCollection services)
     {
+        services.AddGmaAccessControlPermissionPolicies(WorkspacesModuleMetadata.Descriptor);
         services.AddGmaAccessControlPermissionPolicies(PropertiesModuleMetadata.Descriptor);
         services.AddGmaAccessControlPermissionPolicies(InventoryModuleMetadata.Descriptor);
         services.AddGmaAccessControlPermissionPolicies(ReservationsModuleMetadata.Descriptor);

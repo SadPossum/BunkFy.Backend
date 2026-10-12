@@ -292,6 +292,8 @@ public sealed class InventoryPersonalDataCatalogTests
                      typeof(GetRoomInventoryChangeImpactQuery),
                      typeof(GetBedRetirementQuery),
                      typeof(GetRoomRetirementQuery),
+                     typeof(GetInventoryRetirementContextQuery),
+                     typeof(InventoryRetirementTargetSnapshot),
                      typeof(ListManualInventoryBlocksQuery)
                  })
         {
@@ -318,6 +320,9 @@ public sealed class InventoryPersonalDataCatalogTests
                      typeof(ManualInventoryBlockListResponse),
                      typeof(BedRetirementDto),
                      typeof(RoomRetirementDto),
+                     typeof(InventoryRetirementContextDto),
+                     typeof(InventoryRetirementProcessSummaryDto),
+                     typeof(InventoryRetirementImpactDto),
                      typeof(RoomInventoryChangeImpactDto)
                  })
         {

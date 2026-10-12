@@ -104,6 +104,35 @@ public sealed class InventoryModule : IModule
                 InventoryAdminPermissionCodes.Configure,
                 InventoryPropertyAccessScopeResolver.ResolverName);
 
+        inventory.MapGet("/properties/{propertyId:guid}/rooms/{roomId:guid}/retirement", async (
+            Guid propertyId,
+            Guid roomId,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+            (await dispatcher.QueryAsync(
+                new GetInventoryRetirementContextQuery(propertyId, roomId),
+                cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
+            .Produces<InventoryRetirementContextDto>(StatusCodes.Status200OK)
+            .RequireTenant()
+            .RequireResolvedScopePermission(
+                InventoryAdminPermissionCodes.Retire,
+                InventoryPropertyAccessScopeResolver.ResolverName);
+
+        inventory.MapGet("/properties/{propertyId:guid}/rooms/{roomId:guid}/beds/{bedId:guid}/retirement", async (
+            Guid propertyId,
+            Guid roomId,
+            Guid bedId,
+            IRequestDispatcher dispatcher,
+            CancellationToken cancellationToken) =>
+            (await dispatcher.QueryAsync(
+                new GetInventoryRetirementContextQuery(propertyId, roomId, bedId),
+                cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
+            .Produces<InventoryRetirementContextDto>(StatusCodes.Status200OK)
+            .RequireTenant()
+            .RequireResolvedScopePermission(
+                InventoryAdminPermissionCodes.Retire,
+                InventoryPropertyAccessScopeResolver.ResolverName);
+
         inventory.MapGet("/properties/{propertyId:guid}/availability", async (
             Guid propertyId,
             DateOnly arrival,
@@ -123,6 +152,8 @@ public sealed class InventoryModule : IModule
             Guid propertyId,
             Guid? inventoryUnitId,
             bool? includeReleased,
+            DateOnly? overlapsFrom,
+            DateOnly? overlapsTo,
             int? page,
             int? pageSize,
             IRequestDispatcher dispatcher,
@@ -133,7 +164,9 @@ public sealed class InventoryModule : IModule
                     inventoryUnitId,
                     includeReleased ?? false,
                     page ?? PageRequest.DefaultPage,
-                    pageSize ?? PageRequest.DefaultPageSize),
+                    pageSize ?? PageRequest.DefaultPageSize,
+                    overlapsFrom,
+                    overlapsTo),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes))
             .Produces<ManualInventoryBlockListResponse>(StatusCodes.Status200OK)
             .RequireTenant()

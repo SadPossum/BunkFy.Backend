@@ -41,7 +41,10 @@ internal sealed record GuestProfileStateTenantExport(
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset LastChangedAtUtc,
     DateTimeOffset? ArchivedAtUtc,
-    DateTimeOffset? AnonymisedAtUtc);
+    DateTimeOffset? AnonymisedAtUtc)
+{
+    public string[] LanguageTags { get; init; } = [];
+}
 
 internal sealed record GuestProfileStaffTenantExport(
     string CreatedBy,

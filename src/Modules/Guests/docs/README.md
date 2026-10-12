@@ -11,6 +11,9 @@ Guests owns BunkFy's tenant-wide canonical guest profiles and staff-facing stay 
 ## Current Slice
 
 - bounded profile/contact fields with actor provenance, archive lifecycle, optimistic concurrency, and duplicate-contact allowance;
+- a bounded optional language collection with legacy scalar compatibility,
+  identity-based replay, complete rights exports and anonymisation; see the
+  [language contract and deployment gates](../../../../docs/planning/guest-multilanguage-contract-task.md).
 - named canonical-profile database constraints for non-empty coordinates,
   positive projection ordinals, paired retained/search values, lifecycle
   versions and chronology, and complete anonymisation scrubbing. The additive

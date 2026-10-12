@@ -50,6 +50,9 @@ public static class ReservationsApplicationErrors
         "Workspace mutation admission is temporarily unavailable.");
     public static readonly Error InventoryUnitNotFound = new("Reservations.InventoryUnitNotFound", "One or more inventory units are not present in the local Inventory projection.");
     public static readonly Error InventoryUnitPropertyMismatch = new("Reservations.InventoryUnitPropertyMismatch", "One or more inventory units do not belong to the requested property.");
+    public static readonly Error AllocationUnitMismatch = new(
+        "Reservations.AllocationUnitMismatch",
+        "The confirmed allocation does not match the reservation inventory request.");
     public static Error VersionConflict => ReservationsDomainErrors.VersionConflict;
     public static Error InvalidTransition => ReservationsDomainErrors.InvalidTransition;
     public static Error StayRangeInvalid => ReservationsDomainErrors.StayRangeInvalid;

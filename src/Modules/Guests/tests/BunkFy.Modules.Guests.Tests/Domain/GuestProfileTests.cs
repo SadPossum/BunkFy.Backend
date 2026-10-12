@@ -266,7 +266,8 @@ public sealed class GuestProfileTests
                 GuestProfileField.DateOfBirth,
                 GuestProfileField.NationalityCountryCode,
                 GuestProfileField.PreferredLanguageTag,
-                GuestProfileField.Notes
+                GuestProfileField.Notes,
+                GuestProfileField.LanguageTags
             ],
             result.Value.ChangedFields);
     }

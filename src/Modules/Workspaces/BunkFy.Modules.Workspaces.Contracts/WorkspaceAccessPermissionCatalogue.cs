@@ -8,12 +8,14 @@ using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Retention.Contracts;
 using BunkFy.Modules.Staff.Contracts;
+using BunkFy.Modules.Stations.Contracts;
 using Gma.Modules.AccessControl.Contracts;
 
 public static class WorkspaceAccessPermissionCatalogue
 {
     public static IReadOnlyList<WorkspaceAccessPermissionDto> All { get; } =
     [
+        Permission(StationsPermissionCodes.Manage, "Shared stations", "Manage shared stations", "Pair and revoke devices, register staff, and manage station PIN recovery. Does not grant station check-in access.", sensitive: true),
         Permission(AccessControlProfilePermissionCodes.Read, "Workspace access", "View roles", "View workspace roles, permission definitions, and member access assignments."),
         Permission(AccessControlProfilePermissionCodes.Manage, "Workspace access", "Manage roles", "Create, update, and archive custom workspace roles.", sensitive: true, requires: [AccessControlProfilePermissionCodes.Read]),
         Permission(AccessControlProfilePermissionCodes.Assign, "Workspace access", "Assign roles", "Assign operational roles to workspace members within the actor's own authority.", sensitive: true, requires: [AccessControlProfilePermissionCodes.Read]),

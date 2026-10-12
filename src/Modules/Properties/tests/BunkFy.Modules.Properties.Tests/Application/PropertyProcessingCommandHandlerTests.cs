@@ -8,6 +8,7 @@ using BunkFy.Modules.Properties.Application.Ports;
 using BunkFy.Modules.Properties.Application.Queries;
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Properties.Domain.Aggregates;
+using BunkFy.Modules.Properties.Domain.Errors;
 using BunkFy.Modules.Properties.Domain.ValueObjects;
 using Gma.Framework.Cqrs;
 using Gma.Framework.Results;
@@ -509,6 +510,76 @@ public sealed class PropertyProcessingCommandHandlerTests
                 CancellationToken.None)).Value;
         Assert.Equal(PropertyProcessingEffectiveStatus.Suspended, suspended.EffectiveStatus);
         Assert.Equal(GetPropertyProcessingStateQueryHandler.SuspendedReasonCode, suspended.ReasonCode);
+    }
+
+    [Theory]
+    [InlineData(PropertyProcessingState.Unconfigured)]
+    [InlineData(PropertyProcessingState.Enabled)]
+    [InlineData(PropertyProcessingState.Suspended)]
+    public async Task Retirement_preserves_configuration_but_suspends_effective_processing_and_rejects_new_commands(
+        PropertyProcessingState configuredState)
+    {
+        Property property = CreateProperty();
+        FakePropertyRepository repository = new(property);
+        RecordingRevisionWriter revisions = new();
+        RecordingPropertyMutationOperationRepository operations = new();
+        PropertyMutationOperationJournal journal = CreateJournal(operations);
+        ActivatePropertyProcessingCommandHandler activate = new(
+            PropertiesMutationTestSupport.Create(properties: repository),
+            journal,
+            revisions,
+            CreateRegistry(CreateArtifact()),
+            new TestClock(),
+            new TestIdGenerator());
+        if (configuredState != PropertyProcessingState.Unconfigured)
+        {
+            Assert.True((await activate.HandleAsync(
+                CreateActivationCommand(property, Guid.NewGuid()),
+                CancellationToken.None)).IsSuccess);
+        }
+
+        if (configuredState == PropertyProcessingState.Suspended)
+        {
+            Assert.True(property.SuspendProcessing(
+                property.Version, Guid.NewGuid(), Now, "user:owner").IsSuccess);
+        }
+
+        PropertyGovernanceBinding? binding = property.GovernanceBinding;
+        Assert.True(property.Retire(
+            property.Version, Guid.NewGuid(), Now, "user:owner").IsSuccess);
+        long retiredVersion = property.Version;
+        int revisionCount = revisions.Items.Count;
+        int operationCount = operations.Added.Count;
+        property.ClearDomainEvents();
+
+        // No policies are registered: retirement must take precedence over
+        // Unconfigured/UnknownPolicy, not pretend the saved binding was erased.
+        PropertyProcessingStateDto state = (await new GetPropertyProcessingStateQueryHandler(
+            repository,
+            CountryPolicyRegistry.Create([], [], CountryPolicyRuntimeMode.Production),
+            new TestClock()).HandleAsync(
+                new GetPropertyProcessingStateQuery(property.Id),
+                CancellationToken.None)).Value;
+        Assert.Equal(PropertyProcessingEffectiveStatus.Suspended, state.EffectiveStatus);
+        Assert.Equal(GetPropertyProcessingStateQueryHandler.RetiredReasonCode, state.ReasonCode);
+        Assert.Equal(configuredState.ToString(), state.ConfiguredStatus.ToString());
+        Assert.Equal(retiredVersion, state.PropertyVersion);
+
+        Result<PropertyMutationReceiptDto> activation = await activate.HandleAsync(
+            CreateActivationCommand(property, Guid.NewGuid()), CancellationToken.None);
+        Result<PropertyMutationReceiptDto> suspension = await new SuspendPropertyProcessingCommandHandler(
+            PropertiesMutationTestSupport.Create(properties: repository), journal,
+            revisions, new TestClock(), new TestIdGenerator()).HandleAsync(
+                new SuspendPropertyProcessingCommand(property.Id, Guid.NewGuid(), true, retiredVersion, "user:owner"),
+                CancellationToken.None);
+        Assert.Equal(PropertiesDomainErrors.PropertyRetired, activation.Error);
+        Assert.Equal(PropertiesDomainErrors.PropertyRetired, suspension.Error);
+        Assert.Equal(configuredState, property.ProcessingState);
+        Assert.Same(binding, property.GovernanceBinding);
+        Assert.Equal(retiredVersion, property.Version);
+        Assert.Equal(revisionCount, revisions.Items.Count);
+        Assert.Equal(operationCount, operations.Added.Count);
+        Assert.Empty(property.DomainEvents);
     }
 
     [Fact]

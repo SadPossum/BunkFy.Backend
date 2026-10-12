@@ -20,6 +20,10 @@ internal sealed class GuestProfileConfiguration : IEntityTypeConfiguration<Guest
                 "trim(\"ScopeId\") <> ''");
             table.HasCheckConstraint("CK_guest_profiles_version", "\"Version\" >= 1");
             table.HasCheckConstraint(
+                "CK_guest_profiles_language_tags",
+                "cardinality(\"LanguageTags\") BETWEEN 0 AND 12 AND " +
+                "array_position(\"LanguageTags\", NULL) IS NULL");
+            table.HasCheckConstraint(
                 "CK_guest_profiles_projection_ordinal",
                 "\"ProjectionOrdinal\" >= 1");
             table.HasCheckConstraint("CK_guest_profiles_display_name", "length(trim(\"DisplayName\")) > 0");
@@ -61,7 +65,7 @@ internal sealed class GuestProfileConfiguration : IEntityTypeConfiguration<Guest
                 "\"Email\" IS NULL AND \"EmailSearch\" IS NULL AND " +
                 "\"Phone\" IS NULL AND \"PhoneSearch\" IS NULL AND " +
                 "\"DateOfBirth\" IS NULL AND \"NationalityCountryCode\" IS NULL AND " +
-                "\"PreferredLanguageTag\" IS NULL AND \"Notes\" IS NULL AND " +
+                "\"PreferredLanguageTag\" IS NULL AND cardinality(\"LanguageTags\") = 0 AND \"Notes\" IS NULL AND " +
                 "\"CreationConfirmationId\" IS NULL AND \"ArchivedAtUtc\" IS NULL)");
         });
         builder.HasKey(profile => profile.Id);
@@ -85,6 +89,12 @@ internal sealed class GuestProfileConfiguration : IEntityTypeConfiguration<Guest
             .HasMaxLength(GuestProfile.CountryCodeLength)
             .IsFixedLength();
         builder.Property(profile => profile.PreferredLanguageTag).HasMaxLength(GuestProfile.LanguageTagMaxLength);
+        builder.Property(profile => profile.LanguageTags)
+            .HasField("languageTags")
+            .UsePropertyAccessMode(PropertyAccessMode.Field)
+            .HasColumnType("text[]")
+            .HasDefaultValueSql("ARRAY[]::text[]")
+            .IsRequired();
         builder.Property(profile => profile.Notes).HasMaxLength(GuestProfile.NotesMaxLength);
         builder.Property(profile => profile.Status).HasConversion<int>().IsRequired();
         builder.Property(profile => profile.Version).IsConcurrencyToken().IsRequired();

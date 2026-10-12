@@ -50,7 +50,11 @@ internal sealed class AuthTestApplication(
     DbCommandInterceptor? inventoryCommandInterceptor = null,
     bool enableWorkspaceSelfService = false,
     string? adapterIngressRedisConnectionString = null,
-    ISystemClock? systemClock = null)
+    ISystemClock? systemClock = null,
+    DbCommandInterceptor? staffCommandInterceptor = null,
+    bool enableWorkspaceStaffOnboardingRecovery = false,
+    IReadOnlyDictionary<string, string?>? configurationOverrides = null,
+    Action<IServiceCollection>? configureServices = null)
     : WebApplicationFactory<ApiAssemblyReference>
 {
     private const string JwtIssuer = "BunkFy";
@@ -89,6 +93,20 @@ internal sealed class AuthTestApplication(
         builder.UseSetting("Auth:RefreshTokens:Pepper", AuthTestConfiguration.RefreshTokenPepper);
         builder.UseSetting("Auth:SelfRegistration:PasswordEnabled", "true");
         builder.UseSetting("Auth:SelfRegistration:ExternalEnabled", "true");
+        builder.UseSetting(
+            "BunkFy:WorkspaceStaffOnboardingRecovery:PostEnabled",
+            enableWorkspaceStaffOnboardingRecovery.ToString());
+        if (configurationOverrides is not null)
+        {
+            foreach ((string key, string? value) in configurationOverrides)
+            {
+                if (value is not null)
+                {
+                    builder.UseSetting(key, value);
+                }
+            }
+        }
+
         if (!string.IsNullOrWhiteSpace(adapterIngressRedisConnectionString))
         {
             builder.UseSetting("Ingestion:AdapterIngress:Enabled", "true");
@@ -121,6 +139,8 @@ internal sealed class AuthTestApplication(
                 ["Auth:BearerAdmission:Mode"] = "ActiveSession",
                 ["Auth:SelfRegistration:PasswordEnabled"] = "true",
                 ["Auth:SelfRegistration:ExternalEnabled"] = "true",
+                ["BunkFy:WorkspaceStaffOnboardingRecovery:PostEnabled"] =
+                    enableWorkspaceStaffOnboardingRecovery.ToString(),
                 ["NatsJetStream:Enabled"] = disableOutboxPublisher ? "false" : "true",
                 ["Tenancy:Enabled"] = "true",
                 ["Outbox:PollIntervalMilliseconds"] = "100",
@@ -153,6 +173,14 @@ internal sealed class AuthTestApplication(
                 values["BunkFy:WorkspaceAdmission:RequireVerifiedEmailForWorkspaceCreation"] = "true";
                 values["Http:RateLimiting:GlobalPermitLimit"] = "1000";
                 values["Http:RateLimiting:SensitivePermitLimit"] = "1000";
+            }
+
+            if (configurationOverrides is not null)
+            {
+                foreach ((string key, string? value) in configurationOverrides)
+                {
+                    values[key] = value;
+                }
             }
 
             configuration.AddInMemoryCollection(values);
@@ -193,6 +221,14 @@ internal sealed class AuthTestApplication(
                 services.AddDbContext<InventoryDbContext>(options =>
                     options.AddInterceptors(inventoryCommandInterceptor));
             }
+
+            if (staffCommandInterceptor is not null)
+            {
+                services.AddDbContext<StaffDbContext>(options =>
+                    options.AddInterceptors(staffCommandInterceptor));
+            }
+
+            configureServices?.Invoke(services);
         });
     }
 
@@ -406,7 +442,11 @@ internal sealed class AuthTestApplication(
             inventoryCommandInterceptor: inventoryCommandInterceptor,
             enableWorkspaceSelfService: enableWorkspaceSelfService,
             adapterIngressRedisConnectionString: adapterIngressRedisConnectionString,
-            systemClock: systemClock);
+            systemClock: systemClock,
+            staffCommandInterceptor: staffCommandInterceptor,
+            enableWorkspaceStaffOnboardingRecovery: enableWorkspaceStaffOnboardingRecovery,
+            configurationOverrides: configurationOverrides,
+            configureServices: configureServices);
         await migration(migrationApplication).ConfigureAwait(false);
     }
 

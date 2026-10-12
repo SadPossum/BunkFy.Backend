@@ -151,6 +151,10 @@ public sealed class ReservationsModule : IModule
             ReservationStatus[]? status,
             string? search,
             ReservationListOrder? order,
+            ReservationListView? view,
+            DateOnly? operatingDate,
+            DateOnly? overlapsFrom,
+            DateOnly? overlapsTo,
             int? page,
             int? pageSize,
             HttpContext httpContext,
@@ -165,7 +169,11 @@ public sealed class ReservationsModule : IModule
                     search,
                     order ?? ReservationListOrder.CreatedDescending,
                     page ?? PageRequest.DefaultPage,
-                    pageSize ?? PageRequest.DefaultPageSize),
+                    pageSize ?? PageRequest.DefaultPageSize,
+                    overlapsFrom,
+                    overlapsTo,
+                    view,
+                    operatingDate),
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(ErrorStatusCodes);
         })
             .Produces<ReservationListResponse>(StatusCodes.Status200OK)

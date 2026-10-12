@@ -1,5 +1,6 @@
 namespace BunkFy.Modules.Reservations.Tests.Contracts;
 
+using System.Text.Json.Serialization;
 using BunkFy.Modules.Reservations.Contracts;
 using Xunit;
 
@@ -26,12 +27,22 @@ public sealed class ReservationOperationalSurfaceContractTests
             "ExpectedArrivalTime",
             "ExpectedDepartureTime",
             "GuestCount",
+            "HoldsInventory",
             "InventoryUnitCount",
+            "InventoryUnitIds",
             "PrimaryGuestName",
             "PropertyId",
             "ReservationId",
             "SourceKind",
             "Status");
+    }
+
+    [Fact]
+    public void Detail_contract_exposes_server_owned_inventory_hold_truth()
+    {
+        AssertRequiredBoolean<ReservationDto>(nameof(ReservationDto.HoldsInventory));
+        AssertRequiredBoolean<ReservationListItemDto>(
+            nameof(ReservationListItemDto.HoldsInventory));
     }
 
     [Fact]
@@ -72,6 +83,7 @@ public sealed class ReservationOperationalSurfaceContractTests
 
         Assert.Equal(25, ReservationsContractLimits.DefaultOperationsSnapshotUpcomingLimit);
         Assert.Equal(50, ReservationsContractLimits.MaximumOperationsSnapshotUpcomingLimit);
+        Assert.Equal(42, ReservationsContractLimits.MaximumScheduleWindowDays);
         Assert.False(
             typeof(ReservationOperationsSnapshotDto)
                 .GetProperty(nameof(ReservationOperationsSnapshotDto.TimeZoneId))!
@@ -87,5 +99,15 @@ public sealed class ReservationOperationalSurfaceContractTests
             .ToArray();
 
         Assert.Equal(expected, actual);
+    }
+
+    private static void AssertRequiredBoolean<T>(string propertyName)
+    {
+        System.Reflection.PropertyInfo property = typeof(T).GetProperty(propertyName)!;
+
+        Assert.Equal(typeof(bool), property.PropertyType);
+        Assert.NotNull(
+            property.GetCustomAttributes(typeof(JsonRequiredAttribute), inherit: false)
+                .SingleOrDefault());
     }
 }

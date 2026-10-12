@@ -27,6 +27,7 @@ using BunkFy.Modules.Properties.Persistence;
 using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Retention.Contracts;
 using BunkFy.Modules.Staff.Contracts;
+using BunkFy.Modules.Workspaces.Application.Ports;
 using BunkFy.Modules.Workspaces.Contracts;
 using BunkFy.Modules.Workspaces.Persistence;
 using BunkFy.ObservationParsing;
@@ -41,6 +42,7 @@ using Gma.Framework.Results;
 using Gma.Framework.Tasks;
 using Gma.Framework.Tasks.Infrastructure;
 using Gma.Framework.Tenancy;
+using Gma.Modules.AccessControl.Contracts;
 using Gma.Modules.Auth.Domain.Services;
 using Gma.Modules.Auth.Persistence;
 using Gma.Modules.Notifications.Contracts;
@@ -399,6 +401,16 @@ public sealed class WorkerHostIntegrationTests
 
         Assert.True(result.IsValid, result.Report);
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<WorkspacesDbContext>());
+        Assert.NotNull(scope.ServiceProvider
+            .GetRequiredService<IStaffOnboardingStateVerifier>());
+        Assert.NotNull(scope.ServiceProvider
+            .GetRequiredService<IAccessControlSubjectAuthoritySnapshotReader>());
+        Assert.NotNull(scope.ServiceProvider
+            .GetRequiredService<IScopedAccessProfileManager>());
+        Assert.NotNull(scope.ServiceProvider
+            .GetRequiredService<IWorkspaceStaffOnboardingRecoveryOperationLock>());
+        Assert.NotNull(scope.ServiceProvider
+            .GetRequiredService<IWorkspaceStaffOnboardingRecoveryReceiptRepository>());
         Assert.Single(
             worker.Services.GetServices<IHostedService>(),
             service => service.GetType().Name == "OrganizationsLifecycleService");

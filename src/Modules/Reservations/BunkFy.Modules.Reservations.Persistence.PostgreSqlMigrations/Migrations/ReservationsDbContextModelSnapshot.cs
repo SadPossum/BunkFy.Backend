@@ -2091,6 +2091,56 @@ namespace BunkFy.Modules.Reservations.Persistence.PostgreSqlMigrations.Migration
                         });
                 });
 
+            modelBuilder.Entity("BunkFy.Modules.Reservations.Persistence.ReservationStationAttribution", b =>
+                {
+                    b.Property<string>("ScopeId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<Guid>("ReservationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("OperationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ActorSessionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Authority")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("BrowserSessionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("Generation")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("JobGrantRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ResultingVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("StaffMemberId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("StationId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("ScopeId", "ReservationId", "OperationId");
+
+                    b.ToTable("station_attributions", "reservations", t =>
+                        {
+                            t.HasCheckConstraint("CK_station_attribution_authority", "\"Authority\" IN (1, 2)");
+
+                            t.HasCheckConstraint("CK_station_attribution_identity", "\"ReservationId\" <> '00000000-0000-0000-0000-000000000000' AND \"OperationId\" <> '00000000-0000-0000-0000-000000000000' AND \"StationId\" <> '00000000-0000-0000-0000-000000000000' AND \"BrowserSessionId\" <> '00000000-0000-0000-0000-000000000000' AND \"StaffMemberId\" <> '00000000-0000-0000-0000-000000000000' AND \"ActorSessionId\" <> '00000000-0000-0000-0000-000000000000'");
+
+                            t.HasCheckConstraint("CK_station_attribution_job_grant", "\"JobGrantRevision\" IS NULL OR (\"Authority\" = 2 AND \"JobGrantRevision\" > 0)");
+
+                            t.HasCheckConstraint("CK_station_attribution_versions", "\"Generation\" > 0 AND \"ResultingVersion\" > 0");
+                        });
+                });
+
             modelBuilder.Entity("BunkFy.Modules.Reservations.Persistence.ReservationsProjectionRebuildCheckpoint", b =>
                 {
                     b.Property<string>("ScopeId")
@@ -2629,6 +2679,15 @@ namespace BunkFy.Modules.Reservations.Persistence.PostgreSqlMigrations.Migration
                         });
 
                     b.Navigation("GovernancePolicy");
+                });
+
+            modelBuilder.Entity("BunkFy.Modules.Reservations.Persistence.ReservationStationAttribution", b =>
+                {
+                    b.HasOne("BunkFy.Modules.Reservations.Persistence.ReservationManagementOperation", null)
+                        .WithMany()
+                        .HasForeignKey("ScopeId", "ReservationId", "OperationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("BunkFy.Modules.Reservations.Domain.Aggregates.Reservation", b =>

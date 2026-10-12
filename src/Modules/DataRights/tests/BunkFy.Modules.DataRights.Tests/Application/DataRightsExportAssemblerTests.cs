@@ -116,6 +116,43 @@ public sealed class DataRightsExportAssemblerTests
     }
 
     [Fact]
+    public async Task Assembly_accepts_schema_catalogue_larger_than_one_record()
+    {
+        DataRightsExportAssembler assembler = Assembler(
+            new WideSchemaContributor());
+        await using MemoryStream destination = new();
+
+        DataRightsExportAssemblyResult result = await assembler.AssembleAsync(
+            Request([
+                new("staff", "profile", Guid.NewGuid(), 2)
+            ]),
+            destination,
+            CancellationToken.None);
+
+        Assert.Equal(1, result.RecordCount);
+    }
+
+    [Fact]
+    public async Task Assembly_rejects_oversized_unrelated_schema_catalogue()
+    {
+        DataRightsExportAssembler assembler = Assembler(
+            new SuccessfulContributor(),
+            new OversizedGuestContributor());
+        await using MemoryStream destination = new();
+
+        DataRightsExportGenerationException exception =
+            await Assert.ThrowsAsync<DataRightsExportGenerationException>(
+                () => assembler.AssembleAsync(
+                    Request([
+                        new("staff", "profile", Guid.NewGuid(), 2)
+                    ]),
+                    destination,
+                    CancellationToken.None));
+
+        Assert.Equal("owner-catalog-invalid", exception.Code);
+    }
+
+    [Fact]
     public async Task Assembly_preserves_terminal_stale_owner_result()
     {
         DataRightsExportAssembler assembler = Assembler(
@@ -228,7 +265,7 @@ public sealed class DataRightsExportAssemblerTests
         public IReadOnlyCollection<DataRightsCaseType> SupportedCaseTypes =>
             [DataRightsCaseType.StaffRights];
 
-        public DataRightsExportDescriptor Descriptor => new(
+        public virtual DataRightsExportDescriptor Descriptor => new(
             "staff",
             "staff.catalog",
             CatalogSchemaVersion: 1,
@@ -316,6 +353,25 @@ public sealed class DataRightsExportAssemblerTests
         }
     }
 
+    private sealed class WideSchemaContributor : SuccessfulContributor
+    {
+        public override DataRightsExportDescriptor Descriptor => new(
+            "staff",
+            "staff.catalog",
+            CatalogSchemaVersion: 1,
+            CatalogVersion: 2,
+            "staff.export",
+            ExportSchemaVersion: 1,
+            [
+                "name",
+                "email",
+                .. Enumerable.Range(
+                        2,
+                        DataRightsExportLimits.MaxFieldsPerRecord - 1)
+                    .Select(index => $"field-{index}")
+            ]);
+    }
+
     private sealed class MalformedGuestContributor
         : IDataRightsSubjectExportContributor
     {
@@ -330,6 +386,30 @@ public sealed class DataRightsExportAssemblerTests
             "guests.export",
             1,
             ["name"]);
+
+        public Task<DataRightsSubjectExportResult> ExportAsync(
+            DataRightsSubjectExportRequest request,
+            IDataRightsExportSink sink,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+    }
+
+    private sealed class OversizedGuestContributor
+        : IDataRightsSubjectExportContributor
+    {
+        public string OwnerKey => "guests";
+        public IReadOnlyCollection<DataRightsCaseType> SupportedCaseTypes =>
+            [DataRightsCaseType.GuestRights];
+        public DataRightsExportDescriptor Descriptor => new(
+            "guests",
+            "guests.catalog",
+            1,
+            1,
+            "guests.export",
+            1,
+            Enumerable.Range(0, DataRightsExportLimits.MaxFieldsPerSchema + 1)
+                .Select(index => $"field-{index}")
+                .ToArray());
 
         public Task<DataRightsSubjectExportResult> ExportAsync(
             DataRightsSubjectExportRequest request,

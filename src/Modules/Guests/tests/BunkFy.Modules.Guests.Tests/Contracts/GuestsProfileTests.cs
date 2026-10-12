@@ -52,7 +52,7 @@ public sealed class GuestsProfileTests
         string[] forbiddenProperties =
         [
             "DisplayName", "LegalName", "Email", "Phone", "DateOfBirth",
-            "NationalityCountryCode", "PreferredLanguageTag", "Notes"
+            "NationalityCountryCode", "PreferredLanguageTag", "LanguageTags", "Notes"
         ];
         Type[] eventTypes =
         [

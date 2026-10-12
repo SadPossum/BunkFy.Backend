@@ -168,6 +168,13 @@ public sealed class ReservationOperationsSnapshotPersistenceIntegrationTests
             Assert.Equal(
                 Enumerable.Range(1, 4).Select(UpcomingId),
                 snapshot.Upcoming.Take(4).Select(item => item.ReservationId));
+            Assert.All(
+                snapshot.Upcoming.Take(4),
+                item => Assert.True(item.HoldsInventory));
+            Assert.False(
+                snapshot.Upcoming.First(item =>
+                    item.Status == ReservationStatus.PendingAllocation)
+                    .HoldsInventory);
 
             Assert.Equal(IsolationLevel.RepeatableRead, capture.IsolationLevel);
             Assert.Collection(

@@ -31,7 +31,7 @@ public sealed partial class WorkspacesTenantTerminationExportContributorTests
             TenantTerminationContributionStatus.Completed,
             result.Status);
         Assert.Equal("workspace.termination.destroyed", result.ResultCode);
-        Assert.Equal(11, result.AffectedCount);
+        Assert.Equal(12, result.AffectedCount);
         Assert.Equal(1, result.SelectedProofRevision);
         Assert.Equal(3, result.ResultingProofRevision);
         Assert.Empty(await context.TenantDestroyOperations.ToListAsync());
@@ -145,6 +145,8 @@ public sealed partial class WorkspacesTenantTerminationExportContributorTests
             .IgnoreQueryFilters().AnyAsync() ||
         await context.PropertyProjections.IgnoreQueryFilters().AnyAsync() ||
         await context.StaffOnboardingCorrectionReceipts
+            .IgnoreQueryFilters().AnyAsync() ||
+        await context.StaffOnboardingRecoveryReceipts
             .IgnoreQueryFilters().AnyAsync() ||
         await context.StaffOnboardingProcessingRestrictionReceipts
             .IgnoreQueryFilters().AnyAsync() ||

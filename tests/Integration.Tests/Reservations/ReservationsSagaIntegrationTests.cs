@@ -33,6 +33,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.OpenApi;
+using Swashbuckle.AspNetCore.Swagger;
 using Testcontainers.PostgreSql;
 using Xunit;
 
@@ -87,6 +89,8 @@ public sealed partial class ReservationsSagaIntegrationTests
             connectionString,
             natsConnectionString,
             disableOutboxPublisher: false);
+        await AssertInventoryHoldTruthIsRequiredInOpenApiAsync(api.Services)
+            .ConfigureAwait(false);
         await using AdminApiTestApplication adminApi = new(
             "PostgreSql",
             connectionString,
@@ -1872,6 +1876,34 @@ public sealed partial class ReservationsSagaIntegrationTests
             string.Equals(header.Name, "no-cache", StringComparison.OrdinalIgnoreCase));
         Assert.True(response.Content.Headers.TryGetValues("Expires", out IEnumerable<string>? expires));
         Assert.Equal("0", Assert.Single(expires));
+    }
+
+    private static async Task AssertInventoryHoldTruthIsRequiredInOpenApiAsync(
+        IServiceProvider services)
+    {
+        ISwaggerProvider swagger = services.GetRequiredService<ISwaggerProvider>();
+        string body = await swagger.GetSwagger("v1")
+            .SerializeAsync(OpenApiSpecVersion.OpenApi3_0, "json")
+            .ConfigureAwait(false);
+        using JsonDocument document = JsonDocument.Parse(body);
+        JsonElement schemas = document.RootElement
+            .GetProperty("components")
+            .GetProperty("schemas");
+
+        foreach (string schemaName in new[] { "ReservationDto", "ReservationListItemDto" })
+        {
+            JsonElement schema = schemas.GetProperty(schemaName);
+            Assert.True(schema.GetProperty("properties").TryGetProperty(
+                "holdsInventory",
+                out JsonElement property));
+            Assert.Equal("boolean", property.GetProperty("type").GetString());
+            Assert.Contains(
+                schema.GetProperty("required").EnumerateArray(),
+                item => string.Equals(
+                    item.GetString(),
+                    "holdsInventory",
+                    StringComparison.Ordinal));
+        }
     }
 
     private static async Task AssertAdminSuccessAsync(Task<AdminCliResult> resultTask)

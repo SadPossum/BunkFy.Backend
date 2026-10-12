@@ -155,6 +155,7 @@ public sealed class WorkspacesPersonalDataCatalogTests
     private static Type[] PersistenceTypes() =>
     [
         typeof(WorkspaceStaffOnboarding),
+        typeof(WorkspaceStaffOnboardingRecoveryReceipt),
         typeof(WorkspaceStaffOnboardingCorrectionReceipt),
         typeof(WorkspaceStaffOnboardingProcessingRestriction),
         typeof(WorkspaceStaffOnboardingProcessingRestrictionProjection),
@@ -185,7 +186,8 @@ public sealed class WorkspacesPersonalDataCatalogTests
                      typeof(ReplaceWorkspaceJoinSourceRequest),
                      typeof(UpdateWorkspaceMemberAccessRequest),
                      typeof(
-                         WorkspaceStaffOnboardingDataRightsCorrectionRequest)
+                         WorkspaceStaffOnboardingDataRightsCorrectionRequest),
+                     typeof(WorkspaceStaffOnboardingRecoveryAttemptRequest)
                  })
         {
             yield return (PersonalDataSurface.ApiInput, type);
@@ -198,6 +200,7 @@ public sealed class WorkspacesPersonalDataCatalogTests
                      typeof(DenyWorkspaceStaffAccessCommand),
                      typeof(RetryWorkspaceStaffAccessProcessCommand),
                      typeof(RetryWorkspaceStaffOnboardingCommand),
+                     typeof(AttemptWorkspaceStaffOnboardingRecoveryCommand),
                      typeof(PrepareWorkspaceStaffAccessPlanCommand),
                      typeof(ActivateWorkspaceStaffAccessPlanCommand),
                      typeof(
@@ -243,6 +246,9 @@ public sealed class WorkspacesPersonalDataCatalogTests
         yield return (PersonalDataSurface.ApplicationQuery, typeof(GetOwnWorkspaceStaffOnboardingQuery));
         yield return (
             PersonalDataSurface.ApplicationQuery,
+            typeof(GetLatestWorkspaceStaffOnboardingRecoveryAttemptQuery));
+        yield return (
+            PersonalDataSurface.ApplicationQuery,
             typeof(
                 GetWorkspaceStaffOnboardingDataRightsCorrectionTargetQuery));
         yield return (PersonalDataSurface.ProjectionExport, typeof(WorkspaceStaffAccessPreparation));
@@ -275,7 +281,8 @@ public sealed class WorkspacesPersonalDataCatalogTests
                      typeof(
                          WorkspaceStaffOnboardingDataRightsCorrectionTargetDto),
                      typeof(
-                         WorkspaceStaffOnboardingDataRightsCorrectionReceiptDto)
+                         WorkspaceStaffOnboardingDataRightsCorrectionReceiptDto),
+                     typeof(WorkspaceStaffOnboardingRecoveryAttemptDto)
                  })
         {
             yield return (PersonalDataSurface.ApiResponse, type);
@@ -300,6 +307,8 @@ public sealed class WorkspacesPersonalDataCatalogTests
                          WorkspaceStaffRetentionCorrelationDataRightsExport),
                      typeof(
                          WorkspaceStaffOnboardingCorrectionReceiptDataRightsExport),
+                     typeof(
+                         WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport),
                      typeof(
                          WorkspaceStaffOnboardingProcessingRestrictionDataRightsExport),
                      typeof(

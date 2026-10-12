@@ -67,6 +67,12 @@ namespace BunkFy.Modules.Guests.Persistence.PostgreSqlMigrations.Migrations
                         .HasMaxLength(320)
                         .HasColumnType("character varying(320)");
 
+                    b.PrimitiveCollection<string[]>("LanguageTags")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text[]")
+                        .HasDefaultValueSql("ARRAY[]::text[]");
+
                     b.Property<DateTimeOffset>("LastChangedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -143,13 +149,15 @@ namespace BunkFy.Modules.Guests.Persistence.PostgreSqlMigrations.Migrations
 
                     b.ToTable("guest_profiles", "guests", t =>
                         {
-                            t.HasCheckConstraint("CK_guest_profiles_anonymised_profile", "\"Status\" <> 3 OR (\"DisplayName\" = 'Anonymised guest' AND \"DisplayNameSearch\" = 'ANONYMISED GUEST' AND \"LegalName\" IS NULL AND \"LegalNameSearch\" IS NULL AND \"Email\" IS NULL AND \"EmailSearch\" IS NULL AND \"Phone\" IS NULL AND \"PhoneSearch\" IS NULL AND \"DateOfBirth\" IS NULL AND \"NationalityCountryCode\" IS NULL AND \"PreferredLanguageTag\" IS NULL AND \"Notes\" IS NULL AND \"CreationConfirmationId\" IS NULL AND \"ArchivedAtUtc\" IS NULL)");
+                            t.HasCheckConstraint("CK_guest_profiles_anonymised_profile", "\"Status\" <> 3 OR (\"DisplayName\" = 'Anonymised guest' AND \"DisplayNameSearch\" = 'ANONYMISED GUEST' AND \"LegalName\" IS NULL AND \"LegalNameSearch\" IS NULL AND \"Email\" IS NULL AND \"EmailSearch\" IS NULL AND \"Phone\" IS NULL AND \"PhoneSearch\" IS NULL AND \"DateOfBirth\" IS NULL AND \"NationalityCountryCode\" IS NULL AND \"PreferredLanguageTag\" IS NULL AND cardinality(\"LanguageTags\") = 0 AND \"Notes\" IS NULL AND \"CreationConfirmationId\" IS NULL AND \"ArchivedAtUtc\" IS NULL)");
 
                             t.HasCheckConstraint("CK_guest_profiles_coordinates", "\"Id\" <> '00000000-0000-0000-0000-000000000000' AND \"OriginPropertyId\" <> '00000000-0000-0000-0000-000000000000' AND (\"CreationConfirmationId\" IS NULL OR \"CreationConfirmationId\" <> '00000000-0000-0000-0000-000000000000') AND trim(\"ScopeId\") <> ''");
 
                             t.HasCheckConstraint("CK_guest_profiles_created_by", "length(trim(\"CreatedBy\")) > 0");
 
                             t.HasCheckConstraint("CK_guest_profiles_display_name", "length(trim(\"DisplayName\")) > 0");
+
+                            t.HasCheckConstraint("CK_guest_profiles_language_tags", "cardinality(\"LanguageTags\") BETWEEN 0 AND 12 AND array_position(\"LanguageTags\", NULL) IS NULL");
 
                             t.HasCheckConstraint("CK_guest_profiles_last_changed_by", "length(trim(\"LastChangedBy\")) > 0");
 
@@ -633,9 +641,9 @@ namespace BunkFy.Modules.Guests.Persistence.PostgreSqlMigrations.Migrations
                         {
                             t.HasCheckConstraint("CK_guest_data_rights_correction_receipts_approval_revision", "\"ApprovalRevision\" >= 1");
 
-                            t.HasCheckConstraint("CK_guest_data_rights_correction_receipts_changed_fields", "\"ChangedFieldsMask\" BETWEEN 1 AND 255");
+                            t.HasCheckConstraint("CK_guest_data_rights_correction_receipts_changed_fields", "(\"ContractVersion\" = 1 AND \"ChangedFieldsMask\" BETWEEN 1 AND 255) OR (\"ContractVersion\" = 2 AND \"ChangedFieldsMask\" BETWEEN 1 AND 511)");
 
-                            t.HasCheckConstraint("CK_guest_data_rights_correction_receipts_contract", "\"ContractVersion\" = 1");
+                            t.HasCheckConstraint("CK_guest_data_rights_correction_receipts_contract", "\"ContractVersion\" IN (1, 2)");
 
                             t.HasCheckConstraint("CK_guest_data_rights_correction_receipts_coordinates", "\"Id\" <> '00000000-0000-0000-0000-000000000000' AND \"IdempotencyKey\" <> '00000000-0000-0000-0000-000000000000' AND \"PropertyId\" <> '00000000-0000-0000-0000-000000000000' AND \"CaseId\" <> '00000000-0000-0000-0000-000000000000' AND \"GuestId\" <> '00000000-0000-0000-0000-000000000000' AND \"EventId\" <> '00000000-0000-0000-0000-000000000000' AND \"CompletionEventId\" <> '00000000-0000-0000-0000-000000000000' AND \"EventId\" <> \"CompletionEventId\" AND trim(\"ScopeId\") <> ''");
 

@@ -50,7 +50,7 @@ public sealed class GuestAnonymisationPersistenceIntegrationTests
             "Private note",
             "staff:creator",
             Guid.NewGuid(),
-            createdAtUtc).Value;
+            createdAtUtc, languageTags: ["en-GB", "fr", "unknown-١"]).Value;
         dbContext.GuestProfiles.Add(profile);
         await dbContext.SaveChangesAsync();
 
@@ -91,6 +91,7 @@ public sealed class GuestAnonymisationPersistenceIntegrationTests
             .AsNoTracking()
             .SingleAsync(item => item.Id == guestId);
         Assert.Equal(GuestProfileState.Anonymised, persisted.Status);
+        Assert.Empty(persisted.LanguageTags);
         Assert.True(persisted.MatchesAnonymisedState(profile.Version, completedAtUtc));
         Assert.True((await dbContext.AnonymisationTombstones
             .AsNoTracking()

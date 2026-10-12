@@ -135,7 +135,7 @@ public sealed class GuestRetentionControlProofAuditIntegrityMigrationIntegration
             previous.RetentionSweepCheckpoints.AddRange(
                 initialCheckpoint,
                 advancedCheckpoint);
-            previous.GuestProfiles.AddRange(
+            await GuestLanguageMigrationSeed.ProfilesAsync(previous,
                 historicalProof.Profile,
                 currentProof.Profile,
                 supportProof.Profile,

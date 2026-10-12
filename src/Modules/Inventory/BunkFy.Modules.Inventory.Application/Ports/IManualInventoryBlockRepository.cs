@@ -22,6 +22,8 @@ public interface IManualInventoryBlockRepository
         Guid propertyId,
         Guid? inventoryUnitId,
         bool includeReleased,
+        DateOnly? overlapsFrom,
+        DateOnly? overlapsTo,
         PageRequest pageRequest,
         CancellationToken cancellationToken);
 }

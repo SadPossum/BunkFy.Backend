@@ -9,6 +9,43 @@ using Xunit;
 public sealed class HostCompositionGuardTests
 {
     [Fact]
+    public void Stations_http_is_explicit_default_off_postgresql_only_and_checks_lanes_before_authentication()
+    {
+        foreach (string file in new[] { "appsettings.json", "appsettings.Development.json" })
+        {
+            using JsonDocument settings = JsonDocument.Parse(RepositoryPaths.Read("src", "BunkFy.Host.Api", file));
+            Assert.False(settings.RootElement.GetProperty("Stations").GetProperty("Http").GetProperty("Enabled").GetBoolean());
+        }
+        string api = RepositoryPaths.Read("src", "BunkFy.Host.Api", "Program.cs");
+        AssertSourceOrder(api, "app.UseGmaProductionHttp();", "app.UseStationHttpSecurity();", "app.UseAuthentication();");
+        Assert.Contains("StationHttpHostAdmission.Validate(builder.Configuration)", api, StringComparison.Ordinal);
+        Assert.Contains("AddStationsManagement(destructiveOperationAssurance, authScopeId)", api, StringComparison.Ordinal);
+        string persistence = RepositoryPaths.Read("src", "Modules", "Stations", "BunkFy.Modules.Stations.Persistence", "DependencyInjection.cs");
+        Assert.Contains("throw new NotSupportedException", persistence, StringComparison.Ordinal);
+        string composition = RepositoryPaths.Read("src", "BunkFy.Host.Migrations", "BunkFyMigrationHostComposition.cs");
+        Assert.Contains("GetValue<bool>(\"Stations:Http:Enabled\")", composition, StringComparison.Ordinal);
+        Assert.Contains("builder.AddStationsPersistence();", composition, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Station_inventory_validation_runs_after_all_routes_and_before_each_host_starts()
+    {
+        string publicProgram = RepositoryPaths.Read("src", "BunkFy.Host.Api", "Program.cs");
+        AssertSourceOrder(
+            publicProgram,
+            "app.MapUserNotificationSignalR();",
+            "app.ValidateBunkFyStationK0(\"public\");",
+            "app.Run();");
+
+        string adminProgram = RepositoryPaths.Read("src", "BunkFy.Host.AdminApi", "Program.cs");
+        AssertSourceOrder(
+            adminProgram,
+            "app.MapAdminApiModules();",
+            "app.ValidateBunkFyStationK0(\"admin\");",
+            "app.Run();");
+    }
+
+    [Fact]
     public void Development_country_policies_are_synthetic_and_identically_digest_pinned_across_api_and_worker()
     {
         (string FileName, int SchemaVersion, int PolicyVersion)[] expectedArtifacts =
@@ -90,7 +127,7 @@ public sealed class HostCompositionGuardTests
             "builder.Services.AddAccessProfilePermissionAllowlist(WorkspaceAccessRoles.DelegablePermissions);",
             "options => options.ProfileManagementAssurance = privilegedOperationAssurance",
             "options => options.GovernanceOperationsAssurance = privilegedOperationAssurance",
-            "options => options.StaffOnboardingManagementAssurance =",
+            "options.StaffOnboardingManagementAssurance =",
             "options.TimeZoneManagementAssurance = privilegedOperationAssurance",
             "options.ProcessingActivationAssurance = privilegedOperationAssurance",
             "options.PropertyRetirementAssurance = privilegedOperationAssurance",
@@ -118,6 +155,9 @@ public sealed class HostCompositionGuardTests
             "builder.Services.AddOrganizationsTenancyExtension();",
             "builder.Services.AddBunkFyWorkspaces(options => options.GlobalAuthScopeId = authScopeId);",
             "builder.Services.AddBunkFyWorkspaceAdmission(builder.Configuration, builder.Environment.IsProduction());",
+            "GetValue<bool>(\"BunkFy:WorkspaceStaffOnboardingRecovery:PostEnabled\")",
+            "options.StaffOnboardingRecoveryPostEnabled =",
+            "Workspace staff onboarding recovery POST cannot be enabled in Production while CP3 privacy blockers remain open.",
             "builder.Services.AddBunkFyOrganizationsDataRights();",
             "builder.Services.AddBunkFyTenantTerminationOperatorCatalog();",
             "builder.Services.AddBunkFyOperationsNotifications();",
@@ -146,6 +186,33 @@ public sealed class HostCompositionGuardTests
             .ToArray();
 
         Assert.Empty(missing);
+
+        using (JsonDocument defaults = JsonDocument.Parse(
+                   RepositoryPaths.Read(
+                       "src",
+                       "BunkFy.Host.Api",
+                       "appsettings.json")))
+        {
+            Assert.False(defaults.RootElement
+                .GetProperty("BunkFy")
+                .GetProperty("WorkspaceStaffOnboardingRecovery")
+                .GetProperty("PostEnabled")
+                .GetBoolean());
+        }
+
+        string capabilities = RepositoryPaths.Read(
+            "src",
+            "BunkFy.Host.Api",
+            "ProductCapabilitiesEndpoints.cs");
+        Assert.Contains(
+            "workspaces.Value.StaffOnboardingRecoveryPostEnabled",
+            capabilities,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "bool WorkspaceStaffOnboardingRecoveryEnabled",
+            capabilities,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain("VITE_", capabilities, StringComparison.Ordinal);
 
         int reservationsSecurityStart = program.IndexOf(
             "builder.Services.Configure<ReservationsApiSecurityOptions>",
@@ -659,7 +726,7 @@ public sealed class HostCompositionGuardTests
                 policy => policy.GetProperty("Name").GetString()!,
                 StringComparer.Ordinal);
         Assert.Equal(
-            ["authentication-write", "workspace-join-write"],
+            ["authentication-write", "station-read", "station-write", "workspace-join-write"],
             policies.Keys.Order(StringComparer.Ordinal));
 
         AssertRateLimitPolicy(
@@ -675,6 +742,14 @@ public sealed class HostCompositionGuardTests
                 "/api/auth/external",
                 "/api/auth/email-verification"
             ]);
+        string[] stationPaths =
+        [
+            "/api/station-management",
+            "/api/station-setup",
+            "/api/station-runtime"
+        ];
+        AssertRateLimitPolicy(policies["station-write"], 30, stationPaths);
+        AssertRateLimitPolicy(policies["station-read"], 120, stationPaths, ["GET", "HEAD"]);
         AssertRateLimitPolicy(
             policies["workspace-join-write"],
             60,
@@ -688,20 +763,21 @@ public sealed class HostCompositionGuardTests
     private static void AssertRateLimitPolicy(
         JsonElement policy,
         int permitLimit,
-        string[] expectedPaths)
+        string[] expectedPaths,
+        string[]? expectedMethods = null)
     {
         Assert.Equal(permitLimit, policy.GetProperty("PermitLimit").GetInt32());
         Assert.Equal(
             expectedPaths,
             policy.GetProperty("PathPrefixes")
                 .EnumerateArray()
-                .Select(value => value.GetString()!)
+                .Select(value => value.GetString())
                 .ToArray());
         Assert.Equal(
-            ["POST", "PUT", "PATCH", "DELETE"],
+            expectedMethods ?? ["POST", "PUT", "PATCH", "DELETE"],
             policy.GetProperty("Methods")
                 .EnumerateArray()
-                .Select(value => value.GetString()!)
+                .Select(value => value.GetString())
                 .ToArray());
     }
 
@@ -1097,6 +1173,8 @@ public sealed class HostCompositionGuardTests
             "retention-workers",
             "Tasks__Worker__WorkerGroups__7",
             "tenant-termination-workers",
+            "Tasks__Worker__WorkerGroups__8",
+            "guest-record-link-workers",
             "AppHost:AdminApi:Enabled",
             "AppHost:Worker:Enabled",
             "AppHost:Redis:Enabled"
@@ -1126,6 +1204,8 @@ public sealed class HostCompositionGuardTests
             "tenant-termination-workers",
             workerGroups,
             StringComparer.Ordinal);
+        Assert.Equal(1, workerGroups.Count(group => group == "guest-record-link-workers"));
+        Assert.Equal(workerGroups.Length, workerGroups.Distinct(StringComparer.Ordinal).Count());
     }
 
     [Fact]
@@ -1346,6 +1426,21 @@ public sealed class HostCompositionGuardTests
 
     private static int CountOccurrences(string source, string value) =>
         source.Split(value, StringSplitOptions.None).Length - 1;
+
+    private static void AssertSourceOrder(
+        string source,
+        string first,
+        string second,
+        string third)
+    {
+        int firstIndex = source.IndexOf(first, StringComparison.Ordinal);
+        int secondIndex = source.IndexOf(second, StringComparison.Ordinal);
+        int thirdIndex = source.IndexOf(third, StringComparison.Ordinal);
+
+        Assert.True(firstIndex >= 0, $"Missing source token: {first}");
+        Assert.True(secondIndex > firstIndex, $"'{second}' must follow '{first}'.");
+        Assert.True(thirdIndex > secondIndex, $"'{third}' must follow '{second}'.");
+    }
 
     private static string RemoveWhitespace(string value) =>
         string.Concat(value.Where(character => !char.IsWhiteSpace(character)));

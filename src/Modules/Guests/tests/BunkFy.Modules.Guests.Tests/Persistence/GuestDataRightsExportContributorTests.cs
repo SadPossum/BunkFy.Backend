@@ -44,7 +44,8 @@ public sealed class GuestDataRightsExportContributorTests
             expectedVersion,
             "user:operator",
             Guid.NewGuid(),
-            Now.AddMinutes(1)).IsSuccess);
+            Now.AddMinutes(1),
+            [profile.PreferredLanguageTag!, "fr", "unknown-١"]).IsSuccess);
         GuestManagementOperationRecord managementOperation = new(
             Guid.NewGuid(),
             profile.ScopeId,
@@ -113,7 +114,8 @@ public sealed class GuestDataRightsExportContributorTests
             contributor.Descriptor.CatalogVersion);
         Assert.Equal(GuestDataRightsExportSchema.ExportSchemaId, contributor.Descriptor.ExportSchemaId);
         Assert.Equal(GuestDataRightsExportSchema.ExportSchemaVersion, contributor.Descriptor.ExportSchemaVersion);
-        Assert.Equal(36, contributor.Descriptor.FieldIds.Count);
+        Assert.Equal(37, contributor.Descriptor.FieldIds.Count);
+        Assert.Contains("guest.profile.language-tags", contributor.Descriptor.FieldIds);
         Assert.DoesNotContain("guest.profile.audit-actor-id", contributor.Descriptor.FieldIds);
         Assert.DoesNotContain("guest.profile.projection-ordinal", contributor.Descriptor.FieldIds);
         Assert.DoesNotContain("guest.profile.tenant-scope-id", contributor.Descriptor.FieldIds);
@@ -127,6 +129,11 @@ public sealed class GuestDataRightsExportContributorTests
             "maya.chen@example.test",
             Field(profileRecord, "guest.profile.email").GetString());
         Assert.Equal("active", Field(profileRecord, "guest.profile.status").GetString());
+        Assert.Equal(profile.LanguageTags,
+            Field(profileRecord, "guest.profile.language-tags").EnumerateArray()
+                .Select(value => value.GetString()).ToArray());
+        Assert.Equal(2, contributor.Descriptor.ExportSchemaVersion);
+        Assert.Equal(17, contributor.Descriptor.CatalogVersion);
 
         DataRightsExportRecord stayRecord = Assert.Single(
             sink.Records,

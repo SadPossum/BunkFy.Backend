@@ -51,6 +51,7 @@ public sealed class ApplyGuestRetentionCommandHandlerTests
             GuestRetentionMutationStatus.AlreadyApplied,
             replay.Value.Status);
         Assert.Equal(GuestProfileState.Anonymised, fixture.Profile.Status);
+        Assert.Empty(fixture.Profile.LanguageTags);
         Assert.Equal(1, fixture.Execution.AffectedCount);
         Assert.Equal(1, fixture.Repository.AddProofCount);
         Assert.Equal(1, fixture.Candidates.LoadCount);
@@ -301,7 +302,8 @@ public sealed class ApplyGuestRetentionCommandHandlerTests
             "Prefers a lower bunk.",
             "user:creator",
             Guid.NewGuid(),
-            GuestRetentionTestData.Now.AddYears(-2)).Value;
+            GuestRetentionTestData.Now.AddYears(-2),
+            languageTags: ["en-GB", "fr", "unknown-١"]).Value;
         profile.ClearDomainEvents();
         GuestRetentionExecution execution =
             GuestRetentionExecution.Start(

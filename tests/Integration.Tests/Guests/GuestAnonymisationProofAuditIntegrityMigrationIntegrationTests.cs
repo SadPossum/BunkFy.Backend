@@ -190,7 +190,7 @@ public sealed class GuestAnonymisationProofAuditIntegrityMigrationIntegrationTes
         {
             await previous.Database.GetService<IMigrator>().MigrateAsync(
                 BeforeAnonymisationProofAuditIntegrityMigration);
-            previous.GuestProfiles.AddRange(
+            await GuestLanguageMigrationSeed.ProfilesAsync(previous,
                 ordinaryProfile,
                 attachedProfile,
                 restoredProfile,

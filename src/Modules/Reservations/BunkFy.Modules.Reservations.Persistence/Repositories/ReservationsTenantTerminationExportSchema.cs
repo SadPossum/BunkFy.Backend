@@ -92,6 +92,7 @@ internal static class ReservationsTenantTerminationExportSchema
                 .ManagementOperation),
             "reservations.management-operation",
             "include-in-authorized-guest-or-tenant-export"),
+        Staff<ReservationManagementOperationTenantExport>(nameof(ReservationManagementOperationTenantExport.StaffAttribution)),
         Binding<ReservationStayAmendmentOperationTenantExport>(
             nameof(ReservationStayAmendmentOperationTenantExport
                 .StayAmendmentOperation),

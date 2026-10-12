@@ -34,6 +34,8 @@ public static class DependencyInjection
         builder.Services.TryAddScoped<IInventoryTopologyRepository, InventoryTopologyRepository>();
         builder.Services.TryAddScoped<IRoomInventoryConfigurationRepository, RoomInventoryConfigurationRepository>();
         builder.Services.TryAddScoped<IInventoryReadRepository, InventoryReadRepository>();
+        builder.Services.TryAddScoped<BunkFy.Modules.Inventory.Contracts.Stations.IStationInventoryLabelReader, StationInventoryLabelReader>();
+        builder.Services.TryAddScoped<IInventoryRetirementContextReadRepository, InventoryRetirementContextReadRepository>();
         builder.Services.TryAddScoped<IInventoryAvailabilityRepository, InventoryAvailabilityRepository>();
         builder.Services.TryAddScoped<IManualInventoryBlockRepository, ManualInventoryBlockRepository>();
         builder.Services.TryAddScoped<

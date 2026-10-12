@@ -116,7 +116,7 @@ public sealed class GuestRetentionTimeZoneReceiptMigrationIntegrationTests
                 Guid.NewGuid(),
                 startedAtUtc.AddYears(-2)).Value;
             profile.ClearDomainEvents();
-            initial.GuestProfiles.Add(profile);
+            await GuestLanguageMigrationSeed.ProfilesAsync(initial, profile).ConfigureAwait(false);
             await initial.SaveChangesAsync().ConfigureAwait(false);
 
             await initial.Database.ExecuteSqlInterpolatedAsync($"""
@@ -195,7 +195,7 @@ public sealed class GuestRetentionTimeZoneReceiptMigrationIntegrationTests
             "timeZoneCatalogVersion",
             out _));
         Assert.Equal(
-            4,
+            5,
             GuestsTenantTerminationMetadata.ExportSchemaVersion);
         Assert.Equal(
             GuestsTenantTerminationMetadata.ExportSchemaVersion,
@@ -642,7 +642,7 @@ public sealed class GuestRetentionTimeZoneReceiptMigrationIntegrationTests
             Guid.NewGuid(),
             createdAtUtc).Value;
         profile.ClearDomainEvents();
-        dbContext.GuestProfiles.Add(profile);
+        await GuestLanguageMigrationSeed.ProfilesAsync(dbContext, profile).ConfigureAwait(false);
         await dbContext.SaveChangesAsync().ConfigureAwait(false);
 
         await InsertExecutionAsync(

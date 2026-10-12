@@ -71,6 +71,8 @@ public sealed partial class WorkspacesTenantTerminationExportContributorTests
             [
                 WorkspacesDataRightsCoordinates.StaffOnboardingRecordType,
                 WorkspacesDataRightsExportContributor
+                    .StaffOnboardingRecoveryReceiptRecordType,
+                WorkspacesDataRightsExportContributor
                     .StaffOnboardingCorrectionReceiptRecordType,
                 WorkspacesDataRightsExportContributor
                     .StaffOnboardingProcessingRestrictionRecordType,
@@ -88,7 +90,7 @@ public sealed partial class WorkspacesTenantTerminationExportContributorTests
                     .StaffOnboardingRetentionExecutionRecordType
             ],
             first.Records.Select(record => record.RecordType).ToArray());
-        Assert.Equal(10, result.AffectedCount);
+        Assert.Equal(11, result.AffectedCount);
         Assert.Equal(
             WorkspacesTenantTerminationMetadata.ExportSchemaId,
             contributor.ExportDescriptor.ExportSchemaId);
@@ -209,6 +211,9 @@ public sealed partial class WorkspacesTenantTerminationExportContributorTests
                 jobTitle: "Manager",
                 department: "Operations",
                 FrozenAtUtc.AddDays(-1)).Value;
+        Assert.True(onboarding.Fail(
+            "Workspaces.TestInducedFailure",
+            FrozenAtUtc.AddHours(-23)).IsSuccess);
         WorkspaceStaffOnboardingCorrectionReceipt correction =
             WorkspaceStaffOnboardingCorrectionReceipt.Create(
                 Guid.Parse(
@@ -225,6 +230,55 @@ public sealed partial class WorkspacesTenantTerminationExportContributorTests
                 Guid.NewGuid(),
                 Guid.NewGuid(),
                 FrozenAtUtc.AddHours(-12)).Value;
+        WorkspaceStaffOnboardingRecoveryReceipt recovery =
+            WorkspaceStaffOnboardingRecoveryReceipt.Create(new(
+                Guid.Parse(
+                    "91000000-0000-0000-0000-000000000001"),
+                TenantId,
+                Guid.Parse(
+                    "92000000-0000-0000-0000-000000000001"),
+                onboarding.Id,
+                sourceId,
+                staffMemberId,
+                WorkspaceStaffOnboardingRecoveryTriggerKind.ManualOperator,
+                Guid.Parse(
+                    "93000000-0000-0000-0000-000000000001"),
+                SubjectId,
+                SubjectId,
+                "recovery-operator",
+                "system:workspace-staff-onboarding",
+                Digest,
+                onboarding.Version,
+                onboarding.Version,
+                onboarding.Status,
+                onboarding.Version,
+                onboarding.Status,
+                Guid.Parse(
+                    "94000000-0000-0000-0000-000000000001"),
+                CurrentProfileVersion: 1,
+                PropertyCount: 1,
+                Digest,
+                OrganizationRevision: null,
+                MembershipId: null,
+                MembershipVersion: null,
+                MembershipStatus: null,
+                StaffTenantRevision: null,
+                StaffMemberVersion: null,
+                StaffStateProofSha256: null,
+                StaffPropertySetSha256: null,
+                AccessManagementRevision: null,
+                AccessFactsSha256: null,
+                WorkspaceRecoveryVerification.Unknown,
+                WorkspaceRecoveryVerification.Unknown,
+                WorkspaceRecoveryVerification.Unknown,
+                WorkspaceStaffOnboardingRecoveryOutcome.ReviewRequired,
+                WorkspaceStaffOnboardingRecoveryReason
+                    .LegacyMembershipBindingMissing,
+                AccessMutationPerformed: false,
+                OrganizationObservedAtUtc: null,
+                StaffObservedAtUtc: null,
+                AccessObservedAtUtc: null,
+                FrozenAtUtc.AddHours(-11))).Value;
         WorkspaceStaffOnboardingProcessingRestriction restriction =
             WorkspaceStaffOnboardingProcessingRestriction.Create(
                 Guid.Parse(
@@ -320,6 +374,7 @@ public sealed partial class WorkspacesTenantTerminationExportContributorTests
 
         context.AddRange(
             onboarding,
+            recovery,
             correction,
             restriction,
             restrictionReceipt,

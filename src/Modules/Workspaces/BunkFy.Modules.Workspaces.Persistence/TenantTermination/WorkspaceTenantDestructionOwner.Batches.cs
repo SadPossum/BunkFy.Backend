@@ -2,6 +2,7 @@ namespace BunkFy.Modules.Workspaces.Persistence.TenantTermination;
 
 using System.Globalization;
 using BunkFy.Modules.Workspaces.Domain;
+using BunkFy.Modules.Workspaces.Domain.DataRights;
 using BunkFy.Modules.Workspaces.Domain.Termination;
 using Microsoft.EntityFrameworkCore;
 
@@ -53,12 +54,9 @@ internal sealed partial class WorkspaceTenantDestructionOwner
                     projection => projection.Id,
                     cancellationToken),
             WorkspaceTenantDestroyStage.OnboardingCorrectionReceipts =>
-                this.RemoveGuidBatchAsync(
+                this.RemoveOnboardingReceiptBatchAsync(
                     operation,
-                    dbContext.StaffOnboardingCorrectionReceipts
-                        .IgnoreQueryFilters()
-                        .Where(receipt => receipt.ScopeId == tenantId),
-                    receipt => receipt.Id,
+                    tenantId,
                     cancellationToken),
             WorkspaceTenantDestroyStage.OnboardingRestrictionReceipts =>
                 this.RemoveGuidBatchAsync(
@@ -201,6 +199,59 @@ internal sealed partial class WorkspaceTenantDestructionOwner
             cancellationToken);
     }
 
+    private async Task<bool> RemoveOnboardingReceiptBatchAsync(
+        WorkspaceTenantDestroyOperation operation,
+        string tenantId,
+        CancellationToken cancellationToken)
+    {
+        WorkspaceStaffOnboardingRecoveryReceipt[] recoveryReceipts =
+            await dbContext.StaffOnboardingRecoveryReceipts
+                .IgnoreQueryFilters()
+                .Where(receipt => receipt.ScopeId == tenantId)
+                .OrderBy(receipt => receipt.Id)
+                .Take(operation.BatchSize + 1)
+                .ToArrayAsync(cancellationToken)
+                .ConfigureAwait(false);
+        if (recoveryReceipts.Length > 0)
+        {
+            WorkspaceStaffOnboardingRecoveryReceipt[] selected =
+                recoveryReceipts.Take(operation.BatchSize).ToArray();
+            dbContext.RemoveRange(selected);
+            EnsureBatchRecorded(
+                operation,
+                selected.Select(receipt =>
+                    $"recovery:{receipt.Id:N}").ToArray(),
+                stageCompleted: false,
+                clock.UtcNow);
+            return true;
+        }
+
+        WorkspaceStaffOnboardingCorrectionReceipt[] correctionReceipts =
+            await dbContext.StaffOnboardingCorrectionReceipts
+                .IgnoreQueryFilters()
+                .Where(receipt => receipt.ScopeId == tenantId)
+                .OrderBy(receipt => receipt.Id)
+                .Take(operation.BatchSize + 1)
+                .ToArrayAsync(cancellationToken)
+                .ConfigureAwait(false);
+        if (correctionReceipts.Length > 0)
+        {
+            WorkspaceStaffOnboardingCorrectionReceipt[] selected =
+                correctionReceipts.Take(operation.BatchSize).ToArray();
+            dbContext.RemoveRange(selected);
+            EnsureBatchRecorded(
+                operation,
+                selected.Select(receipt =>
+                    $"correction:{receipt.Id:N}").ToArray(),
+                correctionReceipts.Length <= operation.BatchSize,
+                clock.UtcNow);
+            return true;
+        }
+
+        EnsureStageAdvanced(operation, clock.UtcNow);
+        return false;
+    }
+
     private async Task<bool> RemoveBatchAsync<TEntity>(
         WorkspaceTenantDestroyOperation operation,
         IQueryable<TEntity> source,
@@ -323,6 +374,10 @@ internal sealed partial class WorkspaceTenantDestructionOwner
                 .AnyAsync(projection => projection.ScopeId == tenantId, cancellationToken)
                 .ConfigureAwait(false) ||
             await dbContext.StaffOnboardingCorrectionReceipts
+                .IgnoreQueryFilters()
+                .AnyAsync(receipt => receipt.ScopeId == tenantId, cancellationToken)
+                .ConfigureAwait(false) ||
+            await dbContext.StaffOnboardingRecoveryReceipts
                 .IgnoreQueryFilters()
                 .AnyAsync(receipt => receipt.ScopeId == tenantId, cancellationToken)
                 .ConfigureAwait(false) ||

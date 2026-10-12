@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "catalogId": "workspaces.personal-data",
-  "catalogVersion": 12,
+  "catalogVersion": 13,
   "module": "workspaces",
   "approvalState": "engineering-default",
   "accessPolicies": [
@@ -10189,6 +10189,2001 @@
           "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceTerminationFenceReceiptDto",
           "member": "ActorId",
           "surface": "projection-export",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.receipt-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "workspaces-owner-recovery-proof"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-onboarding",
+      "countryPolicyKey": "workspaces.onboarding-recovery.receipt-id",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "Id",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "ReceiptId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.scope-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "workspaces-owner-recovery-proof"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-onboarding",
+      "countryPolicyKey": "workspaces.onboarding-recovery.scope-id",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "ScopeId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "ScopeId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.contract-version",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "workspaces-owner-recovery-proof"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-onboarding",
+      "countryPolicyKey": "workspaces.onboarding-recovery.contract-version",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "ContractVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "ContractVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.operation-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "workspaces-owner-recovery-proof"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-onboarding",
+      "countryPolicyKey": "workspaces.onboarding-recovery.operation-id",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "api-input",
+        "api-response",
+        "application-command",
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "OperationId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "OperationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Api",
+          "type": "BunkFy.Modules.Workspaces.Api.Requests.WorkspaceStaffOnboardingRecoveryAttemptRequest",
+          "member": "OperationId",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.AttemptWorkspaceStaffOnboardingRecoveryCommand",
+          "member": "OperationId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffOnboardingRecoveryAttemptDto",
+          "member": "OperationId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.application-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "workspaces-owner-recovery-proof"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-onboarding",
+      "countryPolicyKey": "workspaces.onboarding-recovery.application-id",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "api-response",
+        "application-command",
+        "application-query",
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "ApplicationId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "ApplicationId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.AttemptWorkspaceStaffOnboardingRecoveryCommand",
+          "member": "ApplicationId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Queries.GetLatestWorkspaceStaffOnboardingRecoveryAttemptQuery",
+          "member": "ApplicationId",
+          "surface": "application-query",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffOnboardingRecoveryAttemptDto",
+          "member": "ApplicationId",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.source-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "workspaces-owner-recovery-proof"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-onboarding",
+      "countryPolicyKey": "workspaces.onboarding-recovery.source-id",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "SourceId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "SourceId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.staff-member-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "workspaces-owner-recovery-proof"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-onboarding",
+      "countryPolicyKey": "workspaces.onboarding-recovery.staff-member-id",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "StaffMemberId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "StaffMemberId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.trigger-kind",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "workspaces-owner-recovery-proof"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-onboarding",
+      "countryPolicyKey": "workspaces.onboarding-recovery.trigger-kind",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "TriggerKind",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "TriggerKind",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.trigger-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "workspaces-owner-recovery-proof"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-onboarding",
+      "countryPolicyKey": "workspaces.onboarding-recovery.trigger-id",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "TriggerId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "TriggerId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.applicant-subject-id",
+      "dataSubject": "staff",
+      "classification": "audit-attribution",
+      "sensitivity": "elevated",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "auth"
+      ],
+      "authoritativeOwner": "auth",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-audit",
+      "countryPolicyKey": "workspaces.onboarding-recovery.applicant-subject-id",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "audit-attribution",
+      "allowedSurfaces": [
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "ApplicantSubjectId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "ApplicantSubjectId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.plan-creator-actor-id",
+      "dataSubject": "staff",
+      "classification": "audit-attribution",
+      "sensitivity": "elevated",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "auth"
+      ],
+      "authoritativeOwner": "auth",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-audit",
+      "countryPolicyKey": "workspaces.onboarding-recovery.plan-creator-actor-id",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "audit-attribution",
+      "allowedSurfaces": [
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "PlanCreatorActorId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "PlanCreatorActorId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.recovery-actor-id",
+      "dataSubject": "staff",
+      "classification": "audit-attribution",
+      "sensitivity": "elevated",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "auth"
+      ],
+      "authoritativeOwner": "auth",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-audit",
+      "countryPolicyKey": "workspaces.onboarding-recovery.recovery-actor-id",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "audit-attribution",
+      "allowedSurfaces": [
+        "application-command",
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "RecoveryActorId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "RecoveryActorId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.AttemptWorkspaceStaffOnboardingRecoveryCommand",
+          "member": "RecoveryActorId",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.effective-system-actor-id",
+      "dataSubject": "staff",
+      "classification": "audit-attribution",
+      "sensitivity": "elevated",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "auth"
+      ],
+      "authoritativeOwner": "auth",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-audit",
+      "countryPolicyKey": "workspaces.onboarding-recovery.effective-system-actor-id",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "audit-attribution",
+      "allowedSurfaces": [
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "EffectiveSystemActorId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "EffectiveSystemActorId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.request-sha256",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "workspaces-owner-recovery-proof"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-onboarding",
+      "countryPolicyKey": "workspaces.onboarding-recovery.request-sha256",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "RequestSha256",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "RequestSha256",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.expected-application-version",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "workspaces-owner-recovery-proof"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-onboarding",
+      "countryPolicyKey": "workspaces.onboarding-recovery.expected-application-version",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "api-input",
+        "application-command",
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "ExpectedApplicationVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "ExpectedApplicationVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Api",
+          "type": "BunkFy.Modules.Workspaces.Api.Requests.WorkspaceStaffOnboardingRecoveryAttemptRequest",
+          "member": "ExpectedApplicationVersion",
+          "surface": "api-input",
+          "retentionPolicy": "transient-request"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Application",
+          "type": "BunkFy.Modules.Workspaces.Application.Commands.AttemptWorkspaceStaffOnboardingRecoveryCommand",
+          "member": "ExpectedApplicationVersion",
+          "surface": "application-command",
+          "retentionPolicy": "transient-request"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.selected-application-version",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "workspaces-owner-recovery-proof"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-onboarding",
+      "countryPolicyKey": "workspaces.onboarding-recovery.selected-application-version",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "SelectedApplicationVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "SelectedApplicationVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.selected-application-status",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "workspaces-owner-recovery-proof"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-onboarding",
+      "countryPolicyKey": "workspaces.onboarding-recovery.selected-application-status",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "SelectedApplicationStatus",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "SelectedApplicationStatus",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.resulting-application-version",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "workspaces-owner-recovery-proof"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-onboarding",
+      "countryPolicyKey": "workspaces.onboarding-recovery.resulting-application-version",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "api-response",
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "ResultingApplicationVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "ResultingApplicationVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffOnboardingRecoveryAttemptDto",
+          "member": "ApplicationVersion",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.resulting-application-status",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "workspaces-owner-recovery-proof"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-onboarding",
+      "countryPolicyKey": "workspaces.onboarding-recovery.resulting-application-status",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "api-response",
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "ResultingApplicationStatus",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "ResultingApplicationStatus",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffOnboardingRecoveryAttemptDto",
+          "member": "ApplicationStatus",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.current-profile-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "workspaces-owner-recovery-proof"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-onboarding",
+      "countryPolicyKey": "workspaces.onboarding-recovery.current-profile-id",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "CurrentProfileId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "CurrentProfileId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.current-profile-version",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "workspaces-owner-recovery-proof"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-onboarding",
+      "countryPolicyKey": "workspaces.onboarding-recovery.current-profile-version",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "CurrentProfileVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "CurrentProfileVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.property-count",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "workspaces-owner-recovery-proof"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-onboarding",
+      "countryPolicyKey": "workspaces.onboarding-recovery.property-count",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "PropertyCount",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "PropertyCount",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.target-set-sha256",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "workspaces-owner-recovery-proof"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-onboarding",
+      "countryPolicyKey": "workspaces.onboarding-recovery.target-set-sha256",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "TargetSetSha256",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "TargetSetSha256",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.organization-revision",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "workspaces-owner-recovery-proof"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-onboarding",
+      "countryPolicyKey": "workspaces.onboarding-recovery.organization-revision",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "OrganizationRevision",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "OrganizationRevision",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.membership-id",
+      "dataSubject": "staff",
+      "classification": "pseudonymous-identifier",
+      "sensitivity": "standard",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "workspaces-owner-recovery-proof"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-onboarding",
+      "countryPolicyKey": "workspaces.onboarding-recovery.membership-id",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "MembershipId",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "MembershipId",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboarding",
+          "member": "AcceptedMembershipId",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.membership-version",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "workspaces-owner-recovery-proof"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-onboarding",
+      "countryPolicyKey": "workspaces.onboarding-recovery.membership-version",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "MembershipVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "MembershipVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboarding",
+          "member": "AcceptedMembershipVersion",
+          "surface": "persistence"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.membership-status",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "workspaces-owner-recovery-proof"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-onboarding",
+      "countryPolicyKey": "workspaces.onboarding-recovery.membership-status",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "MembershipStatus",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "MembershipStatus",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.staff-tenant-revision",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "workspaces-owner-recovery-proof"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-onboarding",
+      "countryPolicyKey": "workspaces.onboarding-recovery.staff-tenant-revision",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "StaffTenantRevision",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "StaffTenantRevision",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.staff-member-version",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "workspaces-owner-recovery-proof"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-onboarding",
+      "countryPolicyKey": "workspaces.onboarding-recovery.staff-member-version",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "StaffMemberVersion",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "StaffMemberVersion",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.staff-state-proof-sha256",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "workspaces-owner-recovery-proof"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-onboarding",
+      "countryPolicyKey": "workspaces.onboarding-recovery.staff-state-proof-sha256",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "StaffStateProofSha256",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "StaffStateProofSha256",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.staff-property-set-sha256",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "workspaces-owner-recovery-proof"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-onboarding",
+      "countryPolicyKey": "workspaces.onboarding-recovery.staff-property-set-sha256",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "StaffPropertySetSha256",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "StaffPropertySetSha256",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.access-management-revision",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "workspaces-owner-recovery-proof"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-onboarding",
+      "countryPolicyKey": "workspaces.onboarding-recovery.access-management-revision",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "AccessManagementRevision",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "AccessManagementRevision",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.access-facts-sha256",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "elevated",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "workspaces-owner-recovery-proof"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-onboarding",
+      "countryPolicyKey": "workspaces.onboarding-recovery.access-facts-sha256",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "AccessFactsSha256",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "AccessFactsSha256",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.organization-verification",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "workspaces-owner-recovery-proof"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-onboarding",
+      "countryPolicyKey": "workspaces.onboarding-recovery.organization-verification",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "OrganizationVerification",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "OrganizationVerification",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.staff-verification",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "workspaces-owner-recovery-proof"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-onboarding",
+      "countryPolicyKey": "workspaces.onboarding-recovery.staff-verification",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "StaffVerification",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "StaffVerification",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.access-verification",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "workspaces-owner-recovery-proof"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-onboarding",
+      "countryPolicyKey": "workspaces.onboarding-recovery.access-verification",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "AccessVerification",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "AccessVerification",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.outcome",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "workspaces-owner-recovery-proof"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-onboarding",
+      "countryPolicyKey": "workspaces.onboarding-recovery.outcome",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "api-response",
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "Outcome",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "Outcome",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffOnboardingRecoveryAttemptDto",
+          "member": "Outcome",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffOnboardingRecoveryAttemptDto",
+          "member": "RetryDirective",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffOnboardingRecoveryAttemptDto",
+          "member": "RetryAfterSeconds",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.reason",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "workspaces-owner-recovery-proof"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-onboarding",
+      "countryPolicyKey": "workspaces.onboarding-recovery.reason",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "api-response",
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "Reason",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "Reason",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffOnboardingRecoveryAttemptDto",
+          "member": "Reason",
+          "surface": "api-response",
+          "retentionPolicy": "transient-response"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.access-mutation-performed",
+      "dataSubject": "staff",
+      "classification": "linked-operational",
+      "sensitivity": "standard",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "workspaces-owner-recovery-proof"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-onboarding",
+      "countryPolicyKey": "workspaces.onboarding-recovery.access-mutation-performed",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "AccessMutationPerformed",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "AccessMutationPerformed",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.organization-observed-at-utc",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "workspaces-owner-recovery-proof"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-onboarding",
+      "countryPolicyKey": "workspaces.onboarding-recovery.organization-observed-at-utc",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "OrganizationObservedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "OrganizationObservedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.staff-observed-at-utc",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "workspaces-owner-recovery-proof"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-onboarding",
+      "countryPolicyKey": "workspaces.onboarding-recovery.staff-observed-at-utc",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "StaffObservedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "StaffObservedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.access-observed-at-utc",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "workspaces-owner-recovery-proof"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-onboarding",
+      "countryPolicyKey": "workspaces.onboarding-recovery.access-observed-at-utc",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "AccessObservedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "AccessObservedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        }
+      ]
+    },
+    {
+      "id": "workspaces.onboarding-recovery.recorded-at-utc",
+      "dataSubject": "staff",
+      "classification": "lifecycle",
+      "sensitivity": "standard",
+      "purposes": [
+        "workspace-onboarding-recovery",
+        "accountability"
+      ],
+      "sources": [
+        "workspaces-owner-recovery-proof"
+      ],
+      "authoritativeOwner": "workspaces",
+      "controllerProcessorContext": "customer-controller-bunk-fy-processor",
+      "accessPolicy": "workspaces-onboarding",
+      "countryPolicyKey": "workspaces.onboarding-recovery.recorded-at-utc",
+      "retentionPolicy": "workspace-onboarding-lifecycle",
+      "rightsPolicy": "staff-employment-history",
+      "allowedSurfaces": [
+        "api-response",
+        "data-rights-export",
+        "persistence"
+      ],
+      "allowedBoundaries": [
+        "cross-module",
+        "customer-api",
+        "intra-module"
+      ],
+      "approvalState": "engineering-default",
+      "bindings": [
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Domain",
+          "type": "BunkFy.Modules.Workspaces.Domain.WorkspaceStaffOnboardingRecoveryReceipt",
+          "member": "RecordedAtUtc",
+          "surface": "persistence"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Persistence",
+          "type": "BunkFy.Modules.Workspaces.Persistence.Repositories.WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport",
+          "member": "RecordedAtUtc",
+          "surface": "data-rights-export",
+          "retentionPolicy": "workspaces-data-rights-export-fragment"
+        },
+        {
+          "assembly": "BunkFy.Modules.Workspaces.Contracts",
+          "type": "BunkFy.Modules.Workspaces.Contracts.WorkspaceStaffOnboardingRecoveryAttemptDto",
+          "member": "RecordedAtUtc",
+          "surface": "api-response",
           "retentionPolicy": "transient-response"
         }
       ]

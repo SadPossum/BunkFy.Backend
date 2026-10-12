@@ -68,6 +68,7 @@ public sealed class ReservationsDbContext(
     public DbSet<ReservationExternalOperation> ExternalOperations => this.Set<ReservationExternalOperation>();
     internal DbSet<ReservationManagementOperation> ManagementOperations =>
         this.Set<ReservationManagementOperation>();
+    internal DbSet<ReservationStationAttribution> StationAttributions => this.Set<ReservationStationAttribution>();
     internal DbSet<ReservationStayAmendmentOperation> StayAmendmentOperations =>
         this.Set<ReservationStayAmendmentOperation>();
     internal DbSet<ReservationOperationLock> OperationLocks =>
@@ -416,6 +417,9 @@ public sealed class ReservationsDbContext(
 
     private void EnsureDataRightsReceiptsAreAppendOnly()
     {
+        if (this.ChangeTracker.Entries<ReservationStationAttribution>()
+            .Any(entry => entry.State is EntityState.Modified or EntityState.Deleted))
+        { throw new InvalidOperationException("Reservation station attribution is immutable; destruction is parent-led."); }
         bool correctionMutationRequested = this.ChangeTracker
             .Entries<ReservationDataRightsCorrectionReceipt>()
             .Any(entry => entry.State is EntityState.Modified or EntityState.Deleted);

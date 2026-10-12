@@ -1,6 +1,7 @@
 namespace BunkFy.Modules.Reservations.Persistence.Repositories;
 
 using System.Data;
+using BunkFy.Modules.Reservations.Application.Policies;
 using BunkFy.Modules.Reservations.Application.Ports;
 using BunkFy.Modules.Reservations.Contracts;
 using BunkFy.Modules.Reservations.Domain.Aggregates;
@@ -183,7 +184,8 @@ internal sealed class ReservationOperationsSnapshotReader(
                     reservation.ExpectedDepartureTime,
                     reservation.PrimaryGuestName,
                     reservation.GuestCount,
-                    reservation.RequestedUnits.Count,
+                    reservation.RequestedUnits.Select(unit => unit.Id).ToArray(),
+                    reservation.AllocationId,
                     reservation.Source,
                     reservation.Status))
                 .ToArrayAsync(cancellationToken)
@@ -350,7 +352,11 @@ internal sealed class ReservationOperationsSnapshotReader(
         reservation.ExpectedDepartureTime,
         reservation.PrimaryGuestName,
         reservation.GuestCount,
-        reservation.InventoryUnitCount,
+        reservation.InventoryUnitIds.Length,
+        reservation.InventoryUnitIds,
+        ReservationInventoryTruthPolicy.HoldsInventory(
+            reservation.Status,
+            reservation.AllocationId),
         reservation.Source == ReservationSource.Direct
             ? ReservationSourceKind.Direct
             : ReservationSourceKind.External,
@@ -398,7 +404,8 @@ internal sealed class ReservationOperationsSnapshotReader(
         TimeOnly? ExpectedDepartureTime,
         string PrimaryGuestName,
         int GuestCount,
-        int InventoryUnitCount,
+        Guid[] InventoryUnitIds,
+        Guid? AllocationId,
         ReservationSource Source,
         ReservationState Status);
 }

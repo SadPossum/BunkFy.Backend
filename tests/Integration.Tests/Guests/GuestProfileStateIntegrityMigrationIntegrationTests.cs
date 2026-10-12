@@ -103,7 +103,7 @@ public sealed class GuestProfileStateIntegrityMigrationIntegrationTests
             active.ClearDomainEvents();
             archived.ClearDomainEvents();
             anonymised.ClearDomainEvents();
-            previous.GuestProfiles.AddRange(active, archived, anonymised);
+            await GuestLanguageMigrationSeed.ProfilesAsync(previous, active, archived, anonymised);
             await previous.SaveChangesAsync();
         }
 

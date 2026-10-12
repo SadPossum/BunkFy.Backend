@@ -97,8 +97,11 @@ public sealed class GuestCorrectionReceiptAuditIntegrityMigrationIntegrationTest
         {
             await previous.Database.GetService<IMigrator>().MigrateAsync(
                 BeforeCorrectionReceiptAuditIntegrityMigration);
-            previous.GuestProfiles.Add(profile);
-            previous.DataRightsCorrectionReceipts.Add(receipt);
+            await GuestLanguageMigrationSeed.ProfilesAsync(previous, profile);
+            await previous.Database.ExecuteSqlInterpolatedAsync(CorrectionReceiptInsert(
+                receipt.Id, receipt.IdempotencyKey, receipt.PropertyId, receipt.CaseId,
+                receipt.GuestId, receipt.SelectedRecordVersion, receipt.CurrentRecordVersion,
+                receipt.EventId, receipt.CompletionEventId, receipt.CompletedAtUtc));
             await previous.SaveChangesAsync();
         }
 
@@ -111,6 +114,7 @@ public sealed class GuestCorrectionReceiptAuditIntegrityMigrationIntegrationTest
             .AsNoTracking()
             .SingleAsync(candidate => candidate.Id == receiptId);
         Assert.Equal(guestId, persisted.GuestId);
+        Assert.Equal(1, persisted.ContractVersion);
         Assert.Equal(2, persisted.CurrentRecordVersion);
         Assert.True(await upgraded.GuestProfiles
             .AsNoTracking()
@@ -217,7 +221,7 @@ public sealed class GuestCorrectionReceiptAuditIntegrityMigrationIntegrationTest
              "CurrentRecordVersion", "ChangedFieldsMask", "EventId",
              "CompletionEventId", "CompletedAtUtc", "ScopeId")
         VALUES
-            ({receiptId}, {GuestDataRightsCorrectionReceipt.CurrentContractVersion},
+            ({receiptId}, {1},
              {idempotencyKey}, {propertyId}, {caseId}, {1L}, {guestId},
              {selectedRecordVersion}, {currentRecordVersion}, {1}, {eventId},
              {completionEventId}, {completedAtUtc}, {ScopeId});

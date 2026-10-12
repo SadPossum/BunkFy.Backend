@@ -184,6 +184,29 @@ internal sealed class WorkspacesTenantTerminationExportContributor(
             count = checked(count + 1);
         }
 
+        await foreach (
+            WorkspaceStaffOnboardingRecoveryReceiptDataRightsExport receipt in
+            dbContext.StaffOnboardingRecoveryReceipts
+                .AsNoTracking()
+                .Where(item => item.ScopeId == tenantId)
+                .OrderBy(item => item.Id)
+                .Select(WorkspacesDataRightsExportContributor
+                    .RecoveryReceiptProjection)
+                .AsAsyncEnumerable()
+                .WithCancellation(cancellationToken)
+                .ConfigureAwait(false))
+        {
+            await WriteAsync(
+                WorkspacesDataRightsExportContributor
+                    .StaffOnboardingRecoveryReceiptRecordType,
+                receipt.ReceiptId,
+                receipt.ContractVersion,
+                receipt,
+                sink,
+                cancellationToken).ConfigureAwait(false);
+            count = checked(count + 1);
+        }
+
         await foreach (WorkspaceStaffOnboardingCorrectionReceipt receipt in
                        dbContext.StaffOnboardingCorrectionReceipts
                            .AsNoTracking()
