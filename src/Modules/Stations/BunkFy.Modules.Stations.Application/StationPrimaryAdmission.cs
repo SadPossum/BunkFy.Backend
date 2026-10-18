@@ -108,7 +108,7 @@ public sealed class StationPrimaryAdmission(IScopeContext scope, IAuthMemberAdmi
             { return new(StationAdmissionState.StateChanged); }
             if (!Valid(before) || !Valid(after))
             { return new(StationAdmissionState.Unavailable); }
-            if (!before.Settings.SharedStationPinEnabled)
+            if (!before.Settings.SharedStationPinEnabled || !after.Settings.SharedStationPinEnabled)
             { return new(StationAdmissionState.Denied); }
             if (!accountAfter || after.Organization.Status != OrganizationScopeStatus.Open || after.Fence is not null ||
                 after.Workspace.Outcome != WorkspaceOperationalAdmissionOutcome.Allowed ||
