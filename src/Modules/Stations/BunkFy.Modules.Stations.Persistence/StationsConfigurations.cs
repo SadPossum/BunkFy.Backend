@@ -97,6 +97,9 @@ internal static class StationsConfigurations
         lifecycle.ToTable("tenant_lifecycle");
         lifecycle.HasKey(x => x.ScopeId);
         lifecycle.Property(x => x.ScopeId).HasMaxLength(36);
+        lifecycle.Property(x => x.SharedStationPinEnabled)
+            .HasDefaultValue(true)
+            .IsRequired();
         lifecycle.Property(x => x.Revision).IsConcurrencyToken();
     }
 }

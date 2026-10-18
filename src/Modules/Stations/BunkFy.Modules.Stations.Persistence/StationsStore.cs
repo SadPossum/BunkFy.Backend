@@ -11,7 +11,7 @@ using Microsoft.Extensions.Options;
 
 /// <summary>Serialized local state only. External Staff/Auth/Access/property admission is a later mandatory caller.</summary>
 internal sealed partial class StationsStore(StationsDbContext db, IStationPinVerifier verifier, IOptions<StationOptions> configured)
-    : IStationsStore, IStationRuntimeStore, IStationCredentialBootstrap, IStationManagementStore, IStationPairingHandoffReader, IStationJobGrantReader
+    : IStationsStore, IStationRuntimeStore, IStationCredentialBootstrap, IStationManagementStore, IStationPairingHandoffReader, IStationJobGrantReader, IStationWorkspaceSettingsStore
 {
     private readonly StationOptions options = configured.Value;
     public Task<StationCoreResult> TryUnlockCoreAsync(Guid operationId, Guid stationId, Guid browserId, Guid staffId,
@@ -304,7 +304,9 @@ internal sealed partial class StationsStore(StationsDbContext db, IStationPinVer
             return null;
         }
         db.RequirePostgreSql();
-        if (await db.Lifecycle.AsNoTracking().AnyAsync(x => x.Closed, cancellationToken).ConfigureAwait(false))
+        if (await db.Lifecycle.AsNoTracking().AnyAsync(
+                x => x.Closed || !x.SharedStationPinEnabled,
+                cancellationToken).ConfigureAwait(false))
         {
             return null;
         }

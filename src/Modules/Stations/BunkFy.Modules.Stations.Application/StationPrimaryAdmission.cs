@@ -20,7 +20,8 @@ public sealed class StationPrimaryAdmission(IScopeContext scope, IAuthMemberAdmi
     IOrganizationMembershipReader memberships, IOrganizationScopeLifecycle organizations,
     IWorkspaceOperationalAdmissionPolicy workspace, IWorkspaceTerminationFenceReader fences,
     IAccessAuthorizationService authorization, IAccessControlSubjectAuthoritySnapshotReader authority,
-    IOptions<StationOptions> options, StationPrimaryAssurance assurance, ISystemClock clock)
+    IOptions<StationOptions> options, StationPrimaryAssurance assurance, ISystemClock clock,
+    IStationWorkspaceSettingsReader? workspaceSettings = null)
 {
     public Task<StationPrimaryObservation> ManagerAsync(ClaimsPrincipal principal, Guid? propertyId, bool mutation,
         CancellationToken cancellationToken = default) => this.ObservePrincipal(principal, propertyId, null, mutation, cancellationToken);
@@ -107,6 +108,8 @@ public sealed class StationPrimaryAdmission(IScopeContext scope, IAuthMemberAdmi
             { return new(StationAdmissionState.StateChanged); }
             if (!Valid(before) || !Valid(after))
             { return new(StationAdmissionState.Unavailable); }
+            if (!before.Settings.SharedStationPinEnabled)
+            { return new(StationAdmissionState.Denied); }
             if (!accountAfter || after.Organization.Status != OrganizationScopeStatus.Open || after.Fence is not null ||
                 after.Workspace.Outcome != WorkspaceOperationalAdmissionOutcome.Allowed ||
                 after.Membership is not
@@ -119,7 +122,7 @@ public sealed class StationPrimaryAdmission(IScopeContext scope, IAuthMemberAdmi
             { return new(StationAdmissionState.Denied); }
             return new(StationAdmissionState.Current, new(subject, kind, expires));
 
-            bool Valid(Facts f) => f.Organization.Revision >= 0 &&
+            bool Valid(Facts f) => f.Organization.Revision >= 0 && f.Settings.Revision >= 0 &&
                 f.Organization.Status is OrganizationScopeStatus.Open or OrganizationScopeStatus.Closed or OrganizationScopeStatus.Missing &&
                 f.Workspace.Outcome is WorkspaceOperationalAdmissionOutcome.Allowed or WorkspaceOperationalAdmissionOutcome.Restricted &&
                 (f.Fence is null || (f.Fence.Version > 0 && f.Fence.ProcessId != Guid.Empty && f.Fence.TerminationEpoch != Guid.Empty)) &&
@@ -140,7 +143,10 @@ public sealed class StationPrimaryAdmission(IScopeContext scope, IAuthMemberAdmi
         async Task<Facts> Read() => new(await organizations.GetSnapshotAsync(tenant, ct).ConfigureAwait(false),
             await workspace.EvaluateAsync(tenantId, ct).ConfigureAwait(false), await fences.GetCurrentAsync(ct).ConfigureAwait(false),
             await memberships.FindAsync(tenant, subject, ct).ConfigureAwait(false),
-            await authority.ReadAsync(new(AccessSubjectKind.User, subject, target, [target]), ct).ConfigureAwait(false));
+            await authority.ReadAsync(new(AccessSubjectKind.User, subject, target, [target]), ct).ConfigureAwait(false),
+            workspaceSettings is null
+                ? new(true, 0)
+                : await workspaceSettings.ReadWorkspaceSettingsAsync(ct).ConfigureAwait(false));
     }
 
     private static bool TrySubject(ClaimsPrincipal principal, out string? subject)
@@ -158,7 +164,7 @@ public sealed class StationPrimaryAdmission(IScopeContext scope, IAuthMemberAdmi
     private static bool Equivalent(Facts a, Facts b) => a.Organization == b.Organization && a.Workspace == b.Workspace &&
         a.Fence == b.Fence && a.Membership == b.Membership && a.Authority.Status == b.Authority.Status &&
         a.Authority.ManagementRevision == b.Authority.ManagementRevision && a.Authority.FactsSha256 == b.Authority.FactsSha256 &&
-        a.Authority.EarliestExpiryAtUtc == b.Authority.EarliestExpiryAtUtc;
+        a.Authority.EarliestExpiryAtUtc == b.Authority.EarliestExpiryAtUtc && a.Settings == b.Settings;
     private static bool TrySession(ClaimsPrincipal principal, out Guid sessionId)
     {
         sessionId = Guid.Empty;
@@ -167,7 +173,8 @@ public sealed class StationPrimaryAdmission(IScopeContext scope, IAuthMemberAdmi
             sessionId != Guid.Empty && values[0] == sessionId.ToString("D");
     }
     private sealed record Facts(OrganizationScopeSnapshot Organization, WorkspaceOperationalAdmissionDecision Workspace,
-        WorkspaceTerminationFenceSnapshot? Fence, OrganizationMembershipSnapshotDto? Membership, AccessControlSubjectAuthoritySnapshot Authority);
+        WorkspaceTerminationFenceSnapshot? Fence, OrganizationMembershipSnapshotDto? Membership,
+        AccessControlSubjectAuthoritySnapshot Authority, StationWorkspaceSettings Settings);
 }
 
 public sealed class StationPrimaryAssurance

@@ -150,7 +150,7 @@ public sealed class StationsStorePostgreSqlTests
             string neutralLegacyBefore = await LegacyFingerprint(legacyDb, legacyTenant, neutralActor: true);
             string neutralBoundBefore = await LegacyFingerprint(db, boundTenant, removeRuntimeColumns: false, neutralActor: true);
             await db.Database.MigrateAsync();
-            Assert.Equal(4, (await db.Database.GetAppliedMigrationsAsync()).Count());
+            Assert.Equal(5, (await db.Database.GetAppliedMigrationsAsync()).Count());
             Assert.False(db.Database.HasPendingModelChanges());
             Assert.Equal(neutralLegacyBefore, await LegacyFingerprint(legacyDb, legacyTenant, neutralActor: true));
             Assert.Equal(neutralBoundBefore, await LegacyFingerprint(db, boundTenant, removeRuntimeColumns: false, neutralActor: true));

@@ -18,7 +18,7 @@ namespace BunkFy.Modules.Stations.Persistence.PostgreSqlMigrations.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("stations")
-                .HasAnnotation("ProductVersion", "10.0.8")
+                .HasAnnotation("ProductVersion", "10.0.13")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -457,6 +457,10 @@ namespace BunkFy.Modules.Stations.Persistence.PostgreSqlMigrations.Migrations
                     b.Property<long>("Revision")
                         .IsConcurrencyToken()
                         .HasColumnType("bigint");
+
+                    b.Property<bool>("SharedStationPinEnabled")
+                        .HasDefaultValue(true)
+                        .HasColumnType("boolean");
 
                     b.HasKey("ScopeId");
 

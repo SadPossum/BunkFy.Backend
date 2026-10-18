@@ -40,3 +40,11 @@ public sealed record StationStaffManagementItem(Guid StaffMemberId, long RosterR
 public sealed record StationRosterItem(Guid StaffMemberId, string DisplayName, long RosterReference);
 public sealed record StationRosterResponse(StationSessionState State, IReadOnlyList<StationRosterItem> Items,
     int Page = 1, int PageSize = 25, bool HasMore = false);
+
+public sealed record StationWorkspaceSettingsResponse(
+    bool SharedStationPinEnabled,
+    long Revision);
+
+public sealed record UpdateStationWorkspaceSettingsRequest(
+    bool SharedStationPinEnabled,
+    long ExpectedRevision);

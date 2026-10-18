@@ -77,6 +77,33 @@ public interface IStationJobGrantReader
     Task<StationJobGrant?> ReadJobGrantAsync(Guid propertyId, Guid staffId, bool checkOut, CancellationToken cancellationToken = default);
 }
 
+public sealed record StationWorkspaceSettings(bool SharedStationPinEnabled, long Revision);
+
+public interface IStationWorkspaceSettingsReader
+{
+    Task<StationWorkspaceSettings> ReadWorkspaceSettingsAsync(
+        CancellationToken cancellationToken = default);
+}
+
+public interface IStationWorkspaceSettingsStore : IStationWorkspaceSettingsReader
+{
+    Task<StationWorkspaceSettingsUpdateResult> UpdateWorkspaceSettingsAsync(
+        bool sharedStationPinEnabled,
+        long expectedRevision,
+        CancellationToken cancellationToken = default);
+}
+
+public enum StationWorkspaceSettingsUpdateState
+{
+    Applied = 0,
+    Conflict = 1,
+    Unavailable = 2,
+}
+
+public sealed record StationWorkspaceSettingsUpdateResult(
+    StationWorkspaceSettingsUpdateState State,
+    StationWorkspaceSettings Settings);
+
 public enum StationAdmissionState { Current = 0, Denied = 1, StateChanged = 2, Unavailable = 3 }
 public sealed record StationAdmission(StationAdmissionState State, DateOnly? PropertyLocalDate = null);
 

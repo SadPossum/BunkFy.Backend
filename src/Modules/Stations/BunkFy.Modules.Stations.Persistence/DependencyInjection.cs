@@ -29,6 +29,8 @@ public static class DependencyInjection
         builder.Services.TryAddScoped<IStationRuntimeStore>(s => s.GetRequiredService<StationsStore>());
         builder.Services.TryAddScoped<IStationManagementStore>(s => s.GetRequiredService<StationsStore>());
         builder.Services.TryAddScoped<IStationJobGrantReader>(s => s.GetRequiredService<StationsStore>());
+        builder.Services.TryAddScoped<IStationWorkspaceSettingsReader>(s => s.GetRequiredService<StationsStore>());
+        builder.Services.TryAddScoped<IStationWorkspaceSettingsStore>(s => s.GetRequiredService<StationsStore>());
         builder.Services.TryAddScoped<IStationPairingHandoffReader>(s => s.GetRequiredService<StationsStore>());
         return builder;
     }

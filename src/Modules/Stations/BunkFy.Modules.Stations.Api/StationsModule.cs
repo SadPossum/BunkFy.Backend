@@ -47,6 +47,7 @@ public sealed class StationsModule : IModule
         { return; }
         _ = endpoints.ServiceProvider.GetRequiredService<StationPrimaryAssurance>();
         _ = endpoints.ServiceProvider.GetRequiredService<IStationPepperProvider>();
+        StationWorkspaceSettingsEndpoints.Map(endpoints, this.Name);
         StationManagementEndpoints.Map(endpoints, this.Name);
         StationSetupEndpoints.Map(endpoints, this.Name);
         StationRuntimeEndpoints.Map(endpoints, this.Name);
