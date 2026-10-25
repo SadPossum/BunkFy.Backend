@@ -6,11 +6,14 @@ using BunkFy.Modules.Properties.Application.Queries;
 using BunkFy.Modules.Properties.Contracts;
 using BunkFy.Modules.Properties.Domain.Errors;
 using BunkFy.Modules.Properties.Persistence;
+using BunkFy.DataGovernance;
+using Gma.Framework.Runtime.Time;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
@@ -34,6 +37,20 @@ public sealed class PropertiesModule : IModule
 
     public void AddServices(IHostApplicationBuilder builder)
     {
+        bool previewDefaults = builder.Configuration.GetValue<bool>(PreviewCountryPolicyDefaults.EnabledConfigurationKey);
+        bool autoActivate = builder.Configuration.GetValue<bool>(PreviewCountryPolicyDefaults.AutoActivateConfigurationKey);
+        if ((previewDefaults || autoActivate) && !builder.Environment.IsEnvironment("Preview"))
+        {
+            throw new InvalidOperationException("Automatic test country policies are available only in the Preview environment.");
+        }
+
+        if (autoActivate && !previewDefaults)
+        {
+            throw new InvalidOperationException("Automatic property activation requires Preview test country policies.");
+        }
+
+        builder.Services.TryAddSingleton(services => new PreviewNewPropertyProcessing(
+            autoActivate, services.GetRequiredService<CountryPolicyRegistry>()));
         builder.SelectModuleProfile(PropertiesProfiles.Default, "BunkFy.Modules.Properties.Api");
         builder.Services.AddOptions<PropertiesApiSecurityOptions>();
         builder.Services.TryAddEnumerable(
@@ -49,6 +66,13 @@ public sealed class PropertiesModule : IModule
         PropertiesApiSecurityOptions security = endpoints.ServiceProvider
             .GetRequiredService<IOptions<PropertiesApiSecurityOptions>>()
             .Value;
+        PreviewNewPropertyProcessing? previewDefaults = endpoints.ServiceProvider.GetService<PreviewNewPropertyProcessing>();
+        if (endpoints.ServiceProvider.GetService<IConfiguration>()?
+                .GetValue<bool>(PreviewCountryPolicyDefaults.AutoActivateConfigurationKey) == true &&
+            previewDefaults?.Enabled != true)
+        {
+            throw new InvalidOperationException("Preview activation was configured without its module services.");
+        }
         RouteGroupBuilder properties = endpoints.MapGroup("/api/properties")
             .WithModuleName(this.Name)
             .WithTags("Properties")
@@ -224,7 +248,7 @@ public sealed class PropertiesModule : IModule
             .RequireTenant()
             .RequireResolvedScopePermission(PropertiesAdminPermissionCodes.Read, PropertyAccessScopeResolver.ResolverName);
 
-        properties.MapPost("/", async (
+        RouteHandlerBuilder createProperty = properties.MapPost("/", async (
             PropertyCreateRequest request,
             HttpContext httpContext,
             IAccessHttpSubjectResolver subjectResolver,
@@ -237,19 +261,32 @@ public sealed class PropertiesModule : IModule
                 return Results.Unauthorized();
             }
 
-            return (await dispatcher.SendAsync(
+            Result<PropertyMutationReceiptDto> creation = await dispatcher.SendAsync(
                 new CreatePropertyCommand(
                     request.OperationId,
                     request.Name,
                     request.Code,
                     request.TimeZoneId,
                     actorId),
+                cancellationToken).ConfigureAwait(false);
+            if (previewDefaults?.Enabled != true)
+            {
+                return creation.ToHttpResult(PublicErrorStatusCodes);
+            }
+
+            return (await previewDefaults.ApplyAsync(
+                creation, request.TimeZoneId, actorId, dispatcher,
+                httpContext.RequestServices.GetRequiredService<ISystemClock>().UtcNow,
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes);
         })
             .Produces<PropertyMutationReceiptDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable)
             .RequireTenant()
             .RequireTenantPermission(PropertiesAdminPermissionCodes.PropertiesManage);
+        if (previewDefaults?.Enabled == true)
+        {
+            RequireAssuranceWhenConfigured(createProperty, security.ProcessingActivationAssurance);
+        }
 
         properties.MapPut("/{propertyId:guid}", async (
             Guid propertyId,

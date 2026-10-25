@@ -158,16 +158,16 @@ public sealed class WorkerHostIntegrationTests
         Assert.Equal(12, evidence.Value.OwnerCount);
         Assert.Equal("workspaces", evidence.Value.TerminalOwnerKey);
         Assert.Matches("^[0-9a-f]{64}$", evidence.Value.CatalogSha256);
-        Assert.Equal(5, guests.Descriptor.CatalogVersion);
+        Assert.Equal(6, guests.Descriptor.CatalogVersion);
         Assert.Equal(
             GuestsTenantTerminationMetadata.CatalogSha256,
             guests.Descriptor.CatalogSha256);
         Assert.Contains(
-            "catalog=5",
+            "catalog=6",
             GuestsTenantTerminationMetadata.CatalogManifest,
             StringComparison.Ordinal);
         Assert.DoesNotContain(
-            "catalog=4",
+            "catalog=5",
             GuestsTenantTerminationMetadata.CatalogManifest,
             StringComparison.Ordinal);
         await AssertOldGuestsCatalogCoordinateRejectedAsync(
@@ -184,19 +184,19 @@ public sealed class WorkerHostIntegrationTests
             .Single(contributor => contributor.Descriptor.OwnerKey ==
                 GuestsTenantTerminationMetadata.OwnerKey)
             .Descriptor;
-        string version4Manifest = GuestsTenantTerminationMetadata
+        string version5Manifest = GuestsTenantTerminationMetadata
             .CatalogManifest
-            .Replace("|catalog=5|", "|catalog=4|", StringComparison.Ordinal)
+            .Replace("|catalog=6|", "|catalog=5|", StringComparison.Ordinal)
             .Replace(
+                "|personal-data-catalog=17|",
                 "|personal-data-catalog=16|",
-                "|personal-data-catalog=15|",
                 StringComparison.Ordinal)
             .Replace(
+                "|export-schema=guests.tenant-termination-export:5|",
                 "|export-schema=guests.tenant-termination-export:4|",
-                "|export-schema=guests.tenant-termination-export:3|",
                 StringComparison.Ordinal);
-        string version4Sha256 = Convert.ToHexStringLower(SHA256.HashData(
-            Encoding.UTF8.GetBytes(version4Manifest)));
+        string version5Sha256 = Convert.ToHexStringLower(SHA256.HashData(
+            Encoding.UTF8.GetBytes(version5Manifest)));
         TenantTerminationExportOwnerCatalogEntry[] frozenOwners = contributors
             .Where(contributor => contributor.Descriptor.PhasePlans.Any(
                 plan => plan.Phase ==
@@ -207,11 +207,11 @@ public sealed class WorkerHostIntegrationTests
                 descriptor.ContractVersion,
                 descriptor.OwnerKey ==
                     GuestsTenantTerminationMetadata.OwnerKey
-                    ? 4
+                    ? 5
                     : descriptor.CatalogVersion,
                 descriptor.OwnerKey ==
                     GuestsTenantTerminationMetadata.OwnerKey
-                    ? version4Sha256
+                    ? version5Sha256
                     : descriptor.CatalogSha256))
             .ToArray();
         TenantTerminationExportOwnerCatalogEntry oldGuests = frozenOwners
@@ -280,8 +280,8 @@ public sealed class WorkerHostIntegrationTests
                     output,
                     CancellationToken.None));
 
-        Assert.Equal(5, liveGuests.CatalogVersion);
-        Assert.Equal(4, oldGuests.CatalogVersion);
+        Assert.Equal(6, liveGuests.CatalogVersion);
+        Assert.Equal(5, oldGuests.CatalogVersion);
         Assert.NotEqual(liveGuests.CatalogSha256, oldGuests.CatalogSha256);
         Assert.Equal("tenant-export-owner-catalog-invalid", rejected.Code);
         Assert.Equal(0, output.Length);

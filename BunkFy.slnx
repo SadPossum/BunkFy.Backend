@@ -917,15 +917,6 @@
   <Folder Name="/src/Modules/Retention/tests/">
     <Project Path="src/Modules/Retention/tests/BunkFy.Modules.Retention.Tests/BunkFy.Modules.Retention.Tests.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/Stations/">
-    <Project Path="src/Modules/Stations/BunkFy.Modules.Stations.Application/BunkFy.Modules.Stations.Application.csproj" />
-    <Project Path="src/Modules/Stations/BunkFy.Modules.Stations.Contracts/BunkFy.Modules.Stations.Contracts.csproj" />
-    <Project Path="src/Modules/Stations/BunkFy.Modules.Stations.Domain/BunkFy.Modules.Stations.Domain.csproj" />
-    <Project Path="src/Modules/Stations/BunkFy.Modules.Stations.Persistence/BunkFy.Modules.Stations.Persistence.csproj" />
-    <Project Path="src/Modules/Stations/BunkFy.Modules.Stations.Persistence.PostgreSqlMigrations/BunkFy.Modules.Stations.Persistence.PostgreSqlMigrations.csproj" />
-    <Project Path="src/Modules/Stations/tests/BunkFy.Modules.Stations.Tests/BunkFy.Modules.Stations.Tests.csproj" />
-    <Project Path="src/Modules/Stations/BunkFy.Modules.Stations.Api/BunkFy.Modules.Stations.Api.csproj" />
-  </Folder>
   <Folder Name="/src/Modules/Staff/docs/">
     <File Path="src/Modules/Staff/docs/README.md" />
     <File Path="src/Modules/Staff/docs/personal-data-catalog.v1.json" />
@@ -954,6 +945,28 @@
   </Folder>
   <Folder Name="/src/Modules/Staff/tests/">
     <Project Path="src/Modules/Staff/tests/BunkFy.Modules.Staff.Tests/BunkFy.Modules.Staff.Tests.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Stations/docs/">
+    <File Path="src/Modules/Stations/docs/README.md" />
+  </Folder>
+  <Folder Name="/src/Modules/Stations/src/Api/">
+    <Project Path="src/Modules/Stations/BunkFy.Modules.Stations.Api/BunkFy.Modules.Stations.Api.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Stations/src/Application/">
+    <Project Path="src/Modules/Stations/BunkFy.Modules.Stations.Application/BunkFy.Modules.Stations.Application.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Stations/src/Contracts/">
+    <Project Path="src/Modules/Stations/BunkFy.Modules.Stations.Contracts/BunkFy.Modules.Stations.Contracts.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Stations/src/Domain/">
+    <Project Path="src/Modules/Stations/BunkFy.Modules.Stations.Domain/BunkFy.Modules.Stations.Domain.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Stations/src/Persistence/">
+    <Project Path="src/Modules/Stations/BunkFy.Modules.Stations.Persistence.PostgreSqlMigrations/BunkFy.Modules.Stations.Persistence.PostgreSqlMigrations.csproj" />
+    <Project Path="src/Modules/Stations/BunkFy.Modules.Stations.Persistence/BunkFy.Modules.Stations.Persistence.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Stations/tests/">
+    <Project Path="src/Modules/Stations/tests/BunkFy.Modules.Stations.Tests/BunkFy.Modules.Stations.Tests.csproj" />
   </Folder>
   <Folder Name="/src/Modules/Workspaces/docs/">
     <File Path="src/Modules/Workspaces/docs/README.md" />
