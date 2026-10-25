@@ -12,7 +12,21 @@ using Gma.Framework.Results;
 
 internal sealed class PreviewNewPropertyProcessing(bool enabled, CountryPolicyRegistry registry)
 {
-    public bool Enabled { get; } = enabled;
+    public bool Enabled { get; } = ValidateConfiguration(enabled, registry);
+
+    private static bool ValidateConfiguration(bool enabled, CountryPolicyRegistry registry)
+    {
+        if (enabled && (registry.RuntimeMode != CountryPolicyRuntimeMode.Engineering ||
+            !registry.ListPolicies().Any(policy =>
+                policy.PolicyId.StartsWith(PreviewCountryPolicyDefaults.PolicyIdPrefix, StringComparison.Ordinal) &&
+                policy.LaunchStatus == CountryLaunchStatus.Engineering &&
+                policy.ApprovalState == CountryPolicyApprovalState.Example)))
+        {
+            throw new InvalidOperationException("Preview activation requires an installed engineering test policy.");
+        }
+
+        return enabled;
+    }
 
     public async Task<Result<PropertyMutationReceiptDto>> ApplyAsync(
         Result<PropertyMutationReceiptDto> creation,

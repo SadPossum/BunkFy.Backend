@@ -66,7 +66,13 @@ public sealed class PropertiesModule : IModule
         PropertiesApiSecurityOptions security = endpoints.ServiceProvider
             .GetRequiredService<IOptions<PropertiesApiSecurityOptions>>()
             .Value;
-        PreviewNewPropertyProcessing previewDefaults = endpoints.ServiceProvider.GetRequiredService<PreviewNewPropertyProcessing>();
+        PreviewNewPropertyProcessing? previewDefaults = endpoints.ServiceProvider.GetService<PreviewNewPropertyProcessing>();
+        if (endpoints.ServiceProvider.GetService<IConfiguration>()?
+                .GetValue<bool>(PreviewCountryPolicyDefaults.AutoActivateConfigurationKey) == true &&
+            previewDefaults?.Enabled != true)
+        {
+            throw new InvalidOperationException("Preview activation was configured without its module services.");
+        }
         RouteGroupBuilder properties = endpoints.MapGroup("/api/properties")
             .WithModuleName(this.Name)
             .WithTags("Properties")
@@ -247,7 +253,6 @@ public sealed class PropertiesModule : IModule
             HttpContext httpContext,
             IAccessHttpSubjectResolver subjectResolver,
             IRequestDispatcher dispatcher,
-            ISystemClock clock,
             CancellationToken cancellationToken) =>
         {
             string? actorId = ResolveActor(httpContext, subjectResolver);
@@ -264,15 +269,21 @@ public sealed class PropertiesModule : IModule
                     request.TimeZoneId,
                     actorId),
                 cancellationToken).ConfigureAwait(false);
+            if (previewDefaults?.Enabled != true)
+            {
+                return creation.ToHttpResult(PublicErrorStatusCodes);
+            }
+
             return (await previewDefaults.ApplyAsync(
-                creation, request.TimeZoneId, actorId, dispatcher, clock.UtcNow,
+                creation, request.TimeZoneId, actorId, dispatcher,
+                httpContext.RequestServices.GetRequiredService<ISystemClock>().UtcNow,
                 cancellationToken).ConfigureAwait(false)).ToHttpResult(PublicErrorStatusCodes);
         })
             .Produces<PropertyMutationReceiptDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable)
             .RequireTenant()
             .RequireTenantPermission(PropertiesAdminPermissionCodes.PropertiesManage);
-        if (previewDefaults.Enabled)
+        if (previewDefaults?.Enabled == true)
         {
             RequireAssuranceWhenConfigured(createProperty, security.ProcessingActivationAssurance);
         }
