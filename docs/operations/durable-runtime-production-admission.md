@@ -5,6 +5,49 @@ the durable-runtime retention/replay policy are explicitly approved. GMA owns
 the cleanup engines; this contract selects their BunkFy deployment topology and
 values.
 
+## Operational journal retention review — 2026-10-26
+
+The processed inbox window remains 14 days, processed outbox retention remains
+7 days, and one Worker runs bounded journal cleanup hourly (500 rows per batch,
+at most 10 batches per store per cycle). Preview's managed JetStream history and
+declared ordinary broker replay horizon are 7 days. The 14-day inbox window is
+a host operational choice with margin over that broker window, not an industry
+standard or a business-data retention policy.
+
+The controlling rule is to retain deduplication evidence longer than messages
+can be retried or replayed. Include delayed publication after an outage,
+automatic redelivery, manual recovery and backup/restore replay in that review.
+Particular's [outbox guidance](https://docs.particular.net/nservicebus/outbox/)
+explicitly includes delayed and manual retries; its current
+[SQL implementation](https://docs.particular.net/persistence/sql/outbox)
+defaults to seven days and a one-minute purge interval. MassTransit's
+[transactional outbox](https://masstransit.massient.com/configuration/middleware/outbox)
+also makes the duplicate-detection window configurable and treats inbox cleanup
+as an independently scheduled service. These are implementation defaults, not a
+universal retention requirement. [JetStream's persisted messages and consumer
+acknowledgements](https://docs.nats.io/concepts/jetstream) provide replay and
+redelivery; they do not make application receipt retention unnecessary.
+
+Do not claim indefinite duplicate suppression from a 14-day journal. Recovery
+that can redeliver work after that window needs durable business idempotency or
+an explicitly reviewed recovery procedure and retention horizon. Review that
+before enabling older replays or extending supported outage/recovery windows.
+Do not shorten the journal window below the supported replay/retry horizon to
+reduce database size.
+
+Cleanup removes only eligible, already processed inbox records strictly older
+than the cutoff. Pending, processing and failed records are recovery work and
+are not expired by this job. Closed-scope records and lifecycle tombstones stay
+under the owning lifecycle's destruction and restore rules. Notification
+content, guest/staff data, audit evidence and backups have separate product
+policies; this review does not change them.
+
+Monitor cleanup failures, oldest eligible processed age and deletion throughput.
+Choose cadence and bounded batch limits to keep up with the measured arrival
+rate. Increasing cleanup frequency is independent of changing the retention
+window. Preserve one admitted maintenance owner and the scope-closure revision
+checks when scaling the deployment.
+
 ## Required Declaration
 
 ### 2026-09-05 amendment: reservation-to-Guest-Record task consumer
