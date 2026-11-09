@@ -53,7 +53,9 @@ jobs:
         run: ./eng/gma-bootstrap.ps1 -Force
 
       - name: Check isolated timing report acceptance
-        run: python3 eng/check-worker-timing-results.tests.py
+        run: |
+          python3 eng/check-worker-timing-results.tests.py
+          python3 eng/test-fast.tests.py
 
       - name: Verify
         shell: pwsh

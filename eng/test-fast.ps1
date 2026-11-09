@@ -61,7 +61,9 @@ foreach ($testProject in $testProjects) {
             '--logger', 'console;verbosity=minimal', '--logger', 'trx', '--results-directory', $results,
             '-m:1', '-nr:false')
         if ($NoBuild) { $isolated += '--no-build' }
-        $isolated += @('--', 'xUnit.ParallelizeTestCollections=false')
+        $isolated += $DotNetArguments | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+        if ('--' -notin $isolated) { $isolated += '--' }
+        $isolated += 'xUnit.ParallelizeTestCollections=false'
         Invoke-GmaDotNet -Arguments $isolated
         & python3 (Join-GmaPath 'eng/check-worker-timing-results.py') $results
         if ($LASTEXITCODE -ne 0) { throw 'Required isolated worker timing evidence did not pass.' }
