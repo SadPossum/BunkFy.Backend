@@ -291,7 +291,7 @@ jobs:
           path: artifacts/comparison/control
           merge-multiple: true
           digest-mismatch: error
-      - name: Require exact canonical parity across all 26 operations
+      - name: Compare all 26 operations and record only the reviewed session metadata extension
         env:
           CONTROL_FINGERPRINT: ${{ needs.plan.outputs.control-sha }}
           CANDIDATE_FINGERPRINT: ${{ github.sha }}

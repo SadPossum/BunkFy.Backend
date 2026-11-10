@@ -232,6 +232,11 @@ public sealed class OrdinaryBehaviorComparisonIntegrationTests
             Request(HttpMethod.Get, "/api/auth/sessions", loggedIn.AccessToken)).ConfigureAwait(false);
         Add(observations, sessions.Observation);
         AuthenticationSessionsResponse active = Read<AuthenticationSessionsResponse>(sessions.Body);
+        Assert.All(active.Sessions, static session =>
+        {
+            Assert.NotNull(session.LastActivityAtUtc);
+            Assert.Null(session.UserAgent); // This fixture sends no User-Agent header.
+        });
         AuthenticationSessionResponse other = Assert.Single(active.Sessions, static session => !session.IsCurrent);
 
         using CapturedOperation revoke = await CaptureAsync(
