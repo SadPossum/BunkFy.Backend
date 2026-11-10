@@ -96,6 +96,7 @@ internal static partial class OrdinaryBehaviorComparisonEvidence
             "$.multiFactorChallenge.expiresAtUtc",
             "$.notification.occurredAtUtc",
             "$.sessions[].absoluteExpiresAtUtc",
+            "$.sessions[].lastActivityAtUtc",
             "$.sessions[].loginDateTimeUtc",
             "$.sessions[].refreshTokenExpiresAtUtc",
             "$.sentAtUtc"

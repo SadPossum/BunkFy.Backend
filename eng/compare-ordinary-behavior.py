@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Compare the existing 26-operation canonical evidence without further normalization."""
+"""Compare all 26 operations, recording the reviewed session metadata extension explicitly."""
 
 import argparse
+import copy
 import json
 from pathlib import Path
 import sys
@@ -23,6 +24,8 @@ OPERATION_IDS = (
 )
 DOCUMENT_KEYS = {'evidenceId', 'variant', 'buildFingerprint', 'denominator',
                  'normalizationRules', 'normalizationPathAllowlist', 'observations'}
+SESSION_METADATA_CHANGE = 'auth-session-metadata-20261110'
+SESSION_ACTIVITY_PATH = '$.sessions[].lastActivityAtUtc'
 
 
 def unique_object(pairs):
@@ -90,17 +93,76 @@ def differences(left, right, path='$'):
     return [] if left == right else [path]
 
 
+def account_for_session_metadata(control, candidate):
+    """One reviewed additive wire change; original artifacts remain intact.
+
+    The ordinary fixture sends no User-Agent, and creates two fresh sessions.
+    Require those exact new values and schema paths. Remove only their exact
+    canonical tokens in a comparison copy, retaining byte-exact legacy bodies.
+    A baseline already containing metadata receives the usual exact comparison.
+    """
+    before, after = control['observations'][12], candidate['observations'][12]
+    if not all(item.get('method') == 'GET' and item.get('path') == '/api/auth/sessions'
+               and item.get('fixture') == 'primary-account'
+               and item.get('state') == 'two-active-sessions' for item in (before, after)):
+        return []
+    if not all(isinstance(item.get('canonicalBody'), str) for item in (before, after)):
+        return []
+    old = json.loads(before['canonicalBody'], object_pairs_hook=unique_object)
+    new = json.loads(after['canonicalBody'], object_pairs_hook=unique_object)
+    old_sessions, new_sessions = old.get('sessions'), new.get('sessions')
+    fields = {'lastActivityAtUtc', 'userAgent'}
+    if (not isinstance(old_sessions, list) or not isinstance(new_sessions, list)
+            or len(old_sessions) != 2 or len(new_sessions) != 2
+            or not all(isinstance(item, dict) and not fields.intersection(item) for item in old_sessions)
+            or not all(isinstance(item, dict) and fields.issubset(item)
+                       and item['lastActivityAtUtc'] == '<timestamp>' and item['userAgent'] is None
+                       for item in new_sessions)):
+        return []
+
+    # Check structural equality as well as exact canonical text after removing
+    # only the two new properties. No existing field or session order is hidden.
+    projected = copy.deepcopy(new)
+    for item in projected['sessions']:
+        for field in fields:
+            del item[field]
+    if projected != old:
+        return []
+    activity_token = '"lastActivityAtUtc":"\\u003Ctimestamp\\u003E",'
+    agent_token = ',"userAgent":null'
+    body = after['canonicalBody']
+    if (body.count(activity_token) != 2 or body.count(agent_token) != 2
+            or body.replace(activity_token, '').replace(agent_token, '') != before['canonicalBody']):
+        return []
+
+    schema_additions = {SESSION_ACTIVITY_PATH + ':string', '$.sessions[].userAgent:null'}
+    schema = after.get('bodySchema')
+    paths = candidate['normalizationPathAllowlist'].get('timestampPaths')
+    if (not isinstance(schema, list) or not all(schema.count(path) == 1 for path in schema_additions)
+            or not isinstance(paths, list) or paths.count(SESSION_ACTIVITY_PATH) != 1
+            or SESSION_ACTIVITY_PATH in control['normalizationPathAllowlist'].get('timestampPaths', [])):
+        return []
+    after['canonicalBody'] = before['canonicalBody']
+    after['bodySchema'] = [path for path in schema if path not in schema_additions]
+    candidate['normalizationPathAllowlist']['timestampPaths'] = [path for path in paths if path != SESSION_ACTIVITY_PATH]
+    return [{'id': SESSION_METADATA_CHANGE, 'operation': OPERATION_IDS[12],
+             'fields': sorted(fields), 'values': {'lastActivityAtUtc': '<timestamp>', 'userAgent': None}}]
+
+
 def compare(control, candidate, control_fingerprint, candidate_fingerprint):
     validate(control, 'control', control_fingerprint)
     validate(candidate, 'candidate', candidate_fingerprint)
-    # Only these two provenance fields necessarily differ. Bodies, headers,
-    # schemas, logs, runtime, subresponses and the producer allowlist stay exact.
+    candidate = copy.deepcopy(candidate)
+    approved_additions = account_for_session_metadata(control, candidate)
+    # Apart from the recorded exact extension above, compare everything except
+    # the two source-provenance fields. Never replace the actual control build.
     comparable = lambda value: {key: item for key, item in value.items()
                                 if key not in ('variant', 'buildFingerprint')}
     changed = differences(comparable(control), comparable(candidate))
     return {'evidenceId': EVIDENCE_ID, 'passed': not changed, 'operations': 26,
             'observations': 52, 'comparisons': 26, 'controlFingerprint': control_fingerprint,
-            'candidateFingerprint': candidate_fingerprint, 'differentPaths': changed}
+            'candidateFingerprint': candidate_fingerprint, 'differentPaths': changed,
+            'approvedAdditions': approved_additions}
 
 
 if __name__ == '__main__':

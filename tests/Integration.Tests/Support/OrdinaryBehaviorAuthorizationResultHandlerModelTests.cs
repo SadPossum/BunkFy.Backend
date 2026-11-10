@@ -37,6 +37,19 @@ public sealed class OrdinaryBehaviorAuthorizationResultHandlerModelTests
 public sealed class OrdinaryBehaviorEvidenceNormalizationTests
 {
     [Fact]
+    public void Session_activity_normalizes_only_its_exact_path_and_preserves_unknown_browser_details()
+    {
+        Assert.Equal(
+            """{"sessions":[{"lastActivityAtUtc":"\u003Ctimestamp\u003E","userAgent":null}]}""",
+            OrdinaryBehaviorComparisonEvidence.CanonicalizeBody(
+                """{"sessions":[{"lastActivityAtUtc":"2026-11-10T22:00:00Z","userAgent":null}]}"""));
+
+        Assert.Throws<InvalidOperationException>(() =>
+            OrdinaryBehaviorComparisonEvidence.CanonicalizeBody(
+                """{"other":{"lastActivityAtUtc":"2026-11-10T22:00:00Z"}}"""));
+    }
+
+    [Fact]
     public void Embedded_generated_material_outside_the_path_allowlist_fails_closed()
     {
         InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>

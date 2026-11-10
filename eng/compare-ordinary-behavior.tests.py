@@ -22,6 +22,29 @@ def document(variant):
                              for index, name in enumerate(comparison.OPERATION_IDS, 1)]}
 
 
+def session_document(variant, metadata=False):
+    value = document(variant)
+    value['normalizationPathAllowlist']['timestampPaths'] = ['$.sessions[].loginDateTimeUtc']
+    sessions = [dict(sessionId='<generated-id>', authenticationMethod='password',
+                     isCurrent=current, loginDateTimeUtc='<timestamp>') for current in (True, False)]
+    if metadata:
+        value['normalizationPathAllowlist']['timestampPaths'].insert(0, comparison.SESSION_ACTIVITY_PATH)
+        for session in sessions:
+            session.update(lastActivityAtUtc='<timestamp>', userAgent=None)
+    observation = value['observations'][12]
+    observation.update(method='GET', path='/api/auth/sessions', fixture='primary-account', state='two-active-sessions')
+    set_sessions(observation, sessions)
+    return value
+
+
+def set_sessions(observation, sessions):
+    # Match the producer's ordered canonical JSON and HTML-safe placeholders.
+    observation['canonicalBody'] = json.dumps({'sessions': sessions}, sort_keys=True, separators=(',', ':')).replace('<', '\\u003C').replace('>', '\\u003E')
+    kind = lambda value: 'null' if value is None else 'boolean' if type(value) is bool else 'string'
+    observation['bodySchema'] = sorted(['$.sessions:array', '$.sessions[]:array'] +
+                                      [f'$.sessions[].{key}:{kind(value)}' for key, value in sessions[0].items()])
+
+
 class OrdinaryComparisonSafetyTests(unittest.TestCase):
     def compare(self, control, candidate):
         return comparison.compare(control, candidate, 'control-source', 'candidate-source')
@@ -66,6 +89,58 @@ class OrdinaryComparisonSafetyTests(unittest.TestCase):
     def test_duplicate_json_fields_are_rejected(self):
         with self.assertRaises(ValueError):
             json.loads('{"variant":"control","variant":"candidate"}', object_pairs_hook=comparison.unique_object)
+
+    def test_records_exact_session_metadata_extension_without_mutating_raw_evidence(self):
+        control, candidate = session_document('control'), session_document('candidate', metadata=True)
+        original = copy.deepcopy(candidate)
+        result = self.compare(control, candidate)
+        self.assertTrue(result['passed'])
+        self.assertEqual(comparison.SESSION_METADATA_CHANGE, result['approvedAdditions'][0]['id'])
+        self.assertEqual(['lastActivityAtUtc', 'userAgent'], result['approvedAdditions'][0]['fields'])
+        self.assertEqual(original, candidate)
+
+    def test_existing_session_fields_and_all_other_observations_stay_exact(self):
+        for mode in ('method', 'current', 'order', 'extra', 'header', 'runtime', 'another-operation'):
+            candidate = session_document('candidate', metadata=True)
+            observation = candidate['observations'][12]
+            sessions = json.loads(observation['canonicalBody'])['sessions']
+            if mode == 'method': sessions[0]['authenticationMethod'] = 'changed'
+            elif mode == 'current': sessions[0]['isCurrent'] = False
+            elif mode == 'order': sessions.reverse()
+            elif mode == 'extra': sessions[0]['unreviewedField'] = 'unexpected'
+            elif mode == 'header': observation['headers']['cache-control'] = ['public']
+            elif mode == 'runtime': observation['runtime']['handlerKind'] = 'changed'
+            else: candidate['observations'][0]['canonicalBody'] = observation['canonicalBody']
+            set_sessions(observation, sessions)
+            with self.subTest(mode=mode):
+                self.assertFalse(self.compare(session_document('control'), candidate)['passed'])
+
+    def test_missing_malformed_or_unexpected_new_metadata_is_not_accepted(self):
+        for mode in ('missing-activity', 'missing-agent', 'unknown-activity', 'bad-activity', 'agent-present', 'schema', 'allowlist'):
+            candidate = session_document('candidate', metadata=True)
+            observation = candidate['observations'][12]
+            sessions = json.loads(observation['canonicalBody'])['sessions']
+            if mode == 'missing-activity': sessions[0].pop('lastActivityAtUtc')
+            elif mode == 'missing-agent': sessions[0].pop('userAgent')
+            elif mode == 'unknown-activity': sessions[0]['lastActivityAtUtc'] = None
+            elif mode == 'bad-activity': sessions[0]['lastActivityAtUtc'] = 'invalid'
+            elif mode == 'agent-present': sessions[0]['userAgent'] = 'unexpected browser'
+            set_sessions(observation, sessions)
+            if mode == 'schema': observation['bodySchema'].remove('$.sessions[].userAgent:null')
+            if mode == 'allowlist': candidate['normalizationPathAllowlist']['timestampPaths'].append('$.*')
+            with self.subTest(mode=mode):
+                self.assertFalse(self.compare(session_document('control'), candidate)['passed'])
+
+    def test_metadata_is_compared_exactly_once_the_control_already_has_it(self):
+        control = session_document('control', metadata=True)
+        candidate = session_document('candidate', metadata=True)
+        result = self.compare(control, candidate)
+        self.assertTrue(result['passed'])
+        self.assertEqual([], result['approvedAdditions'])
+        sessions = json.loads(candidate['observations'][12]['canonicalBody'])['sessions']
+        sessions[0]['userAgent'] = 'different'
+        set_sessions(candidate['observations'][12], sessions)
+        self.assertFalse(self.compare(control, candidate)['passed'])
 
 
 if __name__ == '__main__':
