@@ -13,7 +13,7 @@ RUN --mount=type=cache,id=bunkfy-nuget,target=/root/.nuget/packages \
     && dotnet publish src/BunkFy.AdapterHost/BunkFy.AdapterHost.csproj -c Release -o /out/adapter-host --nologo \
     && dotnet publish src/BunkFy.Host.Migrations/BunkFy.Host.Migrations.csproj -c Release -o /out/migrations --nologo
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0.14@sha256:de0ee358cdd672f7017a003bed21e9ac9ed48a27c922a59b18175b6e82fa7fee AS runtime-base
+FROM mcr.microsoft.com/dotnet/aspnet:11.0.0@sha256:bc0d6653979efba491ab3d6f589d691f96c309c3c3ef81325efa6978e7b7f242 AS runtime-base
 RUN apt-get -o Acquire::Retries=0 update \
     && apt-get -o Acquire::Retries=0 install -y --no-install-recommends \
         apt=2.8.4ubuntu0.1 libapt-pkg6.0t64=2.8.4ubuntu0.1 curl \
